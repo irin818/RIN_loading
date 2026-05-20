@@ -11,6 +11,7 @@ This note records tools and projects that can reduce friction when creating and 
 - Current npm state has no PixiJS or Live2D runtime dependency installed.
 - Homebrew has no Live2D/Cubism cask available by `brew search --cask live2d cubism`.
 - Official Cubism Editor download requires the website flow: platform selection, individual/enterprise choice, email input, and consent to Live2D's software license and privacy policy.
+- The RIN repository now has a reproducible interim asset pipeline: `npm run live2d:assets` uses `scripts/live2d/generate-rin-assets.ts` to crop runtime assets from `live2d-development/photo` into `public/live2d/rin`.
 
 ## Recommended Stack
 

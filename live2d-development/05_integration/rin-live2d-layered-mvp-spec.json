@@ -3,6 +3,7 @@
   "modelId": "rin-live2d-layered-mvp-v1",
   "displayName": "RIN Live2D Layered MVP V1",
   "implementation": {
+    "runtime": "src/live2d/rinRuntime.ts",
     "adapter": "src/body/rinLive2dAdapter.ts",
     "renderer": "src/ui/RinLive2DModel.tsx",
     "styles": "src/ui/styles.css",
@@ -12,6 +13,9 @@
   "assetInputs": {
     "sourceFolder": "live2d-development/photo",
     "runtimeAssetFolder": "public/live2d/rin",
+    "generationScript": "scripts/live2d/generate-rin-assets.ts",
+    "generationCommand": "npm run live2d:assets",
+    "runtimeManifest": "public/live2d/rin/rin-runtime-manifest.json",
     "primaryBust": "public/live2d/rin/rin-bust-front.png",
     "tailLayer": "public/live2d/rin/rin-tail-large.png",
     "fullBodyReference": "public/live2d/rin/rin-front-fullbody.png"
@@ -80,6 +84,8 @@
     "previewQueryParameter": "/body?expression=happy",
     "unitTested": true,
     "assetBasedVisualUpgrade": true,
+    "reproducibleAssetGenerator": true,
+    "runtimeManifestAdded": true,
     "cubismAuthoringBlockedByMissingLocalEditor": true,
     "requiresLayeredPsdForTrueMoc3": true
   }

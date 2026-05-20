@@ -215,12 +215,67 @@ h1 {
   left: 57.1%;
 }
 
+.rin-live2d-expression-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.rin-live2d-expression-path {
+  opacity: 0;
+  fill: none;
+  stroke: #5f3335;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.2;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+  vector-effect: non-scaling-stroke;
+}
+
+.rin-live2d-expression-fill {
+  opacity: 0;
+  fill: #6f2f34;
+  stroke: #231417;
+  stroke-width: 1.8;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+  vector-effect: non-scaling-stroke;
+}
+
+.rin-live2d-eye-smile,
+.rin-live2d-eye-sleep {
+  stroke-width: 2.8;
+}
+
+.rin-live2d-brow-warning-left,
+.rin-live2d-brow-warning-right,
+.rin-live2d-brow-confused-left,
+.rin-live2d-brow-confused-right {
+  stroke-width: 5;
+}
+
 .rin-live2d[data-expression="happy"] .rin-live2d-fullbody,
 .rin-live2d[data-expression="slight-smile"] .rin-live2d-fullbody {
   filter:
     saturate(1.08)
     brightness(1.04)
     drop-shadow(0 22px 28px rgba(8, 17, 13, 0.34));
+}
+
+.rin-live2d[data-expression="happy"] .rin-live2d-mouth-smile,
+.rin-live2d[data-expression="slight-smile"] .rin-live2d-mouth-smile {
+  opacity: 0.58;
+}
+
+.rin-live2d[data-expression="happy"] .rin-live2d-eye-smile {
+  opacity: 0;
 }
 
 .rin-live2d[data-expression="warning"] .rin-live2d-fullbody,
@@ -237,12 +292,41 @@ h1 {
   filter: blur(6px) drop-shadow(0 0 8px rgba(0, 255, 163, 0.82));
 }
 
+.rin-live2d[data-expression="warning"] .rin-live2d-mouth-frown,
+.rin-live2d[data-expression="dissatisfied"] .rin-live2d-mouth-frown {
+  opacity: 0.5;
+}
+
 .rin-live2d[data-expression="sleepy"] .rin-live2d-fullbody,
 .rin-live2d[data-expression="dissatisfied"] .rin-live2d-fullbody {
   filter:
     saturate(0.88)
     brightness(0.94)
     drop-shadow(0 22px 28px rgba(8, 17, 13, 0.34));
+}
+
+.rin-live2d[data-expression="sleepy"] .rin-live2d-eye-sleep,
+.rin-live2d[data-expression="dissatisfied"] .rin-live2d-eye-sleep {
+  opacity: 0;
+}
+
+.rin-live2d[data-expression="sleepy"] .rin-live2d-mouth-frown,
+.rin-live2d[data-expression="dissatisfied"] .rin-live2d-mouth-frown {
+  opacity: 0.46;
+  transform: translateY(2px);
+}
+
+.rin-live2d[data-expression="confused"] .rin-live2d-mouth-open {
+  opacity: 0.7;
+  transform: scale(0.86);
+  transform-origin: 50% 48%;
+}
+
+.rin-live2d[data-expression="confused"] .rin-live2d-brow-confused-left,
+.rin-live2d[data-expression="confused"] .rin-live2d-brow-confused-right,
+.rin-live2d[data-expression="thinking"] .rin-live2d-brow-confused-left,
+.rin-live2d[data-expression="thinking"] .rin-live2d-brow-confused-right {
+  opacity: 0;
 }
 
 .rin-live2d[data-motion="focused-still"] .rin-live2d-art-stage {

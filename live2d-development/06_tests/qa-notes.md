@@ -24,12 +24,14 @@ Saved screenshots:
 
 ## Checks
 
+- [x] `npm run live2d:assets` regenerates runtime PNG assets and manifest.
 - [x] Model renders nonblank in Chrome.
 - [x] Model is centered in `/body`.
 - [x] Model uses high-fidelity cropped assets from `live2d-development/photo`.
 - [x] Fox ears, emerald eyes, forehead AI mark, black/green outfit, pendant, fox mask, front charms, and tail are visible.
 - [x] Body shell accessibility label reports adapter `rin-live2d-layered-mvp-v1`.
 - [x] Expression preview query changes visible face state.
+- [x] Expression preview query maps expected motions: listening `attentive-sway`, happy `soft-sway`, warning `focused-still`, sleepy `sleepy-breathing`.
 - [x] No obvious text overlap in `/body`.
 - [x] Drag/click target remains the body shell actor.
 - [x] `npm run typecheck` passes.

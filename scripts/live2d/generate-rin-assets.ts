@@ -1,0 +1,298 @@
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { PNG } from "pngjs";
+
+type CropBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type AssetRecipe = {
+  id: string;
+  source: string;
+  output: string;
+  crop: CropBox;
+  transparentBoardBackground?: boolean;
+  trimPadding: number;
+};
+
+type GeneratedAsset = {
+  id: string;
+  path: string;
+  width: number;
+  height: number;
+  source: string;
+  crop: CropBox;
+};
+
+const projectRoot = process.cwd();
+const sourceRoot = join(projectRoot, "live2d-development/photo");
+const outputRoot = join(projectRoot, "public/live2d/rin");
+
+const recipes: AssetRecipe[] = [
+  {
+    id: "bustFront",
+    source: "image4.png",
+    output: "rin-bust-front.png",
+    crop: { x: 180, y: 34, width: 340, height: 498 },
+    transparentBoardBackground: true,
+    trimPadding: 8,
+  },
+  {
+    id: "frontFullBody",
+    source: "image3.png",
+    output: "rin-front-fullbody.png",
+    crop: { x: 42, y: 0, width: 533, height: 1016 },
+    trimPadding: 10,
+  },
+  {
+    id: "frontBodyNoTail",
+    source: "image3.png",
+    output: "rin-front-body-no-tail.png",
+    crop: { x: 42, y: 0, width: 396, height: 1016 },
+    trimPadding: 10,
+  },
+  {
+    id: "tailLarge",
+    source: "image3.png",
+    output: "rin-tail-large.png",
+    crop: { x: 1300, y: 455, width: 236, height: 485 },
+    trimPadding: 8,
+  },
+  {
+    id: "foxMask",
+    source: "image3.png",
+    output: "rin-fox-mask.png",
+    crop: { x: 1065, y: 330, width: 220, height: 305 },
+    trimPadding: 10,
+  },
+  {
+    id: "ponytail",
+    source: "image3.png",
+    output: "rin-ponytail.png",
+    crop: { x: 925, y: 20, width: 290, height: 290 },
+    trimPadding: 10,
+  },
+  {
+    id: "earPair",
+    source: "image3.png",
+    output: "rin-ear-pair.png",
+    crop: { x: 585, y: 35, width: 205, height: 136 },
+    trimPadding: 10,
+  },
+  {
+    id: "eyesDetail",
+    source: "image3.png",
+    output: "rin-eyes-detail.png",
+    crop: { x: 588, y: 185, width: 240, height: 110 },
+    trimPadding: 10,
+  },
+  {
+    id: "mouthSet",
+    source: "image3.png",
+    output: "rin-mouth-set.png",
+    crop: { x: 588, y: 300, width: 432, height: 190 },
+    trimPadding: 10,
+  },
+];
+
+async function main() {
+  await mkdir(outputRoot, { recursive: true });
+
+  const generatedAssets: GeneratedAsset[] = [];
+
+  for (const recipe of recipes) {
+    const sourcePath = join(sourceRoot, recipe.source);
+    const source = PNG.sync.read(await readFile(sourcePath));
+    let asset = cropPng(source, recipe.crop);
+
+    if (recipe.transparentBoardBackground) {
+      removeConnectedBoardBackground(asset);
+    }
+
+    asset = trimTransparentBounds(asset, recipe.trimPadding);
+    const outputPath = join(outputRoot, recipe.output);
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, PNG.sync.write(asset));
+
+    generatedAssets.push({
+      id: recipe.id,
+      path: `/live2d/rin/${recipe.output}`,
+      width: asset.width,
+      height: asset.height,
+      source: `live2d-development/photo/${recipe.source}`,
+      crop: recipe.crop,
+    });
+  }
+
+  const manifest = {
+    schemaVersion: 1,
+    id: "rin-live2d-asset-runtime-v1",
+    generatedAt: "deterministic",
+    generatedBy: "npm run live2d:assets",
+    sourceFolder: "live2d-development/photo",
+    runtimeFolder: "public/live2d/rin",
+    assets: Object.fromEntries(generatedAssets.map((asset) => [asset.id, asset])),
+    expressions: [
+      "neutral",
+      "listening",
+      "focused",
+      "thinking",
+      "happy",
+      "warning",
+      "sleepy",
+      "confused",
+      "slight-smile",
+      "dissatisfied",
+    ],
+    motions: [
+      "idle-breathing",
+      "attentive-sway",
+      "focused-still",
+      "sleepy-breathing",
+      "soft-sway",
+    ],
+    cubismExport: {
+      available: false,
+      reason:
+        "Runtime assets are cropped PNG layers. A true .moc3/.model3.json export still requires a layered PSD and Live2D Cubism Editor.",
+    },
+  };
+
+  await writeFile(
+    join(outputRoot, "rin-runtime-manifest.json"),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+  );
+
+  for (const asset of generatedAssets) {
+    console.log(`${asset.id}: ${asset.path} ${asset.width}x${asset.height}`);
+  }
+}
+
+function cropPng(source: PNG, crop: CropBox): PNG {
+  const output = new PNG({ width: crop.width, height: crop.height });
+
+  for (let y = 0; y < crop.height; y += 1) {
+    for (let x = 0; x < crop.width; x += 1) {
+      const sourceX = crop.x + x;
+      const sourceY = crop.y + y;
+      const outputIndex = (y * crop.width + x) * 4;
+
+      if (
+        sourceX < 0 ||
+        sourceX >= source.width ||
+        sourceY < 0 ||
+        sourceY >= source.height
+      ) {
+        output.data[outputIndex + 3] = 0;
+        continue;
+      }
+
+      const sourceIndex = (sourceY * source.width + sourceX) * 4;
+      output.data[outputIndex] = source.data[sourceIndex];
+      output.data[outputIndex + 1] = source.data[sourceIndex + 1];
+      output.data[outputIndex + 2] = source.data[sourceIndex + 2];
+      output.data[outputIndex + 3] = source.data[sourceIndex + 3];
+    }
+  }
+
+  return output;
+}
+
+function removeConnectedBoardBackground(png: PNG) {
+  const queue: Array<[number, number]> = [];
+  const seen = new Uint8Array(png.width * png.height);
+
+  for (let x = 0; x < png.width; x += 1) {
+    queue.push([x, 0], [x, png.height - 1]);
+  }
+
+  for (let y = 0; y < png.height; y += 1) {
+    queue.push([0, y], [png.width - 1, y]);
+  }
+
+  while (queue.length > 0) {
+    const next = queue.pop();
+
+    if (next === undefined) {
+      continue;
+    }
+
+    const [x, y] = next;
+
+    if (x < 0 || x >= png.width || y < 0 || y >= png.height) {
+      continue;
+    }
+
+    const seenIndex = y * png.width + x;
+
+    if (seen[seenIndex] === 1) {
+      continue;
+    }
+
+    seen[seenIndex] = 1;
+
+    const dataIndex = seenIndex * 4;
+
+    if (!isLightBoardBackground(png.data, dataIndex)) {
+      continue;
+    }
+
+    png.data[dataIndex + 3] = 0;
+    queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+  }
+}
+
+function isLightBoardBackground(data: Buffer, index: number): boolean {
+  const alpha = data[index + 3];
+
+  if (alpha === 0) {
+    return true;
+  }
+
+  const red = data[index];
+  const green = data[index + 1];
+  const blue = data[index + 2];
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+
+  return red > 218 && green > 222 && blue > 222 && max - min < 30;
+}
+
+function trimTransparentBounds(source: PNG, padding: number): PNG {
+  let minX = source.width;
+  let minY = source.height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < source.height; y += 1) {
+    for (let x = 0; x < source.width; x += 1) {
+      const alpha = source.data[(y * source.width + x) * 4 + 3];
+
+      if (alpha === 0) {
+        continue;
+      }
+
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+
+  if (maxX < minX || maxY < minY) {
+    return source;
+  }
+
+  return cropPng(source, {
+    x: Math.max(minX - padding, 0),
+    y: Math.max(minY - padding, 0),
+    width: Math.min(maxX + padding + 1, source.width) - Math.max(minX - padding, 0),
+    height:
+      Math.min(maxY + padding + 1, source.height) - Math.max(minY - padding, 0),
+  });
+}
+
+await main();

@@ -53,6 +53,9 @@ Date: 2026-05-20
 
 - [x] Add React asset-layered Live2D MVP without external runtime dependency.
 - [x] Replace SVG draft model with high-fidelity cropped assets from `live2d-development/photo`.
+- [x] Add reproducible runtime asset generator.
+- [x] Add runtime asset manifest.
+- [x] Move Live2D expression/motion vocabulary into `src/live2d/`.
 - [x] Add `live2d` body adapter.
 - [x] Add React Live2D renderer component.
 - [x] Map RIN body state to expression and motion.
