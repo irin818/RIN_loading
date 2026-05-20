@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "modelId": "rin-live2d-layered-mvp-v1",
+  "displayName": "RIN Live2D Layered MVP V1",
+  "implementation": {
+    "adapter": "src/body/rinLive2dAdapter.ts",
+    "renderer": "src/ui/RinLive2DModel.tsx",
+    "styles": "src/ui/styles.css",
+    "runtimeType": "react-asset-layered-rig",
+    "cubismExport": false
+  },
+  "assetInputs": {
+    "sourceFolder": "live2d-development/photo",
+    "runtimeAssetFolder": "public/live2d/rin",
+    "primaryBust": "public/live2d/rin/rin-bust-front.png",
+    "tailLayer": "public/live2d/rin/rin-tail-large.png",
+    "fullBodyReference": "public/live2d/rin/rin-front-fullbody.png"
+  },
+  "visualRequirements": {
+    "reference": "RIN black and emerald fox / AI design boards from chat",
+    "signals": [
+      "black hair with emerald accents",
+      "large fox ears with white inner fur",
+      "forehead AI mark",
+      "green eyes",
+      "black and emerald hoodie",
+      "choker and pendant",
+      "front talisman charms",
+      "white fox mask accessory",
+      "black tail with emerald tip"
+    ]
+  },
+  "expressions": [
+    "neutral",
+    "listening",
+    "focused",
+    "thinking",
+    "happy",
+    "warning",
+    "sleepy",
+    "confused",
+    "slight-smile",
+    "dissatisfied"
+  ],
+  "motions": [
+    "idle-breathing",
+    "attentive-sway",
+    "focused-still",
+    "sleepy-breathing",
+    "soft-sway"
+  ],
+  "parameters": {
+    "standardLive2DIdsPlanned": [
+      "ParamAngleX",
+      "ParamAngleY",
+      "ParamAngleZ",
+      "ParamEyeLOpen",
+      "ParamEyeROpen",
+      "ParamEyeBallX",
+      "ParamEyeBallY",
+      "ParamMouthOpenY",
+      "ParamMouthForm",
+      "ParamBodyAngleX",
+      "ParamBodyAngleY",
+      "ParamBodyAngleZ",
+      "ParamBreath"
+    ],
+    "prototypeStateInputs": [
+      "expression",
+      "motion",
+      "mouthSync",
+      "attention",
+      "energy",
+      "mood"
+    ]
+  },
+  "status": {
+    "rinRuntimeIntegrated": true,
+    "bodyShellIntegrated": true,
+    "previewQueryParameter": "/body?expression=happy",
+    "unitTested": true,
+    "assetBasedVisualUpgrade": true,
+    "cubismAuthoringBlockedByMissingLocalEditor": true,
+    "requiresLayeredPsdForTrueMoc3": true
+  }
+}
