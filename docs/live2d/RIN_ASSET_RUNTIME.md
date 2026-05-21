@@ -25,6 +25,8 @@ Browser-served assets:
 Development source references:
 
 - `live2d-development/photo/`
+- `live2d-development/01_source_art/rin-layered-source.psd`
+- `live2d-development/02_layered_assets/rin-cubism-source-layers/`
 
 ## Asset Generation
 
@@ -43,6 +45,23 @@ white board background where needed, and writes:
 
 The generated manifest intentionally uses a deterministic `generatedAt` value so
 re-running the script does not create timestamp-only diffs.
+
+Generate the Cubism handoff source bundle with:
+
+```sh
+npm run live2d:source
+```
+
+This command regenerates runtime assets, writes a layered PSD handoff file, and
+then verifies that the PSD can be read back with the expected groups and bitmap
+layers.
+
+Generated source-art outputs:
+
+- `live2d-development/01_source_art/rin-layered-source.psd`
+- `live2d-development/01_source_art/rin-layered-source-manifest.json`
+- `live2d-development/02_layered_assets/rin-cubism-source-layers/*.png`
+- `live2d-development/02_layered_assets/rin-cubism-source-layers/composite_preview.png`
 
 ## Runtime Asset Manifest
 
@@ -114,4 +133,7 @@ http://127.0.0.1:5173/body?expression=sleepy
   files, expression files, or a `.moc3`.
 - Current expression changes use RIN-side overlays and filters, not true Cubism
   parameter deformation.
-- A production Cubism model requires a layered PSD and Live2D Cubism Editor.
+- The generated PSD is a Cubism handoff/source organization file, not a final
+  production PSD. The bust still needs manual part separation and redraw work.
+- A production Cubism model requires the cleaned layered PSD and Live2D Cubism
+  Editor.

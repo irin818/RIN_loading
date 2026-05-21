@@ -21,10 +21,12 @@ Saved screenshots:
 - `rin-live2d-happy.png`
 - `rin-live2d-warning.png`
 - `rin-live2d-sleepy.png`
+- `rin-live2d-mobile-happy.png`
 
 ## Checks
 
 - [x] `npm run live2d:assets` regenerates runtime PNG assets and manifest.
+- [x] `npm run live2d:source` regenerates runtime assets, source PSD handoff, layer PNGs, and verifies PSD structure.
 - [x] Model renders nonblank in Chrome.
 - [x] Model is centered in `/body`.
 - [x] Model uses high-fidelity cropped assets from `live2d-development/photo`.
@@ -33,6 +35,7 @@ Saved screenshots:
 - [x] Expression preview query changes visible face state.
 - [x] Expression preview query maps expected motions: listening `attentive-sway`, happy `soft-sway`, warning `focused-still`, sleepy `sleepy-breathing`.
 - [x] No obvious text overlap in `/body`.
+- [x] Mobile/narrow viewport renders the happy body preview without clipping the core body.
 - [x] Drag/click target remains the body shell actor.
 - [x] `npm run typecheck` passes.
 - [x] `npm run test` passes.
@@ -41,4 +44,4 @@ Saved screenshots:
 
 ## Known Limit
 
-This QA validates the RIN-integrated asset-layered Live2D MVP. It does not validate a Cubism `.moc3` export because Live2D Cubism Editor is not installed locally and no layered PSD source file has been provided yet.
+This QA validates the RIN-integrated asset-layered Live2D MVP and the generated source PSD handoff structure. It does not validate a Cubism `.moc3` export because Live2D Cubism Editor is not installed locally and the generated PSD still requires manual production layer separation.

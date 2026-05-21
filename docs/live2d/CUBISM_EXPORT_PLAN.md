@@ -16,8 +16,9 @@ Convert the current RIN Live2D visual design into a real Cubism runtime export:
 
 ## Current Blocker
 
-Live2D Cubism Editor is not installed locally, and the repository does not yet
-contain a production layered PSD.
+Live2D Cubism Editor is not installed locally. The repository now contains an
+interim generated PSD handoff file, but it is not yet a production ArtMesh-ready
+layered PSD.
 
 Homebrew search did not find a Cubism cask. The official Cubism Editor download
 flow requires platform selection, usage category, email, and acceptance of
@@ -33,7 +34,24 @@ Official references:
 
 ## Required Source PSD
 
-The production PSD should be stored under:
+Current generated source handoff:
+
+```text
+live2d-development/01_source_art/rin-layered-source.psd
+live2d-development/01_source_art/rin-layered-source-manifest.json
+live2d-development/02_layered_assets/rin-cubism-source-layers/
+```
+
+Regenerate and verify it with:
+
+```sh
+npm run live2d:source
+```
+
+The generated PSD organizes the current cutouts into visible composite layers,
+hidden face/accessory guides, and hidden full-body references. It is a useful
+handoff file, but the final production PSD should still be cleaned and split
+under:
 
 ```text
 live2d-development/01_source_art/

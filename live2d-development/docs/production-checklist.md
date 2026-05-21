@@ -13,9 +13,13 @@ Date: 2026-05-20
 
 ## Phase 1 - Source Art
 
-- [ ] Obtain or create layered PSD.
-- [ ] Confirm PSD is RGB, 8 bit/channel, sRGB.
-- [ ] Ensure every import layer has a unique stable name.
+- [x] Generate interim PSD handoff from current cutout assets.
+- [x] Verify interim PSD can be read back with expected groups/layers.
+- [x] Confirm interim PSD is RGB, 8 bit/channel.
+- [x] Ensure interim PSD layer names are unique.
+- [ ] Obtain or create final production layered PSD.
+- [ ] Confirm production PSD is RGB, 8 bit/channel, sRGB.
+- [ ] Ensure every production import layer has a unique stable name.
 - [ ] Merge line/fill/clipping layers per import ArtMesh.
 - [ ] Remove import-blocking layer masks.
 - [ ] Separate core face layers.
@@ -55,6 +59,7 @@ Date: 2026-05-20
 - [x] Replace SVG draft model with high-fidelity cropped assets from `live2d-development/photo`.
 - [x] Add reproducible runtime asset generator.
 - [x] Add runtime asset manifest.
+- [x] Add reproducible source PSD handoff generator.
 - [x] Move Live2D expression/motion vocabulary into `src/live2d/`.
 - [x] Add `live2d` body adapter.
 - [x] Add React Live2D renderer component.
@@ -66,14 +71,15 @@ Date: 2026-05-20
 
 Note:
 
-- A true Cubism `.moc3` export still requires Live2D Cubism Editor and layered PSD/source art. The current integrated MVP is a RIN runtime-ready layered SVG rig that follows the Live2D parameter and expression plan.
+- The generated `rin-layered-source.psd` is an interim handoff file. It organizes current cutouts for Cubism preparation but still requires manual part separation before real ArtMesh authoring.
+- The current integrated MVP is a RIN runtime-ready asset-layered PNG rig that follows the Live2D parameter and expression plan.
+- A true Cubism `.moc3` export still requires Live2D Cubism Editor and final cleaned layered PSD/source art.
 
 ## Phase 5 - QA
 
-- [ ] Desktop viewport visual check.
 - [x] Desktop viewport visual check.
-- [ ] Mobile/narrow viewport visual check if needed.
-- [ ] Confirm no text/UI overlap around the body shell.
+- [x] Mobile/narrow viewport visual check if needed.
+- [x] Confirm no text/UI overlap around the body shell.
 - [ ] Confirm drag behavior still works.
 - [ ] Confirm idle animation is not visually noisy.
 - [ ] Confirm expressions preserve RIN personality.

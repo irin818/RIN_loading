@@ -48,14 +48,14 @@
     "tailLarge": {
       "id": "tailLarge",
       "path": "/live2d/rin/rin-tail-large.png",
-      "width": 236,
-      "height": 456,
+      "width": 333,
+      "height": 538,
       "source": "live2d-development/photo/image3.png",
       "crop": {
-        "x": 1300,
-        "y": 455,
-        "width": 236,
-        "height": 485
+        "x": 1203,
+        "y": 420,
+        "width": 333,
+        "height": 540
       }
     },
     "foxMask": {

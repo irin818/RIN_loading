@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "id": "rin-cubism-source-psd-v1",
+  "generatedAt": "deterministic",
+  "generatedBy": "npm run live2d:source-psd",
+  "sourceRuntimeFolder": "public/live2d/rin",
+  "psdPath": "live2d-development/01_source_art/rin-layered-source.psd",
+  "manifestPath": "live2d-development/01_source_art/rin-layered-source-manifest.json",
+  "layerFolder": "live2d-development/02_layered_assets/rin-cubism-source-layers",
+  "compositePreview": "live2d-development/02_layered_assets/rin-cubism-source-layers/composite_preview.png",
+  "canvas": {
+    "width": 900,
+    "height": 1120
+  },
+  "layerOrder": "PSD children are written top-to-bottom.",
+  "groups": [
+    "10_FACE_GUIDES__hidden",
+    "20_ACCESSORY_GUIDES__hidden",
+    "30_MODEL_COMPOSITE__visible",
+    "90_FULLBODY_REFERENCES__hidden"
+  ],
+  "layers": [
+    {
+      "id": "mouthSetGuide",
+      "name": "GUIDE_mouth_set__split_into_mouth_parts",
+      "group": "face-guides",
+      "source": "public/live2d/rin/rin-mouth-set.png",
+      "output": "live2d-development/02_layered_assets/rin-cubism-source-layers/guide_mouth_set.png",
+      "left": 42,
+      "top": 410,
+      "width": 432,
+      "height": 190,
+      "hidden": true,
+      "cubismUse": "Reference only. Split into mouth line, inner mouth, teeth, tongue, and open/closed shapes for the production PSD."
+    },
+    {
+      "id": "eyesDetailGuide",
+      "name": "GUIDE_eyes_detail__split_left_right",
+      "group": "face-guides",
+      "source": "public/live2d/rin/rin-eyes-detail.png",
+      "output": "live2d-development/02_layered_assets/rin-cubism-source-layers/guide_eyes_detail.png",
+      "left": 42,
+      "top": 270,
+      "width": 240,
+      "height": 110,
+      "hidden": true,
+      "cubismUse": "Reference only. Split into left/right eye whites, irises, pupils, highlights, upper lashes, lower lashes, and brows."
+    },
+    {
+      "id": "earPairGuide",
+      "name": "GUIDE_ear_pair__split_left_right",
+      "group": "face-guides",
+      "source": "public/live2d/rin/rin-ear-pair.png",
+      "output": "live2d-development/02_layered_assets/rin-cubism-source-layers/guide_ear_pair.png",
+      "left": 42,
+      "top": 110,
+      "width": 205,
+      "height": 136,
+      "hidden": true,
+      "cubismUse": "Reference only. Split into left/right outer ears and inner fur layers before Cubism mesh work."
+    },
+    {
+      "id": "foxMaskGuide",
+      "name": "GUIDE_fox_mask__accessory_reference",
+      "group": "accessory-guides",
+      "source": "public/live2d/rin/rin-fox-mask.png",
+      "output": "live2d-development/02_layered_assets/rin-cubism-source-layers/guide_fox_mask.png",
+      "left": 630,
+      "top": 430,
+      "width": 220,
+      "height": 305,
+      "hidden": true,
+      "cubismUse": "Accessory reference. Use as a separate fox mask ArtMesh once the production body PSD is split."
+    },
+    {
+      "id": "ponytailGuide",
+      "name": "GUIDE_ponytail__hair_reference",
+      "group": "accessory-guides",
+      "source": "public/live2d/rin/rin-ponytail.png",
+      "output": "live2d-development/02_layered_assets/rin-cubism-source-layers/guide_ponytail.png",
+      "left": 570,
+      "top": 90,
+      "width": 290,
+      "height": 290,
+      "hidden": true,
+      "cubismUse": "Hair reference. Use as ponytail source for sway deformers after manual layer cleanup."
+    },
+    {
+      "id": "bustFront",
+      "name": "RIN_bust_front__composite_placeholder",
+      "group": "composite",
+      "source": "public/live2d/rin/rin-bust-front.png",
+      "output": "live2d-development/02_layered_assets/rin-cubism-source-layers/rin_bust_front_composite.png",
+      "left": 287,
+      "top": 145,
+      "width": 326,
+      "height": 498,
+      "hidden": false,
+      "cubismUse": "Visible interim body layer. Replace with split head, face, hair, clothes, hands, and accessory layers for final Cubism authoring."
+    },
+    {
+      "id": "tailBack",
+      "name": "RIN_tail_back__artmesh_source",
+      "group": "composite",
+      "source": "public/live2d/rin/rin-tail-large.png",
+      "output": "live2d-development/02_layered_assets/rin-cubism-source-layers/rin_tail_back.png",
+      "left": 500,
+      "top": 365,
+      "width": 333,
+      "height": 538,
+      "hidden": false,
+      "cubismUse": "Visible interim tail layer. Split base fur and emerald tip before final tail physics setup."
+    },
+    {
+      "id": "frontBodyNoTailReference",
+      "name": "REF_front_body_no_tail__hidden",
+      "group": "references",
+      "source": "public/live2d/rin/rin-front-body-no-tail.png",
+      "output": "live2d-development/02_layered_assets/rin-cubism-source-layers/ref_front_body_no_tail.png",
+      "left": 252,
+      "top": 50,
+      "width": 396,
+      "height": 1016,
+      "hidden": true,
+      "cubismUse": "Hidden full-body reference without tail for manual redraw and layer alignment."
+    },
+    {
+      "id": "frontFullBodyReference",
+      "name": "REF_front_fullbody__hidden",
+      "group": "references",
+      "source": "public/live2d/rin/rin-front-fullbody.png",
+      "output": "live2d-development/02_layered_assets/rin-cubism-source-layers/ref_front_fullbody.png",
+      "left": 184,
+      "top": 50,
+      "width": 533,
+      "height": 1016,
+      "hidden": true,
+      "cubismUse": "Hidden full-body reference for proportions, outfit placement, and tail alignment."
+    }
+  ],
+  "cubismReadiness": {
+    "productionReady": false,
+    "reason": "This PSD organizes the current cutout assets for Cubism handoff, but it is not a final ArtMesh-ready PSD. The composite bust still needs manual separation into facial, hair, clothing, and accessory parts.",
+    "requiredManualWork": [
+      "Split bust composite into clean head, face, eye, brow, mouth, hair, clothes, hand, charm, and mask layers.",
+      "Separate left/right paired parts for symmetric parameters.",
+      "Redraw hidden areas needed for head turns and mouth/eye deformation.",
+      "Import the cleaned PSD into Live2D Cubism Editor and build ArtMeshes, deformers, physics, expressions, and motions."
+    ]
+  }
+}

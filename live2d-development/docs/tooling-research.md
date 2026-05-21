@@ -8,10 +8,11 @@ This note records tools and projects that can reduce friction when creating and 
 
 - No Live2D Cubism, Photoshop, CLIP STUDIO PAINT, VTube Studio, Spine, or Inochi2D app was found in `/Applications` or Spotlight.
 - The RIN project is currently React + Vite. The body adapter type already reserves `kind: "live2d"`, so runtime integration can be added without changing the identity/runtime boundary.
-- Current npm state has no PixiJS or Live2D runtime dependency installed.
+- Current npm state has no PixiJS or Live2D runtime dependency installed. It now uses `ag-psd` only as a development-time PSD writer/verifier.
 - Homebrew has no Live2D/Cubism cask available by `brew search --cask live2d cubism`.
 - Official Cubism Editor download requires the website flow: platform selection, individual/enterprise choice, email input, and consent to Live2D's software license and privacy policy.
 - The RIN repository now has a reproducible interim asset pipeline: `npm run live2d:assets` uses `scripts/live2d/generate-rin-assets.ts` to crop runtime assets from `live2d-development/photo` into `public/live2d/rin`.
+- The source handoff pipeline is `npm run live2d:source`, which generates `rin-layered-source.psd`, a source manifest, and normalized layer PNGs before verifying the PSD structure.
 
 ## Recommended Stack
 
@@ -148,7 +149,7 @@ Source:
 1. Receive design image.
 2. Save references under `live2d-development/00_reference/`.
 3. Produce a material separation plan in `live2d-development/docs/`.
-4. Prepare or request layered PSD assets under `live2d-development/01_source_art/`.
+4. Prepare or request final layered PSD assets under `live2d-development/01_source_art/`; use the generated `rin-layered-source.psd` as the current handoff baseline.
 5. Build Cubism project under `live2d-development/03_cubism_project/`.
 6. Export runtime files under `live2d-development/04_exports/`.
 7. Add a RIN `live2d` body adapter under `src/body` and a React renderer under `src/ui`.

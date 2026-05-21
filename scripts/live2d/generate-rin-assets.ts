@@ -15,6 +15,7 @@ type AssetRecipe = {
   output: string;
   crop: CropBox;
   transparentBoardBackground?: boolean;
+  keepLargestAlphaComponent?: boolean;
   trimPadding: number;
 };
 
@@ -58,7 +59,8 @@ const recipes: AssetRecipe[] = [
     id: "tailLarge",
     source: "image3.png",
     output: "rin-tail-large.png",
-    crop: { x: 1300, y: 455, width: 236, height: 485 },
+    crop: { x: 1203, y: 420, width: 333, height: 540 },
+    keepLargestAlphaComponent: true,
     trimPadding: 8,
   },
   {
@@ -110,6 +112,10 @@ async function main() {
 
     if (recipe.transparentBoardBackground) {
       removeConnectedBoardBackground(asset);
+    }
+
+    if (recipe.keepLargestAlphaComponent) {
+      keepLargestAlphaComponent(asset);
     }
 
     asset = trimTransparentBounds(asset, recipe.trimPadding);
@@ -259,6 +265,96 @@ function isLightBoardBackground(data: Buffer, index: number): boolean {
   const min = Math.min(red, green, blue);
 
   return red > 218 && green > 222 && blue > 222 && max - min < 30;
+}
+
+function keepLargestAlphaComponent(png: PNG) {
+  const seen = new Uint8Array(png.width * png.height);
+  const components: Array<{ count: number; pixels: number[] }> = [];
+
+  for (let y = 0; y < png.height; y += 1) {
+    for (let x = 0; x < png.width; x += 1) {
+      const startIndex = y * png.width + x;
+
+      if (seen[startIndex] === 1) {
+        continue;
+      }
+
+      seen[startIndex] = 1;
+
+      if (png.data[startIndex * 4 + 3] === 0) {
+        continue;
+      }
+
+      const pixels: number[] = [];
+      const queue: Array<[number, number]> = [[x, y]];
+
+      while (queue.length > 0) {
+        const next = queue.pop();
+
+        if (next === undefined) {
+          continue;
+        }
+
+        const [currentX, currentY] = next;
+        const currentIndex = currentY * png.width + currentX;
+
+        if (png.data[currentIndex * 4 + 3] === 0) {
+          continue;
+        }
+
+        pixels.push(currentIndex);
+
+        queueAlphaNeighbor(png, seen, queue, currentX + 1, currentY);
+        queueAlphaNeighbor(png, seen, queue, currentX - 1, currentY);
+        queueAlphaNeighbor(png, seen, queue, currentX, currentY + 1);
+        queueAlphaNeighbor(png, seen, queue, currentX, currentY - 1);
+      }
+
+      components.push({ count: pixels.length, pixels });
+    }
+  }
+
+  const largest = components.sort((left, right) => right.count - left.count)[0];
+
+  if (largest === undefined) {
+    return;
+  }
+
+  const kept = new Uint8Array(png.width * png.height);
+
+  for (const pixel of largest.pixels) {
+    kept[pixel] = 1;
+  }
+
+  for (let index = 0; index < kept.length; index += 1) {
+    if (kept[index] === 0) {
+      png.data[index * 4 + 3] = 0;
+    }
+  }
+}
+
+function queueAlphaNeighbor(
+  png: PNG,
+  seen: Uint8Array,
+  queue: Array<[number, number]>,
+  x: number,
+  y: number,
+) {
+  if (x < 0 || x >= png.width || y < 0 || y >= png.height) {
+    return;
+  }
+
+  const index = y * png.width + x;
+
+  if (seen[index] === 1) {
+    return;
+  }
+
+  seen[index] = 1;
+
+  if (png.data[index * 4 + 3] !== 0) {
+    queue.push([x, y]);
+  }
 }
 
 function trimTransparentBounds(source: PNG, padding: number): PNG {
