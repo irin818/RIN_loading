@@ -3,6 +3,7 @@
   "modelId": "rin-live2d-layered-mvp-v1",
   "displayName": "RIN Live2D Layered MVP V1",
   "implementation": {
+    "runtime": "src/live2d/rinRuntime.ts",
     "adapter": "src/body/rinLive2dAdapter.ts",
     "renderer": "src/ui/RinLive2DModel.tsx",
     "styles": "src/ui/styles.css",
@@ -12,6 +13,18 @@
   "assetInputs": {
     "sourceFolder": "live2d-development/photo",
     "runtimeAssetFolder": "public/live2d/rin",
+    "generationScript": "scripts/live2d/generate-rin-assets.ts",
+    "generationCommand": "npm run live2d:assets",
+    "runtimeManifest": "public/live2d/rin/rin-runtime-manifest.json",
+    "assetModel": "public/live2d/rin/rin-asset-model.json",
+    "runtimeVerificationScript": "scripts/live2d/verify-rin-runtime-package.ts",
+    "runtimeVerificationCommand": "npm run live2d:verify-runtime",
+    "sourcePsdGenerationScript": "scripts/live2d/generate-rin-source-psd.ts",
+    "sourcePsdVerificationScript": "scripts/live2d/verify-rin-source-psd.ts",
+    "sourcePsdGenerationCommand": "npm run live2d:source",
+    "sourcePsd": "live2d-development/01_source_art/rin-layered-source.psd",
+    "sourcePsdManifest": "live2d-development/01_source_art/rin-layered-source-manifest.json",
+    "sourceLayerFolder": "live2d-development/02_layered_assets/rin-cubism-source-layers",
     "primaryBust": "public/live2d/rin/rin-bust-front.png",
     "tailLayer": "public/live2d/rin/rin-tail-large.png",
     "fullBodyReference": "public/live2d/rin/rin-front-fullbody.png"
@@ -80,6 +93,12 @@
     "previewQueryParameter": "/body?expression=happy",
     "unitTested": true,
     "assetBasedVisualUpgrade": true,
+    "reproducibleAssetGenerator": true,
+    "runtimeManifestAdded": true,
+    "assetModelPackageAdded": true,
+    "runtimePackageVerified": true,
+    "sourcePsdHandoffGenerated": true,
+    "sourcePsdStructureVerified": true,
     "cubismAuthoringBlockedByMissingLocalEditor": true,
     "requiresLayeredPsdForTrueMoc3": true
   }

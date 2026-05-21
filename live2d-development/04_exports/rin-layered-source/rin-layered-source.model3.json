@@ -1,0 +1,10 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "rin-layered-source.moc3",
+		"Textures": [
+			"rin-layered-source.1024/texture_00.png"
+		],
+		"DisplayInfo": "rin-layered-source.cdi3.json"
+	}
+}

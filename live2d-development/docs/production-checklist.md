@@ -1,6 +1,6 @@
 # RIN Live2D Production Checklist
 
-Date: 2026-05-20
+Date: 2026-05-21
 
 ## Phase 0 - References
 
@@ -9,13 +9,17 @@ Date: 2026-05-20
 - [x] Analyze provided design boards.
 - [ ] Save original reference images into `00_reference/`.
 - [ ] Decide canonical height/age note if needed for documentation consistency.
-- [ ] Decide MVP framing: bust, half-body, or full-body.
+- [x] Decide MVP framing: bust-front runtime with tail/background layers.
 
 ## Phase 1 - Source Art
 
-- [ ] Obtain or create layered PSD.
-- [ ] Confirm PSD is RGB, 8 bit/channel, sRGB.
-- [ ] Ensure every import layer has a unique stable name.
+- [x] Generate interim PSD handoff from current cutout assets.
+- [x] Verify interim PSD can be read back with expected groups/layers.
+- [x] Confirm interim PSD is RGB, 8 bit/channel.
+- [x] Ensure interim PSD layer names are unique.
+- [ ] Obtain or create final production layered PSD.
+- [ ] Confirm production PSD is RGB, 8 bit/channel, sRGB.
+- [ ] Ensure every production import layer has a unique stable name.
 - [ ] Merge line/fill/clipping layers per import ArtMesh.
 - [ ] Remove import-blocking layer masks.
 - [ ] Separate core face layers.
@@ -28,10 +32,12 @@ Date: 2026-05-20
 
 ## Phase 2 - Cubism Model
 
-- [ ] Install or open Live2D Cubism Editor.
-- [ ] Import PSD into a new Cubism project.
-- [ ] Save `.cmo3` under `03_cubism_project/`.
-- [ ] Build ArtMesh layout.
+- [x] Download and inspect official Cubism Editor package.
+- [x] Confirm Cubism has no usable CLI export path; GUI export is required.
+- [x] Install or open Live2D Cubism Editor through macOS authorization.
+- [x] Import PSD into a new Cubism project.
+- [x] Save `.cmo3` under `03_cubism_project/`.
+- [x] Build baseline ArtMesh layout for visible composite body/tail layers.
 - [ ] Build deformer hierarchy.
 - [ ] Bind face angle parameters.
 - [ ] Bind blink and eye gaze.
@@ -43,16 +49,23 @@ Date: 2026-05-20
 
 ## Phase 3 - Export
 
-- [ ] Export runtime model files into `04_exports/`.
-- [ ] Confirm `.model3.json` references are relative and portable.
-- [ ] Confirm `.moc3`, textures, physics, expressions, and motions exist.
+- [x] Export runtime model files into `04_exports/`.
+- [x] Confirm `.model3.json` references are relative and portable.
+- [x] Confirm `.moc3`, texture, and display info exist.
+- [ ] Confirm physics, expression, and motion files exist.
 - [ ] Check exported model in Cubism Viewer or equivalent preview.
-- [ ] Run MOC3 consistency check if using external model files.
+- [x] Run repository consistency check for exported model files.
 
 ## Phase 4 - RIN Integration
 
 - [x] Add React asset-layered Live2D MVP without external runtime dependency.
 - [x] Replace SVG draft model with high-fidelity cropped assets from `live2d-development/photo`.
+- [x] Add reproducible runtime asset generator.
+- [x] Add runtime asset manifest.
+- [x] Add runtime asset model package descriptor.
+- [x] Add runtime asset model verifier.
+- [x] Add reproducible source PSD handoff generator.
+- [x] Move Live2D expression/motion vocabulary into `src/live2d/`.
 - [x] Add `live2d` body adapter.
 - [x] Add React Live2D renderer component.
 - [x] Map RIN body state to expression and motion.
@@ -63,15 +76,16 @@ Date: 2026-05-20
 
 Note:
 
-- A true Cubism `.moc3` export still requires Live2D Cubism Editor and layered PSD/source art. The current integrated MVP is a RIN runtime-ready layered SVG rig that follows the Live2D parameter and expression plan.
+- The generated `rin-layered-source.psd` is an interim handoff file. It organizes current cutouts for Cubism preparation but still requires manual part separation before real ArtMesh authoring.
+- The current integrated MVP is a RIN runtime-ready asset-layered PNG rig that follows the Live2D parameter and expression plan.
+- A baseline Cubism `.moc3` export now exists under `04_exports/rin-layered-source/`. It is a static composite-layer export, not the final fully rigged production model with deformers, physics, motions, and expressions.
 
 ## Phase 5 - QA
 
-- [ ] Desktop viewport visual check.
 - [x] Desktop viewport visual check.
-- [ ] Mobile/narrow viewport visual check if needed.
-- [ ] Confirm no text/UI overlap around the body shell.
-- [ ] Confirm drag behavior still works.
-- [ ] Confirm idle animation is not visually noisy.
-- [ ] Confirm expressions preserve RIN personality.
+- [x] Mobile/narrow viewport visual check if needed.
+- [x] Confirm no text/UI overlap around the body shell.
+- [x] Confirm drag behavior still works.
+- [x] Confirm idle animation is not visually noisy.
+- [x] Confirm expressions preserve RIN personality.
 - [x] Record screenshots or videos under `06_tests/`.
