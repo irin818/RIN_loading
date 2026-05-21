@@ -172,9 +172,112 @@ async function main() {
     `${JSON.stringify(manifest, null, 2)}\n`,
   );
 
+  const assetModel = createAssetModel(generatedAssets);
+  await writeFile(
+    join(outputRoot, "rin-asset-model.json"),
+    `${JSON.stringify(assetModel, null, 2)}\n`,
+  );
+
   for (const asset of generatedAssets) {
     console.log(`${asset.id}: ${asset.path} ${asset.width}x${asset.height}`);
   }
+}
+
+function createAssetModel(generatedAssets: GeneratedAsset[]) {
+  const assets = Object.fromEntries(
+    generatedAssets.map((asset) => [
+      asset.id,
+      {
+        path: asset.path,
+        width: asset.width,
+        height: asset.height,
+      },
+    ]),
+  );
+
+  return {
+    schemaVersion: 1,
+    id: "rin-live2d-asset-model-v1",
+    runtimeModelId: "rin-live2d-layered-mvp-v1",
+    generatedAt: "deterministic",
+    generatedBy: "npm run live2d:assets",
+    renderer: {
+      type: "react-css-asset-layered-rig",
+      component: "src/ui/RinLive2DModel.tsx",
+      adapter: "src/body/rinLive2dAdapter.ts",
+      fallbackForCubism: true,
+    },
+    canvas: {
+      width: 326,
+      height: 498,
+      coordinateSystem: "bust-front-viewbox",
+    },
+    assets,
+    layers: [
+      {
+        id: "tailBack",
+        asset: "tailLarge",
+        zIndex: 1,
+        anchor: { rightPercent: -18, bottomPercent: -3, widthPercent: 48 },
+        motion: ["idle-tail-sway", "attentive-tail-sway"],
+      },
+      {
+        id: "bodyBust",
+        asset: "bustFront",
+        zIndex: 2,
+        anchor: { leftPercent: 0, topPercent: 0, widthPercent: 100 },
+        motion: ["breathing", "body-sway"],
+      },
+      {
+        id: "expressionOverlay",
+        type: "svg-overlay",
+        zIndex: 4,
+        viewBox: "0 0 326 498",
+        motion: ["mouth-form", "mouth-open", "mark-glow", "eye-glint"],
+      },
+    ],
+    parameters: [
+      { id: "ParamAngleX", min: -30, max: 30, default: 0, implemented: "css-sway" },
+      { id: "ParamAngleY", min: -30, max: 30, default: 0, implemented: "css-breathe" },
+      { id: "ParamAngleZ", min: -30, max: 30, default: 0, implemented: "css-rotate" },
+      { id: "ParamEyeLOpen", min: 0, max: 1, default: 1, implemented: "overlay-state" },
+      { id: "ParamEyeROpen", min: 0, max: 1, default: 1, implemented: "overlay-state" },
+      { id: "ParamMouthOpenY", min: 0, max: 1, default: 0, implemented: "svg-mouth-open" },
+      { id: "ParamMouthForm", min: -1, max: 1, default: 0, implemented: "svg-mouth-form" },
+      { id: "ParamBreath", min: 0, max: 1, default: 0.5, implemented: "css-breathe" },
+      { id: "ParamRinTailSway", min: -1, max: 1, default: 0, implemented: "css-tail" },
+      { id: "ParamRinAIMarkGlow", min: 0, max: 1, default: 0.45, implemented: "css-glow" },
+    ],
+    expressions: {
+      neutral: { motion: "idle-breathing", mouthForm: 0, mouthOpen: 0, markGlow: 0.45 },
+      listening: { motion: "attentive-sway", mouthForm: 0, mouthOpen: 0, markGlow: 0.55 },
+      focused: { motion: "focused-still", mouthForm: 0, mouthOpen: 0, markGlow: 0.9 },
+      thinking: { motion: "idle-breathing", mouthForm: 0, mouthOpen: 0, markGlow: 0.55 },
+      happy: { motion: "soft-sway", mouthForm: 0.65, mouthOpen: 0, markGlow: 0.62 },
+      warning: { motion: "focused-still", mouthForm: -0.55, mouthOpen: 0, markGlow: 1 },
+      sleepy: { motion: "sleepy-breathing", mouthForm: -0.35, mouthOpen: 0, markGlow: 0.25 },
+      confused: { motion: "idle-breathing", mouthForm: 0, mouthOpen: 0.7, markGlow: 0.55 },
+      "slight-smile": { motion: "soft-sway", mouthForm: 0.45, mouthOpen: 0, markGlow: 0.55 },
+      dissatisfied: { motion: "sleepy-breathing", mouthForm: -0.45, mouthOpen: 0, markGlow: 0.35 },
+    },
+    motions: {
+      "idle-breathing": { durationSeconds: 4.2, loops: true },
+      "attentive-sway": { durationSeconds: 3.8, loops: true },
+      "focused-still": { durationSeconds: 6.8, loops: true },
+      "sleepy-breathing": { durationSeconds: 6.2, loops: true },
+      "soft-sway": { durationSeconds: 4.6, loops: true },
+    },
+    sourceHandoff: {
+      psd: "live2d-development/01_source_art/rin-layered-source.psd",
+      manifest: "live2d-development/01_source_art/rin-layered-source-manifest.json",
+      layerFolder: "live2d-development/02_layered_assets/rin-cubism-source-layers",
+    },
+    cubismExport: {
+      available: false,
+      reason:
+        "Cubism Editor has no unattended CLI export path in this environment; final .moc3/.model3.json still requires manual Cubism authoring from a cleaned production PSD.",
+    },
+  };
 }
 
 function cropPng(source: PNG, crop: CropBox): PNG {

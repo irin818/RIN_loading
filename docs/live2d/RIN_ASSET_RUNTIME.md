@@ -1,6 +1,6 @@
 # RIN Live2D Asset Runtime
 
-Date: 2026-05-20
+Date: 2026-05-21
 
 ## Current Status
 
@@ -21,6 +21,7 @@ Production runtime code:
 Browser-served assets:
 
 - `public/live2d/rin/`
+- `public/live2d/rin/rin-asset-model.json`
 
 Development source references:
 
@@ -42,9 +43,21 @@ white board background where needed, and writes:
 
 - `public/live2d/rin/*.png`
 - `public/live2d/rin/rin-runtime-manifest.json`
+- `public/live2d/rin/rin-asset-model.json`
 
 The generated manifest intentionally uses a deterministic `generatedAt` value so
 re-running the script does not create timestamp-only diffs.
+
+Verify the runtime model package with:
+
+```sh
+npm run live2d:verify-runtime
+```
+
+The verifier checks that `rin-asset-model.json` matches the generated runtime
+manifest, every referenced PNG exists at the recorded dimensions, expressions
+map to known motions, required parameter IDs are present, and the fallback model
+does not claim Cubism export availability.
 
 Generate the Cubism handoff source bundle with:
 
@@ -76,6 +89,17 @@ Generated source-art outputs:
 
 This file is runtime metadata for the asset-layered MVP. It is not Cubism
 `model3.json`.
+
+`public/live2d/rin/rin-asset-model.json` is the higher-level fallback model
+descriptor for the React/CSS runtime. It records:
+
+- runtime model ID
+- canvas coordinate system
+- layer stack
+- implemented parameter IDs
+- expression-to-motion mapping
+- source PSD handoff paths
+- explicit Cubism export status
 
 ## Expression And Motion Mapping
 
@@ -124,6 +148,10 @@ http://127.0.0.1:5173/body?expression=happy
 http://127.0.0.1:5173/body?expression=warning
 http://127.0.0.1:5173/body?expression=sleepy
 ```
+
+Final browser QA screenshots are stored under
+`live2d-development/06_tests/`, including
+`final-rin-live2d-expression-sheet.png`.
 
 ## Known Limits
 

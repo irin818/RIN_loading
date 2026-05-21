@@ -32,6 +32,10 @@ Official references:
 - https://docs.live2d.com/en/cubism-editor-manual/psd-import/
 - https://docs.live2d.com/cubism-editor-manual/standard-parameter-list/
 
+Local toolchain check:
+
+- `docs/live2d/CUBISM_TOOLCHAIN_CHECK.md`
+
 ## Required Source PSD
 
 Current generated source handoff:

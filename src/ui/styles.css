@@ -271,11 +271,11 @@ h1 {
 
 .rin-live2d[data-expression="happy"] .rin-live2d-mouth-smile,
 .rin-live2d[data-expression="slight-smile"] .rin-live2d-mouth-smile {
-  opacity: 0.58;
+  opacity: 0.72;
 }
 
 .rin-live2d[data-expression="happy"] .rin-live2d-eye-smile {
-  opacity: 0;
+  opacity: 0.44;
 }
 
 .rin-live2d[data-expression="warning"] .rin-live2d-fullbody,
@@ -294,7 +294,12 @@ h1 {
 
 .rin-live2d[data-expression="warning"] .rin-live2d-mouth-frown,
 .rin-live2d[data-expression="dissatisfied"] .rin-live2d-mouth-frown {
-  opacity: 0.5;
+  opacity: 0.62;
+}
+
+.rin-live2d[data-expression="warning"] .rin-live2d-brow-warning-left,
+.rin-live2d[data-expression="warning"] .rin-live2d-brow-warning-right {
+  opacity: 0.46;
 }
 
 .rin-live2d[data-expression="sleepy"] .rin-live2d-fullbody,
@@ -307,7 +312,7 @@ h1 {
 
 .rin-live2d[data-expression="sleepy"] .rin-live2d-eye-sleep,
 .rin-live2d[data-expression="dissatisfied"] .rin-live2d-eye-sleep {
-  opacity: 0;
+  opacity: 0.38;
 }
 
 .rin-live2d[data-expression="sleepy"] .rin-live2d-mouth-frown,
@@ -323,18 +328,42 @@ h1 {
 }
 
 .rin-live2d[data-expression="confused"] .rin-live2d-brow-confused-left,
-.rin-live2d[data-expression="confused"] .rin-live2d-brow-confused-right,
+.rin-live2d[data-expression="confused"] .rin-live2d-brow-confused-right {
+  opacity: 0.48;
+}
+
 .rin-live2d[data-expression="thinking"] .rin-live2d-brow-confused-left,
 .rin-live2d[data-expression="thinking"] .rin-live2d-brow-confused-right {
-  opacity: 0;
+  opacity: 0.32;
 }
 
 .rin-live2d[data-motion="focused-still"] .rin-live2d-art-stage {
   animation-duration: 6.8s;
 }
 
+.rin-live2d[data-motion="focused-still"] .rin-live2d-tail-art {
+  animation-duration: 8.2s;
+}
+
 .rin-live2d[data-motion="sleepy-breathing"] .rin-live2d-art-stage {
   animation-duration: 6.2s;
+}
+
+.rin-live2d[data-motion="sleepy-breathing"] .rin-live2d-tail-art {
+  animation-duration: 8.8s;
+  opacity: 0.84;
+}
+
+.rin-live2d[data-motion="attentive-sway"] .rin-live2d-tail-art {
+  animation-duration: 5.2s;
+}
+
+.rin-live2d[data-motion="soft-sway"] .rin-live2d-art-stage {
+  animation-duration: 3.9s;
+}
+
+.rin-live2d[data-motion="soft-sway"] .rin-live2d-tail-art {
+  animation-duration: 5.9s;
 }
 
 .live2d-model,

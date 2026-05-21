@@ -69,11 +69,12 @@ export function App() {
   const bodyOnly = window.location.pathname === "/body";
   const previewExpression =
     new URLSearchParams(window.location.search).get("expression") ?? "listening";
+  const previewAttention = previewExpression === "listening" ? "active" : "idle";
   const bodyState =
     snapshot?.body.state ??
     rinLive2dBodyAdapter.mapState({
       mood: "neutral",
-      attention: "active",
+      attention: previewAttention,
       expression: previewExpression,
       voiceStyle: "soft",
     });

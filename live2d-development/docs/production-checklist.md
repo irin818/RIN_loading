@@ -1,6 +1,6 @@
 # RIN Live2D Production Checklist
 
-Date: 2026-05-20
+Date: 2026-05-21
 
 ## Phase 0 - References
 
@@ -9,7 +9,7 @@ Date: 2026-05-20
 - [x] Analyze provided design boards.
 - [ ] Save original reference images into `00_reference/`.
 - [ ] Decide canonical height/age note if needed for documentation consistency.
-- [ ] Decide MVP framing: bust, half-body, or full-body.
+- [x] Decide MVP framing: bust-front runtime with tail/background layers.
 
 ## Phase 1 - Source Art
 
@@ -32,7 +32,9 @@ Date: 2026-05-20
 
 ## Phase 2 - Cubism Model
 
-- [ ] Install or open Live2D Cubism Editor.
+- [x] Download and inspect official Cubism Editor package.
+- [x] Confirm unattended Cubism export is blocked in current environment.
+- [ ] Install or open Live2D Cubism Editor through macOS authorization.
 - [ ] Import PSD into a new Cubism project.
 - [ ] Save `.cmo3` under `03_cubism_project/`.
 - [ ] Build ArtMesh layout.
@@ -59,6 +61,8 @@ Date: 2026-05-20
 - [x] Replace SVG draft model with high-fidelity cropped assets from `live2d-development/photo`.
 - [x] Add reproducible runtime asset generator.
 - [x] Add runtime asset manifest.
+- [x] Add runtime asset model package descriptor.
+- [x] Add runtime asset model verifier.
 - [x] Add reproducible source PSD handoff generator.
 - [x] Move Live2D expression/motion vocabulary into `src/live2d/`.
 - [x] Add `live2d` body adapter.
@@ -80,7 +84,7 @@ Note:
 - [x] Desktop viewport visual check.
 - [x] Mobile/narrow viewport visual check if needed.
 - [x] Confirm no text/UI overlap around the body shell.
-- [ ] Confirm drag behavior still works.
-- [ ] Confirm idle animation is not visually noisy.
-- [ ] Confirm expressions preserve RIN personality.
+- [x] Confirm drag behavior still works.
+- [x] Confirm idle animation is not visually noisy.
+- [x] Confirm expressions preserve RIN personality.
 - [x] Record screenshots or videos under `06_tests/`.

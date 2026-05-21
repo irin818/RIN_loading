@@ -11,6 +11,7 @@ export const RIN_LIVE2D_ASSETS = {
   eyesDetail: "/live2d/rin/rin-eyes-detail.png",
   mouthSet: "/live2d/rin/rin-mouth-set.png",
   manifest: "/live2d/rin/rin-runtime-manifest.json",
+  assetModel: "/live2d/rin/rin-asset-model.json",
 } as const;
 
 export const RIN_LIVE2D_EXPRESSIONS = [
@@ -110,7 +111,11 @@ export function selectRinLive2dMotion(
     return "focused-still";
   }
 
-  if (expression === "sleepy" || energy === "low") {
+  if (
+    expression === "sleepy" ||
+    expression === "dissatisfied" ||
+    energy === "low"
+  ) {
     return "sleepy-breathing";
   }
 

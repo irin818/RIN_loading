@@ -14,6 +14,7 @@ describe("RIN Live2D runtime manifest", () => {
         "/live2d/rin/rin-bust-front.png",
         "/live2d/rin/rin-tail-large.png",
         "/live2d/rin/rin-runtime-manifest.json",
+        "/live2d/rin/rin-asset-model.json",
       ]),
     );
     expect(
@@ -35,6 +36,9 @@ describe("RIN Live2D runtime manifest", () => {
       "focused-still",
     );
     expect(selectRinLive2dMotion("sleepy", "idle", "low")).toBe(
+      "sleepy-breathing",
+    );
+    expect(selectRinLive2dMotion("dissatisfied", "idle", "normal")).toBe(
       "sleepy-breathing",
     );
     expect(selectRinLive2dMotion("listening", "active", "normal")).toBe(
