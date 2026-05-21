@@ -188,10 +188,9 @@ async function main() {
       layerGroup("30_MODEL_COMPOSITE__visible", false, layers, "composite"),
       layerGroup("90_FULLBODY_REFERENCES__hidden", true, layers, "references"),
     ],
-    imageData: compositeImageData,
   };
 
-  await writeFile(psdOutputPath, writePsdBuffer(psd, { compress: true }));
+  await writeFile(psdOutputPath, writePsdBuffer(psd, { compress: false }));
 
   const manifest = {
     schemaVersion: 1,
@@ -207,6 +206,12 @@ async function main() {
       "live2d-development/02_layered_assets/rin-cubism-source-layers/composite_preview.png",
     canvas: psdCanvas,
     layerOrder: "PSD children are written top-to-bottom.",
+    cubismCompatibility: {
+      documentMode: "RGB, 8 bit/channel",
+      layerCompression: "RLE",
+      reason:
+        "Live2D Cubism Editor 5.3 imports RLE PSD layer data but rejects Zip(Without Prediction) layer compression.",
+    },
     groups: [
       "10_FACE_GUIDES__hidden",
       "20_ACCESSORY_GUIDES__hidden",

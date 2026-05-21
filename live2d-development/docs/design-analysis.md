@@ -140,4 +140,4 @@ Sleepy state:
 - The current images are flattened design boards, not production PSDs. They are good for analysis but not sufficient for a high-quality Cubism model by themselves.
 - Some details differ between boards, such as age note, height, expression count, and small accessory positions. Treat them as concept variation, not separate canon.
 - The model has many small dangling accessories. These are visually important but expensive to rig; keep only the most visible front ornaments in MVP.
-- No local Cubism Editor or PSD editor was found during tool check, so actual Cubism authoring requires installing tools or receiving already prepared Cubism/PSD files.
+- Cubism Editor is now installed and can import/export the baseline PSD. A production-quality model still requires final PSD cleanup or purpose-made layered source art.

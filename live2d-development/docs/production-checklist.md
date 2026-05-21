@@ -33,11 +33,11 @@ Date: 2026-05-21
 ## Phase 2 - Cubism Model
 
 - [x] Download and inspect official Cubism Editor package.
-- [x] Confirm unattended Cubism export is blocked in current environment.
-- [ ] Install or open Live2D Cubism Editor through macOS authorization.
-- [ ] Import PSD into a new Cubism project.
-- [ ] Save `.cmo3` under `03_cubism_project/`.
-- [ ] Build ArtMesh layout.
+- [x] Confirm Cubism has no usable CLI export path; GUI export is required.
+- [x] Install or open Live2D Cubism Editor through macOS authorization.
+- [x] Import PSD into a new Cubism project.
+- [x] Save `.cmo3` under `03_cubism_project/`.
+- [x] Build baseline ArtMesh layout for visible composite body/tail layers.
 - [ ] Build deformer hierarchy.
 - [ ] Bind face angle parameters.
 - [ ] Bind blink and eye gaze.
@@ -49,11 +49,12 @@ Date: 2026-05-21
 
 ## Phase 3 - Export
 
-- [ ] Export runtime model files into `04_exports/`.
-- [ ] Confirm `.model3.json` references are relative and portable.
-- [ ] Confirm `.moc3`, textures, physics, expressions, and motions exist.
+- [x] Export runtime model files into `04_exports/`.
+- [x] Confirm `.model3.json` references are relative and portable.
+- [x] Confirm `.moc3`, texture, and display info exist.
+- [ ] Confirm physics, expression, and motion files exist.
 - [ ] Check exported model in Cubism Viewer or equivalent preview.
-- [ ] Run MOC3 consistency check if using external model files.
+- [x] Run repository consistency check for exported model files.
 
 ## Phase 4 - RIN Integration
 
@@ -77,7 +78,7 @@ Note:
 
 - The generated `rin-layered-source.psd` is an interim handoff file. It organizes current cutouts for Cubism preparation but still requires manual part separation before real ArtMesh authoring.
 - The current integrated MVP is a RIN runtime-ready asset-layered PNG rig that follows the Live2D parameter and expression plan.
-- A true Cubism `.moc3` export still requires Live2D Cubism Editor and final cleaned layered PSD/source art.
+- A baseline Cubism `.moc3` export now exists under `04_exports/rin-layered-source/`. It is a static composite-layer export, not the final fully rigged production model with deformers, physics, motions, and expressions.
 
 ## Phase 5 - QA
 

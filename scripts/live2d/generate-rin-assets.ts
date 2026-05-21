@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { PNG } from "pngjs";
 
@@ -28,9 +28,40 @@ type GeneratedAsset = {
   crop: CropBox;
 };
 
+type CubismExportStatus = {
+  available: boolean;
+  reason: string;
+  sourceFolder?: string;
+  publicFolder?: string;
+  model3Json?: string;
+  sdkVersion?: string;
+  files?: {
+    moc3: string;
+    textures: string[];
+    displayInfo?: string;
+  };
+};
+
+type CubismModel3 = {
+  FileReferences?: {
+    Moc?: string;
+    Textures?: string[];
+    DisplayInfo?: string;
+  };
+};
+
 const projectRoot = process.cwd();
 const sourceRoot = join(projectRoot, "live2d-development/photo");
 const outputRoot = join(projectRoot, "public/live2d/rin");
+const cubismExportSourceRoot = join(
+  projectRoot,
+  "live2d-development/04_exports/rin-layered-source",
+);
+const cubismExportPublicRoot = join(
+  outputRoot,
+  "cubism/rin-layered-source",
+);
+const cubismModel3Filename = "rin-layered-source.model3.json";
 
 const recipes: AssetRecipe[] = [
   {
@@ -133,6 +164,7 @@ async function main() {
     });
   }
 
+  const cubismExport = await syncCubismExport();
   const manifest = {
     schemaVersion: 1,
     id: "rin-live2d-asset-runtime-v1",
@@ -160,11 +192,7 @@ async function main() {
       "sleepy-breathing",
       "soft-sway",
     ],
-    cubismExport: {
-      available: false,
-      reason:
-        "Runtime assets are cropped PNG layers. A true .moc3/.model3.json export still requires a layered PSD and Live2D Cubism Editor.",
-    },
+    cubismExport,
   };
 
   await writeFile(
@@ -172,7 +200,7 @@ async function main() {
     `${JSON.stringify(manifest, null, 2)}\n`,
   );
 
-  const assetModel = createAssetModel(generatedAssets);
+  const assetModel = createAssetModel(generatedAssets, cubismExport);
   await writeFile(
     join(outputRoot, "rin-asset-model.json"),
     `${JSON.stringify(assetModel, null, 2)}\n`,
@@ -183,7 +211,10 @@ async function main() {
   }
 }
 
-function createAssetModel(generatedAssets: GeneratedAsset[]) {
+function createAssetModel(
+  generatedAssets: GeneratedAsset[],
+  cubismExport: CubismExportStatus,
+) {
   const assets = Object.fromEntries(
     generatedAssets.map((asset) => [
       asset.id,
@@ -272,12 +303,80 @@ function createAssetModel(generatedAssets: GeneratedAsset[]) {
       manifest: "live2d-development/01_source_art/rin-layered-source-manifest.json",
       layerFolder: "live2d-development/02_layered_assets/rin-cubism-source-layers",
     },
-    cubismExport: {
+    cubismExport,
+  };
+}
+
+async function syncCubismExport(): Promise<CubismExportStatus> {
+  const sourceModel3Path = join(cubismExportSourceRoot, cubismModel3Filename);
+
+  if (!(await fileExists(sourceModel3Path))) {
+    return {
       available: false,
       reason:
-        "Cubism Editor has no unattended CLI export path in this environment; final .moc3/.model3.json still requires manual Cubism authoring from a cleaned production PSD.",
+        "No Cubism export folder was found. Run Cubism Editor export into live2d-development/04_exports/rin-layered-source first.",
+    };
+  }
+
+  const model3 = JSON.parse(await readFile(sourceModel3Path, "utf8")) as CubismModel3;
+  const references = model3.FileReferences;
+  const moc3 = references?.Moc;
+  const textures = references?.Textures ?? [];
+  const displayInfo = references?.DisplayInfo;
+
+  if (moc3 === undefined || textures.length === 0) {
+    return {
+      available: false,
+      reason:
+        "Cubism model3.json exists, but it does not reference both a .moc3 file and at least one texture.",
+    };
+  }
+
+  const referencedFiles = [moc3, ...textures, displayInfo].filter(
+    (file): file is string => file !== undefined,
+  );
+  const missingFiles: string[] = [];
+
+  for (const file of referencedFiles) {
+    if (!(await fileExists(join(cubismExportSourceRoot, file)))) {
+      missingFiles.push(file);
+    }
+  }
+
+  if (missingFiles.length > 0) {
+    return {
+      available: false,
+      reason: `Cubism export is incomplete. Missing: ${missingFiles.join(", ")}`,
+    };
+  }
+
+  await rm(cubismExportPublicRoot, { recursive: true, force: true });
+  await mkdir(dirname(cubismExportPublicRoot), { recursive: true });
+  await cp(cubismExportSourceRoot, cubismExportPublicRoot, { recursive: true });
+
+  return {
+    available: true,
+    reason:
+      "Official Cubism Editor export is available and mirrored into public runtime assets.",
+    sourceFolder: "live2d-development/04_exports/rin-layered-source",
+    publicFolder: "public/live2d/rin/cubism/rin-layered-source",
+    model3Json: `/live2d/rin/cubism/rin-layered-source/${cubismModel3Filename}`,
+    sdkVersion: "Cubism 5.3",
+    files: {
+      moc3,
+      textures,
+      displayInfo,
     },
   };
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function cropPng(source: PNG, crop: CropBox): PNG {

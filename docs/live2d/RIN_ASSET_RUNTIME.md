@@ -157,8 +157,9 @@ Final browser QA screenshots are stored under
 
 - This model is high-fidelity compared with the SVG draft, but it is still a
   browser asset rig.
-- It does not yet contain Cubism ArtMeshes, deformers, physics settings, motion
-  files, expression files, or a `.moc3`.
+- A baseline Cubism `.moc3` / `.model3.json` export exists, but it is a static
+  composite-layer export without finished deformers, physics settings, motion
+  files, or expression files.
 - Current expression changes use RIN-side overlays and filters, not true Cubism
   parameter deformation.
 - The generated PSD is a Cubism handoff/source organization file, not a final

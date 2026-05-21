@@ -12,6 +12,8 @@ export const RIN_LIVE2D_ASSETS = {
   mouthSet: "/live2d/rin/rin-mouth-set.png",
   manifest: "/live2d/rin/rin-runtime-manifest.json",
   assetModel: "/live2d/rin/rin-asset-model.json",
+  cubismModel3Json:
+    "/live2d/rin/cubism/rin-layered-source/rin-layered-source.model3.json",
 } as const;
 
 export const RIN_LIVE2D_EXPRESSIONS = [

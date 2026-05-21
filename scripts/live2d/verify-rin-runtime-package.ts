@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { PNG } from "pngjs";
 
 type RuntimeAsset = {
@@ -12,6 +12,18 @@ type RuntimeManifest = {
   assets: Record<string, RuntimeAsset>;
   expressions: string[];
   motions: string[];
+  cubismExport: CubismExportStatus;
+};
+
+type CubismExportStatus = {
+  available: boolean;
+  reason: string;
+  model3Json?: string;
+  files?: {
+    moc3?: string;
+    textures?: string[];
+    displayInfo?: string;
+  };
 };
 
 type AssetModel = {
@@ -22,7 +34,15 @@ type AssetModel = {
   parameters: Array<{ id: string; min: number; max: number; default: number }>;
   expressions: Record<string, { motion: string }>;
   motions: Record<string, { durationSeconds: number; loops: boolean }>;
-  cubismExport: { available: boolean; reason: string };
+  cubismExport: CubismExportStatus;
+};
+
+type CubismModel3 = {
+  FileReferences?: {
+    Moc?: string;
+    Textures?: string[];
+    DisplayInfo?: string;
+  };
 };
 
 const projectRoot = process.cwd();
@@ -94,8 +114,14 @@ async function main() {
     }
   }
 
+  if (model.cubismExport.available !== manifest.cubismExport.available) {
+    throw new Error(
+      `Cubism export availability mismatch: manifest=${manifest.cubismExport.available}, model=${model.cubismExport.available}`,
+    );
+  }
+
   if (model.cubismExport.available) {
-    throw new Error("Asset fallback model must not claim Cubism export exists.");
+    await verifyCubismExport(model.cubismExport);
   }
 
   console.log(`Verified ${relativeProjectPath(modelPath)}`);
@@ -103,6 +129,47 @@ async function main() {
   console.log(`Expressions: ${Object.keys(model.expressions).length}`);
   console.log(`Motions: ${Object.keys(model.motions).length}`);
   console.log(`Parameters: ${model.parameters.length}`);
+  console.log(
+    `Cubism export: ${
+      model.cubismExport.available ? model.cubismExport.model3Json : "not available"
+    }`,
+  );
+}
+
+async function verifyCubismExport(cubismExport: CubismExportStatus) {
+  if (cubismExport.model3Json === undefined) {
+    throw new Error("Cubism export is marked available but has no model3Json path.");
+  }
+
+  const model3Path = join(publicRoot, cubismExport.model3Json.replace(/^\//, ""));
+  const model3 = JSON.parse(await readFile(model3Path, "utf8")) as CubismModel3;
+  const references = model3.FileReferences;
+  const moc3 = references?.Moc;
+  const textures = references?.Textures ?? [];
+
+  if (moc3 === undefined) {
+    throw new Error(`Cubism model3.json has no Moc reference: ${model3Path}`);
+  }
+
+  if (textures.length === 0) {
+    throw new Error(`Cubism model3.json has no texture references: ${model3Path}`);
+  }
+
+  const model3Root = dirname(model3Path);
+  await readFile(resolveRelativeExportFile(model3Root, moc3));
+
+  for (const texture of textures) {
+    const texturePath = resolveRelativeExportFile(model3Root, texture);
+    const png = PNG.sync.read(await readFile(texturePath));
+
+    if (png.width <= 0 || png.height <= 0) {
+      throw new Error(`Invalid Cubism texture dimensions: ${texture}`);
+    }
+  }
+
+  if (references?.DisplayInfo !== undefined) {
+    await readFile(resolveRelativeExportFile(model3Root, references.DisplayInfo));
+  }
 }
 
 function assertSameKeys(left: string[], right: string[], label: string) {
@@ -114,6 +181,17 @@ function assertSameKeys(left: string[], right: string[], label: string) {
       `Runtime ${label} keys differ.\nmanifest=${leftSorted.join(", ")}\nmodel=${rightSorted.join(", ")}`,
     );
   }
+}
+
+function resolveRelativeExportFile(base: string, relativePath: string): string {
+  if (
+    relativePath.startsWith("/") ||
+    relativePath.split(/[\\/]+/).includes("..")
+  ) {
+    throw new Error(`Cubism export reference must be relative: ${relativePath}`);
+  }
+
+  return join(base, relativePath);
 }
 
 function relativeProjectPath(path: string): string {

@@ -13,6 +13,11 @@
     "height": 1120
   },
   "layerOrder": "PSD children are written top-to-bottom.",
+  "cubismCompatibility": {
+    "documentMode": "RGB, 8 bit/channel",
+    "layerCompression": "RLE",
+    "reason": "Live2D Cubism Editor 5.3 imports RLE PSD layer data but rejects Zip(Without Prediction) layer compression."
+  },
   "groups": [
     "10_FACE_GUIDES__hidden",
     "20_ACCESSORY_GUIDES__hidden",

@@ -144,7 +144,18 @@
     "soft-sway"
   ],
   "cubismExport": {
-    "available": false,
-    "reason": "Runtime assets are cropped PNG layers. A true .moc3/.model3.json export still requires a layered PSD and Live2D Cubism Editor."
+    "available": true,
+    "reason": "Official Cubism Editor export is available and mirrored into public runtime assets.",
+    "sourceFolder": "live2d-development/04_exports/rin-layered-source",
+    "publicFolder": "public/live2d/rin/cubism/rin-layered-source",
+    "model3Json": "/live2d/rin/cubism/rin-layered-source/rin-layered-source.model3.json",
+    "sdkVersion": "Cubism 5.3",
+    "files": {
+      "moc3": "rin-layered-source.moc3",
+      "textures": [
+        "rin-layered-source.1024/texture_00.png"
+      ],
+      "displayInfo": "rin-layered-source.cdi3.json"
+    }
   }
 }

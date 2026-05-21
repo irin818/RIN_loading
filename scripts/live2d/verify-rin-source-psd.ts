@@ -20,6 +20,11 @@ const expectedCanvas = {
   width: 900,
   height: 1120,
 };
+const expectedDocument = {
+  channels: 3,
+  bitsPerChannel: 8,
+  colorMode: 3,
+};
 const expectedGroups = [
   "10_FACE_GUIDES__hidden",
   "20_ACCESSORY_GUIDES__hidden",
@@ -97,6 +102,16 @@ function assertPsdShape(psd: Psd) {
   if (psd.width !== expectedCanvas.width || psd.height !== expectedCanvas.height) {
     throw new Error(
       `Unexpected PSD canvas ${psd.width}x${psd.height}; expected ${expectedCanvas.width}x${expectedCanvas.height}`,
+    );
+  }
+
+  if (
+    psd.channels !== expectedDocument.channels ||
+    psd.bitsPerChannel !== expectedDocument.bitsPerChannel ||
+    psd.colorMode !== expectedDocument.colorMode
+  ) {
+    throw new Error(
+      `Unexpected PSD mode: channels=${psd.channels}, bits=${psd.bitsPerChannel}, colorMode=${psd.colorMode}; expected RGB/8bit`,
     );
   }
 

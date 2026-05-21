@@ -266,7 +266,18 @@
     "layerFolder": "live2d-development/02_layered_assets/rin-cubism-source-layers"
   },
   "cubismExport": {
-    "available": false,
-    "reason": "Cubism Editor has no unattended CLI export path in this environment; final .moc3/.model3.json still requires manual Cubism authoring from a cleaned production PSD."
+    "available": true,
+    "reason": "Official Cubism Editor export is available and mirrored into public runtime assets.",
+    "sourceFolder": "live2d-development/04_exports/rin-layered-source",
+    "publicFolder": "public/live2d/rin/cubism/rin-layered-source",
+    "model3Json": "/live2d/rin/cubism/rin-layered-source/rin-layered-source.model3.json",
+    "sdkVersion": "Cubism 5.3",
+    "files": {
+      "moc3": "rin-layered-source.moc3",
+      "textures": [
+        "rin-layered-source.1024/texture_00.png"
+      ],
+      "displayInfo": "rin-layered-source.cdi3.json"
+    }
   }
 }

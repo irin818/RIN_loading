@@ -2,18 +2,19 @@
 
 Date: 2026-05-20
 
-This note records tools and projects that can reduce friction when creating and integrating RIN's future Live2D body.
+This note records tools and projects that can reduce friction when creating and integrating RIN's Live2D body.
 
 ## Local Check
 
-- No Live2D Cubism, Photoshop, CLIP STUDIO PAINT, VTube Studio, Spine, or Inochi2D app was found in `/Applications` or Spotlight.
+- Live2D Cubism Editor `5.3.02` is installed under `/Applications/Live2D Cubism 5.3/`.
+- Photoshop, CLIP STUDIO PAINT, VTube Studio, Spine, and Inochi2D were not found in `/Applications` or Spotlight during the tool check.
 - The RIN project is currently React + Vite. The body adapter type already reserves `kind: "live2d"`, so runtime integration can be added without changing the identity/runtime boundary.
 - Current npm state has no PixiJS or Live2D runtime dependency installed. It now uses `ag-psd` only as a development-time PSD writer/verifier.
 - Homebrew has no Live2D/Cubism cask available by `brew search --cask live2d cubism`.
 - Official Cubism Editor download requires the website flow: platform selection, individual/enterprise choice, email input, and consent to Live2D's software license and privacy policy.
 - The RIN repository now has a reproducible interim asset pipeline: `npm run live2d:assets` uses `scripts/live2d/generate-rin-assets.ts` to crop runtime assets from `live2d-development/photo` into `public/live2d/rin`.
 - The source handoff pipeline is `npm run live2d:source`, which generates `rin-layered-source.psd`, a source manifest, and normalized layer PNGs before verifying the PSD structure.
-- Official Cubism Editor `5.3.02` for macOS Apple Silicon was downloaded and signature/notarization checked, but unattended installation/export is blocked by root install authorization and lack of a CLI export interface. Details are in `docs/live2d/CUBISM_TOOLCHAIN_CHECK.md`.
+- Official Cubism Editor `5.3.02` for macOS Apple Silicon was downloaded, signature/notarization checked, installed, and used for GUI PSD import plus `.moc3` export. Details are in `docs/live2d/CUBISM_TOOLCHAIN_CHECK.md`.
 
 ## Recommended Stack
 
@@ -32,7 +33,7 @@ Source:
 - https://docs.live2d.com/en/cubism-editor-manual/new-feature-introduction-title/
 
 Local status:
-- Not currently installed.
+- Installed at `/Applications/Live2D Cubism 5.3/Live2D Cubism Editor 5.3.app`.
 
 Version note:
 - Official release history lists Cubism `5.3.02` on 2026-04-02.
