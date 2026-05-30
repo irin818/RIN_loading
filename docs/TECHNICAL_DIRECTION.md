@@ -126,16 +126,20 @@ owner or device identity.
 - UI code must not import Node filesystem storage modules directly.
 - UI 代码不得直接导入 Node 文件系统存储模块。
 
-## Still Deferred After Phase 16
+## Still Deferred After Phase 17
 
-## Phase 16 后仍延后实现的内容
+## Phase 17 后仍延后实现的内容
 
-The following are intentionally still not implemented after Phase 16:
+The following are intentionally still not implemented after Phase 17:
 
-以下内容在 Phase 16 后仍然有意不实现：
+以下内容在 Phase 17 后仍然有意不实现：
 
-- External model API calls.
-- 外部模型 API 调用。
+- UI-direct model provider calls.
+- UI 直接调用模型服务商。
+- Hard-coded provider-specific model calls.
+- 硬编码的特定服务商模型调用。
+- API key storage in tracked files or local core config.
+- 在已跟踪文件或本地核心配置中存储 API Key。
 - Accepted long-term memory writes without review.
 - 未经审查接受的长期记忆写入。
 - Medium-risk or high-risk automatic tool execution.
@@ -151,9 +155,9 @@ The following are intentionally still not implemented after Phase 16:
 - SaaS administration.
 - SaaS 管理后台。
 
-## Phase 3-16 Current Runtime Template
+## Phase 3-17 Current Runtime Template
 
-## Phase 3-16 当前运行时模板
+## Phase 3-17 当前运行时模板
 
 - Phase 3 adds a local SQLite foundation with schema migrations, conversation,
   message, memory placeholder, and audit event tables.
@@ -196,3 +200,10 @@ The following are intentionally still not implemented after Phase 16:
   not write memory, execute tools, or become RIN identity.
 - Phase 16 增加 `/body` 的仅本地桌面身体交互壳。拖拽位置、点击反应和气泡可见性
   都是 UI 快变量；它们不会写入记忆、执行工具或成为 RIN 身份。
+- Phase 17 adds configurable model adapter selection. The default remains
+  `rin-mock-local`; OpenAI-compatible providers require explicit environment
+  configuration and still pass through runtime, model adapter, policy, raw log,
+  state, and snapshot boundaries.
+- Phase 17 增加可配置的模型 adapter 选择。默认仍是 `rin-mock-local`；
+  OpenAI-compatible 服务商必须通过环境变量显式配置，并且仍会经过 runtime、
+  模型 adapter、policy、raw log、state 和 snapshot 边界。

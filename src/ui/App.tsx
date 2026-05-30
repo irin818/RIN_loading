@@ -208,6 +208,18 @@ export function App() {
               <dt>Owner model / 所有者模型</dt>
               <dd>{snapshot.ownerModel.status ?? "unset"}</dd>
             </div>
+            <div>
+              <dt>Model adapter / 模型 adapter</dt>
+              <dd>{snapshot.modelConfig.activeAdapter ?? "unset"}</dd>
+            </div>
+            <div>
+              <dt>External model / 外部模型</dt>
+              <dd>
+                {snapshot.modelConfig.externalCallsEnabled
+                  ? "configured"
+                  : "not active"}
+              </dd>
+            </div>
           </dl>
         ) : (
           <p className="muted">
@@ -221,11 +233,11 @@ export function App() {
       <section className="conversation-panel" aria-labelledby="conversation-title">
         <h2 id="conversation-title">Local Conversation / 本地对话</h2>
         <p>
-          This template uses only the local mock model adapter. It writes raw
-          messages to SQLite, but does not create memory or call external models.
+          This template writes raw messages through the local runtime. It uses
+          the configured model adapter and keeps memory writes behind proposals.
           <br />
-          当前模板只使用本地 mock 模型适配器。它会把原始消息写入 SQLite，
-          但不会创建记忆，也不会调用外部模型。
+          当前模板会通过本地 runtime 写入原始消息。它使用已配置的模型
+          adapter，并且仍然只创建记忆提案。
         </p>
         <form onSubmit={submitMessage} className="conversation-form">
           <textarea
@@ -371,6 +383,34 @@ export function App() {
                 </li>
               ))}
             </ul>
+          </section>
+
+          <section className="state-panel" aria-labelledby="model-title">
+            <h2 id="model-title">Model Runtime / 模型运行时</h2>
+            <dl className="status-grid compact">
+              <div>
+                <dt>Active adapter</dt>
+                <dd>{snapshot.modelConfig.activeAdapter ?? "unset"}</dd>
+              </div>
+              <div>
+                <dt>Provider</dt>
+                <dd>{snapshot.modelConfig.selectedProvider}</dd>
+              </div>
+              <div>
+                <dt>Adapters</dt>
+                <dd>{snapshot.modelConfig.adapterCount}</dd>
+              </div>
+              <div>
+                <dt>Keys in config</dt>
+                <dd>{snapshot.modelConfig.apiKeysStoredHere ? "yes" : "no"}</dd>
+              </div>
+            </dl>
+            {snapshot.modelConfig.missingEnvironment.length > 0 ? (
+              <p className="muted">
+                Missing environment / 缺少环境变量：{" "}
+                {snapshot.modelConfig.missingEnvironment.join(", ")}
+              </p>
+            ) : null}
           </section>
 
           <section className="state-panel" aria-labelledby="memory-title">

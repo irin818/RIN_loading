@@ -35,7 +35,9 @@ Current known module boundaries include:
 - `src/body/`: current body adapter protocol, SVG/live2d-compatible body state
   mapping, and local body interaction logic.
 - `src/runtime/`: local conversation/runtime boundary.
-- `src/model/`: provider-neutral model abstraction and mock adapter.
+- `src/model/`: provider-neutral model abstraction, local mock adapter,
+  configurable adapter selection, and OpenAI-compatible external adapter
+  boundary.
 - `src/memory/`: memory proposal/manager boundary.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
@@ -124,6 +126,8 @@ passing checks.
   and ignored.
 - Current body code uses Live2D-compatible state fields but not a real Cubism
   model runtime.
+- External model providers are available only through configured model adapters;
+  API keys must remain in environment variables or ignored local files.
 - There may be parallel Codex conversations working on Live2D assets; avoid file
   moves in `live2d-development/` unless explicitly coordinated.
 - The final long-term split between `src/body/` and future `src/live2d/` is not

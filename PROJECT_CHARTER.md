@@ -518,7 +518,7 @@ A runnable local application containing:
 Only after this milestone is complete should development continue to tool
 control, Live2D, synchronization, and advanced agent behavior.
 
-## Current Scope: Through Phase 16
+## Current Scope: Through Phase 17
 
 This repository currently covers:
 
@@ -541,10 +541,14 @@ This repository currently covers:
 - Phase 15: Clean placeholder desktop body view for future desktop shell use.
 - Phase 16: Local-only desktop body interaction shell with drag, click reaction,
   and temporary bubble behavior.
+- Phase 17: Configurable model adapter selection with a default local mock
+  adapter and an OpenAI-compatible external adapter that requires explicit
+  environment configuration.
 
 The current implementation still must not implement:
 
-- External model API calls.
+- Hard-coded provider-specific model calls or UI-direct model calls.
+- API key storage in tracked files or local core config.
 - Accepted long-term memory writes without review.
 - Medium-risk or high-risk automatic tool execution.
 - Real Live2D model asset loading.
@@ -1075,7 +1079,7 @@ RIN 必须迭代式开发。
 
 只有完成这个里程碑之后，才应继续开发工具控制、Live2D、同步和高级智能体行为。
 
-## 当前范围：截至 Phase 16
+## 当前范围：截至 Phase 17
 
 当前仓库覆盖：
 
@@ -1096,10 +1100,13 @@ RIN 必须迭代式开发。
 - Phase 14：带 Live2D 兼容字段的身体 adapter 协议。
 - Phase 15：面向未来桌面壳的干净占位桌面身体视图。
 - Phase 16：仅本地的桌面身体交互壳，支持拖拽、点击反应和临时气泡行为。
+- Phase 17：可配置的模型 adapter 选择；默认仍使用本地 mock adapter，
+  OpenAI-compatible 外部 adapter 必须通过环境变量显式配置后才能启用。
 
 当前实现仍不得包含：
 
-- 外部模型 API 调用。
+- 硬编码的特定服务商模型调用，或 UI 直接调用模型服务商。
+- 在已跟踪文件或本地核心配置中存储 API Key。
 - 未经审查接受的长期记忆写入。
 - 中高风险工具自动执行。
 - 真实 Live2D 模型资产加载。

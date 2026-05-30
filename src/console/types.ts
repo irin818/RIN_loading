@@ -49,8 +49,11 @@ export type LocalConsoleSnapshot = {
   };
   modelConfig: {
     activeAdapter: string | null;
+    selectedProvider: string;
     adapterCount: number;
     apiKeysStoredHere: boolean;
+    externalCallsEnabled: boolean;
+    missingEnvironment: string[];
   };
   toolRegistry: {
     toolCount: number;

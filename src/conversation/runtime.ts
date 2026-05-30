@@ -7,7 +7,7 @@ import {
 import type { ConversationTurnResult } from "./types";
 import { appendAuditEvent, openRinDatabase } from "../database";
 import { maybeCreateOwnerMemoryProposal } from "../memory";
-import { getDefaultModelAdapter, type ModelMessage } from "../model";
+import { getConfiguredModelAdapter, type ModelMessage } from "../model";
 import { evaluateModelResponse } from "../policy";
 import { appendRawEvent } from "../rawLog";
 import { snapshotSlowVariables } from "../slowVariables";
@@ -68,7 +68,7 @@ export async function processOwnerMessage(
         content: message.content,
       })),
     ];
-    const adapter = getDefaultModelAdapter();
+    const adapter = await getConfiguredModelAdapter(layout);
     const modelResponse = await adapter.generate({
       ownerId: input.ownerId,
       conversationId: conversation.id,
