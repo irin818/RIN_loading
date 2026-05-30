@@ -1,6 +1,6 @@
 export const RIN_PROJECT_NAME = "RIN";
 
-export const CURRENT_PHASES = ["Phase 0-19 local MVP"] as const;
+export const CURRENT_PHASES = ["Phase 0-20 local MVP"] as const;
 
 export const DEFERRED_CAPABILITIES = [
   "medium-high-risk-tools",

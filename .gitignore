@@ -30,6 +30,8 @@ coverage/
 
 # local data
 .rin-data/
+.rin-imported-data/
+.rin-*-data/
 *.db
 *.sqlite
 *.sqlite3

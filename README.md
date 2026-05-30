@@ -12,10 +12,10 @@ Before modifying this project, read [PROJECT_CHARTER.md](./PROJECT_CHARTER.md).
 
 ## 当前范围
 
-This repository currently contains Phase 0 through Phase 19 as local MVP
+This repository currently contains Phase 0 through Phase 20 as local MVP
 templates:
 
-当前仓库包含 Phase 0 到 Phase 19 的本地 MVP 模板：
+当前仓库包含 Phase 0 到 Phase 20 的本地 MVP 模板：
 
 - Project definition and charter.
 - 项目定义与项目宪章。
@@ -48,6 +48,9 @@ templates:
 - 受控的本地记忆审查流程，可接受、拒绝或归档记忆提案。
 - Local conversation history browsing and continuation.
 - 本地对话历史浏览与继续对话。
+- Manual Agent State Bundle export and safe import into a new empty data
+  directory.
+- 手动 Agent State Bundle 导出，以及安全导入到新的空数据目录。
 
 It intentionally does not store API keys in tracked files or local core config,
 does not allow UI-direct model calls, and does not implement automatic
@@ -84,18 +87,18 @@ npm run dev
 Phase 2 introduced a Node-side storage foundation that initializes a controlled
 local data directory and writes a `manifest.json` with the storage schema
 version. Phase 3 added SQLite persistence. Phase 4 added model abstraction.
-Phase 5 added a basic local conversation path through the runtime. Phase 6-19
+Phase 5 added a basic local conversation path through the runtime. Phase 6-20
 added raw logs, memory proposals, policy checks, state history, export bundles,
 permission-gated L0 tools, an original chibi SVG body rig, a local-only body
 interaction shell, configurable model adapter selection, and controlled memory
-review, and local conversation history browsing.
+review, local conversation history browsing, and safe bundle import.
 
 Phase 2 引入 Node 侧存储基础，可以初始化受控本地数据目录，并写入带有存储
 schema 版本的 `manifest.json`。Phase 3 增加 SQLite 持久化。Phase 4 增加模型
-抽象层。Phase 5 增加通过 runtime 的基础本地对话路径。Phase 6-19 增加原始
+抽象层。Phase 5 增加通过 runtime 的基础本地对话路径。Phase 6-20 增加原始
 日志、记忆提案、策略检查、状态历史、导出包、受权限控制的 L0 工具、原创 Q 版
 SVG 身体 rig、仅本地运行的身体交互壳、可配置的模型 adapter 选择，以及受控记忆
-审查和本地对话历史浏览。
+审查、本地对话历史浏览和安全 bundle 导入。
 
 Initialize local RIN data:
 
@@ -146,6 +149,20 @@ Export a local Agent State Bundle:
 ```sh
 npm run rin:export
 ```
+
+Import an Agent State Bundle into a new empty local data directory:
+
+导入 Agent State Bundle 到新的空本地数据目录：
+
+```sh
+RIN_BUNDLE_PATH=/absolute/path/to/agent-state-bundle \
+RIN_IMPORT_DATA_DIR=.rin-imported-data \
+npm run rin:import
+```
+
+Import refuses to overwrite a non-empty data directory.
+
+导入流程会拒绝覆盖非空数据目录。
 
 Run a built-in L0 low-risk tool:
 

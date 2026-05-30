@@ -126,13 +126,13 @@ owner or device identity.
 - UI code must not import Node filesystem storage modules directly.
 - UI 代码不得直接导入 Node 文件系统存储模块。
 
-## Still Deferred After Phase 19
+## Still Deferred After Phase 20
 
-## Phase 19 后仍延后实现的内容
+## Phase 20 后仍延后实现的内容
 
-The following are intentionally still not implemented after Phase 19:
+The following are intentionally still not implemented after Phase 20:
 
-以下内容在 Phase 19 后仍然有意不实现：
+以下内容在 Phase 20 后仍然有意不实现：
 
 - UI-direct model provider calls.
 - UI 直接调用模型服务商。
@@ -155,9 +155,9 @@ The following are intentionally still not implemented after Phase 19:
 - SaaS administration.
 - SaaS 管理后台。
 
-## Phase 3-19 Current Runtime Template
+## Phase 3-20 Current Runtime Template
 
-## Phase 3-19 当前运行时模板
+## Phase 3-20 当前运行时模板
 
 - Phase 3 adds a local SQLite foundation with schema migrations, conversation,
   message, memory placeholder, and audit event tables.
@@ -219,3 +219,7 @@ The following are intentionally still not implemented after Phase 19:
   conversation id back through the runtime.
 - Phase 19 增加本地对话历史路由和 UI 续聊能力。已有对话可以被选择、读取，并通过
   稳定 conversation id 回传 runtime 来继续。
+- Phase 20 adds manual Agent State Bundle import. Import targets a new empty
+  data directory and refuses to overwrite current local state.
+- Phase 20 增加手动 Agent State Bundle 导入。导入目标必须是新的空数据目录，并会
+  拒绝覆盖当前本地状态。

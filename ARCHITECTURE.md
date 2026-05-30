@@ -46,7 +46,7 @@ Current known module boundaries include:
 - `src/storage/`: controlled local storage layout and manifest logic.
 - `src/database/`: SQLite schema, migrations, and connection helpers.
 - `src/tools/`: built-in low-risk tool registry and execution path.
-- `src/bundle/`: manual Agent State Bundle export.
+- `src/bundle/`: manual Agent State Bundle export and safe import.
 - `src/cli/`: Node-side command entry points.
 - `src/server/`: local console server.
 - `src/config/`: environment/configuration helpers.
@@ -136,6 +136,8 @@ passing checks.
 - Conversation history is local SQLite state. The UI may select and continue a
   conversation, but it still writes through the runtime instead of mutating
   storage directly.
+- Bundle import is deliberately conservative: it restores into a new empty data
+  directory and refuses to overwrite existing local state.
 - There may be parallel Codex conversations working on Live2D assets; avoid file
   moves in `live2d-development/` unless explicitly coordinated.
 - The final long-term split between `src/body/` and future `src/live2d/` is not
