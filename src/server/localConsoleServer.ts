@@ -4,7 +4,12 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { exportAgentStateBundle } from "../bundle";
-import { processOwnerMessage } from "../conversation";
+import {
+  getConversation,
+  listConversationMessages,
+  listRecentConversations,
+  processOwnerMessage,
+} from "../conversation";
 import { openRinDatabase } from "../database";
 import {
   listMemoryItems,
@@ -72,6 +77,22 @@ async function routeRequest(
   }
 
   if (url.pathname === "/api/conversations") {
+    if (isReadRequest(request)) {
+      const storage = await initializeRinStorage(loadEnvironment());
+
+      writeJson(
+        response,
+        200,
+        {
+          ok: true,
+          conversations: listRecentConversations(storage.layout, 20),
+          snapshot: await readLocalConsoleSnapshot(),
+        },
+        request.method === "HEAD",
+      );
+      return;
+    }
+
     if (request.method !== "POST") {
       writeMethodNotAllowed(response);
       return;
@@ -94,6 +115,36 @@ async function routeRequest(
       turn,
       snapshot: await readLocalConsoleSnapshot(),
     });
+    return;
+  }
+
+  if (url.pathname.startsWith("/api/conversations/")) {
+    if (!isReadRequest(request)) {
+      writeMethodNotAllowed(response);
+      return;
+    }
+
+    const conversationId = decodeURIComponent(
+      url.pathname.slice("/api/conversations/".length),
+    );
+    const storage = await initializeRinStorage(loadEnvironment());
+    const database = openRinDatabase(storage.layout);
+
+    try {
+      writeJson(
+        response,
+        200,
+        {
+          ok: true,
+          conversation: getConversation(database, conversationId),
+          messages: listConversationMessages(database, conversationId),
+          snapshot: await readLocalConsoleSnapshot(),
+        },
+        request.method === "HEAD",
+      );
+    } finally {
+      database.close();
+    }
     return;
   }
 

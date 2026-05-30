@@ -1,8 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type {
+  ConversationDetailResponse,
   ConversationTurnResponse,
   LocalConsoleSnapshot,
 } from "../console/types";
+import type { ConversationMessageRecord } from "../conversation";
 import { rinLive2dBodyAdapter } from "../body";
 import { CURRENT_PHASES, RIN_PROJECT_NAME } from "../core/project";
 import { runtimeBoundaries } from "../runtime";
@@ -32,6 +34,15 @@ export function App() {
   const [messageDraft, setMessageDraft] = useState("");
   const [turnStatus, setTurnStatus] = useState<"idle" | "sending" | "error">("idle");
   const [memoryReviewingId, setMemoryReviewingId] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(
+    null,
+  );
+  const [conversationMessages, setConversationMessages] = useState<
+    ConversationMessageRecord[]
+  >([]);
+  const [conversationLoadStatus, setConversationLoadStatus] = useState<
+    "idle" | "loading" | "error"
+  >("idle");
   const [lastTurn, setLastTurn] = useState<ConversationTurnResponse["turn"] | null>(
     null,
   );
@@ -95,7 +106,10 @@ export function App() {
       const response = await fetch("/api/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: messageDraft }),
+        body: JSON.stringify({
+          content: messageDraft,
+          conversationId: activeConversationId ?? undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -105,11 +119,46 @@ export function App() {
       const body = (await response.json()) as ConversationTurnResponse;
       setSnapshot(body.snapshot);
       setLastTurn(body.turn);
+      setActiveConversationId(body.turn.conversation.id);
+      setConversationMessages((current) =>
+        activeConversationId === body.turn.conversation.id
+          ? [...current, body.turn.ownerMessage, body.turn.rinMessage]
+          : [body.turn.ownerMessage, body.turn.rinMessage],
+      );
       setMessageDraft("");
       setTurnStatus("idle");
     } catch {
       setTurnStatus("error");
     }
+  }
+
+  async function loadConversation(conversationId: string) {
+    setConversationLoadStatus("loading");
+
+    try {
+      const response = await fetch(
+        `/api/conversations/${encodeURIComponent(conversationId)}`,
+      );
+
+      if (!response.ok) {
+        throw new Error(`Conversation load failed: ${response.status}`);
+      }
+
+      const body = (await response.json()) as ConversationDetailResponse;
+      setSnapshot(body.snapshot);
+      setActiveConversationId(body.conversation.id);
+      setConversationMessages(body.messages);
+      setConversationLoadStatus("idle");
+    } catch {
+      setConversationLoadStatus("error");
+    }
+  }
+
+  function startNewConversation() {
+    setActiveConversationId(null);
+    setConversationMessages([]);
+    setLastTurn(null);
+    setConversationLoadStatus("idle");
   }
 
   async function reviewMemory(
@@ -270,6 +319,16 @@ export function App() {
           当前模板会通过本地 runtime 写入原始消息。它使用已配置的模型
           adapter，并且仍然只创建记忆提案。
         </p>
+        <div className="conversation-toolbar">
+          <span>
+            {activeConversationId
+              ? `Active conversation / 当前对话：${shortId(activeConversationId)}`
+              : "New conversation / 新对话"}
+          </span>
+          <button type="button" onClick={startNewConversation}>
+            New / 新建
+          </button>
+        </div>
         <form onSubmit={submitMessage} className="conversation-form">
           <textarea
             value={messageDraft}
@@ -300,6 +359,40 @@ export function App() {
             <strong>Latest turn / 最新回合</strong>
             <p>{lastTurn.ownerMessage.content}</p>
             <p>{lastTurn.rinMessage.content}</p>
+          </div>
+        ) : null}
+        {conversationMessages.length > 0 ? (
+          <div className="conversation-history" aria-label="Conversation history">
+            {conversationMessages.map((message) => (
+              <article key={message.id} data-role={message.role}>
+                <strong>{message.role}</strong>
+                <p>{message.content}</p>
+              </article>
+            ))}
+          </div>
+        ) : null}
+        {snapshot?.recentConversations.length ? (
+          <div className="recent-conversations">
+            <strong>Recent conversations / 最近对话</strong>
+            <div>
+              {snapshot.recentConversations.map((conversation) => (
+                <button
+                  type="button"
+                  key={conversation.id}
+                  disabled={conversationLoadStatus === "loading"}
+                  onClick={() => void loadConversation(conversation.id)}
+                >
+                  {conversation.title}
+                </button>
+              ))}
+            </div>
+            {conversationLoadStatus === "error" ? (
+              <p className="error-text">
+                Could not load conversation.
+                <br />
+                无法加载对话。
+              </p>
+            ) : null}
           </div>
         ) : null}
       </section>
@@ -533,4 +626,8 @@ function memoryText(content: Record<string, unknown>): string {
   return typeof content.text === "string"
     ? content.text
     : JSON.stringify(content);
+}
+
+function shortId(id: string): string {
+  return id.slice(0, 8);
 }

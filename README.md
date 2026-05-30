@@ -12,10 +12,10 @@ Before modifying this project, read [PROJECT_CHARTER.md](./PROJECT_CHARTER.md).
 
 ## 当前范围
 
-This repository currently contains Phase 0 through Phase 18 as local MVP
+This repository currently contains Phase 0 through Phase 19 as local MVP
 templates:
 
-当前仓库包含 Phase 0 到 Phase 18 的本地 MVP 模板：
+当前仓库包含 Phase 0 到 Phase 19 的本地 MVP 模板：
 
 - Project definition and charter.
 - 项目定义与项目宪章。
@@ -46,6 +46,8 @@ templates:
 - Controlled local memory review for accepting, rejecting, or archiving memory
   proposals.
 - 受控的本地记忆审查流程，可接受、拒绝或归档记忆提案。
+- Local conversation history browsing and continuation.
+- 本地对话历史浏览与继续对话。
 
 It intentionally does not store API keys in tracked files or local core config,
 does not allow UI-direct model calls, and does not implement automatic
@@ -82,18 +84,18 @@ npm run dev
 Phase 2 introduced a Node-side storage foundation that initializes a controlled
 local data directory and writes a `manifest.json` with the storage schema
 version. Phase 3 added SQLite persistence. Phase 4 added model abstraction.
-Phase 5 added a basic local conversation path through the runtime. Phase 6-18
+Phase 5 added a basic local conversation path through the runtime. Phase 6-19
 added raw logs, memory proposals, policy checks, state history, export bundles,
 permission-gated L0 tools, an original chibi SVG body rig, a local-only body
 interaction shell, configurable model adapter selection, and controlled memory
-review.
+review, and local conversation history browsing.
 
 Phase 2 引入 Node 侧存储基础，可以初始化受控本地数据目录，并写入带有存储
 schema 版本的 `manifest.json`。Phase 3 增加 SQLite 持久化。Phase 4 增加模型
-抽象层。Phase 5 增加通过 runtime 的基础本地对话路径。Phase 6-18 增加原始
+抽象层。Phase 5 增加通过 runtime 的基础本地对话路径。Phase 6-19 增加原始
 日志、记忆提案、策略检查、状态历史、导出包、受权限控制的 L0 工具、原创 Q 版
 SVG 身体 rig、仅本地运行的身体交互壳、可配置的模型 adapter 选择，以及受控记忆
-审查。
+审查和本地对话历史浏览。
 
 Initialize local RIN data:
 
@@ -166,11 +168,13 @@ The Console now includes a basic local conversation template. It uses the
 configured model adapter, writes raw messages to SQLite, and keeps memory
 writes behind proposal review. By default that adapter is still the local mock.
 Messages beginning with `/remember ` create memory proposals that can be
-accepted or rejected in the Console.
+accepted or rejected in the Console. Recent conversations can be reopened and
+continued through the same local conversation id.
 
 Console 现在包含一个基础本地对话模板。它使用已配置的模型 adapter，会把原始
 消息写入 SQLite，并且通过提案审查处理记忆写入。默认 adapter 仍是本地
 mock。以 `/remember ` 开头的消息会创建可在 Console 中接受或拒绝的记忆提案。
+最近对话可以重新打开，并通过同一个本地 conversation id 继续。
 
 ## Model Adapter Configuration
 

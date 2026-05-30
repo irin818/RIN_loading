@@ -35,6 +35,8 @@ Current known module boundaries include:
 - `src/body/`: current body adapter protocol, SVG/live2d-compatible body state
   mapping, and local body interaction logic.
 - `src/runtime/`: local conversation/runtime boundary.
+- `src/conversation/`: conversation persistence, history retrieval, and runtime
+  turn handling.
 - `src/model/`: provider-neutral model abstraction, local mock adapter,
   configurable adapter selection, and OpenAI-compatible external adapter
   boundary.
@@ -131,6 +133,9 @@ passing checks.
 - Memory writes are still controlled slow-variable updates: owner messages can
   create proposals, and local review routes decide accepted, rejected, or
   archived status.
+- Conversation history is local SQLite state. The UI may select and continue a
+  conversation, but it still writes through the runtime instead of mutating
+  storage directly.
 - There may be parallel Codex conversations working on Live2D assets; avoid file
   moves in `live2d-development/` unless explicitly coordinated.
 - The final long-term split between `src/body/` and future `src/live2d/` is not

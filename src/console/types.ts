@@ -1,7 +1,11 @@
 import type { RinDataManifest } from "../storage";
 import type { CoreStateFileStatus } from "../storage/coreFiles";
 import type { DatabaseStatus } from "../database";
-import type { ConversationRecord, ConversationTurnResult } from "../conversation";
+import type {
+  ConversationMessageRecord,
+  ConversationRecord,
+  ConversationTurnResult,
+} from "../conversation";
 import type { BodyState } from "../body";
 import type { MemoryRecord } from "../memory";
 
@@ -79,5 +83,18 @@ export type LocalConsoleSnapshot = {
 export type ConversationTurnResponse = {
   ok: true;
   turn: ConversationTurnResult;
+  snapshot: LocalConsoleSnapshot;
+};
+
+export type ConversationListResponse = {
+  ok: true;
+  conversations: ConversationRecord[];
+  snapshot: LocalConsoleSnapshot;
+};
+
+export type ConversationDetailResponse = {
+  ok: true;
+  conversation: ConversationRecord;
+  messages: ConversationMessageRecord[];
   snapshot: LocalConsoleSnapshot;
 };

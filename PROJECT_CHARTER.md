@@ -518,7 +518,7 @@ A runnable local application containing:
 Only after this milestone is complete should development continue to tool
 control, Live2D, synchronization, and advanced agent behavior.
 
-## Current Scope: Through Phase 18
+## Current Scope: Through Phase 19
 
 This repository currently covers:
 
@@ -546,6 +546,8 @@ This repository currently covers:
   environment configuration.
 - Phase 18: Controlled local memory review flow for accepting, rejecting, or
   archiving memory proposals through the runtime.
+- Phase 19: Local conversation history browsing and conversation continuation
+  through stable conversation ids.
 
 The current implementation still must not implement:
 
@@ -1081,7 +1083,7 @@ RIN 必须迭代式开发。
 
 只有完成这个里程碑之后，才应继续开发工具控制、Live2D、同步和高级智能体行为。
 
-## 当前范围：截至 Phase 18
+## 当前范围：截至 Phase 19
 
 当前仓库覆盖：
 
@@ -1105,6 +1107,7 @@ RIN 必须迭代式开发。
 - Phase 17：可配置的模型 adapter 选择；默认仍使用本地 mock adapter，
   OpenAI-compatible 外部 adapter 必须通过环境变量显式配置后才能启用。
 - Phase 18：受控的本地记忆审查流程，可通过 runtime 接受、拒绝或归档记忆提案。
+- Phase 19：本地对话历史浏览，以及通过稳定 conversation id 继续同一段对话。
 
 当前实现仍不得包含：
 
