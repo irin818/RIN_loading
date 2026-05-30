@@ -126,13 +126,13 @@ owner or device identity.
 - UI code must not import Node filesystem storage modules directly.
 - UI 代码不得直接导入 Node 文件系统存储模块。
 
-## Still Deferred After Phase 20
+## Still Deferred After Phase 21
 
-## Phase 20 后仍延后实现的内容
+## Phase 21 后仍延后实现的内容
 
-The following are intentionally still not implemented after Phase 20:
+The following are intentionally still not implemented after Phase 21:
 
-以下内容在 Phase 20 后仍然有意不实现：
+以下内容在 Phase 21 后仍然有意不实现：
 
 - UI-direct model provider calls.
 - UI 直接调用模型服务商。
@@ -155,9 +155,9 @@ The following are intentionally still not implemented after Phase 20:
 - SaaS administration.
 - SaaS 管理后台。
 
-## Phase 3-20 Current Runtime Template
+## Phase 3-21 Current Runtime Template
 
-## Phase 3-20 当前运行时模板
+## Phase 3-21 当前运行时模板
 
 - Phase 3 adds a local SQLite foundation with schema migrations, conversation,
   message, memory placeholder, and audit event tables.
@@ -223,3 +223,8 @@ The following are intentionally still not implemented after Phase 20:
   data directory and refuses to overwrite current local state.
 - Phase 20 增加手动 Agent State Bundle 导入。导入目标必须是新的空数据目录，并会
   拒绝覆盖当前本地状态。
+- Phase 21 adds local readiness reporting. It checks local data, SQLite,
+  model adapter configuration, API key storage policy, and missing API
+  environment variables.
+- Phase 21 增加本地就绪检查报告。它会检查本地数据、SQLite、模型 adapter 配置、
+  API Key 存储策略，以及缺少的 API 环境变量。

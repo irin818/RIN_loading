@@ -19,6 +19,7 @@
     "rin:inspect": "tsx src/cli/inspectData.ts",
     "rin:export": "tsx src/cli/exportBundle.ts",
     "rin:import": "tsx src/cli/importBundle.ts",
+    "rin:readiness": "tsx src/cli/readiness.ts",
     "rin:tool": "tsx src/cli/runTool.ts",
     "rin:console": "npm run build && tsx src/server/localConsoleServer.ts",
     "rin:console:server": "tsx src/server/localConsoleServer.ts"

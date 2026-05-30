@@ -50,6 +50,8 @@ Current known module boundaries include:
 - `src/cli/`: Node-side command entry points.
 - `src/server/`: local console server.
 - `src/config/`: environment/configuration helpers.
+- `src/readiness/`: local readiness checks for API handoff and operational
+  sanity checks.
 - `src/tests/`: current shared test setup and charter tests.
 
 Do not move these modules during governance-only work.
