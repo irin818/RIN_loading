@@ -1,6 +1,7 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RinEnvironment } from "../config/environment";
+import { createDefaultModelRuntimeConfig } from "../model/config";
 import type { RinDataLayout } from "./paths";
 
 type JsonValue =
@@ -118,20 +119,9 @@ export const CORE_STATE_FILE_DEFINITIONS: CoreStateFileDefinition[] = [
   {
     key: "model-config",
     relativePath: "config/model_config.json",
-    english: "Provider-neutral model configuration placeholder.",
-    chinese: "服务商中立的模型配置占位文件。",
-    create: (_environment, now) => ({
-      schemaVersion: 1,
-      kind: "model_config",
-      updatedAt: now.toISOString(),
-      activeAdapter: null,
-      adapters: [],
-      apiKeysStoredHere: false,
-      note: {
-        english: "Do not hard-code API keys or provider logic in core runtime.",
-        chinese: "不要在核心运行时中硬编码 API Key 或服务商逻辑。",
-      },
-    }),
+    english: "Provider-neutral model configuration and adapter selection.",
+    chinese: "服务商中立的模型配置与 adapter 选择。",
+    create: (_environment, now) => createDefaultModelRuntimeConfig(now),
   },
   {
     key: "tool-registry",

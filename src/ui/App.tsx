@@ -1,8 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type {
+  ConversationDetailResponse,
   ConversationTurnResponse,
   LocalConsoleSnapshot,
 } from "../console/types";
+import type { ConversationMessageRecord } from "../conversation";
 import { rinLive2dBodyAdapter } from "../body";
 import { CURRENT_PHASES, RIN_PROJECT_NAME } from "../core/project";
 import { runtimeBoundaries } from "../runtime";
@@ -31,6 +33,16 @@ export function App() {
   );
   const [messageDraft, setMessageDraft] = useState("");
   const [turnStatus, setTurnStatus] = useState<"idle" | "sending" | "error">("idle");
+  const [memoryReviewingId, setMemoryReviewingId] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(
+    null,
+  );
+  const [conversationMessages, setConversationMessages] = useState<
+    ConversationMessageRecord[]
+  >([]);
+  const [conversationLoadStatus, setConversationLoadStatus] = useState<
+    "idle" | "loading" | "error"
+  >("idle");
   const [lastTurn, setLastTurn] = useState<ConversationTurnResponse["turn"] | null>(
     null,
   );
@@ -94,7 +106,10 @@ export function App() {
       const response = await fetch("/api/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: messageDraft }),
+        body: JSON.stringify({
+          content: messageDraft,
+          conversationId: activeConversationId ?? undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -104,10 +119,75 @@ export function App() {
       const body = (await response.json()) as ConversationTurnResponse;
       setSnapshot(body.snapshot);
       setLastTurn(body.turn);
+      setActiveConversationId(body.turn.conversation.id);
+      setConversationMessages((current) =>
+        activeConversationId === body.turn.conversation.id
+          ? [...current, body.turn.ownerMessage, body.turn.rinMessage]
+          : [body.turn.ownerMessage, body.turn.rinMessage],
+      );
       setMessageDraft("");
       setTurnStatus("idle");
     } catch {
       setTurnStatus("error");
+    }
+  }
+
+  async function loadConversation(conversationId: string) {
+    setConversationLoadStatus("loading");
+
+    try {
+      const response = await fetch(
+        `/api/conversations/${encodeURIComponent(conversationId)}`,
+      );
+
+      if (!response.ok) {
+        throw new Error(`Conversation load failed: ${response.status}`);
+      }
+
+      const body = (await response.json()) as ConversationDetailResponse;
+      setSnapshot(body.snapshot);
+      setActiveConversationId(body.conversation.id);
+      setConversationMessages(body.messages);
+      setConversationLoadStatus("idle");
+    } catch {
+      setConversationLoadStatus("error");
+    }
+  }
+
+  function startNewConversation() {
+    setActiveConversationId(null);
+    setConversationMessages([]);
+    setLastTurn(null);
+    setConversationLoadStatus("idle");
+  }
+
+  async function reviewMemory(
+    memoryItemId: string,
+    decision: "accept" | "reject" | "archive",
+  ) {
+    setMemoryReviewingId(memoryItemId);
+
+    try {
+      const response = await fetch(
+        `/api/memory/${encodeURIComponent(memoryItemId)}/review`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ decision }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Memory review failed: ${response.status}`);
+      }
+
+      const body = (await response.json()) as {
+        ok: true;
+        snapshot: LocalConsoleSnapshot;
+      };
+      setSnapshot(body.snapshot);
+    } finally {
+      setMemoryReviewingId(null);
     }
   }
 
@@ -208,6 +288,18 @@ export function App() {
               <dt>Owner model / 所有者模型</dt>
               <dd>{snapshot.ownerModel.status ?? "unset"}</dd>
             </div>
+            <div>
+              <dt>Model adapter / 模型 adapter</dt>
+              <dd>{snapshot.modelConfig.activeAdapter ?? "unset"}</dd>
+            </div>
+            <div>
+              <dt>External model / 外部模型</dt>
+              <dd>
+                {snapshot.modelConfig.externalCallsEnabled
+                  ? "configured"
+                  : "not active"}
+              </dd>
+            </div>
           </dl>
         ) : (
           <p className="muted">
@@ -221,12 +313,22 @@ export function App() {
       <section className="conversation-panel" aria-labelledby="conversation-title">
         <h2 id="conversation-title">Local Conversation / 本地对话</h2>
         <p>
-          This template uses only the local mock model adapter. It writes raw
-          messages to SQLite, but does not create memory or call external models.
+          This template writes raw messages through the local runtime. It uses
+          the configured model adapter and keeps memory writes behind proposals.
           <br />
-          当前模板只使用本地 mock 模型适配器。它会把原始消息写入 SQLite，
-          但不会创建记忆，也不会调用外部模型。
+          当前模板会通过本地 runtime 写入原始消息。它使用已配置的模型
+          adapter，并且仍然只创建记忆提案。
         </p>
+        <div className="conversation-toolbar">
+          <span>
+            {activeConversationId
+              ? `Active conversation / 当前对话：${shortId(activeConversationId)}`
+              : "New conversation / 新对话"}
+          </span>
+          <button type="button" onClick={startNewConversation}>
+            New / 新建
+          </button>
+        </div>
         <form onSubmit={submitMessage} className="conversation-form">
           <textarea
             value={messageDraft}
@@ -257,6 +359,40 @@ export function App() {
             <strong>Latest turn / 最新回合</strong>
             <p>{lastTurn.ownerMessage.content}</p>
             <p>{lastTurn.rinMessage.content}</p>
+          </div>
+        ) : null}
+        {conversationMessages.length > 0 ? (
+          <div className="conversation-history" aria-label="Conversation history">
+            {conversationMessages.map((message) => (
+              <article key={message.id} data-role={message.role}>
+                <strong>{message.role}</strong>
+                <p>{message.content}</p>
+              </article>
+            ))}
+          </div>
+        ) : null}
+        {snapshot?.recentConversations.length ? (
+          <div className="recent-conversations">
+            <strong>Recent conversations / 最近对话</strong>
+            <div>
+              {snapshot.recentConversations.map((conversation) => (
+                <button
+                  type="button"
+                  key={conversation.id}
+                  disabled={conversationLoadStatus === "loading"}
+                  onClick={() => void loadConversation(conversation.id)}
+                >
+                  {conversation.title}
+                </button>
+              ))}
+            </div>
+            {conversationLoadStatus === "error" ? (
+              <p className="error-text">
+                Could not load conversation.
+                <br />
+                无法加载对话。
+              </p>
+            ) : null}
           </div>
         ) : null}
       </section>
@@ -373,6 +509,34 @@ export function App() {
             </ul>
           </section>
 
+          <section className="state-panel" aria-labelledby="model-title">
+            <h2 id="model-title">Model Runtime / 模型运行时</h2>
+            <dl className="status-grid compact">
+              <div>
+                <dt>Active adapter</dt>
+                <dd>{snapshot.modelConfig.activeAdapter ?? "unset"}</dd>
+              </div>
+              <div>
+                <dt>Provider</dt>
+                <dd>{snapshot.modelConfig.selectedProvider}</dd>
+              </div>
+              <div>
+                <dt>Adapters</dt>
+                <dd>{snapshot.modelConfig.adapterCount}</dd>
+              </div>
+              <div>
+                <dt>Keys in config</dt>
+                <dd>{snapshot.modelConfig.apiKeysStoredHere ? "yes" : "no"}</dd>
+              </div>
+            </dl>
+            {snapshot.modelConfig.missingEnvironment.length > 0 ? (
+              <p className="muted">
+                Missing environment / 缺少环境变量：{" "}
+                {snapshot.modelConfig.missingEnvironment.join(", ")}
+              </p>
+            ) : null}
+          </section>
+
           <section className="state-panel" aria-labelledby="memory-title">
             <h2 id="memory-title">Memory MVP / 记忆 MVP</h2>
             <dl className="status-grid compact">
@@ -393,6 +557,42 @@ export function App() {
                 <dd>{snapshot.memory.archived}</dd>
               </div>
             </dl>
+            {snapshot.memory.recent.length > 0 ? (
+              <ul className="memory-review-list" aria-label="Recent memory items">
+                {snapshot.memory.recent.map((item) => (
+                  <li key={item.id}>
+                    <strong>{item.status}</strong>
+                    <span>{memoryText(item.content)}</span>
+                    <small>{item.memoryType}</small>
+                    {item.status === "proposal" ? (
+                      <div className="memory-actions">
+                        <button
+                          type="button"
+                          disabled={memoryReviewingId === item.id}
+                          onClick={() => void reviewMemory(item.id, "accept")}
+                        >
+                          Accept / 接受
+                        </button>
+                        <button
+                          type="button"
+                          disabled={memoryReviewingId === item.id}
+                          onClick={() => void reviewMemory(item.id, "reject")}
+                        >
+                          Reject / 拒绝
+                        </button>
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted">
+                No memory proposals yet. Use `/remember ` in a local message to
+                create one.
+                <br />
+                暂无记忆提案。可在本地消息中使用 `/remember ` 创建一条。
+              </p>
+            )}
           </section>
 
           <section className="state-panel" aria-labelledby="tools-title">
@@ -420,4 +620,14 @@ export function App() {
       ) : null}
     </main>
   );
+}
+
+function memoryText(content: Record<string, unknown>): string {
+  return typeof content.text === "string"
+    ? content.text
+    : JSON.stringify(content);
+}
+
+function shortId(id: string): string {
+  return id.slice(0, 8);
 }

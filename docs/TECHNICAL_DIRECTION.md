@@ -126,18 +126,22 @@ owner or device identity.
 - UI code must not import Node filesystem storage modules directly.
 - UI 代码不得直接导入 Node 文件系统存储模块。
 
-## Still Deferred After Phase 16
+## Still Deferred After Phase 21
 
-## Phase 16 后仍延后实现的内容
+## Phase 21 后仍延后实现的内容
 
-The following are intentionally still not implemented after Phase 16:
+The following are intentionally still not implemented after Phase 21:
 
-以下内容在 Phase 16 后仍然有意不实现：
+以下内容在 Phase 21 后仍然有意不实现：
 
-- External model API calls.
-- 外部模型 API 调用。
-- Accepted long-term memory writes without review.
-- 未经审查接受的长期记忆写入。
+- UI-direct model provider calls.
+- UI 直接调用模型服务商。
+- Hard-coded provider-specific model calls.
+- 硬编码的特定服务商模型调用。
+- API key storage in tracked files or local core config.
+- 在已跟踪文件或本地核心配置中存储 API Key。
+- Automatic long-term memory writes without review.
+- 未经审查的自动长期记忆写入。
 - Medium-risk or high-risk automatic tool execution.
 - 中高风险工具自动执行。
 - Real Live2D asset loading.
@@ -151,9 +155,9 @@ The following are intentionally still not implemented after Phase 16:
 - SaaS administration.
 - SaaS 管理后台。
 
-## Phase 3-16 Current Runtime Template
+## Phase 3-21 Current Runtime Template
 
-## Phase 3-16 当前运行时模板
+## Phase 3-21 当前运行时模板
 
 - Phase 3 adds a local SQLite foundation with schema migrations, conversation,
   message, memory placeholder, and audit event tables.
@@ -167,14 +171,16 @@ The following are intentionally still not implemented after Phase 16:
 - Phase 5 增加通过 runtime 的基础本地对话路径。它会把原始消息写入 SQLite，
   并且只使用 mock adapter。
 - Phase 5 did not call external models, write long-term memory, execute tools,
-  or integrate Live2D. Later phases only add proposal-only memory and L0 tool
-  execution.
-- Phase 5 未调用外部模型、写入长期记忆、执行工具或集成 Live2D。后续阶段仅增加
-  记忆提案和 L0 工具执行。
+  or integrate Live2D. Later phases add auditable boundaries before broadening
+  any of those capabilities.
+- Phase 5 未调用外部模型、写入长期记忆、执行工具或集成 Live2D。后续阶段会先添加
+  可审计边界，再逐步扩大这些能力。
 - Phase 6 records raw runtime events for traceability.
 - Phase 6 记录原始 runtime 事件，用于可追踪性。
-- Phase 7 supports memory proposals only; accepted memory writes remain gated.
-- Phase 7 仅支持记忆提案；接受长期记忆写入仍受控。
+- Phase 7 supports memory proposals only; Phase 18 adds local review before any
+  proposal can become accepted memory.
+- Phase 7 仅支持记忆提案；Phase 18 增加本地审查，提案必须通过审查才能成为已接受
+  记忆。
 - Phase 8 snapshots slow variables for future review and rollback.
 - Phase 8 快照慢变量，用于未来审查和回退。
 - Phase 9 evaluates model responses through local policy checks.
@@ -196,3 +202,29 @@ The following are intentionally still not implemented after Phase 16:
   not write memory, execute tools, or become RIN identity.
 - Phase 16 增加 `/body` 的仅本地桌面身体交互壳。拖拽位置、点击反应和气泡可见性
   都是 UI 快变量；它们不会写入记忆、执行工具或成为 RIN 身份。
+- Phase 17 adds configurable model adapter selection. The default remains
+  `rin-mock-local`; OpenAI-compatible providers require explicit environment
+  configuration and still pass through runtime, model adapter, policy, raw log,
+  state, and snapshot boundaries.
+- Phase 17 增加可配置的模型 adapter 选择。默认仍是 `rin-mock-local`；
+  OpenAI-compatible 服务商必须通过环境变量显式配置，并且仍会经过 runtime、
+  模型 adapter、policy、raw log、state 和 snapshot 边界。
+- Phase 18 adds local memory proposal review. A `/remember ` message still only
+  creates a proposal; acceptance, rejection, and archiving happen through local
+  runtime review routes and are audited.
+- Phase 18 增加本地记忆提案审查。`/remember ` 消息仍然只创建提案；接受、拒绝
+  和归档必须通过本地 runtime 审查路由完成，并会被审计。
+- Phase 19 adds local conversation history routes and UI continuation. Existing
+  conversations can be selected, read, and continued by passing their stable
+  conversation id back through the runtime.
+- Phase 19 增加本地对话历史路由和 UI 续聊能力。已有对话可以被选择、读取，并通过
+  稳定 conversation id 回传 runtime 来继续。
+- Phase 20 adds manual Agent State Bundle import. Import targets a new empty
+  data directory and refuses to overwrite current local state.
+- Phase 20 增加手动 Agent State Bundle 导入。导入目标必须是新的空数据目录，并会
+  拒绝覆盖当前本地状态。
+- Phase 21 adds local readiness reporting. It checks local data, SQLite,
+  model adapter configuration, API key storage policy, and missing API
+  environment variables.
+- Phase 21 增加本地就绪检查报告。它会检查本地数据、SQLite、模型 adapter 配置、
+  API Key 存储策略，以及缺少的 API 环境变量。

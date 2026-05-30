@@ -970,6 +970,35 @@ h1 {
   gap: 10px;
 }
 
+.conversation-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  color: #40524a;
+  font-size: 0.9rem;
+}
+
+.conversation-toolbar button,
+.recent-conversations button {
+  border: 1px solid #c6d7cf;
+  border-radius: 8px;
+  background: #eef7f2;
+  padding: 7px 10px;
+  color: #153426;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.conversation-toolbar button:disabled,
+.recent-conversations button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .conversation-form textarea {
   min-height: 96px;
   resize: vertical;
@@ -1000,6 +1029,33 @@ h1 {
   opacity: 0.65;
 }
 
+.memory-review-list {
+  margin-top: 16px;
+}
+
+.memory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.memory-actions button {
+  border: 1px solid #1f6f56;
+  border-radius: 8px;
+  background: #f5fbf8;
+  padding: 7px 10px;
+  color: #1e604b;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.memory-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .turn-preview {
   display: grid;
   gap: 8px;
@@ -1011,6 +1067,54 @@ h1 {
 .turn-preview p {
   margin: 0;
   white-space: pre-wrap;
+}
+
+.conversation-history,
+.recent-conversations {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  border-top: 1px solid #ded6c8;
+  padding-top: 14px;
+}
+
+.conversation-history article {
+  display: grid;
+  gap: 4px;
+  border-left: 3px solid #b4cfc3;
+  padding-left: 10px;
+}
+
+.conversation-history article[data-role="owner"] {
+  border-left-color: #287c62;
+}
+
+.conversation-history article[data-role="rin"] {
+  border-left-color: #5d6f82;
+}
+
+.conversation-history strong,
+.recent-conversations strong {
+  color: #21352b;
+}
+
+.conversation-history p {
+  margin: 0;
+  color: #334139;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.recent-conversations div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.recent-conversations button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 
 .error-text {

@@ -4,8 +4,19 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { exportAgentStateBundle } from "../bundle";
-import { processOwnerMessage } from "../conversation";
+import {
+  getConversation,
+  listConversationMessages,
+  listRecentConversations,
+  processOwnerMessage,
+} from "../conversation";
 import { openRinDatabase } from "../database";
+import {
+  listMemoryItems,
+  reviewMemoryProposal,
+  type MemoryReviewDecision,
+  type MemoryStatus,
+} from "../memory";
 import { initializeRinStorage } from "../storage";
 import { loadEnvironment } from "../config/loadEnvironment";
 import { readLocalConsoleSnapshot } from "./localConsoleSnapshot";
@@ -66,6 +77,22 @@ async function routeRequest(
   }
 
   if (url.pathname === "/api/conversations") {
+    if (isReadRequest(request)) {
+      const storage = await initializeRinStorage(loadEnvironment());
+
+      writeJson(
+        response,
+        200,
+        {
+          ok: true,
+          conversations: listRecentConversations(storage.layout, 20),
+          snapshot: await readLocalConsoleSnapshot(),
+        },
+        request.method === "HEAD",
+      );
+      return;
+    }
+
     if (request.method !== "POST") {
       writeMethodNotAllowed(response);
       return;
@@ -91,6 +118,36 @@ async function routeRequest(
     return;
   }
 
+  if (url.pathname.startsWith("/api/conversations/")) {
+    if (!isReadRequest(request)) {
+      writeMethodNotAllowed(response);
+      return;
+    }
+
+    const conversationId = decodeURIComponent(
+      url.pathname.slice("/api/conversations/".length),
+    );
+    const storage = await initializeRinStorage(loadEnvironment());
+    const database = openRinDatabase(storage.layout);
+
+    try {
+      writeJson(
+        response,
+        200,
+        {
+          ok: true,
+          conversation: getConversation(database, conversationId),
+          messages: listConversationMessages(database, conversationId),
+          snapshot: await readLocalConsoleSnapshot(),
+        },
+        request.method === "HEAD",
+      );
+    } finally {
+      database.close();
+    }
+    return;
+  }
+
   if (url.pathname === "/api/export-bundle") {
     if (request.method !== "POST") {
       writeMethodNotAllowed(response);
@@ -103,6 +160,86 @@ async function routeRequest(
     writeJson(response, 200, {
       ok: true,
       bundle,
+      snapshot: await readLocalConsoleSnapshot(),
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/memory") {
+    if (!isReadRequest(request)) {
+      writeMethodNotAllowed(response);
+      return;
+    }
+
+    const status = readMemoryStatus(url.searchParams.get("status"));
+    const storage = await initializeRinStorage(loadEnvironment());
+    const database = openRinDatabase(storage.layout);
+
+    try {
+      writeJson(
+        response,
+        200,
+        {
+          ok: true,
+          items: listMemoryItems(database, { status, limit: 50 }),
+          snapshot: await readLocalConsoleSnapshot(),
+        },
+        request.method === "HEAD",
+      );
+    } finally {
+      database.close();
+    }
+    return;
+  }
+
+  if (url.pathname.startsWith("/api/memory/") && url.pathname.endsWith("/review")) {
+    if (request.method !== "POST") {
+      writeMethodNotAllowed(response);
+      return;
+    }
+
+    const memoryItemId = decodeURIComponent(
+      url.pathname.slice("/api/memory/".length, -"/review".length),
+    );
+    const body = await readJsonBody(request);
+    const decision = readMemoryReviewDecision(body.decision);
+
+    if (!decision) {
+      writeJson(response, 400, {
+        ok: false,
+        english: "Memory review decision must be accept, reject, or archive.",
+        chinese: "记忆审查决定必须是 accept、reject 或 archive。",
+      });
+      return;
+    }
+
+    const storage = await initializeRinStorage(loadEnvironment());
+    const database = openRinDatabase(storage.layout);
+    let item: ReturnType<typeof reviewMemoryProposal> | null = null;
+
+    try {
+      database.exec("BEGIN;");
+      item = reviewMemoryProposal(database, {
+        memoryItemId,
+        decision,
+        reason: typeof body.reason === "string" ? body.reason : null,
+        now: new Date(),
+      });
+      database.exec("COMMIT;");
+    } catch (error) {
+      database.exec("ROLLBACK;");
+      throw error;
+    } finally {
+      database.close();
+    }
+
+    if (!item) {
+      throw new Error("Memory review did not produce an item.");
+    }
+
+    writeJson(response, 200, {
+      ok: true,
+      item,
       snapshot: await readLocalConsoleSnapshot(),
     });
     return;
@@ -139,6 +276,21 @@ async function routeRequest(
   }
 
   await serveStaticFile(url.pathname, response, request.method === "HEAD");
+}
+
+function readMemoryStatus(value: string | null): MemoryStatus | undefined {
+  return value === "proposal" ||
+    value === "accepted" ||
+    value === "rejected" ||
+    value === "archived"
+    ? value
+    : undefined;
+}
+
+function readMemoryReviewDecision(value: unknown): MemoryReviewDecision | null {
+  return value === "accept" || value === "reject" || value === "archive"
+    ? value
+    : null;
 }
 
 function isReadRequest(request: IncomingMessage): boolean {

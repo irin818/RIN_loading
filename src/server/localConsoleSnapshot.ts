@@ -1,12 +1,16 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { loadEnvironment } from "../config/loadEnvironment";
+import {
+  loadEnvironment,
+  loadEnvironmentSource,
+} from "../config/loadEnvironment";
 import { rinLive2dBodyAdapter } from "../body";
 import type { LocalConsoleSnapshot } from "../console/types";
 import { listRecentConversations } from "../conversation";
 import { inspectRinDatabase } from "../database";
 import { openRinDatabase } from "../database";
-import { getMemoryCounts } from "../memory";
+import { getMemoryCounts, listMemoryItems } from "../memory";
+import { getModelRuntimeStatus, loadModelRuntimeConfig } from "../model";
 import { listTools, registerBuiltinTools } from "../tools";
 import {
   createDataLayout,
@@ -19,7 +23,8 @@ type JsonRecord = Record<string, unknown>;
 export async function readLocalConsoleSnapshot(
   cwd: string = process.cwd(),
 ): Promise<LocalConsoleSnapshot> {
-  const environment = loadEnvironment();
+  const environmentSource = loadEnvironmentSource(cwd);
+  const environment = loadEnvironment(environmentSource);
   const layout = createDataLayout(environment.dataDir, cwd);
   const coreFiles = await inspectCoreStateFiles(layout);
   const manifestResult = await readManifest(layout.manifestPath);
@@ -29,7 +34,8 @@ export async function readLocalConsoleSnapshot(
   const ownerModel = await readJsonFile(join(layout.rootDir, "config/user_model.json"));
   const aiState = await readJsonFile(join(layout.rootDir, "config/ai_state.json"));
   const permissions = await readJsonFile(join(layout.rootDir, "config/permissions.json"));
-  const modelConfig = await readJsonFile(join(layout.rootDir, "config/model_config.json"));
+  const modelConfig = await loadModelRuntimeConfig(layout);
+  const modelStatus = getModelRuntimeStatus(modelConfig, environmentSource);
   const toolRegistry = await readJsonFile(join(layout.rootDir, "config/tool_registry.json"));
   registerBuiltinTools();
 
@@ -85,9 +91,12 @@ export async function readLocalConsoleSnapshot(
       riskLevels: readStringRecord(permissions, "riskLevels"),
     },
     modelConfig: {
-      activeAdapter: readString(modelConfig, "activeAdapter"),
-      adapterCount: readArrayLength(modelConfig, "adapters"),
-      apiKeysStoredHere: readBoolean(modelConfig, "apiKeysStoredHere") ?? false,
+      activeAdapter: modelStatus.activeAdapter,
+      selectedProvider: modelStatus.selectedProvider,
+      adapterCount: modelStatus.adapterCount,
+      apiKeysStoredHere: modelStatus.apiKeysStoredHere,
+      externalCallsEnabled: modelStatus.externalCallsEnabled,
+      missingEnvironment: modelStatus.missingEnvironment,
     },
     toolRegistry: {
       toolCount: listTools().length + readArrayLength(toolRegistry, "tools"),
@@ -109,14 +118,15 @@ export async function readLocalConsoleSnapshot(
       },
       {
         key: "model-calls",
-        english: "External model calls are still not implemented.",
-        chinese: "仍未实现外部模型调用。",
-        enabled: false,
+        english:
+          "External model calls are available only through an explicitly configured model adapter.",
+        chinese: "外部模型调用只能通过显式配置的模型 adapter 启用。",
+        enabled: modelStatus.externalCallsEnabled,
       },
       {
         key: "memory-writes",
-        english: "MemoryManager can create proposals only; accepted memory writes remain gated.",
-        chinese: "MemoryManager 只能创建提案；接受长期记忆写入仍受控。",
+        english: "MemoryManager creates proposals first; accepted memory writes require local review.",
+        chinese: "MemoryManager 会先创建提案；接受长期记忆写入需要本地审查。",
         enabled: true,
       },
       {
@@ -141,12 +151,15 @@ function readMemoryCounts(
   try {
     const database = openRinDatabase(layout);
     try {
-      return getMemoryCounts(database);
+      return {
+        ...getMemoryCounts(database),
+        recent: listMemoryItems(database, { limit: 8 }),
+      };
     } finally {
       database.close();
     }
   } catch {
-    return { proposals: 0, accepted: 0, rejected: 0, archived: 0 };
+    return { proposals: 0, accepted: 0, rejected: 0, archived: 0, recent: [] };
   }
 }
 
@@ -194,10 +207,6 @@ async function readJsonFile(absolutePath: string): Promise<JsonRecord> {
 
 function readString(record: JsonRecord, key: string): string | null {
   return typeof record[key] === "string" ? record[key] : null;
-}
-
-function readBoolean(record: JsonRecord, key: string): boolean | null {
-  return typeof record[key] === "boolean" ? record[key] : null;
 }
 
 function readNestedString(
