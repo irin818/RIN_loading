@@ -518,7 +518,7 @@ A runnable local application containing:
 Only after this milestone is complete should development continue to tool
 control, Live2D, synchronization, and advanced agent behavior.
 
-## Current Scope: Through Phase 17
+## Current Scope: Through Phase 18
 
 This repository currently covers:
 
@@ -544,12 +544,14 @@ This repository currently covers:
 - Phase 17: Configurable model adapter selection with a default local mock
   adapter and an OpenAI-compatible external adapter that requires explicit
   environment configuration.
+- Phase 18: Controlled local memory review flow for accepting, rejecting, or
+  archiving memory proposals through the runtime.
 
 The current implementation still must not implement:
 
 - Hard-coded provider-specific model calls or UI-direct model calls.
 - API key storage in tracked files or local core config.
-- Accepted long-term memory writes without review.
+- Automatic long-term memory writes without review.
 - Medium-risk or high-risk automatic tool execution.
 - Real Live2D model asset loading.
 - Complete Live2D behavior.
@@ -1079,7 +1081,7 @@ RIN 必须迭代式开发。
 
 只有完成这个里程碑之后，才应继续开发工具控制、Live2D、同步和高级智能体行为。
 
-## 当前范围：截至 Phase 17
+## 当前范围：截至 Phase 18
 
 当前仓库覆盖：
 
@@ -1102,12 +1104,13 @@ RIN 必须迭代式开发。
 - Phase 16：仅本地的桌面身体交互壳，支持拖拽、点击反应和临时气泡行为。
 - Phase 17：可配置的模型 adapter 选择；默认仍使用本地 mock adapter，
   OpenAI-compatible 外部 adapter 必须通过环境变量显式配置后才能启用。
+- Phase 18：受控的本地记忆审查流程，可通过 runtime 接受、拒绝或归档记忆提案。
 
 当前实现仍不得包含：
 
 - 硬编码的特定服务商模型调用，或 UI 直接调用模型服务商。
 - 在已跟踪文件或本地核心配置中存储 API Key。
-- 未经审查接受的长期记忆写入。
+- 未经审查的自动长期记忆写入。
 - 中高风险工具自动执行。
 - 真实 Live2D 模型资产加载。
 - 完整 Live2D 行为。

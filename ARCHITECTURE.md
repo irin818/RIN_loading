@@ -38,7 +38,7 @@ Current known module boundaries include:
 - `src/model/`: provider-neutral model abstraction, local mock adapter,
   configurable adapter selection, and OpenAI-compatible external adapter
   boundary.
-- `src/memory/`: memory proposal/manager boundary.
+- `src/memory/`: memory proposal, review, and manager boundary.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
 - `src/storage/`: controlled local storage layout and manifest logic.
@@ -128,6 +128,9 @@ passing checks.
   model runtime.
 - External model providers are available only through configured model adapters;
   API keys must remain in environment variables or ignored local files.
+- Memory writes are still controlled slow-variable updates: owner messages can
+  create proposals, and local review routes decide accepted, rejected, or
+  archived status.
 - There may be parallel Codex conversations working on Live2D assets; avoid file
   moves in `live2d-development/` unless explicitly coordinated.
 - The final long-term split between `src/body/` and future `src/live2d/` is not

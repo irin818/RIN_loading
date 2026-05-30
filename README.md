@@ -12,10 +12,10 @@ Before modifying this project, read [PROJECT_CHARTER.md](./PROJECT_CHARTER.md).
 
 ## 当前范围
 
-This repository currently contains Phase 0 through Phase 17 as local MVP
+This repository currently contains Phase 0 through Phase 18 as local MVP
 templates:
 
-当前仓库包含 Phase 0 到 Phase 17 的本地 MVP 模板：
+当前仓库包含 Phase 0 到 Phase 18 的本地 MVP 模板：
 
 - Project definition and charter.
 - 项目定义与项目宪章。
@@ -43,16 +43,19 @@ templates:
   OpenAI-compatible adapter that is active only when explicitly configured.
 - 可配置的模型 adapter 选择；默认使用本地 mock，OpenAI-compatible adapter
   只有在显式配置后才会启用。
+- Controlled local memory review for accepting, rejecting, or archiving memory
+  proposals.
+- 受控的本地记忆审查流程，可接受、拒绝或归档记忆提案。
 
 It intentionally does not store API keys in tracked files or local core config,
-does not allow UI-direct model calls, and does not implement accepted
+does not allow UI-direct model calls, and does not implement automatic
 long-term memory writes without review, medium-risk or high-risk automatic
 tools, real Live2D asset loading, synchronization, multi-user systems, SaaS
 backends, or hard-coded provider-specific model calls. It also does not yet
 implement a native transparent desktop window.
 
 当前阶段有意不在已跟踪文件或本地核心配置中存储 API Key，不允许 UI 直接调用
-模型服务商，也不实现未经审查接受的长期记忆写入、中高风险工具自动执行、
+模型服务商，也不实现未经审查的自动长期记忆写入、中高风险工具自动执行、
 真实 Live2D 模型资产加载、同步、多用户系统、SaaS 后台，以及硬编码的特定
 模型服务商调用。当前也尚未实现原生透明桌面窗口。
 
@@ -79,16 +82,18 @@ npm run dev
 Phase 2 introduced a Node-side storage foundation that initializes a controlled
 local data directory and writes a `manifest.json` with the storage schema
 version. Phase 3 added SQLite persistence. Phase 4 added model abstraction.
-Phase 5 added a basic local conversation path through the runtime. Phase 6-17
+Phase 5 added a basic local conversation path through the runtime. Phase 6-18
 added raw logs, memory proposals, policy checks, state history, export bundles,
 permission-gated L0 tools, an original chibi SVG body rig, a local-only body
-interaction shell, and configurable model adapter selection.
+interaction shell, configurable model adapter selection, and controlled memory
+review.
 
 Phase 2 引入 Node 侧存储基础，可以初始化受控本地数据目录，并写入带有存储
 schema 版本的 `manifest.json`。Phase 3 增加 SQLite 持久化。Phase 4 增加模型
-抽象层。Phase 5 增加通过 runtime 的基础本地对话路径。Phase 6-17 增加原始
+抽象层。Phase 5 增加通过 runtime 的基础本地对话路径。Phase 6-18 增加原始
 日志、记忆提案、策略检查、状态历史、导出包、受权限控制的 L0 工具、原创 Q 版
-SVG 身体 rig、仅本地运行的身体交互壳，以及可配置的模型 adapter 选择。
+SVG 身体 rig、仅本地运行的身体交互壳、可配置的模型 adapter 选择，以及受控记忆
+审查。
 
 Initialize local RIN data:
 
@@ -159,12 +164,13 @@ Console 会在 `http://127.0.0.1:4173` 提供构建后的 UI 和本地 runtime A
 
 The Console now includes a basic local conversation template. It uses the
 configured model adapter, writes raw messages to SQLite, and keeps memory
-writes behind proposals. By default that adapter is still the local mock.
-Messages beginning with `/remember ` create memory proposals only.
+writes behind proposal review. By default that adapter is still the local mock.
+Messages beginning with `/remember ` create memory proposals that can be
+accepted or rejected in the Console.
 
 Console 现在包含一个基础本地对话模板。它使用已配置的模型 adapter，会把原始
-消息写入 SQLite，并且仍然只通过提案处理记忆写入。默认 adapter 仍是本地
-mock。以 `/remember ` 开头的消息只会创建记忆提案。
+消息写入 SQLite，并且通过提案审查处理记忆写入。默认 adapter 仍是本地
+mock。以 `/remember ` 开头的消息会创建可在 Console 中接受或拒绝的记忆提案。
 
 ## Model Adapter Configuration
 
@@ -193,11 +199,14 @@ policy check、SQLite 记录、状态更新和慢变量快照路径。
 The initializer creates readable JSON files for the owner model, AI identity,
 AI state, policy config, model config, tool registry, and permissions. These are
 starter state files only; they do not implement memory behavior, tool execution,
-external model configuration by themselves, or Live2D.
+external model configuration by themselves, or Live2D. Memory behavior is
+implemented by the runtime and SQLite memory tables, not by blindly editing
+these starter files.
 
 初始化器会创建可读的 JSON 文件，包括所有者模型、AI 身份、AI 状态、策略配置、
-模型配置、工具注册表和权限配置。这些只是起步状态文件；它们不实现记忆行为、
-工具执行、外部模型配置本身或 Live2D。
+模型配置、工具注册表和权限配置。这些只是起步状态文件；它们本身不实现记忆行为、
+工具执行、外部模型配置或 Live2D。记忆行为由 runtime 和 SQLite 记忆表实现，
+不是通过盲目编辑这些起步文件实现。
 
 ## Test
 

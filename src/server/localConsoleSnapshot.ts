@@ -9,7 +9,7 @@ import type { LocalConsoleSnapshot } from "../console/types";
 import { listRecentConversations } from "../conversation";
 import { inspectRinDatabase } from "../database";
 import { openRinDatabase } from "../database";
-import { getMemoryCounts } from "../memory";
+import { getMemoryCounts, listMemoryItems } from "../memory";
 import { getModelRuntimeStatus, loadModelRuntimeConfig } from "../model";
 import { listTools, registerBuiltinTools } from "../tools";
 import {
@@ -125,8 +125,8 @@ export async function readLocalConsoleSnapshot(
       },
       {
         key: "memory-writes",
-        english: "MemoryManager can create proposals only; accepted memory writes remain gated.",
-        chinese: "MemoryManager 只能创建提案；接受长期记忆写入仍受控。",
+        english: "MemoryManager creates proposals first; accepted memory writes require local review.",
+        chinese: "MemoryManager 会先创建提案；接受长期记忆写入需要本地审查。",
         enabled: true,
       },
       {
@@ -151,12 +151,15 @@ function readMemoryCounts(
   try {
     const database = openRinDatabase(layout);
     try {
-      return getMemoryCounts(database);
+      return {
+        ...getMemoryCounts(database),
+        recent: listMemoryItems(database, { limit: 8 }),
+      };
     } finally {
       database.close();
     }
   } catch {
-    return { proposals: 0, accepted: 0, rejected: 0, archived: 0 };
+    return { proposals: 0, accepted: 0, rejected: 0, archived: 0, recent: [] };
   }
 }
 

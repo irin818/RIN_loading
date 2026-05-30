@@ -31,6 +31,7 @@ export function App() {
   );
   const [messageDraft, setMessageDraft] = useState("");
   const [turnStatus, setTurnStatus] = useState<"idle" | "sending" | "error">("idle");
+  const [memoryReviewingId, setMemoryReviewingId] = useState<string | null>(null);
   const [lastTurn, setLastTurn] = useState<ConversationTurnResponse["turn"] | null>(
     null,
   );
@@ -108,6 +109,36 @@ export function App() {
       setTurnStatus("idle");
     } catch {
       setTurnStatus("error");
+    }
+  }
+
+  async function reviewMemory(
+    memoryItemId: string,
+    decision: "accept" | "reject" | "archive",
+  ) {
+    setMemoryReviewingId(memoryItemId);
+
+    try {
+      const response = await fetch(
+        `/api/memory/${encodeURIComponent(memoryItemId)}/review`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ decision }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Memory review failed: ${response.status}`);
+      }
+
+      const body = (await response.json()) as {
+        ok: true;
+        snapshot: LocalConsoleSnapshot;
+      };
+      setSnapshot(body.snapshot);
+    } finally {
+      setMemoryReviewingId(null);
     }
   }
 
@@ -433,6 +464,42 @@ export function App() {
                 <dd>{snapshot.memory.archived}</dd>
               </div>
             </dl>
+            {snapshot.memory.recent.length > 0 ? (
+              <ul className="memory-review-list" aria-label="Recent memory items">
+                {snapshot.memory.recent.map((item) => (
+                  <li key={item.id}>
+                    <strong>{item.status}</strong>
+                    <span>{memoryText(item.content)}</span>
+                    <small>{item.memoryType}</small>
+                    {item.status === "proposal" ? (
+                      <div className="memory-actions">
+                        <button
+                          type="button"
+                          disabled={memoryReviewingId === item.id}
+                          onClick={() => void reviewMemory(item.id, "accept")}
+                        >
+                          Accept / 接受
+                        </button>
+                        <button
+                          type="button"
+                          disabled={memoryReviewingId === item.id}
+                          onClick={() => void reviewMemory(item.id, "reject")}
+                        >
+                          Reject / 拒绝
+                        </button>
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted">
+                No memory proposals yet. Use `/remember ` in a local message to
+                create one.
+                <br />
+                暂无记忆提案。可在本地消息中使用 `/remember ` 创建一条。
+              </p>
+            )}
           </section>
 
           <section className="state-panel" aria-labelledby="tools-title">
@@ -460,4 +527,10 @@ export function App() {
       ) : null}
     </main>
   );
+}
+
+function memoryText(content: Record<string, unknown>): string {
+  return typeof content.text === "string"
+    ? content.text
+    : JSON.stringify(content);
 }

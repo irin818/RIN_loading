@@ -3,6 +3,7 @@ import type { CoreStateFileStatus } from "../storage/coreFiles";
 import type { DatabaseStatus } from "../database";
 import type { ConversationRecord, ConversationTurnResult } from "../conversation";
 import type { BodyState } from "../body";
+import type { MemoryRecord } from "../memory";
 
 export type LocalConsoleSnapshot = {
   ok: boolean;
@@ -18,6 +19,7 @@ export type LocalConsoleSnapshot = {
     accepted: number;
     rejected: number;
     archived: number;
+    recent: MemoryRecord[];
   };
   recentConversations: ConversationRecord[];
   identity: {
