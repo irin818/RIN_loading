@@ -86,10 +86,16 @@ Current known module boundaries include:
   in-memory evaluation harness for retrieval/injection quality that reports
   total/pass/fail counts, fixture categories, category pass/fail counts, failed
   case IDs, and provider-call count without calling model providers or touching
-  real owner data; it does not auto-write or auto-accept memories. Semantic
-  retrieval is not implemented in production. Future semantic retrieval must
-  remain local-first, optional, accepted-only, and evaluation-gated before it can
-  affect context injection.
+  real owner data; it does not auto-write or auto-accept memories. The module
+  also contains a fixture-only semantic retrieval comparison harness that
+  compares deterministic injected IDs with explicit fixture semantic candidate
+  IDs and report-only hybrid candidates. It reports false positives, false
+  negatives, accepted-only violations, zero-overlap semantic candidates, privacy
+  checks, and provider-call count without embeddings, vector databases, provider
+  calls, real `.rin-data`, or production integration. Semantic retrieval is not
+  implemented in production. Future semantic retrieval must remain local-first,
+  optional, accepted-only, and evaluation-gated before it can affect context
+  injection.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
 - `src/storage/`: controlled local storage layout and manifest logic.
@@ -189,9 +195,10 @@ passing checks.
   through configured model adapters. The UI must not call Ollama, external APIs,
   or any other provider directly.
 - External API keys must remain in environment variables or ignored local files.
-- Semantic retrieval is a design boundary only. There is no production
-  embedding path, vector database, semantic index, or semantic context injection
-  path yet.
+- Semantic retrieval remains outside production retrieval. A fixture-only
+  comparison harness exists for report-only evaluation, but there is still no
+  production embedding path, vector database, semantic index, or semantic
+  context injection path.
 - Memory writes are still controlled slow-variable updates: owner messages can
   create proposals, and local review routes decide accepted, rejected, or
   archived status.

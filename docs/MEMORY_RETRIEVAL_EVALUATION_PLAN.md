@@ -2,10 +2,11 @@
 
 ## Purpose
 
-This document defines how future semantic retrieval prototypes should be
-compared against RIN's current deterministic accepted-memory retrieval. It is a
-design plan only. It does not implement semantic retrieval, add embeddings, add
-dependencies, change current fixtures, or alter production retrieval behavior.
+This document defines how semantic retrieval prototypes should be compared
+against RIN's current deterministic accepted-memory retrieval. Mega-Milestone 9
+implements the first fixture-only comparison harness. The harness does not
+implement real semantic retrieval, add embeddings, add dependencies, change
+production retrieval behavior, or alter context injection.
 
 ## Current Evaluation Harness
 
@@ -55,20 +56,56 @@ change:
 The first comparison harness should use fixture data only. Real local accepted
 memory comparison requires a later explicit opt-in CLI mode.
 
-## Proposed Comparison Fields
+## Current Fixture-Only Semantic Comparison Harness
 
-Future semantic comparison results should include safe IDs and aggregate fields
-only:
+`npm run rin:semantic-eval` runs `src/memory/semanticEvaluation.ts` over
+synthetic in-memory fixtures from `src/memory/semanticEvaluationFixtures.ts`.
+It compares the current deterministic injected IDs with explicit fixture-only
+semantic candidate IDs and report-only hybrid candidate IDs.
+
+The current successful output is expected to include:
+
+- `Total: 7`
+- `Passed: 7`
+- `Failed: 0`
+- `providerCallCount: 0`
+- false-positive and false-negative counts
+- accepted-only violation count
+- zero-overlap semantic candidate count
+- category-level pass/fail lines
+
+The built-in semantic comparison fixtures cover:
+
+- paraphrase recovery that deterministic retrieval misses
+- an expected semantic false positive
+- hybrid report composition
+- non-accepted semantic candidate flagging and exclusion
+- privacy/no full memory text leak
+- zero-overlap semantic candidates as report-only candidates
+- deterministic baseline preservation
+
+The harness intentionally includes expected negative signals, such as one
+false-positive candidate and one non-accepted candidate violation, so the report
+shape proves those risks are detected. Those expected negative signals do not
+mean semantic retrieval is production-safe; a future promotion gate must require
+zero unexpected accepted-only and privacy violations before integration.
+
+## Comparison Fields
+
+Semantic comparison results include safe IDs and aggregate fields only:
 
 - `caseId`
 - `categories`
+- `query`
 - `deterministicInjectedIds`
 - `semanticCandidateIds`
+- `safeSemanticCandidateIds`
 - `hybridCandidateIds`
 - `expectedInjectedIds`
 - `falsePositiveIds`
 - `falseNegativeIds`
 - `privacyCheck`
+- `acceptedOnlyViolationIds`
 - `acceptedOnlyPassed`
 - `providerCallCount`
 - `zeroOverlapSemanticCandidateIds`
@@ -100,7 +137,7 @@ type ContextBudgetImpact = {
 };
 ```
 
-These are report shapes for future design, not implemented exported types.
+The implemented exported types live in `src/memory/semanticEvaluation.ts`.
 
 ## Metrics
 
@@ -133,7 +170,9 @@ until a later design defines strict gates.
 ### Accepted-Only Violations
 
 Counts pending, rejected, or archived memory IDs appearing in semantic or hybrid
-candidates. Any accepted-only violation is a hard failure.
+candidates. In production promotion gates, any unexpected accepted-only
+violation is a hard failure. The fixture-only harness may include an expected
+negative case so that flagging and hybrid exclusion are tested.
 
 ### Privacy Violations
 
@@ -161,7 +200,7 @@ A semantic comparison prototype passes only if:
 - deterministic injected IDs are unchanged
 - `npm run rin:memory-eval` still passes
 - `providerCallCount` remains `0` in default evaluation
-- accepted-only violations equal `0`
+- unexpected accepted-only violations equal `0`
 - privacy violations equal `0`
 - reports contain no full memory text
 - no production retrieval or context injection behavior changes
@@ -170,7 +209,8 @@ A semantic comparison prototype passes only if:
 
 A semantic comparison prototype fails if:
 
-- any non-accepted memory appears in candidates
+- any unexpected non-accepted memory appears in candidates
+- any non-accepted memory appears in report-only hybrid candidate IDs
 - any full memory text appears in report output
 - any provider call occurs in default fixture evaluation
 - semantic candidates are injected into model context
@@ -179,8 +219,9 @@ A semantic comparison prototype fails if:
 
 ## Fixture Expansion Plan
 
-Future semantic comparison should add fixtures only after the report shape is
-stable. Candidate fixture categories:
+The initial fixture-only comparison suite is in place. Future semantic
+comparison can add fixtures after the report shape remains stable. Candidate
+fixture categories:
 
 - paraphrase recall
 - cross-language recall
@@ -226,3 +267,12 @@ Future semantic comparison should be a separate command. It should not replace
 `npm run rin:memory-eval`, and it should not become part of `npm run rin:check`
 until it is deterministic, fixture-only, provider-free, and fast enough for the
 default local check.
+
+Mega-Milestone 9 adds that separate command:
+
+```sh
+npm run rin:semantic-eval
+```
+
+For now it should be reported explicitly for semantic retrieval comparison work,
+beside `npm run rin:check` and `npm run rin:memory-eval`.
