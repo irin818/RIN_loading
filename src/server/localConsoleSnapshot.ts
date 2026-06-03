@@ -4,8 +4,11 @@ import {
   loadEnvironment,
   loadEnvironmentSource,
 } from "../config/loadEnvironment";
+import { listDryRunActions, registerBuiltinDryRunActions } from "../actions";
+import { buildBackupDryRunManifest } from "../backup";
 import { rinLive2dBodyAdapter } from "../body";
 import type { LocalConsoleSnapshot } from "../console/types";
+import { readSemanticContextConfig } from "../context/semanticContextConfig";
 import { listRecentConversations } from "../conversation";
 import { inspectRinDatabase } from "../database";
 import { openRinDatabase } from "../database";
@@ -16,6 +19,7 @@ import {
   loadModelRuntimeConfig,
   OLLAMA_ADAPTER_ID,
 } from "../model";
+import { runBuiltInPlannerSmoke } from "../planner";
 import { listTools, registerBuiltinTools } from "../tools";
 import {
   createDataLayout,
@@ -44,6 +48,10 @@ export async function readLocalConsoleSnapshot(
   const ollamaConfig = readOllamaSnapshotConfig(modelConfig, environmentSource);
   const toolRegistry = await readJsonFile(join(layout.rootDir, "config/tool_registry.json"));
   registerBuiltinTools();
+  registerBuiltinDryRunActions();
+  const semanticContext = readSemanticContextConfig(environmentSource);
+  const plannerSmoke = runBuiltInPlannerSmoke();
+  const backupManifest = await buildBackupDryRunManifest(layout);
 
   return {
     ok:
@@ -112,6 +120,42 @@ export async function readLocalConsoleSnapshot(
     },
     portability: {
       exportBundles: databaseResult.database?.counts.exportBundles ?? 0,
+    },
+    operationalStatus: {
+      model: {
+        activeAdapter: modelStatus.activeAdapter,
+        externalCallsEnabled: modelStatus.externalCallsEnabled,
+        localCallsConfigured: modelStatus.localCallsConfigured,
+      },
+      memory: {
+        accepted: memoryCounts.accepted,
+        proposals: memoryCounts.proposals,
+        rejected: memoryCounts.rejected,
+        archived: memoryCounts.archived,
+      },
+      semantic: {
+        contextExpansionEnabled: semanticContext.enabled,
+        mode: semanticContext.mode,
+        providerCallCount: 0,
+      },
+      permissions: {
+        dryRunActionCount: listDryRunActions().length,
+        unknownActionsBlocked: true,
+        destructiveActionsBlocked: true,
+      },
+      planner: {
+        available: true,
+        status: plannerSmoke.status,
+        executedActionCount: plannerSmoke.executedActionCount,
+        backgroundLoopStarted: plannerSmoke.backgroundLoopStarted,
+      },
+      backup: {
+        dryRunAvailable: true,
+        restoreDryRunAvailable: true,
+        fileCount: backupManifest.fileCount,
+        archiveCreated: backupManifest.archiveCreated,
+        cloudSyncEnabled: backupManifest.cloudSyncEnabled,
+      },
     },
     body: {
       adapterId: rinLive2dBodyAdapter.id,

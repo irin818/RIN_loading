@@ -121,6 +121,9 @@ Current known module boundaries include:
 - `src/planner/`: finite local planner/self-check scaffold. It runs a
   deterministic fixture plan through dry-run action permissions, starts no
   background loop, calls no providers, and executes no real actions.
+- `src/backup/`: local backup and restore dry-run reporting. It builds safe
+  manifest-style reports with relative file names, sizes, and hashes, excludes
+  logs/secrets/generated folders, creates no archive, and mutates no data.
 - `src/bundle/`: manual Agent State Bundle export and safe import.
 - `src/cli/`: Node-side command entry points.
 - `src/server/`: local console server.
@@ -155,6 +158,8 @@ by browser code using public paths such as `/live2d/rin/...`.
 - `docs/MEMORY_MAINTENANCE_POLICY.md`
 - `docs/ACTION_PERMISSION_POLICY.md`
 - `docs/LOCAL_PLANNER_POLICY.md`
+- `docs/CONSOLE_OPERATIONS_POLICY.md`
+- `docs/BACKUP_MIGRATION_POLICY.md`
 - `docs/decisions/ADR-0001-local-model-first-reasoning.md`
 - `docs/decisions/ADR-0002-local-semantic-memory-retrieval.md`
 
@@ -234,6 +239,9 @@ passing checks.
 - Action and planner scaffolds remain dry-run-only and finite by default:
   unknown, destructive, and external actions are blocked; mutation actions
   require confirmation and are not executed by planner smoke.
+- Console operational status remains a read-only local snapshot. Backup/restore
+  continuity commands are dry-run reports by default, with no cloud sync, archive
+  creation, overwrite, or data mutation.
 - Conversation history is local SQLite state. The UI may select and continue a
   conversation, but it still writes through the runtime instead of mutating
   storage directly. Runtime model calls use bounded fast-variable context rather

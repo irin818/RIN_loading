@@ -52,6 +52,37 @@ function makeSnapshot(
     },
     toolRegistry: { toolCount: 2 },
     portability: { exportBundles: 0 },
+    operationalStatus: {
+      model: {
+        activeAdapter: "rin-mock-local",
+        externalCallsEnabled: false,
+        localCallsConfigured: false,
+      },
+      memory: { proposals: 0, accepted: 0, rejected: 0, archived: 0 },
+      semantic: {
+        contextExpansionEnabled: false,
+        mode: "off",
+        providerCallCount: 0,
+      },
+      permissions: {
+        dryRunActionCount: 3,
+        unknownActionsBlocked: true,
+        destructiveActionsBlocked: true,
+      },
+      planner: {
+        available: true,
+        status: "blocked",
+        executedActionCount: 0,
+        backgroundLoopStarted: false,
+      },
+      backup: {
+        dryRunAvailable: true,
+        restoreDryRunAvailable: true,
+        fileCount: 0,
+        archiveCreated: false,
+        cloudSyncEnabled: false,
+      },
+    },
     body: {
       adapterId: rinLive2dBodyAdapter.id,
       state: rinLive2dBodyAdapter.mapState({
@@ -268,6 +299,10 @@ describe("App", () => {
     expect(screen.getByText("120000 ms")).toBeInTheDocument();
     expect(screen.getByText("512")).toBeInTheDocument();
     expect(screen.getByText("0.9")).toBeInTheDocument();
+    expect(screen.getAllByText("3").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("blocked · zero actions")).toBeInTheDocument();
+    expect(screen.getByText("0 files")).toBeInTheDocument();
+    expect(screen.getByText("destructive blocked")).toBeInTheDocument();
   });
 
   it("renders gracefully when optional local model settings are absent", async () => {

@@ -78,6 +78,42 @@ export type LocalConsoleSnapshot = {
   portability: {
     exportBundles: number;
   };
+  operationalStatus: {
+    model: {
+      activeAdapter: string | null;
+      externalCallsEnabled: boolean;
+      localCallsConfigured: boolean;
+    };
+    memory: {
+      accepted: number;
+      proposals: number;
+      rejected: number;
+      archived: number;
+    };
+    semantic: {
+      contextExpansionEnabled: boolean;
+      mode: string;
+      providerCallCount: 0;
+    };
+    permissions: {
+      dryRunActionCount: number;
+      unknownActionsBlocked: true;
+      destructiveActionsBlocked: true;
+    };
+    planner: {
+      available: true;
+      status: "ready" | "blocked" | "completed";
+      executedActionCount: 0;
+      backgroundLoopStarted: false;
+    };
+    backup: {
+      dryRunAvailable: true;
+      restoreDryRunAvailable: true;
+      fileCount: number;
+      archiveCreated: false;
+      cloudSyncEnabled: false;
+    };
+  };
   body: {
     adapterId: string;
     state: BodyState;
