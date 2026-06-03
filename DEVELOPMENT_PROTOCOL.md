@@ -55,7 +55,23 @@ revert them unless explicitly instructed.
 
 Use scripts defined in `package.json`.
 
-Recommended checks for most source changes:
+Recommended aggregate check before final reports or PRs when practical:
+
+- `npm run rin:check`
+
+`npm run rin:check` runs typecheck, tests, lint, build, default readiness, and
+memory retrieval evaluation. It uses the default mock/local readiness path and
+does not require Ollama or external APIs.
+
+Task-specific checks still apply. For example, Live2D, CLI, import/export,
+storage, or provider-specific changes may require additional targeted commands.
+
+Local Ollama readiness remains a separate optional/live-model check and should
+be run when a task specifically changes local model behavior:
+
+- `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_BASE_URL=http://127.0.0.1:11434 RIN_OLLAMA_MODEL=qwen3:4b npm run rin:readiness`
+
+Individual commands for diagnosis or narrow verification:
 
 - `npm run build`
 - `npm test`

@@ -145,10 +145,16 @@ Keep `.env.example` versioned when it contains only safe placeholder values.
 - Inspect relevant files before editing.
 - Read `PROJECT_CHARTER.md` before architecture, runtime, memory, identity,
   policy, tool, storage, synchronization, or Live2D changes.
+- Prefer `npm run rin:check` as the default aggregate local check before final
+  reports or PRs when practical. It runs typecheck, tests, lint, build, default
+  readiness, and memory evaluation without requiring Ollama.
 - If modifying memory retrieval, context injection, memoryContext
  trace/persistence, or conversation runtime paths that affect model context, run
  `npm run rin:memory-eval` in addition to standard checks. Do not bypass
  accepted-only retrieval, context budget, privacy, or traceability constraints.
+- If modifying local model adapter behavior, also run the explicit Ollama
+  readiness check when the local runtime is available; keep this separate from
+  the default aggregate check.
 - Avoid unrelated cleanup.
 - Avoid broad rewrites and formatting churn.
 - Preserve runtime behavior unless the task explicitly requests behavior change.
