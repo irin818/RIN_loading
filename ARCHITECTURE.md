@@ -63,7 +63,9 @@ Current known module boundaries include:
   Ollama or provider internals.
 - `src/memory/`: memory proposal, review, and manager boundary. It also provides
   deterministic retrieval of explicitly accepted memories for bounded injection
-  into model context; it does not auto-write or auto-accept memories.
+  into model context, plus safe injection explanation metadata (matched keywords,
+  overlap counts, skip reasons) without logging full memory text by default; it
+  does not auto-write or auto-accept memories.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
 - `src/storage/`: controlled local storage layout and manifest logic.

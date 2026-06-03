@@ -151,6 +151,32 @@ describe("buildModelContext memory injection", () => {
         { id: "m2", text: "second memory snippet" },
         { id: "m3", text: "third memory snippet" },
       ],
+      explanations: [
+        {
+          memoryId: "m1",
+          matchedKeywords: ["first"],
+          overlapCount: 1,
+          wasInjected: false,
+          skippedReason: null,
+          snippetLength: 20,
+        },
+        {
+          memoryId: "m2",
+          matchedKeywords: ["second"],
+          overlapCount: 1,
+          wasInjected: false,
+          skippedReason: null,
+          snippetLength: 20,
+        },
+        {
+          memoryId: "m3",
+          matchedKeywords: ["third"],
+          overlapCount: 1,
+          wasInjected: false,
+          skippedReason: null,
+          snippetLength: 20,
+        },
+      ],
       maxMemoryContextCharacters: 355,
     });
 
@@ -158,6 +184,11 @@ describe("buildModelContext memory injection", () => {
     expect(context.stats.memoryContextCharacterCount).toBeLessThanOrEqual(355);
     expect(context.stats.injectedMemoryIds).toEqual(["m1", "m2"]);
     expect(context.stats.injectedMemoryIds).not.toContain("m3");
+    const budgetSkipped = context.stats.memoryInjectionExplanations.find(
+      (item) => item.memoryId === "m3",
+    );
+    expect(budgetSkipped?.skippedReason).toBe("memory_budget_exceeded");
+    expect(context.stats.memorySkippedByBudgetCount).toBe(1);
   });
 
   it("respects maxInjectedMemories", () => {
