@@ -12,10 +12,10 @@ Before modifying this project, read [PROJECT_CHARTER.md](./PROJECT_CHARTER.md).
 
 ## 当前范围
 
-This repository currently contains Phase 0 through Phase 22 as local MVP
+This repository currently contains Phase 0 through Phase 23 as local MVP
 templates:
 
-当前仓库包含 Phase 0 到 Phase 22 的本地 MVP 模板：
+当前仓库包含 Phase 0 到 Phase 23 的本地 MVP 模板：
 
 - Project definition and charter.
 - 项目定义与项目宪章。
@@ -49,6 +49,10 @@ templates:
   use with Qwen3 4B (`qwen3:4b`).
 - Ollama 本地聊天 adapter 支持，可在显式选择后使用 Qwen3 4B
   （`qwen3:4b`）进行本地真实聊天。
+- A bounded model context builder that adds a compact RIN system prompt and
+  prevents unbounded conversation history from being sent to model adapters.
+- 有界模型上下文构建器，会加入紧凑的 RIN system prompt，并防止把无界对话历史
+  直接发送给模型 adapter。
 - Controlled local memory review for accepting, rejecting, or archiving memory
   proposals.
 - 受控的本地记忆审查流程，可接受、拒绝或归档记忆提案。
@@ -98,20 +102,21 @@ npm run dev
 Phase 2 introduced a Node-side storage foundation that initializes a controlled
 local data directory and writes a `manifest.json` with the storage schema
 version. Phase 3 added SQLite persistence. Phase 4 added model abstraction.
-Phase 5 added a basic local conversation path through the runtime. Phase 6-22
+Phase 5 added a basic local conversation path through the runtime. Phase 6-23
 added raw logs, memory proposals, policy checks, state history, export bundles,
 permission-gated L0 tools, an original chibi SVG body rig, a local-only body
 interaction shell, configurable model adapter selection, and controlled memory
 review, local conversation history browsing, safe bundle import, readiness
-reporting, and the first Ollama local chat adapter.
+reporting, the first Ollama local chat adapter, and bounded model context
+assembly before adapter calls.
 
 Phase 2 引入 Node 侧存储基础，可以初始化受控本地数据目录，并写入带有存储
 schema 版本的 `manifest.json`。Phase 3 增加 SQLite 持久化。Phase 4 增加模型
-抽象层。Phase 5 增加通过 runtime 的基础本地对话路径。Phase 6-22 增加原始
+抽象层。Phase 5 增加通过 runtime 的基础本地对话路径。Phase 6-23 增加原始
 日志、记忆提案、策略检查、状态历史、导出包、受权限控制的 L0 工具、原创 Q 版
 SVG 身体 rig、仅本地运行的身体交互壳、可配置的模型 adapter 选择，以及受控记忆
-审查、本地对话历史浏览、安全 bundle 导入、就绪检查报告，以及第一个 Ollama
-本地聊天 adapter。
+审查、本地对话历史浏览、安全 bundle 导入、就绪检查报告、第一个 Ollama 本地聊天
+adapter，以及 adapter 调用前的有界模型上下文组装。
 
 Initialize local RIN data:
 
@@ -268,6 +273,13 @@ update, and slow-variable snapshot path.
 
 UI 永远不直接调用模型服务商。对话请求仍会经过本地 runtime、模型 adapter、
 policy check、SQLite 记录、状态更新和慢变量快照路径。
+
+RIN does not send unbounded conversation history to local models. Phase 23 adds
+a first character-based context budget and compact RIN system prompt before
+model adapter calls. Long-term memory retrieval is still future work.
+
+RIN 不会把无界对话历史发送给本地模型。Phase 23 在模型 adapter 调用前加入第一版
+基于字符数的上下文预算和紧凑 RIN system prompt。长期记忆检索仍是后续工作。
 
 The initializer creates readable JSON files for the owner model, AI identity,
 AI state, policy config, model config, tool registry, and permissions. These are
