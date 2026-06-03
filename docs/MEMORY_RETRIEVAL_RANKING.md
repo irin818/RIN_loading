@@ -233,6 +233,12 @@ These should not be implemented yet:
 - Automatic tag or importance generation.
 - Metadata-aware ranking outside the bounded Mega-Milestone 6 policy.
 
+Mega-Milestone 8 adds design documents for this deferred area, but does not
+change production retrieval. See
+`docs/decisions/ADR-0002-local-semantic-memory-retrieval.md`,
+`docs/SEMANTIC_RETRIEVAL_PROTOTYPE_PLAN.md`, and
+`docs/MEMORY_RETRIEVAL_EVALUATION_PLAN.md`.
+
 ## Safety Constraints
 
 Any future ranking work must preserve:
@@ -317,3 +323,25 @@ non-ranking signals unless a future design changes that with evaluation coverage
 - Add embeddings, vector DB, or semantic retrieval.
 - Add memory editor UI.
 - Change model provider boundaries or the default adapter.
+
+## Mega-Milestone 8 Semantic Retrieval Boundary
+
+Mega-Milestone 8 defines a future semantic retrieval path without implementing
+it. The current deterministic accepted-memory retrieval path remains the only
+production retrieval path.
+
+Future semantic retrieval must be:
+
+- local-first
+- optional
+- accepted-only
+- provider-free by default
+- evaluated against deterministic retrieval before production use
+- unable to inject semantic-only memories into context during early prototypes
+- removable without changing canonical memory data
+
+The first safe follow-up should be a fixture-only comparison harness. It should
+report deterministic injected IDs, semantic candidate IDs, hybrid candidate IDs,
+expected IDs, false positives, false negatives, accepted-only violations,
+privacy checks, and context budget impact. It must not add embeddings, vector
+dependencies, schema migrations, provider calls, or runtime integration.

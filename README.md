@@ -535,6 +535,29 @@ raw JSON，也不会增加记忆编辑器。评估套件现在包含 29 个 prov
 metadata near-miss、CJK near-miss、metadata-rich budget、metadata source privacy
 和 type+metadata interaction。
 
+Mega-Milestone 8 defines the local semantic retrieval boundary without adding
+semantic retrieval to production. Deterministic accepted-memory retrieval remains
+the production baseline. Future semantic work must be local-first, optional,
+accepted-only, provider-free by default, and eval-gated before it can affect
+context injection. The design is captured in
+[`ADR-0002`](./docs/decisions/ADR-0002-local-semantic-memory-retrieval.md),
+[`SEMANTIC_RETRIEVAL_PROTOTYPE_PLAN.md`](./docs/SEMANTIC_RETRIEVAL_PROTOTYPE_PLAN.md),
+and
+[`MEMORY_RETRIEVAL_EVALUATION_PLAN.md`](./docs/MEMORY_RETRIEVAL_EVALUATION_PLAN.md).
+This milestone adds no embeddings, vector DB, schema migration, provider calls,
+dependencies, or UI behavior.
+
+Mega-Milestone 8 定义本地 semantic retrieval 边界，但不把 semantic retrieval
+加入生产检索。确定性的 accepted-memory retrieval 仍是生产基线。未来 semantic 工作
+必须保持本地优先、可选、accepted-only、默认不调用 provider，并在影响 context
+injection 前通过 evaluation gate。设计记录在
+[`ADR-0002`](./docs/decisions/ADR-0002-local-semantic-memory-retrieval.md)、
+[`SEMANTIC_RETRIEVAL_PROTOTYPE_PLAN.md`](./docs/SEMANTIC_RETRIEVAL_PROTOTYPE_PLAN.md)
+和
+[`MEMORY_RETRIEVAL_EVALUATION_PLAN.md`](./docs/MEMORY_RETRIEVAL_EVALUATION_PLAN.md)。
+本 milestone 不增加 embeddings、vector DB、schema migration、provider calls、
+dependencies 或 UI 行为。
+
 ## Local Model Stability
 
 ## 本地模型稳定性
