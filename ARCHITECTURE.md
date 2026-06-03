@@ -114,6 +114,13 @@ Current known module boundaries include:
 - `src/database/`: SQLite schema, migrations, and connection helpers, including
   side-table storage for optional owner-reviewed memory metadata.
 - `src/tools/`: built-in low-risk tool registry and execution path.
+- `src/actions/`: dry-run action permission foundation. It defines permission
+  levels, permission decisions, safe audit envelopes, and local dry-run action
+  fixtures without executing real OS, network, file mutation, or destructive
+  actions.
+- `src/planner/`: finite local planner/self-check scaffold. It runs a
+  deterministic fixture plan through dry-run action permissions, starts no
+  background loop, calls no providers, and executes no real actions.
 - `src/bundle/`: manual Agent State Bundle export and safe import.
 - `src/cli/`: Node-side command entry points.
 - `src/server/`: local console server.
@@ -145,6 +152,9 @@ by browser code using public paths such as `/live2d/rin/...`.
 - `docs/SEMANTIC_INDEX_LIFECYCLE.md`
 - `docs/HYBRID_RETRIEVAL_INTEGRATION_PLAN.md`
 - `docs/SEMANTIC_RETRIEVAL_OPT_IN_GATES.md`
+- `docs/MEMORY_MAINTENANCE_POLICY.md`
+- `docs/ACTION_PERMISSION_POLICY.md`
+- `docs/LOCAL_PLANNER_POLICY.md`
 - `docs/decisions/ADR-0001-local-model-first-reasoning.md`
 - `docs/decisions/ADR-0002-local-semantic-memory-retrieval.md`
 
@@ -219,6 +229,11 @@ passing checks.
 - Memory writes are still controlled slow-variable updates: owner messages can
   create proposals, and local review routes decide accepted, rejected, or
   archived status.
+- Memory maintenance remains suggestion-only: reports do not delete, archive, or
+  rewrite memories automatically.
+- Action and planner scaffolds remain dry-run-only and finite by default:
+  unknown, destructive, and external actions are blocked; mutation actions
+  require confirmation and are not executed by planner smoke.
 - Conversation history is local SQLite state. The UI may select and continue a
   conversation, but it still writes through the runtime instead of mutating
   storage directly. Runtime model calls use bounded fast-variable context rather
