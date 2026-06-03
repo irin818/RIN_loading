@@ -32,7 +32,10 @@ Governance and project documentation lives at the root and in `docs/`.
 
 Current known module boundaries include:
 
-- `src/ui/`: React UI shell and body view components.
+- `src/ui/`: React UI shell and body view components. The Console displays local
+  runtime status (active adapter, provider, and local model settings) and
+  structured conversation recovery errors through RIN server APIs without calling
+  model providers directly.
 - `src/body/`: current body adapter protocol, SVG/live2d-compatible body state
   mapping, and local body interaction logic.
 - `src/runtime/`: local conversation/runtime boundary.
