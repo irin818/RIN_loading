@@ -85,7 +85,7 @@ describe("memoryContextTrace formatters", () => {
       "metadata +1 (tags +1: runtime; importance +1; confidence -1; signals: tag_match, importance_high, confidence_low_dampened)",
     );
     expect(formatMemoryRankingBreakdown(item)).toBe(
-      "lexical overlap 2/4 (latin 2, cjk 0) keywords: local, ollama · type project +1: project · metadata +1 (tags +1: runtime; importance +1; confidence -1; signals: tag_match, importance_high, confidence_low_dampened) · result: max count exceeded",
+      "source: deterministic · lexical overlap 2/4 (latin 2, cjk 0) keywords: local, ollama · type project +1: project · metadata +1 (tags +1: runtime; importance +1; confidence -1; signals: tag_match, importance_high, confidence_low_dampened) · result: max count exceeded",
     );
     expect(formatMemoryRankingBreakdown(item)).not.toContain("Owner full text");
   });

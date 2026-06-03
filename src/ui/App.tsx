@@ -131,6 +131,14 @@ export function App() {
       )
     : null;
   const selectedMemoryContext = selectedMemoryContextMessage?.memoryContext ?? null;
+  const deterministicInjectedMemoryIds =
+    selectedMemoryContext?.deterministicInjectedMemoryIds ??
+    selectedMemoryContext?.injectedMemoryIds ??
+    [];
+  const semanticInjectedMemoryIds =
+    selectedMemoryContext?.semanticInjectedMemoryIds ?? [];
+  const semanticContextExpansionEnabled =
+    selectedMemoryContext?.semanticContextExpansionEnabled ?? false;
 
   async function sendMessage(content: string) {
     if (content.trim().length === 0 || apiStatus !== "connected") {
@@ -569,6 +577,18 @@ export function App() {
               <div>
                 <dt>Injected / 已注入</dt>
                 <dd>{selectedMemoryContext.injectedMemoryCount}</dd>
+              </div>
+              <div>
+                <dt>Deterministic / 确定性</dt>
+                <dd>{deterministicInjectedMemoryIds.length}</dd>
+              </div>
+              <div>
+                <dt>Semantic / 语义候选</dt>
+                <dd>{semanticInjectedMemoryIds.length}</dd>
+              </div>
+              <div>
+                <dt>Semantic enabled / 语义启用</dt>
+                <dd>{semanticContextExpansionEnabled ? "yes" : "no"}</dd>
               </div>
               <div>
                 <dt>Trace items / 候选记录</dt>

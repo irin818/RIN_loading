@@ -58,6 +58,16 @@ export {
   runHybridRetrievalReport,
 } from "./hybridRetrievalReport";
 export {
+  formatSemanticTraceList,
+  formatSemanticTraceRecord,
+  getSemanticTraceRecord,
+  listSemanticTraceRecords,
+  recordSemanticTrace,
+  semanticTraceFromAcceptedMemoryIndexReport,
+  semanticTraceFromHybridRetrievalReport,
+} from "./semanticTrace";
+export { selectSemanticContextExpansionCandidates } from "./semanticContextExpansion";
+export {
   formatSemanticReadinessReport,
   getSemanticReadinessReport,
 } from "./semanticReadiness";
@@ -111,6 +121,13 @@ export type {
   HybridRetrievalReportStatus,
 } from "./hybridRetrievalReport";
 export type {
+  SemanticTraceKind,
+  SemanticTraceListOptions,
+  SemanticTracePayload,
+  SemanticTraceRecord,
+} from "./semanticTrace";
+export type { SemanticContextExpansionResult } from "./semanticContextExpansion";
+export type {
   SemanticReadinessCheck,
   SemanticReadinessReport,
 } from "./semanticReadiness";
@@ -131,6 +148,7 @@ export {
 export type {
   AcceptedMemoryRetrievalResult,
   AcceptedMemorySnippet,
+  MemoryContextSource,
   MemoryInjectionExplanation,
   MemoryInjectionTrace,
   MemoryRetrievalOptions,

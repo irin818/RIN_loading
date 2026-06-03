@@ -131,6 +131,30 @@ describe("buildModelContext memory injection", () => {
     expect(context.stats.memoryContextCharacterCount).toBe(
       context.messages[1].content.length,
     );
+    expect(context.stats.deterministicInjectedMemoryIds).toEqual(["m1"]);
+    expect(context.stats.semanticInjectedMemoryIds).toEqual([]);
+  });
+
+  it("distinguishes opt-in semantic memory sources in stats", () => {
+    const context = buildModelContext([owner("hello")], undefined, {
+      memories: [
+        { id: "deterministic", text: "Deterministic accepted memory." },
+        { id: "semantic", text: "Semantic accepted memory." },
+      ],
+      semanticCandidateIds: ["semantic"],
+      semanticContextExpansionEnabled: true,
+    });
+
+    expect(context.stats.injectedMemoryIds).toEqual(["deterministic", "semantic"]);
+    expect(context.stats.deterministicInjectedMemoryIds).toEqual(["deterministic"]);
+    expect(context.stats.semanticInjectedMemoryIds).toEqual(["semantic"]);
+    expect(context.stats.semanticCandidateIds).toEqual(["semantic"]);
+    expect(context.stats.semanticContextExpansionEnabled).toBe(true);
+    expect(
+      context.stats.memoryInjectionExplanations.every(
+        (item) => item.contextSource !== "semantic",
+      ),
+    ).toBe(true);
   });
 
   it("reports no injected memories when none are provided", () => {

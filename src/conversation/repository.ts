@@ -229,6 +229,13 @@ function safeMemoryContextTrace(
   return {
     injectedMemoryCount: trace.injectedMemoryCount,
     injectedMemoryIds: [...trace.injectedMemoryIds],
+    deterministicInjectedMemoryIds: [
+      ...(trace.deterministicInjectedMemoryIds ?? trace.injectedMemoryIds),
+    ],
+    semanticInjectedMemoryIds: [...(trace.semanticInjectedMemoryIds ?? [])],
+    semanticCandidateIds: [...(trace.semanticCandidateIds ?? [])],
+    semanticContextExpansionEnabled:
+      trace.semanticContextExpansionEnabled ?? false,
     memoryContextCharacterCount: trace.memoryContextCharacterCount,
     skippedByBudgetCount: trace.skippedByBudgetCount,
     skippedByRelevanceCount: trace.skippedByRelevanceCount,
@@ -249,6 +256,7 @@ function safeMemoryContextTrace(
       confidenceAdjustment: item.confidenceAdjustment ?? 0,
       metadataBonus: item.metadataBonus ?? 0,
       metadataSignals: [...(item.metadataSignals ?? [])],
+      contextSource: item.contextSource ?? "deterministic",
       wasInjected: item.wasInjected,
       skippedReason: item.skippedReason,
       snippetLength: item.snippetLength,

@@ -66,9 +66,21 @@ candidate report commands:
 - `npm run rin:semantic-index-report`
 - `npm run rin:semantic-live-index-report`
 - `npm run rin:hybrid-retrieval-report`
+- `npm run rin:semantic-trace-list`
+- `npm run rin:semantic-trace-read`
 
 Default readiness reports these commands as available but disabled, with memory
 listing disabled and `providerCallCount: 0`.
+
+Package 2 introduces two additional opt-in gates:
+
+- semantic report trace recording, which may persist sanitized report traces to
+  existing audit storage only when explicitly requested by a report command
+- semantic context candidate expansion, controlled by
+  `RIN_SEMANTIC_CONTEXT=off | candidate-expansion`
+
+Absence of these flags means no semantic trace write and no semantic context
+injection. Invalid semantic context config must fall back safely to `off`.
 
 ## Evaluation Gates
 
@@ -80,6 +92,8 @@ Required checks:
 - `npm run rin:semantic-readiness`
 - `npm run rin:semantic-index-report`
 - `npm run rin:hybrid-retrieval-report`
+- `npm run rin:semantic-trace-list`
+- `npm run rin:semantic-trace-read`
 - local embedding eval over temp fixture data
 - report-only accepted-memory index tests
 - report-only live index comparison tests
@@ -100,6 +114,10 @@ Semantic retrieval cannot reach production if reports expose:
 
 Allowed output remains IDs, category names, counts, safe score fields, and
 provider-call counts.
+
+Persisted semantic traces and runtime semantic context stats must additionally
+exclude embedding vectors, full memory text, raw prompts, model context snippets,
+raw metadata JSON, secrets, environment dumps, and local private paths.
 
 ## Rollback Gates
 
@@ -126,6 +144,8 @@ Production semantic retrieval remains forbidden until:
 - report-only accepted-memory indexing has passed explicit opt-in gates
 - report-only hybrid candidate expansion has passed explicit opt-in and
   accepted-only gates
+- opt-in semantic context expansion has passed strict budget, cap, traceability,
+  and rollback gates
 - cloud embeddings remain excluded by default
 - index rebuild/delete/update behavior is tested
 - rollback to deterministic retrieval is trivial

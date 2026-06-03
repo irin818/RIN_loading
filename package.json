@@ -28,6 +28,8 @@
     "rin:semantic-index-report": "tsx src/cli/semanticIndexReport.ts",
     "rin:semantic-live-index-report": "tsx src/cli/semanticLiveIndexReport.ts",
     "rin:hybrid-retrieval-report": "tsx src/cli/hybridRetrievalReport.ts",
+    "rin:semantic-trace-list": "tsx src/cli/semanticTraceList.ts",
+    "rin:semantic-trace-read": "tsx src/cli/semanticTraceRead.ts",
     "rin:tool": "tsx src/cli/runTool.ts",
     "rin:console": "npm run build && tsx src/server/localConsoleServer.ts",
     "rin:console:server": "tsx src/server/localConsoleServer.ts"
