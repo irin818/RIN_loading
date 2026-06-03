@@ -43,6 +43,12 @@ export {
 export { createInMemoryVectorIndex } from "./vectorIndex";
 export { generateFixtureSemanticCandidates } from "./semanticPrototype";
 export {
+  formatTempSemanticEmbeddingEvaluationSummary,
+  isDefaultTempSemanticProvider,
+  runBuiltInTempSemanticEmbeddingEvaluation,
+  runTempSemanticEmbeddingEvaluation,
+} from "./semanticTempEvaluation";
+export {
   formatSemanticReadinessReport,
   getSemanticReadinessReport,
 } from "./semanticReadiness";
@@ -74,6 +80,11 @@ export type {
   FixtureSemanticCandidateGenerationResult,
   FixtureSemanticPrototypeMemory,
 } from "./semanticPrototype";
+export type {
+  TempSemanticEmbeddingEvaluationOptions,
+  TempSemanticEmbeddingEvaluationResult,
+  TempSemanticEmbeddingRecord,
+} from "./semanticTempEvaluation";
 export type {
   SemanticReadinessCheck,
   SemanticReadinessReport,

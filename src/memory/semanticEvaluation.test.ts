@@ -18,6 +18,11 @@ describe("runBuiltInSemanticComparisonEvaluation", () => {
     expect(result.prototypeSemanticProvider).toBe("fixture-mock-local-embedding");
     expect(result.prototypeRanCaseCount).toBe(8);
     expect(result.prototypeSemanticCandidateCount).toBe(10);
+    expect(result.tempEmbeddingProvider).toBe("fixture-mock-local-embedding");
+    expect(result.tempEmbeddingProviderKind).toBe("fixture-mock-local");
+    expect(result.tempEmbeddingProviderCallCount).toBe(0);
+    expect(result.tempEmbeddingIndexedAcceptedCount).toBe(2);
+    expect(result.tempEmbeddingCandidateCount).toBe(2);
     expect(result.falsePositiveCount).toBe(2);
     expect(result.falseNegativeCount).toBe(0);
     expect(result.acceptedOnlyViolationCount).toBe(1);
@@ -38,6 +43,11 @@ describe("runBuiltInSemanticComparisonEvaluation", () => {
     expect(summary).toContain("Prototype provider: fixture-mock-local-embedding");
     expect(summary).toContain("Prototype ran cases: 8");
     expect(summary).toContain("Prototype semantic candidates: 10");
+    expect(summary).toContain(
+      "Temp embedding provider: fixture-mock-local-embedding",
+    );
+    expect(summary).toContain("Temp embedding provider kind: fixture-mock-local");
+    expect(summary).toContain("Temp embedding providerCallCount: 0");
     expect(summary).toContain("False positives: 2");
     expect(summary).toContain("False negatives: 0");
     expect(summary).toContain("Accepted-only violations detected: 1");

@@ -15,6 +15,10 @@ import {
   type FixtureSemanticCandidateGenerationResult,
 } from "./semanticPrototype";
 import {
+  runBuiltInTempSemanticEmbeddingEvaluation,
+  type TempSemanticEmbeddingEvaluationResult,
+} from "./semanticTempEvaluation";
+import {
   BUILT_IN_SEMANTIC_COMPARISON_CASES,
   type SemanticComparisonCase,
   type SemanticComparisonCategory,
@@ -103,9 +107,15 @@ export type SemanticComparisonRunResult = {
   prototypeTopKValues: number[];
   prototypeCandidateCapValues: number[];
   prototypeSemanticProvider: string;
+  tempEmbeddingProvider: string;
+  tempEmbeddingProviderKind: string;
+  tempEmbeddingCandidateCount: number;
+  tempEmbeddingIndexedAcceptedCount: number;
+  tempEmbeddingProviderCallCount: number;
   providerCallCount: 0;
   categorySummaries: SemanticComparisonCategorySummary[];
   caseResults: SemanticComparisonCaseResult[];
+  tempEmbeddingEvaluation: TempSemanticEmbeddingEvaluationResult;
 };
 
 const DEFAULT_SEMANTIC_EVAL_NOW = "2026-05-22T00:00:00.000Z";
@@ -118,6 +128,7 @@ export function runSemanticComparisonCases(
   cases: readonly SemanticComparisonCase[],
 ): SemanticComparisonRunResult {
   const caseResults = cases.map((item) => evaluateSemanticComparisonCase(item));
+  const tempEmbeddingEvaluation = runBuiltInTempSemanticEmbeddingEvaluation();
   const failedCaseIds = caseResults
     .filter((result) => !result.passed)
     .map((result) => result.caseId);
@@ -161,9 +172,16 @@ export function runSemanticComparisonCases(
         .map((result) => result.prototypeCandidateCap),
     ),
     prototypeSemanticProvider: "fixture-mock-local-embedding",
+    tempEmbeddingProvider: tempEmbeddingEvaluation.providerId,
+    tempEmbeddingProviderKind: tempEmbeddingEvaluation.providerKind,
+    tempEmbeddingCandidateCount: tempEmbeddingEvaluation.candidateIds.length,
+    tempEmbeddingIndexedAcceptedCount:
+      tempEmbeddingEvaluation.indexedAcceptedCount,
+    tempEmbeddingProviderCallCount: tempEmbeddingEvaluation.providerCallCount,
     providerCallCount: 0,
     categorySummaries: summarizeSemanticComparisonCategories(caseResults),
     caseResults,
+    tempEmbeddingEvaluation,
   };
 }
 
@@ -410,6 +428,11 @@ export function formatSemanticComparisonSummary(
         ? result.prototypeCandidateCapValues.join(", ")
         : "none"
     }`,
+    `Temp embedding provider: ${result.tempEmbeddingProvider}`,
+    `Temp embedding provider kind: ${result.tempEmbeddingProviderKind}`,
+    `Temp embedding indexed accepted records: ${result.tempEmbeddingIndexedAcceptedCount}`,
+    `Temp embedding candidates: ${result.tempEmbeddingCandidateCount}`,
+    `Temp embedding providerCallCount: ${result.tempEmbeddingProviderCallCount}`,
     `Deterministic injected candidates: ${result.deterministicInjectedCount}`,
     `Semantic candidates: ${result.semanticCandidateCount}`,
     `Prototype semantic candidates: ${result.prototypeSemanticCandidateCount}`,
