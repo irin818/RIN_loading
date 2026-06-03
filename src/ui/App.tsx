@@ -497,6 +497,12 @@ export function App() {
                     <code>{shortId(item.memoryId)}</code>
                     {" · overlap "}
                     {item.overlapCount}
+                    {item.latinTokenMatchCount > 0
+                      ? ` · latin ${item.latinTokenMatchCount}`
+                      : null}
+                    {item.cjkBigramMatchCount > 0
+                      ? ` · cjk ${item.cjkBigramMatchCount}`
+                      : null}
                     {" · keywords: "}
                     {formatMatchedKeywords(item.matchedKeywords)}
                   </li>

@@ -1,4 +1,8 @@
 import type { MemoryRecord } from "./manager";
+import {
+  buildRetrievalTokenProfile,
+  scoreRetrievalOverlap,
+} from "./retrievalTokens";
 
 /**
  * A compact, model-facing view of an accepted memory. Only the stable id and a
@@ -20,6 +24,9 @@ export type MemoryInjectionExplanation = {
   memoryId: string;
   matchedKeywords: string[];
   overlapCount: number;
+  latinTokenMatchCount: number;
+  cjkBigramMatchCount: number;
+  normalizedQueryTokenCount: number;
   wasInjected: boolean;
   skippedReason: MemorySkipReason | null;
   snippetLength: number;
@@ -43,15 +50,14 @@ export const DEFAULT_MAX_SNIPPET_CHARACTERS = 240;
 type ScoredMemory = {
   snippet: AcceptedMemorySnippet;
   score: number;
-  matchedKeywords: string[];
+  match: ReturnType<typeof scoreRetrievalOverlap>;
   updatedAt: string;
 };
 
 /**
  * Select a small, deterministic subset of accepted memories that are relevant to
- * the current owner message. The first version uses keyword overlap with recency
- * as a tiebreaker. Only memories with status "accepted" are ever considered, and
- * memories with no keyword overlap are not injected.
+ * the current owner message. Uses normalized keyword overlap with optional CJK
+ * bigram matching. Only memories with status "accepted" are ever considered.
  */
 export function selectRelevantAcceptedMemories(
   memories: readonly MemoryRecord[],
@@ -85,9 +91,9 @@ export function retrieveAcceptedMemoriesWithExplanation(
     return { snippets: [], explanations };
   }
 
-  const ownerTokens = tokenize(ownerMessage);
+  const ownerProfile = buildRetrievalTokenProfile(ownerMessage);
 
-  if (ownerTokens.size === 0) {
+  if (ownerProfile.normalizedTokenCount === 0) {
     return { snippets: [], explanations };
   }
 
@@ -99,15 +105,17 @@ export function retrieveAcceptedMemoriesWithExplanation(
     }
 
     const text = memorySnippetText(memory.content, maxSnippetCharacters);
-    const memoryTokens = tokenize(text, memory.memoryType);
-    const matchedKeywords = findMatchedKeywords(ownerTokens, memoryTokens);
-    const overlapCount = matchedKeywords.length;
+    const memoryProfile = buildRetrievalTokenProfile(text, memory.memoryType);
+    const match = scoreRetrievalOverlap(ownerProfile, memoryProfile);
 
     if (text.length === 0) {
       explanations.push({
         memoryId: memory.id,
         matchedKeywords: [],
         overlapCount: 0,
+        latinTokenMatchCount: 0,
+        cjkBigramMatchCount: 0,
+        normalizedQueryTokenCount: ownerProfile.normalizedTokenCount,
         wasInjected: false,
         skippedReason: "empty_snippet",
         snippetLength: 0,
@@ -115,11 +123,14 @@ export function retrieveAcceptedMemoriesWithExplanation(
       continue;
     }
 
-    if (overlapCount === 0) {
+    if (match.overlapCount === 0) {
       explanations.push({
         memoryId: memory.id,
         matchedKeywords: [],
         overlapCount: 0,
+        latinTokenMatchCount: 0,
+        cjkBigramMatchCount: 0,
+        normalizedQueryTokenCount: ownerProfile.normalizedTokenCount,
         wasInjected: false,
         skippedReason: "zero_relevance",
         snippetLength: text.length,
@@ -129,8 +140,8 @@ export function retrieveAcceptedMemoriesWithExplanation(
 
     scored.push({
       snippet: { id: memory.id, text },
-      score: overlapCount,
-      matchedKeywords,
+      score: match.score,
+      match,
       updatedAt: memory.updatedAt,
     });
   }
@@ -144,8 +155,11 @@ export function retrieveAcceptedMemoriesWithExplanation(
     const isSelected = selectedIds.has(item.snippet.id);
     explanations.push({
       memoryId: item.snippet.id,
-      matchedKeywords: item.matchedKeywords,
-      overlapCount: item.matchedKeywords.length,
+      matchedKeywords: item.match.matchedKeywords,
+      overlapCount: item.match.overlapCount,
+      latinTokenMatchCount: item.match.latinTokenMatchCount,
+      cjkBigramMatchCount: item.match.cjkBigramMatchCount,
+      normalizedQueryTokenCount: ownerProfile.normalizedTokenCount,
       wasInjected: false,
       skippedReason: isSelected ? null : "max_count_exceeded",
       snippetLength: item.snippet.text.length,
@@ -249,6 +263,9 @@ export function toMemoryInjectionTrace(
       memoryId: item.memoryId,
       matchedKeywords: [...item.matchedKeywords],
       overlapCount: item.overlapCount,
+      latinTokenMatchCount: item.latinTokenMatchCount,
+      cjkBigramMatchCount: item.cjkBigramMatchCount,
+      normalizedQueryTokenCount: item.normalizedQueryTokenCount,
       wasInjected: item.wasInjected,
       skippedReason: item.skippedReason,
       snippetLength: item.snippetLength,
@@ -296,38 +313,13 @@ function compareScoredMemories(left: ScoredMemory, right: ScoredMemory): number 
     return right.score - left.score;
   }
 
+  if (right.match.overlapCount !== left.match.overlapCount) {
+    return right.match.overlapCount - left.match.overlapCount;
+  }
+
   if (right.updatedAt !== left.updatedAt) {
     return right.updatedAt < left.updatedAt ? -1 : 1;
   }
 
   return left.snippet.id < right.snippet.id ? -1 : 1;
-}
-
-function findMatchedKeywords(
-  ownerTokens: ReadonlySet<string>,
-  memoryTokens: ReadonlySet<string>,
-): string[] {
-  const matched: string[] = [];
-
-  for (const token of memoryTokens) {
-    if (ownerTokens.has(token)) {
-      matched.push(token);
-    }
-  }
-
-  return matched.sort();
-}
-
-function tokenize(value: string, extra?: string): Set<string> {
-  const tokens = new Set<string>();
-  const source = extra ? `${value} ${extra}` : value;
-  const matches = source.toLowerCase().match(/[\p{L}\p{N}]+/gu);
-
-  if (matches) {
-    for (const match of matches) {
-      tokens.add(match);
-    }
-  }
-
-  return tokens;
 }

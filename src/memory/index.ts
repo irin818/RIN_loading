@@ -14,6 +14,16 @@ export type {
   MemoryType,
 } from "./manager";
 export {
+  buildRetrievalTokenProfile,
+  normalizeLatinToken,
+  preprocessText,
+  scoreRetrievalOverlap,
+} from "./retrievalTokens";
+export type {
+  RetrievalMatchResult,
+  RetrievalTokenProfile,
+} from "./retrievalTokens";
+export {
   DEFAULT_MAX_INJECTED_MEMORIES,
   DEFAULT_MAX_SNIPPET_CHARACTERS,
   finalizeInjectionExplanations,

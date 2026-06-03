@@ -325,6 +325,23 @@ Phase 29 为记忆上下文注入增加了安全的只读追溯能力。Console 
 数量上限或记忆预算）。默认情况下，完整记忆文本不会出现在日志或 Console 中。仍然没有
 记忆编辑器、embeddings/向量数据库或语义搜索服务。
 
+Phase 30 improves deterministic accepted-memory retrieval without embeddings.
+Retrieval now applies lightweight normalization: lowercase and punctuation cleanup,
+conservative English plural folding (for example `models`→`model`, `APIs`→`api`),
+slash/hyphen token splitting (`Ollama/Qwen3`, `local-model-first`), a small
+English/Chinese stopword list that preserves technical tokens, and simple CJK
+bigram overlap for mixed Chinese/English queries. Scoring remains explainable
+(Latin token matches weighted above CJK bigram matches, recency as tie-break).
+Memory injection trace can show normalized matched tokens plus Latin/CJK match
+counts. Full memory text is still not exposed in Console or logs by default.
+
+Phase 30 在不使用 embeddings 的前提下改进了确定性的已接受记忆检索。检索现在会进行轻量
+归一化：大小写与标点清理、保守的英文复数折叠（例如 `models`→`model`、`APIs`→`api`）、
+斜杠/连字符分词（`Ollama/Qwen3`、`local-model-first`）、保留技术词的小规模中英文停用词过滤，
+以及对中英混合查询的简单 CJK 二元组重叠匹配。评分仍可解释（拉丁词匹配权重高于 CJK
+二元组匹配，时间近因作为并列依据）。记忆注入追溯可显示归一化后的匹配词以及拉丁/CJK
+匹配计数。完整记忆文本默认仍不会暴露在 Console 或日志中。
+
 ## Local Model Stability
 
 ## 本地模型稳定性
