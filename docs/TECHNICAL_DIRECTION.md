@@ -31,6 +31,12 @@ UI, core runtime, model layer, memory layer, storage layer, policy, state, and
 future tools.
 - 运行时方向：本地优先的模块化运行时，并在 UI、核心运行时、模型层、
 记忆层、存储层、策略、状态和未来工具之间保持清晰边界。
+- Model direction: local-model-first reasoning through model adapters. The
+first recommended real local chat target is Ollama with Qwen3 4B
+(`qwen3:4b`), while external APIs remain optional expert or fallback providers.
+- 模型方向：通过模型 adapter 实现本地模型优先的推理。推荐的第一个真实本地
+聊天目标是 Ollama 与 Qwen3 4B（`qwen3:4b`），外部 API 只保留为可选专家或
+回退服务。
 
 React and Vite are the early UI shell, not the entire RIN runtime. TypeScript is
 the Phase 1 stack choice, but the architecture must not prevent future local
@@ -67,10 +73,11 @@ Python sidecar 或其他本地服务。
 - UI 必须通过明确接口调用核心运行时。
 - UI components must not contain model, memory, storage, tool, or policy logic.
 - UI 组件不得包含模型、记忆、存储、工具或策略逻辑。
-- UI code must not call external model providers directly.
-- UI 代码不得直接调用外部模型服务商。
-- Model providers must enter through future model adapters.
-- 模型服务商必须通过未来的模型适配器接入。
+- UI code must not call local or external model providers directly.
+- UI 代码不得直接调用本地或外部模型服务商。
+- Model providers, including Ollama and any external APIs, must enter through
+model adapters.
+- 包括 Ollama 和任何外部 API 在内的模型服务商，都必须通过模型适配器接入。
 - Memory writes must go through a future local memory manager.
 - 记忆写入必须通过未来的本地记忆管理器。
 - Tool execution must go through a future permission gateway.
@@ -138,6 +145,10 @@ The following are intentionally still not implemented after Phase 21:
 - UI 直接调用模型服务商。
 - Hard-coded provider-specific model calls.
 - 硬编码的特定服务商模型调用。
+- Real Ollama or Qwen3 adapter implementation.
+- 真实 Ollama 或 Qwen3 adapter 实现。
+- API-first core architecture.
+- API 优先的核心架构。
 - API key storage in tracked files or local core config.
 - 在已跟踪文件或本地核心配置中存储 API Key。
 - Automatic long-term memory writes without review.
@@ -204,11 +215,13 @@ The following are intentionally still not implemented after Phase 21:
   都是 UI 快变量；它们不会写入记忆、执行工具或成为 RIN 身份。
 - Phase 17 adds configurable model adapter selection. The default remains
   `rin-mock-local`; OpenAI-compatible providers require explicit environment
-  configuration and still pass through runtime, model adapter, policy, raw log,
+  configuration and are optional expert or fallback providers. Future Ollama and
+  Qwen3 support must still pass through runtime, model adapter, policy, raw log,
   state, and snapshot boundaries.
 - Phase 17 增加可配置的模型 adapter 选择。默认仍是 `rin-mock-local`；
-  OpenAI-compatible 服务商必须通过环境变量显式配置，并且仍会经过 runtime、
-  模型 adapter、policy、raw log、state 和 snapshot 边界。
+  OpenAI-compatible 服务商必须通过环境变量显式配置，并且只是可选专家或回退服务。
+  未来 Ollama 与 Qwen3 支持也必须经过 runtime、模型 adapter、policy、raw log、
+  state 和 snapshot 边界。
 - Phase 18 adds local memory proposal review. A `/remember ` message still only
   creates a proposal; acceptance, rejection, and archiving happen through local
   runtime review routes and are audited.
@@ -224,7 +237,7 @@ The following are intentionally still not implemented after Phase 21:
 - Phase 20 增加手动 Agent State Bundle 导入。导入目标必须是新的空数据目录，并会
   拒绝覆盖当前本地状态。
 - Phase 21 adds local readiness reporting. It checks local data, SQLite,
-  model adapter configuration, API key storage policy, and missing API
-  environment variables.
+  model adapter configuration, API key storage policy, and missing optional
+  external API environment variables. It does not implement an Ollama adapter.
 - Phase 21 增加本地就绪检查报告。它会检查本地数据、SQLite、模型 adapter 配置、
-  API Key 存储策略，以及缺少的 API 环境变量。
+  API Key 存储策略，以及缺少的可选外部 API 环境变量。它不实现 Ollama adapter。

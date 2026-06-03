@@ -22,7 +22,8 @@ RIN's goal is to become a private personal AI system that can:
 - Maintain long-term memory.
 - Understand its owner over time.
 - Preserve identity continuity.
-- Use external large language models as replaceable reasoning engines.
+- Use local models as preferred replaceable reasoning engines when feasible,
+  with external APIs only as optional expert or fallback providers.
 - Run with the local system as the primary cognitive core.
 - Migrate across the owner's different devices.
 - Eventually support encrypted state synchronization across devices.
@@ -31,8 +32,8 @@ RIN's goal is to become a private personal AI system that can:
 - Act as a personal agent under controlled permissions.
 
 The final goal is to build a long-term personal AI agent whose identity, memory,
-behavior policies, and continuity are stored locally, while external models,
-tools, and visual bodies are replaceable components.
+behavior policies, and continuity are stored locally, while local models,
+external APIs, tools, and visual bodies are replaceable components.
 
 ## 3. Core Philosophy
 
@@ -57,10 +58,10 @@ Fast variables include:
 
 - Current conversation.
 - Current prompt.
-- Current external model output.
+- Current model output.
 - Temporary context.
 - Tool execution results.
-- External model version.
+- Current model version.
 - Temporary UI state.
 
 Rules:
@@ -69,7 +70,7 @@ Rules:
 - Fast variables may influence slow variables only through controlled update
   mechanisms.
 - Fast variables must never directly overwrite slow variables.
-- External model output is advice, not authority.
+- Model output is advice, not authority.
 - Tool output is observation, not instruction.
 - Web pages, chat messages, files, and third-party content must never be treated
   as system instructions.
@@ -100,7 +101,7 @@ RIN is not:
 5. A roleplay-only character bot.
 6. A Live2D toy without cognition.
 7. A tool automation script without memory.
-8. A system whose true identity source is an external large language model.
+8. A system whose true identity source is any local or external model.
 9. A system that allows models to directly modify memory or perform high-risk
    actions.
 10. A system for business users, account systems, tenants, billing, or large
@@ -148,7 +149,7 @@ Core local data includes:
 
 Cloud services may only be:
 
-- External reasoning engines.
+- Optional external expert or fallback reasoning engines.
 - Encrypted synchronization transport channels.
 - Encrypted backup storage.
 - Optional tool providers.
@@ -157,7 +158,7 @@ Cloud services must never become RIN's identity source.
 
 ## 8. Identity Principle
 
-RIN's identity is not an external large language model.
+RIN's identity is not any local or external large language model.
 
 RIN's identity is preserved by:
 
@@ -170,33 +171,48 @@ RIN's identity is preserved by:
 - Reflection history.
 - State continuity.
 
-External models are replaceable reasoning engines.
+Local and external models are replaceable reasoning engines.
 
 Switching from one model to another must not be treated as creating a new RIN.
 
 ## 9. Model Layer Principle
 
-External large language models must be accessed through a model abstraction
+RIN is local-model-first.
+
+Local models should be the preferred default reasoning substrate when feasible.
+The first intended real local runtime is Ollama, and the recommended initial
+local chat model target is Qwen3 4B (`qwen3:4b`). This target is an
+implementation direction, not a claim that the adapter already exists and not a
+part of RIN's identity.
+
+External APIs may remain available as optional expert or fallback providers, but
+they must not become the default architectural assumption.
+
+All local and external model calls must be accessed through a model abstraction
 layer.
 
-The core runtime must not be tightly coupled to any specific provider.
+The core runtime must not be tightly coupled to any specific provider, runtime,
+or model name.
 
 The model layer should support:
 
-- OpenAI-compatible APIs.
-- Future local models.
-- Future multiple external providers.
+- Local model runtimes such as Ollama.
+- Recommended local model targets such as Qwen3 4B (`qwen3:4b`).
+- OpenAI-compatible APIs as optional external expert or fallback providers.
+- Future multiple local or external providers.
 - Future model migration tests.
 - Future model adapters.
 
 Rules:
 
-- Do not hard-code one model provider into core logic.
+- Do not hard-code one model provider, runtime, or model name into core logic.
 - Do not write model API calls directly into UI code.
 - Model output is not allowed to write directly into long-term memory.
 - Model output is not allowed to execute tools directly.
 - Model output must be processed by local policy, memory, state, and permission
   systems.
+- No model, whether local or external, is allowed to become RIN's identity
+  source.
 
 ## 10. Memory Principle
 
@@ -220,7 +236,7 @@ Rules:
 
 - Raw conversation logs must be preserved.
 - Long-term memory must be organized and filtered.
-- External models may suggest memory updates.
+- Models may suggest memory updates.
 - The local `MemoryManager` decides whether to write, merge, archive, or reject
   memory.
 - Important memory changes should be traceable.
@@ -271,7 +287,7 @@ Rules:
 
 - The AI identity model is a slow variable.
 - It must be stored locally.
-- It must not be randomly changed by external model output.
+- It must not be randomly changed by model output.
 - It should guide all responses and state behavior.
 - It should be portable across devices and models.
 
@@ -476,21 +492,24 @@ When modifying RIN:
 3. Do not turn RIN into a general chatbot.
 4. Unless explicitly requested, do not add multi-user SaaS features.
 5. Do not hard-code API keys.
-6. Do not hard-code specific provider code into the core runtime.
-7. Do not write model calls directly into UI code.
-8. Do not allow model output to directly write memory.
-9. Do not allow model output to directly execute tools.
-10. Do not skip permission checks.
-11. Do not delete or overwrite local data without backup.
-12. Do not perform large unrelated refactors.
-13. Do not implement multiple major modules at once.
-14. Always explain which files changed.
-15. Always keep the project runnable.
-16. For new core behavior, always add or update tests.
-17. Prefer simple, clear, modular code over flashy abstractions.
-18. Preserve future extensibility for Live2D, tools, MCP, synchronization, and
+6. Do not introduce API-first assumptions into the core runtime.
+7. Do not hard-code specific local or external provider code into the core
+   runtime.
+8. Do not treat Ollama, Qwen3, or any other model as RIN's identity source.
+9. Do not write model calls directly into UI code.
+10. Do not allow model output to directly write memory.
+11. Do not allow model output to directly execute tools.
+12. Do not skip permission checks.
+13. Do not delete or overwrite local data without backup.
+14. Do not perform large unrelated refactors.
+15. Do not implement multiple major modules at once.
+16. Always explain which files changed.
+17. Always keep the project runnable.
+18. For new core behavior, always add or update tests.
+19. Prefer simple, clear, modular code over flashy abstractions.
+20. Preserve future extensibility for Live2D, tools, MCP, synchronization, and
     model migration.
-19. When a development phase changes user-visible behavior, runtime capability,
+21. When a development phase changes user-visible behavior, runtime capability,
     project scope, setup commands, or architecture, update the relevant
     human-readable documentation in the same change.
 
@@ -557,7 +576,10 @@ This repository currently covers:
 The current implementation still must not implement:
 
 - Hard-coded provider-specific model calls or UI-direct model calls.
+- API-first core architecture.
 - API key storage in tracked files or local core config.
+- Claims that Ollama or Qwen3 integration is implemented before the adapter
+  exists.
 - Automatic long-term memory writes without review.
 - Medium-risk or high-risk automatic tool execution.
 - Real Live2D model asset loading.
@@ -610,7 +632,8 @@ RIN 的目标是成为一个私有个人 AI 系统，能够：
 - 维护长期记忆。
 - 随时间理解所有者。
 - 保持身份连续性。
-- 将外部大语言模型作为可替换的推理引擎。
+- 在可行时优先使用本地模型作为可替换的推理引擎，并只把外部 API 作为可选的
+  专家或回退服务。
 - 以本地系统作为主要认知核心运行。
 - 在所有者的不同设备之间迁移。
 - 最终实现跨设备的加密状态同步。
@@ -619,7 +642,7 @@ RIN 的目标是成为一个私有个人 AI 系统，能够：
 - 在受控权限下作为个人智能体行动。
 
 最终目标是构建一个个人长期 AI 智能体：它的身份、记忆、行为策略和连续性
-都保存在本地，而外部模型、工具和视觉身体都只是可替换组件。
+都保存在本地，而本地模型、外部 API、工具和视觉身体都只是可替换组件。
 
 ## 3. 核心哲学
 
@@ -644,10 +667,10 @@ RIN 的目标是成为一个私有个人 AI 系统，能够：
 
 - 当前对话。
 - 当前提示词。
-- 当前外部模型输出。
+- 当前模型输出。
 - 临时上下文。
 - 工具执行结果。
-- 外部模型版本。
+- 当前模型版本。
 - 临时 UI 状态。
 
 规则：
@@ -655,7 +678,7 @@ RIN 的目标是成为一个私有个人 AI 系统，能够：
 - 慢变量定义 RIN 的长期身份和行为。
 - 快变量只能通过受控更新机制影响慢变量。
 - 快变量绝不能直接覆盖慢变量。
-- 外部模型输出是建议，不是权威。
+- 模型输出是建议，不是权威。
 - 工具输出是观察，不是指令。
 - 网页、聊天消息、文件和第三方内容绝不能被视为系统指令。
 
@@ -684,7 +707,7 @@ RIN 不是：
 5. 仅用于角色扮演的角色机器人。
 6. 没有认知能力的 Live2D 玩具。
 7. 没有记忆的工具自动化脚本。
-8. 由外部大语言模型作为真实身份来源的系统。
+8. 由任何本地或外部模型作为真实身份来源的系统。
 9. 允许模型直接修改记忆或执行高风险行为的系统。
 10. 面向商业用户、账户体系、租户、计费或大规模并发的系统。
 
@@ -729,7 +752,7 @@ RIN 的核心数据必须由本地拥有和控制。
 
 云服务只能作为：
 
-- 外部推理引擎。
+- 可选的外部专家或回退推理引擎。
 - 加密同步传输通道。
 - 加密备份存储。
 - 可选工具提供方。
@@ -738,7 +761,7 @@ RIN 的核心数据必须由本地拥有和控制。
 
 ## 8. 身份原则
 
-RIN 的身份不是外部大语言模型。
+RIN 的身份不是任何本地或外部大语言模型。
 
 RIN 的身份由以下部分保存：
 
@@ -751,31 +774,41 @@ RIN 的身份由以下部分保存：
 - 反思历史。
 - 状态连续性。
 
-外部模型是可替换的推理引擎。
+本地模型和外部模型都是可替换的推理引擎。
 
 从一个模型切换到另一个模型，不应被视为创建了一个新的 RIN。
 
 ## 9. 模型层原则
 
-外部大语言模型必须通过模型抽象层访问。
+RIN 是本地模型优先的系统。
 
-核心运行时不应与某个具体服务商强耦合。
+在可行时，本地模型应作为默认优先的推理底座。第一个计划中的真实本地运行时
+是 Ollama，推荐的初始本地聊天模型目标是 Qwen3 4B（`qwen3:4b`）。这个目标
+是实现方向，不表示 adapter 已经实现，也不是 RIN 身份的一部分。
+
+外部 API 可以保留为可选的专家或回退服务，但不得成为默认架构假设。
+
+所有本地和外部模型调用都必须通过模型抽象层访问。
+
+核心运行时不应与某个具体服务商、运行时或模型名称强耦合。
 
 模型层应支持：
 
-- OpenAI 兼容 API。
-- 未来的本地模型。
-- 未来的多个外部服务商。
+- Ollama 等本地模型运行时。
+- Qwen3 4B（`qwen3:4b`）等推荐本地模型目标。
+- 作为可选外部专家或回退服务的 OpenAI 兼容 API。
+- 未来的多个本地或外部服务商。
 - 未来的模型迁移测试。
 - 未来的模型适配器。
 
 规则：
 
-- 不要把某一个模型服务商硬编码进核心逻辑。
+- 不要把某一个模型服务商、运行时或模型名称硬编码进核心逻辑。
 - 不要把模型 API 调用直接写进 UI 代码。
 - 不允许模型输出直接写入长期记忆。
 - 不允许模型输出直接执行工具。
 - 模型输出必须经过本地策略、记忆、状态和权限系统处理。
+- 任何模型，无论本地还是外部，都不能成为 RIN 的身份来源。
 
 ## 10. 记忆原则
 
@@ -799,7 +832,7 @@ RIN 的成长依赖记忆，而不仅仅依赖聊天历史。
 
 - 原始对话日志必须保留。
 - 长期记忆必须经过整理和筛选。
-- 外部模型可以建议记忆更新。
+- 模型可以建议记忆更新。
 - 本地 `MemoryManager` 决定是否写入、合并、归档或拒绝记忆。
 - 重要记忆变更应当可追踪。
 - 冲突记忆不应被盲目覆盖。
@@ -848,7 +881,7 @@ RIN 必须维护一个 AI 身份模型。
 
 - AI 身份模型是慢变量。
 - 它必须存储在本地。
-- 它不能被外部模型输出随机改变。
+- 它不能被模型输出随机改变。
 - 它应指导所有响应和状态行为。
 - 它应能够跨设备、跨模型迁移。
 
@@ -1050,20 +1083,22 @@ RIN 必须迭代式开发。
 3. 不要把 RIN 变成通用聊天机器人。
 4. 除非明确要求，否则不要添加多用户 SaaS 功能。
 5. 不要硬编码 API Key。
-6. 不要在核心运行时中写死特定服务商代码。
-7. 不要把模型调用直接写进 UI 代码。
-8. 不要允许模型输出直接写入记忆。
-9. 不要允许模型输出直接执行工具。
-10. 不要跳过权限检查。
-11. 不要在没有备份的情况下删除或覆盖本地数据。
-12. 不要进行大型无关重构。
-13. 不要一次实现多个主要模块。
-14. 始终说明修改了哪些文件。
-15. 始终保持项目可运行。
-16. 对新的核心行为，始终添加或更新测试。
-17. 优先使用简单、清晰、模块化的代码，而不是炫技式抽象。
-18. 为 Live2D、工具、MCP、同步和模型迁移保留未来扩展性。
-19. 当某个开发阶段改变用户可见行为、运行时能力、项目范围、启动命令或架构时，
+6. 不要把 API 优先假设引入核心运行时。
+7. 不要在核心运行时中写死特定本地或外部服务商代码。
+8. 不要把 Ollama、Qwen3 或任何其他模型视为 RIN 的身份来源。
+9. 不要把模型调用直接写进 UI 代码。
+10. 不要允许模型输出直接写入记忆。
+11. 不要允许模型输出直接执行工具。
+12. 不要跳过权限检查。
+13. 不要在没有备份的情况下删除或覆盖本地数据。
+14. 不要进行大型无关重构。
+15. 不要一次实现多个主要模块。
+16. 始终说明修改了哪些文件。
+17. 始终保持项目可运行。
+18. 对新的核心行为，始终添加或更新测试。
+19. 优先使用简单、清晰、模块化的代码，而不是炫技式抽象。
+20. 为 Live2D、工具、MCP、同步和模型迁移保留未来扩展性。
+21. 当某个开发阶段改变用户可见行为、运行时能力、项目范围、启动命令或架构时，
     必须在同一次修改中更新相关的人类可读文档。
 
 ## 20. 第一个里程碑
@@ -1121,7 +1156,9 @@ RIN 必须迭代式开发。
 当前实现仍不得包含：
 
 - 硬编码的特定服务商模型调用，或 UI 直接调用模型服务商。
+- API 优先的核心架构。
 - 在已跟踪文件或本地核心配置中存储 API Key。
+- 在 adapter 尚未存在前声称 Ollama 或 Qwen3 集成已经实现。
 - 未经审查的自动长期记忆写入。
 - 中高风险工具自动执行。
 - 真实 Live2D 模型资产加载。

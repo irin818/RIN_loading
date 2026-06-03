@@ -19,6 +19,17 @@ history exists. After the first push, prefer task branches and pull requests.
   unrelated formatting churn.
 - Use descriptive commit messages that identify the purpose of the change.
 
+## Governance and Implementation Separation
+
+- Keep strategic governance changes separate from runtime implementation
+  changes when practical.
+- Document local-model-first strategy changes before implementing new model
+  provider behavior.
+- Preserve branch, commit, PR, testing, and protected-file policies when
+  changing model strategy.
+- Do not use documentation-only strategy changes to imply that an adapter,
+  provider, or model runtime has already been implemented.
+
 ## Pull Request Policy
 
 - Prefer PRs for reviewable work once the GitHub repository exists.

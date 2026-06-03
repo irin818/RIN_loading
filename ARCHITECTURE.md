@@ -9,7 +9,8 @@ currently implement real Cubism `.moc3` model loading.
 
 The broader RIN direction is defined by `PROJECT_CHARTER.md`: local-first,
 single-owner, long-running personal agent architecture with local identity,
-memory, state, policy, auditability, and replaceable external reasoning engines.
+memory, state, policy, auditability, local-model-first reasoning, and
+replaceable local or external reasoning engines.
 
 ## Root-Level Configuration
 
@@ -38,8 +39,11 @@ Current known module boundaries include:
 - `src/conversation/`: conversation persistence, history retrieval, and runtime
   turn handling.
 - `src/model/`: provider-neutral model abstraction, local mock adapter,
-  configurable adapter selection, and OpenAI-compatible external adapter
-  boundary.
+  configurable adapter selection, and adapter boundaries for local-model-first
+  reasoning plus optional external expert or fallback providers. The first
+  intended real local runtime is Ollama with Qwen3 4B (`qwen3:4b`) as the
+  recommended initial chat model target, but that adapter is not currently
+  implemented.
 - `src/memory/`: memory proposal, review, and manager boundary.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
@@ -130,8 +134,10 @@ passing checks.
   and ignored.
 - Current body code uses Live2D-compatible state fields but not a real Cubism
   model runtime.
-- External model providers are available only through configured model adapters;
-  API keys must remain in environment variables or ignored local files.
+- Model providers, whether local runtimes or external APIs, must enter only
+  through configured model adapters. The UI must not call Ollama, external APIs,
+  or any other provider directly.
+- External API keys must remain in environment variables or ignored local files.
 - Memory writes are still controlled slow-variable updates: owner messages can
   create proposals, and local review routes decide accepted, rejected, or
   archived status.
