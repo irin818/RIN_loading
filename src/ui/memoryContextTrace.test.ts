@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatLexicalRankingSignal,
   formatMatchedKeywords,
+  formatMemoryRankingBreakdown,
   formatMetadataRankingSignal,
+  formatMetadataRankingBreakdown,
   formatMemorySkipReason,
+  formatTypeRankingSignal,
   injectedMemoryItems,
   skippedMemoryItems,
 } from "./memoryContextTrace";
@@ -45,6 +49,45 @@ describe("memoryContextTrace formatters", () => {
     ).toBe(
       "metadata +1 · tags +1: project · importance +1 · confidence -1 · signals: tag_match, importance_high, confidence_low_dampened",
     );
+  });
+
+  it("formats safe lexical, type, metadata, and result breakdowns", () => {
+    const item = {
+      memoryId: "a",
+      memoryType: "project" as const,
+      matchedKeywords: ["local", "ollama"],
+      overlapCount: 2,
+      latinTokenMatchCount: 2,
+      cjkBigramMatchCount: 0,
+      normalizedQueryTokenCount: 4,
+      typeMatchBonus: 1,
+      matchedTypeSignals: ["project"],
+      matchedTags: ["runtime"],
+      tagMatchBonus: 1,
+      importanceBonus: 1,
+      confidenceAdjustment: -1,
+      metadataBonus: 1,
+      metadataSignals: [
+        "tag_match",
+        "importance_high",
+        "confidence_low_dampened",
+      ],
+      wasInjected: false,
+      skippedReason: "max_count_exceeded" as const,
+      snippetLength: 120,
+    };
+
+    expect(formatLexicalRankingSignal(item)).toBe(
+      "lexical overlap 2/4 (latin 2, cjk 0) keywords: local, ollama",
+    );
+    expect(formatTypeRankingSignal(item)).toBe("type project +1: project");
+    expect(formatMetadataRankingBreakdown(item)).toBe(
+      "metadata +1 (tags +1: runtime; importance +1; confidence -1; signals: tag_match, importance_high, confidence_low_dampened)",
+    );
+    expect(formatMemoryRankingBreakdown(item)).toBe(
+      "lexical overlap 2/4 (latin 2, cjk 0) keywords: local, ollama · type project +1: project · metadata +1 (tags +1: runtime; importance +1; confidence -1; signals: tag_match, importance_high, confidence_low_dampened) · result: max count exceeded",
+    );
+    expect(formatMemoryRankingBreakdown(item)).not.toContain("Owner full text");
   });
 
   it("splits injected and skipped items", () => {
