@@ -16,6 +16,14 @@ function memory(
     id: overrides.id,
     memoryType: overrides.memoryType ?? "semantic",
     content: overrides.content ?? { text: "" },
+    metadata: overrides.metadata ?? {
+      tags: [],
+      importance: "normal",
+      confidence: "medium",
+      source: null,
+      reviewedAt: null,
+      acceptedAt: null,
+    },
     sourceMessageId: overrides.sourceMessageId ?? null,
     status: overrides.status ?? "accepted",
     createdAt: overrides.createdAt ?? "2026-05-19T00:00:00.000Z",
@@ -137,6 +145,41 @@ describe("selectRelevantAcceptedMemories", () => {
       "strong-token-match",
       "type-match",
     ]);
+  });
+
+  it("does not use owner-reviewed metadata for ranking yet", () => {
+    const result = selectRelevantAcceptedMemories(
+      [
+        memory({
+          id: "metadata-heavy",
+          content: { text: "Owner uses memory notes." },
+          metadata: {
+            tags: ["project", "urgent"],
+            importance: "high",
+            confidence: "high",
+            source: "owner review",
+            reviewedAt: "2026-05-19T00:02:00.000Z",
+            acceptedAt: "2026-05-19T00:01:00.000Z",
+          },
+        }),
+        memory({
+          id: "strong-token-match",
+          content: { text: "Owner uses project memory notes." },
+          metadata: {
+            tags: [],
+            importance: "low",
+            confidence: "low",
+            source: null,
+            reviewedAt: null,
+            acceptedAt: null,
+          },
+        }),
+      ],
+      "project memory notes",
+      { maxInjectedMemories: 1 },
+    );
+
+    expect(result.map((item) => item.id)).toEqual(["strong-token-match"]);
   });
 
   it("does not inject zero-overlap memories solely due to type", () => {
