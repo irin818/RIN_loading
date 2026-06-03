@@ -52,6 +52,10 @@ export function App() {
   );
   const [conversationError, setConversationError] =
     useState<ConversationErrorPayload | null>(null);
+  const [lastFailedInput, setLastFailedInput] = useState<string | null>(null);
+  const [refreshStatus, setRefreshStatus] = useState<
+    "idle" | "refreshing" | "error"
+  >("idle");
 
   useEffect(() => {
     let cancelled = false;
@@ -99,10 +103,8 @@ export function App() {
   const bodyAdapterId = snapshot?.body.adapterId ?? previewBodyAdapterId;
   const live2dReady = snapshot?.body.live2dReady ?? true;
 
-  async function submitMessage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (messageDraft.trim().length === 0 || apiStatus !== "connected") {
+  async function sendMessage(content: string) {
+    if (content.trim().length === 0 || apiStatus !== "connected") {
       return;
     }
 
@@ -114,7 +116,7 @@ export function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: messageDraft,
+          content,
           conversationId: activeConversationId ?? undefined,
         }),
       });
@@ -129,6 +131,7 @@ export function App() {
         }
 
         setConversationError(parseConversationError(parsed));
+        setLastFailedInput(content);
         setTurnStatus("error");
         return;
       }
@@ -144,10 +147,44 @@ export function App() {
       );
       setMessageDraft("");
       setConversationError(null);
+      setLastFailedInput(null);
       setTurnStatus("idle");
     } catch {
       setConversationError(null);
+      setLastFailedInput(content);
       setTurnStatus("error");
+    }
+  }
+
+  async function submitMessage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await sendMessage(messageDraft);
+  }
+
+  async function retryLastMessage() {
+    if (lastFailedInput === null || turnStatus === "sending") {
+      return;
+    }
+
+    await sendMessage(lastFailedInput);
+  }
+
+  async function refreshSnapshot() {
+    setRefreshStatus("refreshing");
+
+    try {
+      const response = await fetch("/api/local-state");
+
+      if (!response.ok) {
+        throw new Error(`Local runtime returned ${response.status}`);
+      }
+
+      const nextSnapshot = (await response.json()) as LocalConsoleSnapshot;
+      setSnapshot(nextSnapshot);
+      setApiStatus("connected");
+      setRefreshStatus("idle");
+    } catch {
+      setRefreshStatus("error");
     }
   }
 
@@ -394,6 +431,17 @@ export function App() {
                   ))}
                 </ul>
               ) : null}
+              {conversationError.retryable && lastFailedInput !== null ? (
+                <div className="conversation-error-actions">
+                  <button
+                    type="button"
+                    onClick={() => void retryLastMessage()}
+                    disabled={apiStatus !== "connected"}
+                  >
+                    Retry / 重试
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : (
             <p className="error-text">
@@ -560,6 +608,22 @@ export function App() {
 
           <section className="state-panel" aria-labelledby="model-title">
             <h2 id="model-title">Model Runtime / 模型运行时</h2>
+            <div className="model-runtime-toolbar">
+              <button
+                type="button"
+                onClick={() => void refreshSnapshot()}
+                disabled={refreshStatus === "refreshing"}
+              >
+                {refreshStatus === "refreshing"
+                  ? "Refreshing / 刷新中"
+                  : "Refresh status / 刷新状态"}
+              </button>
+              {refreshStatus === "error" ? (
+                <span className="model-runtime-refresh-error" role="status">
+                  Could not refresh status. / 无法刷新状态。
+                </span>
+              ) : null}
+            </div>
             <dl className="status-grid compact">
               <div>
                 <dt>Active adapter</dt>

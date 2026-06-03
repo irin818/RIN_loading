@@ -1155,6 +1155,56 @@ h1 {
   line-height: 1.45;
 }
 
+.conversation-error-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.conversation-error-actions button {
+  border: 1px solid #b8412f;
+  border-radius: 8px;
+  background: #fbe7e1;
+  padding: 7px 12px;
+  color: #7b321d;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.conversation-error-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.model-runtime-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.model-runtime-toolbar button {
+  border: 1px solid #1f6f56;
+  border-radius: 8px;
+  background: #eef7f2;
+  padding: 7px 12px;
+  color: #153426;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.model-runtime-toolbar button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.model-runtime-refresh-error {
+  color: #8a261d;
+  font-size: 0.85rem;
+}
+
 .command-list {
   display: flex;
   flex-wrap: wrap;
