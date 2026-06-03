@@ -85,7 +85,7 @@ export function formatSemanticLiveReadinessReport(
   ].join("\n");
 }
 
-function readSemanticLiveEmbeddingConfig(
+export function readSemanticLiveEmbeddingConfig(
   env: SemanticLiveReadinessEnvironment,
 ): LocalEmbeddingProviderConfig {
   if (env.RIN_SEMANTIC_LIVE_PROVIDER !== "ollama-local") {

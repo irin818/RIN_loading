@@ -60,6 +60,7 @@ export {
 export {
   formatSemanticLiveReadinessReport,
   getSemanticLiveReadinessReport,
+  readSemanticLiveEmbeddingConfig,
 } from "./semanticLiveReadiness";
 export type {
   RetrievalMatchResult,
