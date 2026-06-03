@@ -39,7 +39,9 @@ Current known module boundaries include:
   retry of a retryable failed turn) use RIN local APIs and do not bypass the
   runtime or provider boundaries. It can inspect persisted `memoryContext` trace
   metadata per successful historical RIN turn without recomputing memory context
-  or exposing full memory text.
+  or exposing full memory text. The trace panel formats read-only lexical,
+  type, metadata, and skipped-reason ranking components from existing trace
+  data; it does not run memory evaluation in the browser or call providers.
 - `src/body/`: current body adapter protocol, SVG/live2d-compatible body state
   mapping, and local body interaction logic.
 - `src/runtime/`: local conversation/runtime boundary.
@@ -81,9 +83,10 @@ Current known module boundaries include:
   core memory content. Matching tags and `high` importance may add capped ranking
   bonuses after lexical overlap; `low` confidence can dampen metadata bonus;
   source and timestamps remain trace-only. The module also contains a local
-  in-memory evaluation harness for retrieval/injection quality that does not call
-  model providers or touch real owner data; it does not auto-write or auto-accept
-  memories.
+  in-memory evaluation harness for retrieval/injection quality that reports
+  total/pass/fail counts, fixture categories, category pass/fail counts, failed
+  case IDs, and provider-call count without calling model providers or touching
+  real owner data; it does not auto-write or auto-accept memories.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
 - `src/storage/`: controlled local storage layout and manifest logic.

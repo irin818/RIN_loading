@@ -146,6 +146,12 @@ The current retrieval path is:
     - `snippetLength`
 14. Persisted `memoryContext` trace stores safe metadata only. It excludes full
     memory text, model context snippets, and raw prompt text.
+15. The Console formats persisted trace items as a safe read-only ranking
+    breakdown: lexical overlap components, type bonus, metadata bonus
+    components, matched tags, confidence/importance contribution, and skipped
+    reason. It also shows trace item count and memory-context character count
+    from the stored `memoryContext` payload. It does not recompute retrieval or
+    expose raw JSON by default.
 
 ## Current Evaluation Coverage
 
@@ -162,6 +168,8 @@ The built-in memory evaluation harness currently covers:
 - memory budget behavior
 - privacy checks that prevent full memory text from leaking into trace
 - provider isolation with `providerCallCount: 0`
+- concise report output with fixture categories, category pass/fail counts, and
+  failed case IDs
 - type bonus tie-breaking between similarly relevant accepted memories
 - zero-overlap type-only memory exclusion
 - stronger token relevance beating weaker type bonus
@@ -173,14 +181,19 @@ The built-in memory evaluation harness currently covers:
 - bounded importance influence
 - low-confidence metadata dampening
 - strong lexical relevance beating metadata bonus
+- metadata near-miss cases where a stronger lexical match beats rich metadata
 - non-accepted metadata-rich memory exclusion
 - metadata trace privacy checks
+- metadata source privacy checks
+- metadata-rich memory budget edge behavior
+- type and metadata interaction tie-breaking
 - old/no-metadata neutral behavior
+- CJK near-miss token dominance
 
 Remaining gaps:
 
 - No fixture covers usage stats because those fields do not exist.
-- Limited near-miss coverage for ambiguous technical overlap.
+- No semantic retrieval, vector similarity, or embedding coverage exists yet.
 
 ## Candidate Ranking Signals
 
@@ -290,6 +303,9 @@ components under these limits:
   `matchedTypeSignals`, `matchedTags`, metadata bonus components, and
   `metadataSignals`.
 - Protect the behavior with `npm run rin:memory-eval` fixtures.
+- Keep `npm run rin:memory-eval` output concise and safe: category coverage,
+  provider-call count, and failed case IDs are allowed, but full memory text,
+  raw prompts, model-context snippets, and raw metadata JSON are not.
 
 Source, reviewed timestamps, accepted timestamps, and usage stats remain
 non-ranking signals unless a future design changes that with evaluation coverage.
