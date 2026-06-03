@@ -96,9 +96,14 @@ Current known module boundaries include:
   accepted-only violations, zero-overlap semantic candidates, privacy checks,
   prototype candidate counts, and provider-call count without real embeddings,
   vector databases, provider calls, real `.rin-data`, or production integration.
-  Semantic retrieval is not implemented in production. Future semantic retrieval
-  must remain local-first, optional, accepted-only, and evaluation-gated before
-  it can affect context injection.
+  It also now exposes explicit report-only accepted-memory semantic index,
+  live accepted-memory index, and hybrid candidate report commands. These
+  commands are disabled by default; without explicit owner opt-in they do not
+  list real memories, read real `.rin-data`, or call providers. When explicitly
+  enabled, they remain in-memory, accepted-only, ID/count/status-only, and do not
+  feed candidates into context assembly. Semantic retrieval is not implemented
+  in production. Future semantic retrieval must remain local-first, optional,
+  accepted-only, and evaluation-gated before it can affect context injection.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
 - `src/storage/`: controlled local storage layout and manifest logic.

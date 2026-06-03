@@ -1,7 +1,7 @@
 # Hybrid Retrieval Integration Plan
 
-Status: future plan. Mega-Milestone 10 does not integrate semantic retrieval
-into production.
+Status: report-only hybrid candidate expansion implemented in Super-Milestone
+12-14. It does not integrate semantic retrieval into production.
 
 ## Baseline Rule
 
@@ -19,7 +19,23 @@ Future semantic retrieval should start as candidate expansion only:
 4. report compares deterministic, semantic, and hybrid candidate IDs
 5. no semantic-only candidate reaches production context until later gates pass
 
-Mega-Milestone 10 remains in report-only evaluation.
+Mega-Milestone 10 remains in fixture-only evaluation. Super-Milestone 12-14 adds
+an explicit report command:
+
+```sh
+npm run rin:hybrid-retrieval-report -- --allow-hybrid-retrieval-report --query "local query"
+```
+
+Equivalent environment opt-in is:
+
+```sh
+RIN_HYBRID_RETRIEVAL_REPORT=report-only \
+RIN_HYBRID_RETRIEVAL_QUERY="local query" \
+npm run rin:hybrid-retrieval-report
+```
+
+Without opt-in, the command reports disabled, does not list memories, does not
+call providers, and does not read real `.rin-data`.
 
 ## Accepted-Only Filtering
 
@@ -89,6 +105,10 @@ embedding vectors, or raw metadata JSON.
 5. Candidate expansion behind config.
 6. Production opt-in only after eval, privacy, readiness, rollback, and owner
    control gates pass.
+
+Super-Milestone 12-14 implements stage 5 only as a report command. Hybrid
+candidate IDs are never passed to `buildModelContext`, conversation runtime,
+server APIs, Console behavior, or persisted production traces.
 
 ## Rollback Plan
 

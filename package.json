@@ -25,6 +25,9 @@
     "rin:semantic-eval": "tsx src/cli/semanticEval.ts",
     "rin:semantic-readiness": "tsx src/cli/semanticReadiness.ts",
     "rin:semantic-live-readiness": "tsx src/cli/semanticLiveReadiness.ts",
+    "rin:semantic-index-report": "tsx src/cli/semanticIndexReport.ts",
+    "rin:semantic-live-index-report": "tsx src/cli/semanticLiveIndexReport.ts",
+    "rin:hybrid-retrieval-report": "tsx src/cli/hybridRetrievalReport.ts",
     "rin:tool": "tsx src/cli/runTool.ts",
     "rin:console": "npm run build && tsx src/server/localConsoleServer.ts",
     "rin:console:server": "tsx src/server/localConsoleServer.ts"

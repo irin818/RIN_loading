@@ -13,6 +13,8 @@ mean:
 - no embedding provider is called
 - no real `.rin-data` is indexed
 - no semantic candidates are injected into context
+- accepted-memory index and hybrid retrieval report commands return disabled
+  reports unless their explicit report-only opt-ins are present
 
 ## Required Config Flags
 
@@ -58,6 +60,16 @@ optional live-local readiness probe. Passing or skipping this command does not
 enable production retrieval. A future production opt-in must still require a
 separate accepted-memory report-only index gate before any context injection.
 
+Super-Milestone 12-14 adds the accepted-memory report-only index and hybrid
+candidate report commands:
+
+- `npm run rin:semantic-index-report`
+- `npm run rin:semantic-live-index-report`
+- `npm run rin:hybrid-retrieval-report`
+
+Default readiness reports these commands as available but disabled, with memory
+listing disabled and `providerCallCount: 0`.
+
 ## Evaluation Gates
 
 Required checks:
@@ -65,9 +77,14 @@ Required checks:
 - `npm run rin:check`
 - `npm run rin:memory-eval`
 - `npm run rin:semantic-eval`
+- `npm run rin:semantic-readiness`
+- `npm run rin:semantic-index-report`
+- `npm run rin:hybrid-retrieval-report`
 - local embedding eval over temp fixture data
-- future stale/delete/update index tests
-- future report-only live index comparison
+- report-only accepted-memory index tests
+- report-only live index comparison tests
+- report-only hybrid candidate expansion tests
+- future stale/delete/update persistent-index tests
 
 ## Privacy Gates
 
@@ -107,6 +124,8 @@ Production semantic retrieval remains forbidden until:
 - owner can disable semantic retrieval
 - local-only provider is implemented and reviewed
 - report-only accepted-memory indexing has passed explicit opt-in gates
+- report-only hybrid candidate expansion has passed explicit opt-in and
+  accepted-only gates
 - cloud embeddings remain excluded by default
 - index rebuild/delete/update behavior is tested
 - rollback to deterministic retrieval is trivial

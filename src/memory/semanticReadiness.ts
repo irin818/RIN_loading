@@ -27,6 +27,12 @@ export type SemanticReadinessReport = {
   tempEmbeddingProvider: string;
   tempEmbeddingProviderKind: string;
   tempEmbeddingCandidateCount: number;
+  acceptedMemoryIndexReportAvailable: boolean;
+  acceptedMemoryIndexReportEnabled: false;
+  liveAcceptedMemoryIndexReportEnabled: false;
+  hybridRetrievalReportAvailable: boolean;
+  hybridRetrievalReportEnabled: false;
+  memoryListingEnabled: false;
   providerCallCountByProviderKind: Record<string, number>;
   providerCallCount: 0;
   checks: SemanticReadinessCheck[];
@@ -82,6 +88,12 @@ export function getSemanticReadinessReport(
       status: "pass",
       message: "Default semantic readiness performs no provider calls.",
     },
+    {
+      id: "report-only-commands",
+      status: "pass",
+      message:
+        "Accepted-memory semantic index and hybrid retrieval reports are explicit commands and disabled by default.",
+    },
   ];
 
   return {
@@ -100,6 +112,12 @@ export function getSemanticReadinessReport(
     tempEmbeddingProvider: semanticEval.tempEmbeddingProvider,
     tempEmbeddingProviderKind: semanticEval.tempEmbeddingProviderKind,
     tempEmbeddingCandidateCount: semanticEval.tempEmbeddingCandidateCount,
+    acceptedMemoryIndexReportAvailable: true,
+    acceptedMemoryIndexReportEnabled: false,
+    liveAcceptedMemoryIndexReportEnabled: false,
+    hybridRetrievalReportAvailable: true,
+    hybridRetrievalReportEnabled: false,
+    memoryListingEnabled: false,
     providerCallCountByProviderKind: {
       [semanticEval.tempEmbeddingProviderKind]:
         semanticEval.tempEmbeddingProviderCallCount,
@@ -128,6 +146,22 @@ export function formatSemanticReadinessReport(
     `Temp embedding provider: ${report.tempEmbeddingProvider}`,
     `Temp embedding provider kind: ${report.tempEmbeddingProviderKind}`,
     `Temp embedding candidates: ${report.tempEmbeddingCandidateCount}`,
+    `Accepted-memory index report available: ${
+      report.acceptedMemoryIndexReportAvailable ? "yes" : "no"
+    }`,
+    `Accepted-memory index report enabled: ${
+      report.acceptedMemoryIndexReportEnabled ? "yes" : "no"
+    }`,
+    `Live accepted-memory index report enabled: ${
+      report.liveAcceptedMemoryIndexReportEnabled ? "yes" : "no"
+    }`,
+    `Hybrid retrieval report available: ${
+      report.hybridRetrievalReportAvailable ? "yes" : "no"
+    }`,
+    `Hybrid retrieval report enabled: ${
+      report.hybridRetrievalReportEnabled ? "yes" : "no"
+    }`,
+    `Memory listing enabled: ${report.memoryListingEnabled ? "yes" : "no"}`,
     `Production semantic retrieval enabled: ${
       report.productionSemanticRetrievalEnabled ? "yes" : "no"
     }`,

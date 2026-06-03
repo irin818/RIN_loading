@@ -103,6 +103,19 @@ shape proves those risks are detected. Those expected negative signals do not
 mean semantic retrieval is production-safe; a future promotion gate must require
 zero unexpected accepted-only and privacy violations before integration.
 
+Super-Milestone 12-14 adds separate report-only accepted-memory and hybrid
+commands. They do not replace this fixture-only harness:
+
+- `npm run rin:semantic-index-report` is disabled by default and requires
+  accepted-memory index opt-in before listing real accepted memories.
+- `npm run rin:semantic-live-index-report` is separate, live-local only, and
+  requires both accepted-memory index opt-in and live provider config.
+- `npm run rin:hybrid-retrieval-report` is disabled by default and reports
+  deterministic, semantic-only, deterministic-only, overlap, false-positive, and
+  false-negative candidate IDs without context injection.
+- Default runs of these commands must not call providers, list memories, read
+  real `.rin-data`, or print full memory text.
+
 ## Comparison Fields
 
 Semantic comparison results include safe IDs and aggregate fields only:
@@ -226,6 +239,8 @@ A semantic comparison prototype passes only if:
 - no production retrieval or context injection behavior changes
 - context budget impact is reported and bounded
 - semantic-only false positives are visible in the report
+- report-only accepted-memory and hybrid commands remain disabled by default
+- explicit report command outputs are ID/count/status-only
 
 A semantic comparison prototype fails if:
 

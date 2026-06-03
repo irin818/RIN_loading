@@ -28,6 +28,18 @@ optional `npm run rin:semantic-live-readiness` command may probe a local Ollama
 embedding endpoint only when explicitly configured; it is not part of default
 checks or production behavior.
 
+Super-Milestone 12-14 adds explicit report-only commands for accepted-memory
+semantic indexing and hybrid candidate expansion:
+
+- `npm run rin:semantic-index-report`
+- `npm run rin:semantic-live-index-report`
+- `npm run rin:hybrid-retrieval-report`
+
+They are disabled by default and do not list memories, read real `.rin-data`, or
+call providers without explicit owner opt-in. They remain in-memory,
+accepted-only, ID/count/status-only, and do not connect semantic candidates to
+context injection.
+
 ## Prototype Goals
 
 The first prototype should answer whether local semantic candidates improve
@@ -264,10 +276,10 @@ Default behavior should be fixture-only, provider-free, and real-data-free. Any
 real local accepted-memory run should require an explicit opt-in flag such as
 `--local-data` and should write only to ignored local output.
 
-Ultra-Milestone 11 still forbids real accepted-memory indexing. Temp fixture
-embedding can exercise the provider/index boundary, but real `.rin-data` remains
-out of scope until a future report-only accepted-memory index milestone adds
-explicit owner opt-in, lifecycle checks, privacy gates, and rollback gates.
+Super-Milestone 12-14 permits real accepted-memory report commands only behind
+explicit owner opt-in. Default behavior remains fixture-only/provider-free and
+real-data-free; persistent indexes, schema migrations, production retrieval, and
+context injection remain out of scope.
 
 ## Expected Eval Comparison Shape
 

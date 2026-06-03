@@ -1,8 +1,8 @@
 # Report-Only Accepted Memory Semantic Index Plan
 
-Status: future milestone plan. Ultra-Milestone 11 does not index real
-`.rin-data` and does not connect semantic retrieval to production context
-injection.
+Status: report-only accepted-memory semantic index command implemented in
+Super-Milestone 12-14. The command is explicit and disabled by default; it does
+not connect semantic retrieval to production context injection.
 
 ## Purpose
 
@@ -25,19 +25,37 @@ deterministic retrieval as the production baseline.
 
 ## Opt-In Shape
 
-A future command should require explicit local configuration, for example:
+The implemented report command requires explicit local configuration:
 
 ```sh
-npm run rin:semantic-accepted-index-report -- --local-data --report-only
+npm run rin:semantic-index-report -- --allow-accepted-memory-index --query "local query"
 ```
 
-The command should refuse to run unless it can confirm:
+Equivalent environment opt-in is:
+
+```sh
+RIN_SEMANTIC_ACCEPTED_MEMORY_INDEX=report-only \
+RIN_SEMANTIC_INDEX_QUERY="local query" \
+npm run rin:semantic-index-report
+```
+
+The live local provider variant is separate and still explicit:
+
+```sh
+RIN_SEMANTIC_ACCEPTED_MEMORY_INDEX=report-only \
+RIN_SEMANTIC_LIVE_PROVIDER=ollama-local \
+RIN_SEMANTIC_OLLAMA_EMBEDDING_MODEL=<local-embedding-model> \
+RIN_SEMANTIC_INDEX_QUERY="local query" \
+npm run rin:semantic-live-index-report
+```
+
+The commands refuse or report disabled unless they can confirm:
 
 - owner opt-in flag is present
 - report-only mode is selected
-- local embedding provider is explicitly configured
-- provider readiness has passed or produced a safe skipped report
-- output path is ignored or temp-only
+- local embedding provider is explicitly configured for live reports
+- provider readiness has passed or produced a safe skipped report for live reports
+- indexing is in-memory only
 - no production integration flag is enabled
 
 ## Index Input Policy
@@ -77,6 +95,9 @@ Reports should use IDs, counts, and safe metadata only:
 - providerCallCount
 - safe error codes
 - privacy pass/fail counts
+- `productionIntegrationEnabled: false`
+- `contextInjectionEnabled: false`
+- `fullTextIncluded: false`
 
 Reports must not print full memory text, raw prompts, embedding vectors, raw
 metadata JSON, local private paths, stack traces, or env dumps.
@@ -113,6 +134,8 @@ Required checks:
 - `npm run rin:semantic-eval`
 - `npm run rin:semantic-readiness`
 - report-only accepted-memory index tests over temp fixtures
+- `npm run rin:semantic-index-report` default-disabled smoke
+- `npm run rin:semantic-live-index-report` default-disabled smoke
 - stale/update/delete/archive lifecycle tests
 - provider dimension mismatch tests
 - repeated deterministic report output tests
@@ -142,3 +165,19 @@ Rollback must be trivial:
 - fails safely on vector dimension mismatch
 - keeps default checks provider-free
 - leaves production retrieval/context/server/UI unchanged
+
+## Implemented Super-Milestone 12-14 Behavior
+
+- Default `npm run rin:semantic-index-report` does not list memories, does not
+  read real `.rin-data`, does not call providers, and reports
+  `LOCAL_EMBEDDING_DISABLED`.
+- Explicit fixture/local mode builds an in-memory index over accepted memories
+  only and reports candidate IDs, counts, topK/candidate cap, and
+  `providerCallCount`.
+- Explicit live mode is isolated in `npm run rin:semantic-live-index-report`;
+  it requires accepted-memory index opt-in plus live local provider config and
+  reports safe error codes if unavailable.
+- Reports never include full memory text, raw query text, raw metadata JSON,
+  embedding vectors, local paths, secrets, or stack traces.
+- No command changes `retrieveAcceptedMemoriesWithExplanation`,
+  `buildModelContext`, conversation runtime, server APIs, or Console behavior.
