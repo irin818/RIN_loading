@@ -2,6 +2,7 @@ import type { RinDataManifest } from "../storage";
 import type { CoreStateFileStatus } from "../storage/coreFiles";
 import type { DatabaseStatus } from "../database";
 import type {
+  ConversationErrorPayload,
   ConversationMessageRecord,
   ConversationRecord,
   ConversationTurnResult,
@@ -107,4 +108,9 @@ export type ConversationDetailResponse = {
   conversation: ConversationRecord;
   messages: ConversationMessageRecord[];
   snapshot: LocalConsoleSnapshot;
+};
+
+export type ConversationErrorResponse = {
+  ok: false;
+  error: ConversationErrorPayload;
 };

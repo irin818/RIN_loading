@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { isModelError, ModelError, type ModelErrorCode } from "./errors";
 import { createOllamaAdapter } from "./ollamaAdapter";
 
 const generationOptions = {
@@ -6,6 +7,20 @@ const generationOptions = {
   temperature: 0.5,
   topP: 0.85,
 };
+
+async function captureModelError(promise: Promise<unknown>): Promise<ModelError> {
+  try {
+    await promise;
+  } catch (error) {
+    if (isModelError(error)) {
+      return error;
+    }
+
+    throw error;
+  }
+
+  throw new Error("Expected the adapter to throw a ModelError.");
+}
 
 describe("createOllamaAdapter", () => {
   it("maps RIN messages to Ollama chat messages without external metadata", async () => {
@@ -193,5 +208,108 @@ describe("createOllamaAdapter", () => {
         messages: [{ role: "owner", content: "hello" }],
       }),
     ).rejects.toThrow("Ollama local API is not reachable");
+  });
+});
+
+describe("createOllamaAdapter typed model errors", () => {
+  function adapterWith(fetchFn: typeof fetch, timeoutMs = 1_000) {
+    return createOllamaAdapter({
+      id: "rin-ollama-local",
+      displayName: "Test Ollama adapter",
+      baseUrl: "http://127.0.0.1:11434",
+      model: "qwen3:4b",
+      timeoutMs,
+      generationOptions,
+      fetchFn,
+    });
+  }
+
+  const cases: Array<{
+    name: string;
+    code: ModelErrorCode;
+    retryable: boolean;
+    adapter: () => ReturnType<typeof createOllamaAdapter>;
+  }> = [
+    {
+      name: "timeout",
+      code: "LOCAL_MODEL_TIMEOUT",
+      retryable: true,
+      adapter: () =>
+        adapterWith(
+          async (_url, init) =>
+            new Promise<Response>((_resolve, reject) => {
+              init?.signal?.addEventListener("abort", () => {
+                reject(new DOMException("aborted", "AbortError"));
+              });
+            }),
+          1,
+        ),
+    },
+    {
+      name: "network unavailable",
+      code: "LOCAL_MODEL_UNAVAILABLE",
+      retryable: true,
+      adapter: () =>
+        adapterWith(async () => {
+          throw new TypeError("fetch failed");
+        }),
+    },
+    {
+      name: "missing model",
+      code: "LOCAL_MODEL_MISSING",
+      retryable: false,
+      adapter: () =>
+        adapterWith(
+          async () =>
+            new Response(JSON.stringify({ error: "model 'qwen3:4b' not found" }), {
+              status: 404,
+            }),
+        ),
+    },
+    {
+      name: "invalid response",
+      code: "MODEL_RESPONSE_INVALID",
+      retryable: true,
+      adapter: () =>
+        adapterWith(async () => new Response("{", { status: 200 })),
+    },
+  ];
+
+  for (const testCase of cases) {
+    it(`classifies ${testCase.name} as ${testCase.code}`, async () => {
+      const error = await captureModelError(
+        testCase.adapter().generate({
+          ownerId: "owner-a",
+          conversationId: "conversation-a",
+          messages: [{ role: "owner", content: "hello" }],
+        }),
+      );
+
+      expect(error.code).toBe(testCase.code);
+      expect(error.provider).toBe("local");
+      expect(error.adapterId).toBe("rin-ollama-local");
+      expect(error.retryable).toBe(testCase.retryable);
+      expect(error.details).toEqual({
+        baseUrl: "http://127.0.0.1:11434",
+        model: "qwen3:4b",
+      });
+    });
+  }
+
+  it("throws a typed missing-model error when configuration is missing", () => {
+    try {
+      createOllamaAdapter({
+        id: "rin-ollama-local",
+        displayName: "Test Ollama adapter",
+        baseUrl: "http://127.0.0.1:11434",
+        model: "",
+        timeoutMs: 1_000,
+        generationOptions,
+      });
+      throw new Error("Expected a ModelError to be thrown.");
+    } catch (error) {
+      expect(isModelError(error)).toBe(true);
+      expect((error as ModelError).code).toBe("LOCAL_MODEL_MISSING");
+    }
   });
 });

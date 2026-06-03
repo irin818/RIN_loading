@@ -5,7 +5,9 @@ import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { exportAgentStateBundle } from "../bundle";
 import {
+  conversationErrorResponse,
   getConversation,
+  isConversationError,
   listConversationMessages,
   listRecentConversations,
   processOwnerMessage,
@@ -32,6 +34,12 @@ const server = createServer(async (request, response) => {
   try {
     await routeRequest(request, response);
   } catch (error) {
+    if (isConversationError(error)) {
+      const { status, body } = conversationErrorResponse(error);
+      writeJson(response, status, body);
+      return;
+    }
+
     writeJson(response, 500, {
       ok: false,
       english: "Local console server error.",

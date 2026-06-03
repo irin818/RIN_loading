@@ -1,3 +1,4 @@
+import { ModelError, type ModelErrorCode } from "./errors";
 import type { ModelAdapter, ModelMessage, ModelRequest, ModelResponse } from "./types";
 
 export type OpenAiCompatibleAdapterOptions = {
@@ -60,26 +61,79 @@ async function requestChatCompletion(
       }),
       signal: controller.signal,
     });
-    const body = await readJsonResponse(response);
+    const body = await readJsonResponse(response, options);
 
     if (!response.ok) {
-      throw new Error(readProviderError(body) ?? `Provider returned ${response.status}.`);
+      throw providerError(
+        options,
+        "MODEL_PROVIDER_ERROR",
+        readProviderError(body) ?? `Provider returned ${response.status}.`,
+      );
     }
 
     const message = readFirstAssistantMessage(body);
     const content = message.content;
 
     if (!content) {
-      throw new Error("Provider response did not include assistant content.");
+      throw providerError(
+        options,
+        "MODEL_RESPONSE_INVALID",
+        "Provider response did not include assistant content.",
+      );
     }
 
     return {
       content,
       toolCallRequested: message.toolCallRequested,
     };
+  } catch (error) {
+    if (error instanceof ModelError) {
+      throw error;
+    }
+
+    if (isAbortError(error)) {
+      throw providerError(
+        options,
+        "MODEL_PROVIDER_ERROR",
+        `Provider request timed out after ${options.timeoutMs}ms.`,
+        error,
+      );
+    }
+
+    throw providerError(
+      options,
+      "MODEL_PROVIDER_ERROR",
+      "Provider request failed before returning a response.",
+      error,
+    );
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+function providerError(
+  options: OpenAiCompatibleAdapterOptions,
+  code: ModelErrorCode,
+  message: string,
+  cause?: unknown,
+): ModelError {
+  return new ModelError({
+    code,
+    message,
+    adapterId: options.id,
+    provider: "openai-compatible",
+    details: { baseUrl: options.baseUrl, model: options.model },
+    cause,
+  });
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    error.name === "AbortError"
+  );
 }
 
 function toChatCompletionMessage(message: ModelMessage): ChatCompletionMessage {
@@ -93,14 +147,26 @@ function toChatCompletionMessage(message: ModelMessage): ChatCompletionMessage {
   }
 }
 
-async function readJsonResponse(response: Response): Promise<unknown> {
+async function readJsonResponse(
+  response: Response,
+  options: OpenAiCompatibleAdapterOptions,
+): Promise<unknown> {
   const text = await response.text();
 
   if (text.trim().length === 0) {
     return {};
   }
 
-  return JSON.parse(text) as unknown;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch (error) {
+    throw providerError(
+      options,
+      "MODEL_RESPONSE_INVALID",
+      "Provider response was not valid JSON.",
+      error,
+    );
+  }
 }
 
 function readFirstAssistantMessage(

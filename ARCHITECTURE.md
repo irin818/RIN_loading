@@ -37,7 +37,9 @@ Current known module boundaries include:
   mapping, and local body interaction logic.
 - `src/runtime/`: local conversation/runtime boundary.
 - `src/conversation/`: conversation persistence, history retrieval, and runtime
-  turn handling.
+  turn handling. It also maps typed model failures into structured, user-visible
+  conversation errors (stable error codes, recovery guidance, HTTP status) and
+  records a `conversation.turn_failed` event without storing a fake RIN reply.
 - `src/context/`: fast-variable context assembly between conversation runtime
   and model adapters. It builds bounded model input, adds the compact RIN system
   prompt, and does not own identity, memory storage, policy, or provider calls.
@@ -45,9 +47,12 @@ Current known module boundaries include:
   configurable adapter selection, and adapter boundaries for local-model-first
   reasoning plus optional external expert or fallback providers. The first real
   local runtime adapter is Ollama, with Qwen3 4B (`qwen3:4b`) as the recommended
-  initial chat model target when explicitly selected. Local adapter runtime
+  initial chat model target when explicitly selected.   Local adapter runtime
   controls such as timeout and bounded generation options live at this adapter
-  boundary, not in UI or identity logic.
+  boundary, not in UI or identity logic. Adapters throw typed model errors so
+  the conversation runtime can classify local model failures (timeout,
+  unavailable, missing model, invalid or provider response) without inspecting
+  Ollama or provider internals.
 - `src/memory/`: memory proposal, review, and manager boundary.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.

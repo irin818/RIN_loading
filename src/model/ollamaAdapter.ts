@@ -1,4 +1,5 @@
 import type { OllamaGenerationOptions } from "./config";
+import { ModelError, type ModelErrorCode } from "./errors";
 import type { ModelAdapter, ModelMessage, ModelRequest, ModelResponse } from "./types";
 
 export type OllamaAdapterOptions = {
@@ -28,8 +29,8 @@ type OllamaChatRequestBody = {
 };
 
 export function createOllamaAdapter(options: OllamaAdapterOptions): ModelAdapter {
-  const baseUrl = readRequiredOption(options.baseUrl, "RIN_OLLAMA_BASE_URL");
-  const model = readRequiredOption(options.model, "RIN_OLLAMA_MODEL");
+  const baseUrl = readRequiredOption(options, options.baseUrl, "RIN_OLLAMA_BASE_URL");
+  const model = readRequiredOption(options, options.model, "RIN_OLLAMA_MODEL");
 
   return {
     id: options.id,
@@ -91,19 +92,20 @@ async function requestOllamaChat(
       } satisfies OllamaChatRequestBody),
       signal: controller.signal,
     });
-    const body = await readJsonResponse(response);
+    const body = await readJsonResponse(options, response);
 
     if (!response.ok) {
-      throw new Error(
-        readOllamaError(body, response.status, options.model) ??
-          `Ollama returned ${response.status} for local chat request.`,
-      );
+      const classified = readOllamaError(body, response.status, options.model);
+
+      throw modelError(options, classified.code, classified.message);
     }
 
-    return readOllamaAssistantContent(body);
+    return readOllamaAssistantContent(options, body);
   } catch (error) {
     if (isAbortError(error)) {
-      throw new Error(
+      throw modelError(
+        options,
+        "LOCAL_MODEL_TIMEOUT",
         [
           `Ollama local model timed out at ${endpoint}.`,
           `Timeout: ${options.timeoutMs}ms.`,
@@ -112,22 +114,50 @@ async function requestOllamaChat(
       );
     }
 
-    if (error instanceof Error && error.message.startsWith("Ollama ")) {
+    if (error instanceof ModelError) {
       throw error;
     }
 
-    throw new Error(
+    throw modelError(
+      options,
+      "LOCAL_MODEL_UNAVAILABLE",
       [
         `Ollama local API is not reachable at ${endpoint}.`,
         `Start Ollama with \`open -ga Ollama\`, confirm \`curl http://127.0.0.1:11434/api/tags\`, and pull the model with \`ollama pull ${options.model}\`.`,
       ].join(" "),
+      error,
     );
   } finally {
     clearTimeout(timeoutId);
   }
 }
 
-async function readJsonResponse(response: Response): Promise<unknown> {
+type OllamaErrorContext = {
+  id: string;
+  baseUrl: string;
+  model: string;
+};
+
+function modelError(
+  context: OllamaErrorContext,
+  code: ModelErrorCode,
+  message: string,
+  cause?: unknown,
+): ModelError {
+  return new ModelError({
+    code,
+    message,
+    adapterId: context.id,
+    provider: "local",
+    details: { baseUrl: context.baseUrl, model: context.model },
+    cause,
+  });
+}
+
+async function readJsonResponse(
+  context: OllamaErrorContext,
+  response: Response,
+): Promise<unknown> {
   const text = await response.text();
 
   if (text.trim().length === 0) {
@@ -136,49 +166,86 @@ async function readJsonResponse(response: Response): Promise<unknown> {
 
   try {
     return JSON.parse(text) as unknown;
-  } catch {
-    throw new Error("Ollama response was not valid JSON.");
+  } catch (error) {
+    throw modelError(
+      context,
+      "MODEL_RESPONSE_INVALID",
+      "Ollama response was not valid JSON.",
+      error,
+    );
   }
 }
 
-function readOllamaAssistantContent(value: unknown): string {
+function readOllamaAssistantContent(
+  context: OllamaErrorContext,
+  value: unknown,
+): string {
   if (!isRecord(value) || !isRecord(value.message)) {
-    throw new Error("Ollama response did not include message.content.");
+    throw modelError(
+      context,
+      "MODEL_RESPONSE_INVALID",
+      "Ollama response did not include message.content.",
+    );
   }
 
   const content = value.message.content;
 
   if (typeof content !== "string" || content.trim().length === 0) {
-    throw new Error("Ollama response did not include message.content.");
+    throw modelError(
+      context,
+      "MODEL_RESPONSE_INVALID",
+      "Ollama response did not include message.content.",
+    );
   }
 
   return content;
 }
 
+type ClassifiedOllamaError = {
+  code: ModelErrorCode;
+  message: string;
+};
+
 function readOllamaError(
   value: unknown,
   status: number,
   model: string,
-): string | null {
-  if (!isRecord(value)) {
-    return readStatusError(status, model);
-  }
-
-  if (typeof value.error !== "string" || value.error.trim().length === 0) {
+): ClassifiedOllamaError {
+  if (!isRecord(value) || typeof value.error !== "string" || value.error.trim().length === 0) {
     return readStatusError(status, model);
   }
 
   const errorText = value.error.trim();
-  const guidance = readOllamaGuidance(errorText, model);
+  const missingModel = indicatesMissingModel(errorText);
+  const guidance = missingModel
+    ? ` Confirm the selected model is available with \`ollama pull ${model}\`.`
+    : " Confirm Ollama is running and reduce RIN_OLLAMA_NUM_PREDICT if local generation is slow.";
 
-  return `Ollama returned an error: ${errorText}${guidance}`;
+  return {
+    code: missingModel || status === 404 ? "LOCAL_MODEL_MISSING" : "MODEL_PROVIDER_ERROR",
+    message: `Ollama returned an error: ${errorText}${guidance}`,
+  };
 }
 
-function readRequiredOption(value: string, envName: string): string {
+function readRequiredOption(
+  options: OllamaAdapterOptions,
+  value: string,
+  envName: string,
+): string {
   const trimmed = value.trim();
 
   if (trimmed.length === 0) {
-    throw new Error(`Ollama adapter is missing model configuration: ${envName}.`);
+    throw new ModelError({
+      code: "LOCAL_MODEL_MISSING",
+      message: `Ollama adapter is missing model configuration: ${envName}.`,
+      adapterId: options.id,
+      provider: "local",
+      retryable: false,
+      details: {
+        baseUrl: options.baseUrl.trim().length > 0 ? options.baseUrl.trim() : undefined,
+        model: options.model.trim().length > 0 ? options.model.trim() : undefined,
+      },
+    });
   }
 
   return trimmed;
@@ -197,27 +264,29 @@ function isAbortError(error: unknown): boolean {
   );
 }
 
-function readStatusError(status: number, model: string): string {
+function readStatusError(status: number, model: string): ClassifiedOllamaError {
   if (status === 404) {
-    return `Ollama returned 404 for local chat request. Confirm the model is pulled with \`ollama pull ${model}\`.`;
+    return {
+      code: "LOCAL_MODEL_MISSING",
+      message: `Ollama returned 404 for local chat request. Confirm the model is pulled with \`ollama pull ${model}\`.`,
+    };
   }
 
-  return `Ollama returned ${status} for local chat request. Confirm Ollama is running and check \`curl http://127.0.0.1:11434/api/tags\`.`;
+  return {
+    code: "MODEL_PROVIDER_ERROR",
+    message: `Ollama returned ${status} for local chat request. Confirm Ollama is running and check \`curl http://127.0.0.1:11434/api/tags\`.`,
+  };
 }
 
-function readOllamaGuidance(errorText: string, model: string): string {
+function indicatesMissingModel(errorText: string): boolean {
   const normalized = errorText.toLowerCase();
 
-  if (
+  return (
     normalized.includes("not found") ||
     normalized.includes("not pulled") ||
     normalized.includes("model") ||
     normalized.includes("pull")
-  ) {
-    return ` Confirm the selected model is available with \`ollama pull ${model}\`.`;
-  }
-
-  return " Confirm Ollama is running and reduce RIN_OLLAMA_NUM_PREDICT if local generation is slow.";
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
