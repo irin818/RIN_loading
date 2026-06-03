@@ -53,14 +53,34 @@ export {
   runMemoryEvaluationCases,
   summarizeMemoryEvaluationCategories,
 } from "./evaluation";
+export {
+  evaluateSemanticComparisonCase,
+  formatSemanticComparisonSummary,
+  runBuiltInSemanticComparisonEvaluation,
+  runSemanticComparisonCases,
+  summarizeSemanticComparisonCategories,
+} from "./semanticEvaluation";
 export { BUILT_IN_MEMORY_EVALUATION_CASES } from "./evaluationFixtures";
+export { BUILT_IN_SEMANTIC_COMPARISON_CASES } from "./semanticEvaluationFixtures";
 export type {
   MemoryEvaluationCategorySummary,
   MemoryEvaluationCaseResult,
   MemoryEvaluationRunResult,
 } from "./evaluation";
 export type {
+  SemanticComparisonCaseResult,
+  SemanticComparisonCategorySummary,
+  SemanticComparisonContextBudgetImpact,
+  SemanticComparisonPrivacyCheck,
+  SemanticComparisonRunResult,
+} from "./semanticEvaluation";
+export type {
   MemoryEvaluationCase,
   MemoryEvaluationCategory,
   MemoryEvaluationMemoryInput,
 } from "./evaluationFixtures";
+export type {
+  SemanticComparisonCase,
+  SemanticComparisonCategory,
+  SemanticComparisonMemoryInput,
+} from "./semanticEvaluationFixtures";
