@@ -9,6 +9,7 @@ import { ModelError, type ModelAdapter } from "../model";
 import { initializeRinStorage } from "../storage";
 import type { RinDataLayout } from "../storage";
 import { isConversationError } from "./errors";
+import { listConversationMessages } from "./repository";
 import { processOwnerMessage } from "./runtime";
 
 function seedAcceptedMemory(
@@ -220,6 +221,78 @@ describe("processOwnerMessage", () => {
     expect(items.every((item) => !("text" in item))).toBe(true);
   });
 
+  it("persists and reloads safe memory context trace for successful RIN turns", async () => {
+    const cwd = await createTempRoot();
+    const storage = await initializeRinStorage(defaultEnvironment, { cwd });
+    const memoryId = seedAcceptedMemory(
+      storage.layout,
+      "Owner prefers local Ollama reasoning models.",
+      new Date("2026-05-19T00:00:00.000Z"),
+    );
+
+    const turn = await processOwnerMessage(storage.layout, {
+      ownerId: defaultEnvironment.ownerId,
+      content: "Which local Ollama reasoning models should RIN use?",
+      now: new Date("2026-05-19T00:01:00.000Z"),
+    });
+    const inspected = inspectRinDatabase(storage.layout);
+
+    expect(inspected.counts.messageMemoryContexts).toBe(1);
+    expect(turn.rinMessage.memoryContext?.injectedMemoryIds).toEqual([memoryId]);
+
+    const database = openRinDatabase(storage.layout);
+
+    try {
+      const messages = listConversationMessages(database, turn.conversation.id);
+      const reloadedRinMessage = messages.find((message) => message.role === "rin");
+      const row = database
+        .prepare(
+          `
+            SELECT trace_json
+            FROM message_memory_contexts
+            WHERE message_id = ?
+          `,
+        )
+        .get(turn.rinMessage.id) as { trace_json: string } | undefined;
+
+      expect(reloadedRinMessage?.memoryContext?.injectedMemoryIds).toEqual([
+        memoryId,
+      ]);
+      expect(reloadedRinMessage?.memoryContext?.items[0]?.memoryId).toBe(memoryId);
+      expect(JSON.stringify(reloadedRinMessage?.memoryContext)).not.toContain(
+        "Owner prefers local Ollama reasoning models",
+      );
+      expect(row?.trace_json).not.toContain(
+        "Owner prefers local Ollama reasoning models",
+      );
+      expect(row?.trace_json).not.toContain("Relevant accepted owner memories");
+    } finally {
+      database.close();
+    }
+  });
+
+  it("loads older conversation messages without memory context gracefully", async () => {
+    const cwd = await createTempRoot();
+    const storage = await initializeRinStorage(defaultEnvironment, { cwd });
+    const turn = await processOwnerMessage(storage.layout, {
+      ownerId: defaultEnvironment.ownerId,
+      content: "RIN, confirm local conversation template.",
+      now: new Date("2026-05-19T00:00:00.000Z"),
+    });
+    const database = openRinDatabase(storage.layout);
+
+    try {
+      const messages = listConversationMessages(database, turn.conversation.id);
+
+      expect(messages).toHaveLength(2);
+      expect(messages.every((message) => message.memoryContext === null)).toBe(
+        true,
+      );
+    } finally {
+      database.close();
+    }
+  });
+
   it("does not inject pending or rejected memories", async () => {
     const cwd = await createTempRoot();
     const storage = await initializeRinStorage(defaultEnvironment, { cwd });
@@ -329,6 +402,7 @@ describe("processOwnerMessage", () => {
     const inspected = inspectRinDatabase(storage.layout);
     expect(inspected.counts.conversations).toBe(0);
     expect(inspected.counts.messages).toBe(0);
+    expect(inspected.counts.messageMemoryContexts).toBe(0);
 
     const database = openRinDatabase(storage.layout);
 

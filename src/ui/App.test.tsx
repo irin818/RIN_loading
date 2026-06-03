@@ -94,6 +94,7 @@ function makeTurn(content: string, reply: string) {
       content,
       modelAdapter: null,
       createdAt: "2026-06-04T00:00:00.000Z",
+      memoryContext: null,
     },
     rinMessage: {
       id: "rin-1",
@@ -102,6 +103,7 @@ function makeTurn(content: string, reply: string) {
       content: reply,
       modelAdapter: "rin-mock-local",
       createdAt: "2026-06-04T00:00:01.000Z",
+      memoryContext: null,
     },
     memoryContext: null,
   };
@@ -544,5 +546,84 @@ describe("App", () => {
     expect(panel.textContent).toMatch(/overlap 3/);
     expect(panel.textContent).toMatch(/local, ollama, reasoning/);
     expect(screen.queryByText(/Owner prefers local Ollama/)).toBeNull();
+  });
+
+  it("displays stored memory context when loading conversation history", async () => {
+    const memoryId = "cccccccc-bbbb-cccc-dddd-eeeeeeeeeeee";
+    const conversation = {
+      id: "conversation-history",
+      title: "stored memory trace",
+      createdAt: "2026-06-04T00:00:00.000Z",
+      updatedAt: "2026-06-04T00:00:01.000Z",
+    };
+    const memoryContext = {
+      injectedMemoryCount: 1,
+      injectedMemoryIds: [memoryId],
+      memoryContextCharacterCount: 180,
+      skippedByBudgetCount: 0,
+      skippedByRelevanceCount: 0,
+      skippedByMaxCountCount: 0,
+      items: [
+        {
+          memoryId,
+          matchedKeywords: ["local", "model"],
+          overlapCount: 2,
+          latinTokenMatchCount: 2,
+          cjkBigramMatchCount: 0,
+          normalizedQueryTokenCount: 2,
+          wasInjected: true,
+          skippedReason: null,
+          snippetLength: 42,
+        },
+      ],
+    };
+    const snapshot = makeSnapshot({
+      recentConversations: [conversation],
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("/api/conversations/conversation-history")) {
+        return jsonResponse({
+          ok: true,
+          conversation,
+          messages: [
+            {
+              id: "owner-history",
+              conversationId: conversation.id,
+              role: "owner",
+              content: "related prompt",
+              modelAdapter: null,
+              createdAt: "2026-06-04T00:00:00.000Z",
+              memoryContext: null,
+            },
+            {
+              id: "rin-history",
+              conversationId: conversation.id,
+              role: "rin",
+              content: "historical reply",
+              modelAdapter: "rin-mock-local",
+              createdAt: "2026-06-04T00:00:01.000Z",
+              memoryContext,
+            },
+          ],
+          snapshot,
+        });
+      }
+
+      return jsonResponse(snapshot);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await screen.findByText(/Connected to local runtime/);
+    fireEvent.click(screen.getByRole("button", { name: "stored memory trace" }));
+
+    const panel = await screen.findByLabelText("Memory context trace");
+    expect(panel.textContent).toContain("cccccccc");
+    expect(panel.textContent).toMatch(/overlap 2/);
+    expect(panel.textContent).toMatch(/local, model/);
+    expect(screen.queryByText(/Owner prefers local/)).toBeNull();
   });
 });

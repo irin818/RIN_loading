@@ -5,6 +5,7 @@ import type {
   ConversationMessageRecord,
   ConversationRecord,
 } from "./types";
+import type { MemoryInjectionTrace } from "../memory";
 
 type ConversationRow = {
   id: string;
@@ -20,6 +21,7 @@ type MessageRow = {
   content: string;
   model_adapter: string | null;
   created_at: string;
+  memory_context_json?: string | null;
 };
 
 export function createConversation(
@@ -112,7 +114,34 @@ export function appendConversationMessage(
     content: input.content,
     modelAdapter,
     createdAt: timestamp,
+    memoryContext: null,
   };
+}
+
+export function appendMessageMemoryContext(
+  database: RinDatabase,
+  input: {
+    messageId: string;
+    memoryContext: MemoryInjectionTrace;
+    now: Date;
+  },
+): void {
+  database
+    .prepare(
+      `
+        INSERT INTO message_memory_contexts (
+          message_id,
+          trace_json,
+          created_at
+        )
+        VALUES (?, ?, ?)
+      `,
+    )
+    .run(
+      input.messageId,
+      JSON.stringify(safeMemoryContextTrace(input.memoryContext)),
+      input.now.toISOString(),
+    );
 }
 
 export function getConversation(
@@ -137,9 +166,14 @@ export function listConversationMessages(
   return database
     .prepare(
       `
-        SELECT * FROM messages
-        WHERE conversation_id = ?
-        ORDER BY created_at ASC
+        SELECT
+          messages.*,
+          message_memory_contexts.trace_json AS memory_context_json
+        FROM messages
+        LEFT JOIN message_memory_contexts
+          ON message_memory_contexts.message_id = messages.id
+        WHERE messages.conversation_id = ?
+        ORDER BY messages.created_at ASC
       `,
     )
     .all(conversationId)
@@ -185,5 +219,42 @@ function mapMessage(row: MessageRow): ConversationMessageRecord {
     content: row.content,
     modelAdapter: row.model_adapter,
     createdAt: row.created_at,
+    memoryContext: parseMemoryContextTrace(row.memory_context_json ?? null),
   };
+}
+
+function safeMemoryContextTrace(
+  trace: MemoryInjectionTrace,
+): MemoryInjectionTrace {
+  return {
+    injectedMemoryCount: trace.injectedMemoryCount,
+    injectedMemoryIds: [...trace.injectedMemoryIds],
+    memoryContextCharacterCount: trace.memoryContextCharacterCount,
+    skippedByBudgetCount: trace.skippedByBudgetCount,
+    skippedByRelevanceCount: trace.skippedByRelevanceCount,
+    skippedByMaxCountCount: trace.skippedByMaxCountCount,
+    items: trace.items.map((item) => ({
+      memoryId: item.memoryId,
+      matchedKeywords: [...item.matchedKeywords],
+      overlapCount: item.overlapCount,
+      latinTokenMatchCount: item.latinTokenMatchCount,
+      cjkBigramMatchCount: item.cjkBigramMatchCount,
+      normalizedQueryTokenCount: item.normalizedQueryTokenCount,
+      wasInjected: item.wasInjected,
+      skippedReason: item.skippedReason,
+      snippetLength: item.snippetLength,
+    })),
+  };
+}
+
+function parseMemoryContextTrace(raw: string | null): MemoryInjectionTrace | null {
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return safeMemoryContextTrace(JSON.parse(raw) as MemoryInjectionTrace);
+  } catch {
+    return null;
+  }
 }

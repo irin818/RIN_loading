@@ -1,4 +1,5 @@
 import {
+  appendMessageMemoryContext,
   appendConversationMessage,
   createConversation,
   getConversation,
@@ -139,6 +140,13 @@ export async function processOwnerMessage(
       modelAdapter: modelResponse.adapterId,
       now,
     });
+    if (memoryContextTrace.items.length > 0) {
+      appendMessageMemoryContext(database, {
+        messageId: rinMessage.id,
+        memoryContext: memoryContextTrace,
+        now,
+      });
+    }
     await updateStateAfterConversation(database, layout, now);
     await snapshotSlowVariables(database, layout, "conversation.turn_completed", now);
 
@@ -173,7 +181,11 @@ export async function processOwnerMessage(
         updatedAt: rinMessage.createdAt,
       },
       ownerMessage,
-      rinMessage,
+      rinMessage: {
+        ...rinMessage,
+        memoryContext:
+          memoryContextTrace.items.length > 0 ? memoryContextTrace : null,
+      },
       memoryContext:
         memoryContextTrace.items.length > 0 ? memoryContextTrace : null,
     };

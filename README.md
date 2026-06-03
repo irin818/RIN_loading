@@ -356,6 +356,21 @@ Phase 31 增加了确定性的本地记忆注入评估 harness。`npm run rin:me
 不需要 Ollama，也不使用真实所有者数据。它用于在未来引入 embeddings 或语义检索之前
 保护检索质量。
 
+Phase 32 persists the safe `memoryContext` trace for successful RIN turns and
+reloads it with conversation history. The persisted trace stores memory IDs,
+counts, normalized matched tokens, score components, skip reasons, and character
+counts, but not full memory text, model context snippets, or raw prompt text. Old
+conversations without stored memory traces continue to load normally. The
+Console can show the most recent reloaded successful turn with stored memory
+context, still read-only and without a memory editor. `npm run rin:memory-eval`
+should remain part of retrieval-related review checks.
+
+Phase 32 会为成功的 RIN 回合持久化安全的 `memoryContext` 追溯信息，并在加载对话历史时
+重新取回。持久化内容只包含记忆 ID、计数、归一化匹配 token、评分组成、跳过原因和字符数，
+不保存完整记忆文本、模型上下文片段或原始 prompt 文本。没有存储记忆追溯的旧对话仍可正常
+加载。Console 可以显示最近一个已加载且带有存储记忆上下文的成功回合，仍然只读且不提供
+记忆编辑器。涉及检索的 review checks 应继续包含 `npm run rin:memory-eval`。
+
 ## Local Model Stability
 
 ## 本地模型稳定性
