@@ -704,4 +704,192 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
       "mem-low-neutral-older": "max_count_exceeded",
     },
   },
+  {
+    caseId: "metadata-near-miss-token-dominance",
+    categories: ["metadata-aware", "token-dominance"],
+    query: "github branch release checklist",
+    acceptedMemories: [
+      {
+        id: "mem-metadata-near-miss",
+        text: "Owner keeps github release notes.",
+        metadata: {
+          tags: ["branch", "checklist"],
+          importance: "high",
+          confidence: "high",
+          source: null,
+        },
+      },
+      {
+        id: "mem-lexical-strong-checklist",
+        text: "Owner keeps github branch release checklist.",
+        metadata: {
+          tags: [],
+          importance: "low",
+          confidence: "low",
+          source: null,
+        },
+      },
+    ],
+    maxInjectedMemories: 1,
+    expectedInjectedIds: ["mem-lexical-strong-checklist"],
+    expectedNotInjectedIds: ["mem-metadata-near-miss"],
+    expectedMatchedTags: {
+      "mem-metadata-near-miss": ["branch", "checklist"],
+    },
+    expectedTagMatchBonuses: {
+      "mem-metadata-near-miss": 1,
+      "mem-lexical-strong-checklist": 0,
+    },
+    expectedImportanceBonuses: {
+      "mem-metadata-near-miss": 1,
+      "mem-lexical-strong-checklist": 0,
+    },
+    expectedMetadataBonuses: {
+      "mem-metadata-near-miss": 2,
+      "mem-lexical-strong-checklist": 0,
+    },
+    expectedMetadataSignals: {
+      "mem-metadata-near-miss": ["tag_match", "importance_high"],
+    },
+    expectedSkipReasons: {
+      "mem-metadata-near-miss": "max_count_exceeded",
+    },
+  },
+  {
+    caseId: "cjk-near-miss-token-dominance",
+    categories: ["cjk", "token-dominance"],
+    query: "本地模型安全策略",
+    acceptedMemories: [
+      {
+        id: "mem-cjk-near-miss",
+        text: "本地模型展览安排。",
+      },
+      {
+        id: "mem-cjk-strong-policy",
+        text: "本地模型安全策略。",
+      },
+    ],
+    maxInjectedMemories: 1,
+    expectedInjectedIds: ["mem-cjk-strong-policy"],
+    expectedNotInjectedIds: ["mem-cjk-near-miss"],
+    expectedSkipReasons: {
+      "mem-cjk-near-miss": "max_count_exceeded",
+    },
+  },
+  {
+    caseId: "metadata-rich-budget-edge",
+    categories: ["metadata-aware", "budget"],
+    query: "project memory budget notes",
+    acceptedMemories: [
+      {
+        id: "mem-budget-metadata-first",
+        text: "project memory budget notes first",
+        metadata: {
+          tags: ["project"],
+          importance: "high",
+          confidence: "high",
+          source: null,
+        },
+      },
+      {
+        id: "mem-budget-metadata-second",
+        text: "project memory budget notes second",
+        metadata: {
+          tags: ["project"],
+          importance: "high",
+          confidence: "high",
+          source: null,
+        },
+      },
+    ],
+    maxMemoryContextCharacters: 355,
+    expectedInjectedIds: ["mem-budget-metadata-first"],
+    expectedNotInjectedIds: ["mem-budget-metadata-second"],
+    expectedMetadataBonuses: {
+      "mem-budget-metadata-first": 2,
+      "mem-budget-metadata-second": 2,
+    },
+    expectedSkipReasons: {
+      "mem-budget-metadata-second": "memory_budget_exceeded",
+    },
+  },
+  {
+    caseId: "metadata-privacy-no-leak-with-source",
+    categories: ["metadata-aware", "privacy", "trace"],
+    query: "project private phrase",
+    acceptedMemories: [
+      {
+        id: "mem-metadata-source-private",
+        text: "Owner private metadata source phrase should stay out of trace.",
+        metadata: {
+          tags: ["project"],
+          importance: "high",
+          confidence: "high",
+          source: "private-source-note",
+        },
+      },
+    ],
+    expectedInjectedIds: ["mem-metadata-source-private"],
+    expectedMatchedTags: {
+      "mem-metadata-source-private": ["project"],
+    },
+    expectedMetadataBonuses: {
+      "mem-metadata-source-private": 2,
+    },
+    expectedPrivacyForbiddenText: [
+      "Owner private metadata source phrase should stay out of trace",
+      "private-source-note",
+    ],
+  },
+  {
+    caseId: "type-metadata-interaction-breaks-tie",
+    categories: ["type-aware", "metadata-aware"],
+    query: "preference project memory notes",
+    acceptedMemories: [
+      {
+        id: "mem-interaction-neutral-newer",
+        memoryType: "semantic",
+        text: "Owner keeps project memory notes.",
+        metadata: {
+          tags: [],
+          importance: "normal",
+          confidence: "medium",
+          source: null,
+        },
+        updatedAt: "2026-05-19T00:01:00.000Z",
+      },
+      {
+        id: "mem-interaction-preference-metadata",
+        memoryType: "preference",
+        text: "Owner keeps project memory notes.",
+        metadata: {
+          tags: ["project"],
+          importance: "high",
+          confidence: "medium",
+          source: null,
+        },
+        updatedAt: "2026-05-19T00:00:00.000Z",
+      },
+    ],
+    maxInjectedMemories: 1,
+    expectedInjectedIds: ["mem-interaction-preference-metadata"],
+    expectedNotInjectedIds: ["mem-interaction-neutral-newer"],
+    expectedMatchedTypeSignals: {
+      "mem-interaction-preference-metadata": ["preference"],
+    },
+    expectedTypeMatchBonuses: {
+      "mem-interaction-preference-metadata": 1,
+      "mem-interaction-neutral-newer": 0,
+    },
+    expectedMatchedTags: {
+      "mem-interaction-preference-metadata": ["project"],
+    },
+    expectedMetadataBonuses: {
+      "mem-interaction-preference-metadata": 2,
+      "mem-interaction-neutral-newer": 0,
+    },
+    expectedSkipReasons: {
+      "mem-interaction-neutral-newer": "max_count_exceeded",
+    },
+  },
 ];
