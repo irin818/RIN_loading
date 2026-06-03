@@ -1,4 +1,4 @@
-import type { MemoryRecord, MemoryType } from "./manager";
+import type { MemoryMetadata, MemoryRecord, MemoryType } from "./manager";
 import {
   buildRetrievalTokenProfile,
   scoreRetrievalOverlap,
@@ -30,6 +30,12 @@ export type MemoryInjectionExplanation = {
   normalizedQueryTokenCount: number;
   typeMatchBonus: number;
   matchedTypeSignals: string[];
+  matchedTags: string[];
+  tagMatchBonus: number;
+  importanceBonus: number;
+  confidenceAdjustment: number;
+  metadataBonus: number;
+  metadataSignals: string[];
   wasInjected: boolean;
   skippedReason: MemorySkipReason | null;
   snippetLength: number;
@@ -57,6 +63,7 @@ type ScoredMemory = {
   tokenScore: number;
   typeMatchBonus: number;
   matchedTypeSignals: string[];
+  metadataMatch: MetadataScoreMatch;
   match: ReturnType<typeof scoreRetrievalOverlap>;
   updatedAt: string;
 };
@@ -66,7 +73,22 @@ type TypeSignalMatch = {
   matchedSignals: string[];
 };
 
+type MetadataScoreMatch = {
+  bonus: number;
+  matchedTags: string[];
+  tagMatchBonus: number;
+  importanceBonus: number;
+  confidenceAdjustment: number;
+  metadataSignals: string[];
+};
+
 const TYPE_MATCH_BONUS = 1;
+const TOKEN_SCORE_WEIGHT = 10;
+const TAG_MATCH_BONUS = 1;
+const MAX_TAG_MATCH_BONUS = 1;
+const HIGH_IMPORTANCE_BONUS = 1;
+const LOW_CONFIDENCE_ADJUSTMENT = -1;
+const MAX_METADATA_BONUS = 2;
 
 const MEMORY_TYPE_SIGNALS: Record<
   MemoryType,
@@ -158,6 +180,12 @@ export function retrieveAcceptedMemoriesWithExplanation(
         normalizedQueryTokenCount: ownerProfile.normalizedTokenCount,
         typeMatchBonus: 0,
         matchedTypeSignals: [],
+        matchedTags: [],
+        tagMatchBonus: 0,
+        importanceBonus: 0,
+        confidenceAdjustment: 0,
+        metadataBonus: 0,
+        metadataSignals: [],
         wasInjected: false,
         skippedReason: "empty_snippet",
         snippetLength: 0,
@@ -176,6 +204,12 @@ export function retrieveAcceptedMemoriesWithExplanation(
         normalizedQueryTokenCount: ownerProfile.normalizedTokenCount,
         typeMatchBonus: 0,
         matchedTypeSignals: [],
+        matchedTags: [],
+        tagMatchBonus: 0,
+        importanceBonus: 0,
+        confidenceAdjustment: 0,
+        metadataBonus: 0,
+        metadataSignals: [],
         wasInjected: false,
         skippedReason: "zero_relevance",
         snippetLength: text.length,
@@ -183,13 +217,19 @@ export function retrieveAcceptedMemoriesWithExplanation(
       continue;
     }
 
+    const metadataMatch = scoreMetadataSignalMatch(ownerProfile, memory.metadata);
+
     scored.push({
       snippet: { id: memory.id, text },
       memoryType: memory.memoryType,
-      score: match.score + typeMatch.bonus,
+      score:
+        match.score * TOKEN_SCORE_WEIGHT +
+        typeMatch.bonus +
+        metadataMatch.bonus,
       tokenScore: match.score,
       typeMatchBonus: typeMatch.bonus,
       matchedTypeSignals: typeMatch.matchedSignals,
+      metadataMatch,
       match,
       updatedAt: memory.updatedAt,
     });
@@ -212,6 +252,12 @@ export function retrieveAcceptedMemoriesWithExplanation(
       normalizedQueryTokenCount: ownerProfile.normalizedTokenCount,
       typeMatchBonus: item.typeMatchBonus,
       matchedTypeSignals: [...item.matchedTypeSignals],
+      matchedTags: [...item.metadataMatch.matchedTags],
+      tagMatchBonus: item.metadataMatch.tagMatchBonus,
+      importanceBonus: item.metadataMatch.importanceBonus,
+      confidenceAdjustment: item.metadataMatch.confidenceAdjustment,
+      metadataBonus: item.metadataMatch.bonus,
+      metadataSignals: [...item.metadataMatch.metadataSignals],
       wasInjected: false,
       skippedReason: isSelected ? null : "max_count_exceeded",
       snippetLength: item.snippet.text.length,
@@ -321,6 +367,12 @@ export function toMemoryInjectionTrace(
       normalizedQueryTokenCount: item.normalizedQueryTokenCount,
       typeMatchBonus: item.typeMatchBonus,
       matchedTypeSignals: [...item.matchedTypeSignals],
+      matchedTags: [...item.matchedTags],
+      tagMatchBonus: item.tagMatchBonus,
+      importanceBonus: item.importanceBonus,
+      confidenceAdjustment: item.confidenceAdjustment,
+      metadataBonus: item.metadataBonus,
+      metadataSignals: [...item.metadataSignals],
       wasInjected: item.wasInjected,
       skippedReason: item.skippedReason,
       snippetLength: item.snippetLength,
@@ -380,6 +432,10 @@ function compareScoredMemories(left: ScoredMemory, right: ScoredMemory): number 
     return right.typeMatchBonus - left.typeMatchBonus;
   }
 
+  if (right.metadataMatch.bonus !== left.metadataMatch.bonus) {
+    return right.metadataMatch.bonus - left.metadataMatch.bonus;
+  }
+
   if (right.updatedAt !== left.updatedAt) {
     return right.updatedAt < left.updatedAt ? -1 : 1;
   }
@@ -400,5 +456,90 @@ function scoreTypeSignalMatch(
   return {
     bonus: matchedSignals.length > 0 ? TYPE_MATCH_BONUS : 0,
     matchedSignals,
+  };
+}
+
+function scoreMetadataSignalMatch(
+  ownerProfile: ReturnType<typeof buildRetrievalTokenProfile>,
+  metadata: MemoryMetadata | null | undefined,
+): MetadataScoreMatch {
+  if (!metadata) {
+    return neutralMetadataScoreMatch();
+  }
+
+  const matchedTags = matchMetadataTags(ownerProfile, metadata.tags);
+  const tagMatchBonus = Math.min(
+    matchedTags.length * TAG_MATCH_BONUS,
+    MAX_TAG_MATCH_BONUS,
+  );
+  const importanceBonus =
+    metadata.importance === "high" ? HIGH_IMPORTANCE_BONUS : 0;
+  const confidenceAdjustment =
+    metadata.confidence === "low" && tagMatchBonus + importanceBonus > 0
+      ? LOW_CONFIDENCE_ADJUSTMENT
+      : 0;
+  const uncappedBonus = Math.max(
+    0,
+    tagMatchBonus + importanceBonus + confidenceAdjustment,
+  );
+  const bonus = Math.min(uncappedBonus, MAX_METADATA_BONUS);
+  const metadataSignals = [
+    ...(matchedTags.length > 0 ? ["tag_match"] : []),
+    ...(importanceBonus > 0 ? ["importance_high"] : []),
+    ...(confidenceAdjustment < 0 ? ["confidence_low_dampened"] : []),
+  ];
+
+  return {
+    bonus,
+    matchedTags,
+    tagMatchBonus,
+    importanceBonus,
+    confidenceAdjustment,
+    metadataSignals,
+  };
+}
+
+function matchMetadataTags(
+  ownerProfile: ReturnType<typeof buildRetrievalTokenProfile>,
+  tags: readonly string[],
+): string[] {
+  const matched = new Set<string>();
+
+  for (const tag of tags) {
+    const profile = buildRetrievalTokenProfile(tag);
+    let hasMatch = false;
+
+    for (const token of profile.latinTokens) {
+      if (ownerProfile.latinTokens.has(token)) {
+        hasMatch = true;
+        break;
+      }
+    }
+
+    if (!hasMatch) {
+      for (const bigram of profile.cjkBigrams) {
+        if (ownerProfile.cjkBigrams.has(bigram)) {
+          hasMatch = true;
+          break;
+        }
+      }
+    }
+
+    if (hasMatch) {
+      matched.add(tag);
+    }
+  }
+
+  return [...matched].sort();
+}
+
+function neutralMetadataScoreMatch(): MetadataScoreMatch {
+  return {
+    bonus: 0,
+    matchedTags: [],
+    tagMatchBonus: 0,
+    importanceBonus: 0,
+    confidenceAdjustment: 0,
+    metadataSignals: [],
   };
 }

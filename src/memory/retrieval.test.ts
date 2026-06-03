@@ -147,7 +147,93 @@ describe("selectRelevantAcceptedMemories", () => {
     ]);
   });
 
-  it("does not use owner-reviewed metadata for ranking yet", () => {
+  it("uses owner-reviewed tag metadata as a small tie-break after token overlap", () => {
+    const result = retrieveAcceptedMemoriesWithExplanation(
+      [
+        memory({
+          id: "metadata-tag-match",
+          content: { text: "Owner uses memory notes." },
+          metadata: {
+            tags: ["project"],
+            importance: "normal",
+            confidence: "medium",
+            source: "owner review",
+            reviewedAt: "2026-05-19T00:02:00.000Z",
+            acceptedAt: "2026-05-19T00:01:00.000Z",
+          },
+          updatedAt: "2026-05-19T00:00:00.000Z",
+        }),
+        memory({
+          id: "metadata-neutral-newer",
+          content: { text: "Owner uses memory notes." },
+          metadata: {
+            tags: [],
+            importance: "normal",
+            confidence: "medium",
+            source: null,
+            reviewedAt: null,
+            acceptedAt: null,
+          },
+          updatedAt: "2026-05-19T00:05:00.000Z",
+        }),
+      ],
+      "project memory notes",
+      { maxInjectedMemories: 1 },
+    );
+
+    expect(result.snippets.map((item) => item.id)).toEqual([
+      "metadata-tag-match",
+    ]);
+    expect(result.explanations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          memoryId: "metadata-tag-match",
+          matchedTags: ["project"],
+          tagMatchBonus: 1,
+          importanceBonus: 0,
+          confidenceAdjustment: 0,
+          metadataBonus: 1,
+          metadataSignals: ["tag_match"],
+        }),
+      ]),
+    );
+  });
+
+  it("does not inject zero-overlap memories solely due to metadata tags", () => {
+    const result = retrieveAcceptedMemoriesWithExplanation(
+      [
+        memory({
+          id: "metadata-tag-only",
+          content: { text: "Owner enjoys weekend hiking trips." },
+          metadata: {
+            tags: ["project"],
+            importance: "high",
+            confidence: "high",
+            source: "owner review",
+            reviewedAt: "2026-05-19T00:02:00.000Z",
+            acceptedAt: "2026-05-19T00:01:00.000Z",
+          },
+        }),
+      ],
+      "project github branch",
+    );
+
+    expect(result.snippets).toEqual([]);
+    expect(result.explanations).toEqual([
+      expect.objectContaining({
+        memoryId: "metadata-tag-only",
+        matchedTags: [],
+        tagMatchBonus: 0,
+        importanceBonus: 0,
+        confidenceAdjustment: 0,
+        metadataBonus: 0,
+        metadataSignals: [],
+        skippedReason: "zero_relevance",
+      }),
+    ]);
+  });
+
+  it("keeps stronger token relevance ahead of metadata bonus", () => {
     const result = selectRelevantAcceptedMemories(
       [
         memory({
@@ -180,6 +266,42 @@ describe("selectRelevantAcceptedMemories", () => {
     );
 
     expect(result.map((item) => item.id)).toEqual(["strong-token-match"]);
+  });
+
+  it("dampens metadata bonus for low-confidence memories", () => {
+    const result = retrieveAcceptedMemoriesWithExplanation(
+      [
+        memory({
+          id: "metadata-low-confidence",
+          content: { text: "Owner keeps memory notes." },
+          metadata: {
+            tags: ["project"],
+            importance: "high",
+            confidence: "low",
+            source: null,
+            reviewedAt: "2026-05-19T00:02:00.000Z",
+            acceptedAt: "2026-05-19T00:01:00.000Z",
+          },
+        }),
+      ],
+      "project memory notes",
+    );
+
+    expect(result.explanations).toEqual([
+      expect.objectContaining({
+        memoryId: "metadata-low-confidence",
+        matchedTags: ["project"],
+        tagMatchBonus: 1,
+        importanceBonus: 1,
+        confidenceAdjustment: -1,
+        metadataBonus: 1,
+        metadataSignals: [
+          "tag_match",
+          "importance_high",
+          "confidence_low_dampened",
+        ],
+      }),
+    ]);
   });
 
   it("does not inject zero-overlap memories solely due to type", () => {
@@ -270,6 +392,12 @@ describe("retrieveAcceptedMemoriesWithExplanation", () => {
         normalizedQueryTokenCount: expect.any(Number),
         typeMatchBonus: 0,
         matchedTypeSignals: [],
+        matchedTags: [],
+        tagMatchBonus: 0,
+        importanceBonus: 0,
+        confidenceAdjustment: 0,
+        metadataBonus: 0,
+        metadataSignals: [],
         wasInjected: false,
         skippedReason: "zero_relevance",
         snippetLength: expect.any(Number),
@@ -333,6 +461,12 @@ describe("finalizeInjectionExplanations", () => {
         normalizedQueryTokenCount: 1,
         typeMatchBonus: 0,
         matchedTypeSignals: [],
+        matchedTags: [],
+        tagMatchBonus: 0,
+        importanceBonus: 0,
+        confidenceAdjustment: 0,
+        metadataBonus: 0,
+        metadataSignals: [],
         wasInjected: false,
         skippedReason: null,
         snippetLength: 20,
@@ -347,6 +481,12 @@ describe("finalizeInjectionExplanations", () => {
         normalizedQueryTokenCount: 1,
         typeMatchBonus: 0,
         matchedTypeSignals: [],
+        matchedTags: [],
+        tagMatchBonus: 0,
+        importanceBonus: 0,
+        confidenceAdjustment: 0,
+        metadataBonus: 0,
+        metadataSignals: [],
         wasInjected: false,
         skippedReason: null,
         snippetLength: 20,
@@ -382,6 +522,12 @@ describe("toMemoryInjectionTrace", () => {
           normalizedQueryTokenCount: 3,
           typeMatchBonus: 0,
           matchedTypeSignals: [],
+          matchedTags: [],
+          tagMatchBonus: 0,
+          importanceBonus: 0,
+          confidenceAdjustment: 0,
+          metadataBonus: 0,
+          metadataSignals: [],
           wasInjected: true,
           skippedReason: null,
           snippetLength: 42,
