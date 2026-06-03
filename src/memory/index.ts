@@ -41,3 +41,18 @@ export type {
   MemoryRetrievalOptions,
   MemorySkipReason,
 } from "./retrieval";
+export {
+  evaluateMemoryCase,
+  formatMemoryEvaluationSummary,
+  runBuiltInMemoryEvaluation,
+  runMemoryEvaluationCases,
+} from "./evaluation";
+export { BUILT_IN_MEMORY_EVALUATION_CASES } from "./evaluationFixtures";
+export type {
+  MemoryEvaluationCaseResult,
+  MemoryEvaluationRunResult,
+} from "./evaluation";
+export type {
+  MemoryEvaluationCase,
+  MemoryEvaluationMemoryInput,
+} from "./evaluationFixtures";

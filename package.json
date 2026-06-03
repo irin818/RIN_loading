@@ -20,6 +20,7 @@
     "rin:export": "tsx src/cli/exportBundle.ts",
     "rin:import": "tsx src/cli/importBundle.ts",
     "rin:readiness": "tsx src/cli/readiness.ts",
+    "rin:memory-eval": "tsx src/cli/memoryEval.ts",
     "rin:tool": "tsx src/cli/runTool.ts",
     "rin:console": "npm run build && tsx src/server/localConsoleServer.ts",
     "rin:console:server": "tsx src/server/localConsoleServer.ts"
