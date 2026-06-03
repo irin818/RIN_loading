@@ -351,6 +351,53 @@ describe("processOwnerMessage", () => {
     expect(payload.injectedMemoryCount).toBe(0);
   });
 
+  it("adds accepted semantic candidates only when semantic context is opted in", async () => {
+    const previousMode = process.env.RIN_SEMANTIC_CONTEXT;
+    const previousMaxCandidates = process.env.RIN_SEMANTIC_CONTEXT_MAX_CANDIDATES;
+    const previousMaxCharacters = process.env.RIN_SEMANTIC_CONTEXT_MAX_CHARACTERS;
+    process.env.RIN_SEMANTIC_CONTEXT = "candidate-expansion";
+    process.env.RIN_SEMANTIC_CONTEXT_MAX_CANDIDATES = "1";
+    process.env.RIN_SEMANTIC_CONTEXT_MAX_CHARACTERS = "200";
+
+    try {
+      const cwd = await createTempRoot();
+      const storage = await initializeRinStorage(defaultEnvironment, { cwd });
+
+      for (let index = 0; index < 6; index += 1) {
+        seedAcceptedMemory(
+          storage.layout,
+          `Owner tracks stable semantic context expansion ${index}.`,
+          new Date(`2026-05-19T00:0${index}:00.000Z`),
+        );
+      }
+
+      const turn = await processOwnerMessage(storage.layout, {
+        ownerId: defaultEnvironment.ownerId,
+        content: "stable semantic context expansion",
+        now: new Date("2026-05-19T00:10:00.000Z"),
+      });
+      const payload = latestModelResponsePayload(storage.layout);
+
+      expect(turn.memoryContext?.injectedMemoryCount).toBe(6);
+      expect(turn.memoryContext?.deterministicInjectedMemoryIds).toHaveLength(5);
+      expect(turn.memoryContext?.semanticInjectedMemoryIds).toHaveLength(1);
+      expect(turn.memoryContext?.semanticCandidateIds).toEqual(
+        turn.memoryContext?.semanticInjectedMemoryIds,
+      );
+      expect(payload.semanticContextExpansionEnabled).toBe(true);
+      expect(payload.semanticInjectedMemoryIds).toEqual(
+        turn.memoryContext?.semanticInjectedMemoryIds,
+      );
+      expect(JSON.stringify(payload)).not.toContain(
+        "Owner tracks stable semantic context expansion",
+      );
+    } finally {
+      restoreEnv("RIN_SEMANTIC_CONTEXT", previousMode);
+      restoreEnv("RIN_SEMANTIC_CONTEXT_MAX_CANDIDATES", previousMaxCandidates);
+      restoreEnv("RIN_SEMANTIC_CONTEXT_MAX_CHARACTERS", previousMaxCharacters);
+    }
+  });
+
   it("maps a local model failure to a structured conversation error", async () => {
     const cwd = await createTempRoot();
     const storage = await initializeRinStorage(defaultEnvironment, { cwd });
@@ -429,4 +476,13 @@ async function createTempRoot(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "rin-conversation-"));
   tempRoots.push(root);
   return root;
+}
+
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+
+  process.env[name] = value;
 }

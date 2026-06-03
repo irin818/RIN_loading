@@ -12,4 +12,14 @@ export {
   type ModelContextStats,
 } from "./contextBuilder";
 export { buildRinSystemPrompt } from "./rinSystemPrompt";
+export {
+  DEFAULT_SEMANTIC_CONTEXT_MAX_CANDIDATES,
+  DEFAULT_SEMANTIC_CONTEXT_MAX_CHARACTERS,
+  readSemanticContextConfig,
+} from "./semanticContextConfig";
+export type {
+  SemanticContextConfig,
+  SemanticContextEnvironment,
+  SemanticContextMode,
+} from "./semanticContextConfig";
 

@@ -96,6 +96,7 @@ export function formatMemoryRankingBreakdown(
   item: MemoryInjectionExplanation,
 ): string {
   return [
+    `source: ${item.contextSource ?? "deterministic"}`,
     formatLexicalRankingSignal(item),
     formatTypeRankingSignal(item),
     formatMetadataRankingBreakdown(item),

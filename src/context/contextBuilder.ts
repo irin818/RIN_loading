@@ -20,6 +20,10 @@ export type ModelContextStats = {
   droppedMessageCount: number;
   injectedMemoryCount: number;
   injectedMemoryIds: string[];
+  deterministicInjectedMemoryIds: string[];
+  semanticInjectedMemoryIds: string[];
+  semanticCandidateIds: string[];
+  semanticContextExpansionEnabled: boolean;
   memoryContextCharacterCount: number;
   memoryInjectionExplanations: MemoryInjectionExplanation[];
   memorySkippedByBudgetCount: number;
@@ -37,6 +41,8 @@ export type MemoryInjectionOptions = {
   explanations?: readonly MemoryInjectionExplanation[];
   maxInjectedMemories?: number;
   maxMemoryContextCharacters?: number;
+  semanticCandidateIds?: readonly string[];
+  semanticContextExpansionEnabled?: boolean;
 };
 
 export const DEFAULT_MAX_INJECTED_MEMORIES = 5;
@@ -97,8 +103,18 @@ export function buildModelContext(
 
   const memoryMessage = composeMemoryMessage(memorySnippets);
   const injectedMemoryIds = memorySnippets.map((snippet) => snippet.id);
+  const semanticCandidateIds = uniqueIds(memoryOptions.semanticCandidateIds ?? []);
+  const semanticCandidateIdSet = new Set(semanticCandidateIds);
+  const semanticInjectedMemoryIds = injectedMemoryIds.filter((memoryId) =>
+    semanticCandidateIdSet.has(memoryId),
+  );
   const memoryInjectionExplanations = finalizeInjectionExplanations(
-    memoryOptions.explanations ?? [],
+    (memoryOptions.explanations ?? []).map((item) => ({
+      ...item,
+      contextSource: semanticCandidateIdSet.has(item.memoryId)
+        ? "semantic"
+        : item.contextSource ?? "deterministic",
+    })),
     injectedMemoryIds,
   );
   const skippedSummary = summarizeMemoryInjection(memoryInjectionExplanations);
@@ -118,6 +134,13 @@ export function buildModelContext(
         conversationMessages.length - bounded.messages.length,
       injectedMemoryCount: memorySnippets.length,
       injectedMemoryIds,
+      deterministicInjectedMemoryIds: injectedMemoryIds.filter(
+        (memoryId) => !semanticCandidateIdSet.has(memoryId),
+      ),
+      semanticInjectedMemoryIds,
+      semanticCandidateIds,
+      semanticContextExpansionEnabled:
+        memoryOptions.semanticContextExpansionEnabled === true,
       memoryContextCharacterCount: memoryMessage
         ? memoryMessage.content.length
         : 0,
@@ -237,6 +260,10 @@ function composeMemoryMessage(
     role: "system",
     content: `${MEMORY_BLOCK_HEADER}\n${bullets}\n\n${MEMORY_BLOCK_INSTRUCTIONS}`,
   };
+}
+
+function uniqueIds(ids: readonly string[]): string[] {
+  return [...new Set(ids)];
 }
 
 function findLatestOwnerIndex(

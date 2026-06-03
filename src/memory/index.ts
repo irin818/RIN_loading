@@ -66,6 +66,7 @@ export {
   semanticTraceFromAcceptedMemoryIndexReport,
   semanticTraceFromHybridRetrievalReport,
 } from "./semanticTrace";
+export { selectSemanticContextExpansionCandidates } from "./semanticContextExpansion";
 export {
   formatSemanticReadinessReport,
   getSemanticReadinessReport,
@@ -125,6 +126,7 @@ export type {
   SemanticTracePayload,
   SemanticTraceRecord,
 } from "./semanticTrace";
+export type { SemanticContextExpansionResult } from "./semanticContextExpansion";
 export type {
   SemanticReadinessCheck,
   SemanticReadinessReport,
@@ -146,6 +148,7 @@ export {
 export type {
   AcceptedMemoryRetrievalResult,
   AcceptedMemorySnippet,
+  MemoryContextSource,
   MemoryInjectionExplanation,
   MemoryInjectionTrace,
   MemoryRetrievalOptions,

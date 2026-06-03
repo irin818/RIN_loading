@@ -7,12 +7,17 @@ import {
 } from "./repository";
 import { ConversationError, toConversationError } from "./errors";
 import type { ConversationTurnResult } from "./types";
-import { buildModelContext } from "../context";
+import {
+  buildModelContext,
+  DEFAULT_MAX_INJECTED_MEMORIES,
+  readSemanticContextConfig,
+} from "../context";
 import { appendAuditEvent, openRinDatabase, type RinDatabase } from "../database";
 import {
   listMemoryItems,
   maybeCreateOwnerMemoryProposal,
   retrieveAcceptedMemoriesWithExplanation,
+  selectSemanticContextExpansionCandidates,
   toMemoryInjectionTrace,
   type AcceptedMemoryRetrievalResult,
 } from "../memory";
@@ -90,9 +95,16 @@ export async function processOwnerMessage(
       })),
     ];
     const memoryRetrieval = retrieveAcceptedMemories(database, content);
+    const semanticCandidateIds = memoryRetrieval.explanations
+      .filter((item) => item.contextSource === "semantic")
+      .map((item) => item.memoryId);
     const modelContext = buildModelContext(conversationMessages, undefined, {
       memories: memoryRetrieval.snippets,
       explanations: memoryRetrieval.explanations,
+      semanticCandidateIds,
+      semanticContextExpansionEnabled: semanticCandidateIds.length > 0,
+      maxInjectedMemories:
+        DEFAULT_MAX_INJECTED_MEMORIES + semanticCandidateIds.length,
     });
     const memoryContextTrace = toMemoryInjectionTrace(
       modelContext.stats.memoryInjectionExplanations,
@@ -120,6 +132,12 @@ export async function processOwnerMessage(
         modelContextDroppedMessageCount: modelContext.stats.droppedMessageCount,
         injectedMemoryCount: modelContext.stats.injectedMemoryCount,
         injectedMemoryIds: modelContext.stats.injectedMemoryIds,
+        deterministicInjectedMemoryIds:
+          modelContext.stats.deterministicInjectedMemoryIds,
+        semanticInjectedMemoryIds: modelContext.stats.semanticInjectedMemoryIds,
+        semanticCandidateIds: modelContext.stats.semanticCandidateIds,
+        semanticContextExpansionEnabled:
+          modelContext.stats.semanticContextExpansionEnabled,
         memoryContextCharacterCount: modelContext.stats.memoryContextCharacterCount,
         memorySkippedByBudgetCount: memoryContextTrace.skippedByBudgetCount,
         memorySkippedByRelevanceCount: memoryContextTrace.skippedByRelevanceCount,
@@ -164,6 +182,12 @@ export async function processOwnerMessage(
         modelContextDroppedMessageCount: modelContext.stats.droppedMessageCount,
         injectedMemoryCount: modelContext.stats.injectedMemoryCount,
         injectedMemoryIds: modelContext.stats.injectedMemoryIds,
+        deterministicInjectedMemoryIds:
+          modelContext.stats.deterministicInjectedMemoryIds,
+        semanticInjectedMemoryIds: modelContext.stats.semanticInjectedMemoryIds,
+        semanticCandidateIds: modelContext.stats.semanticCandidateIds,
+        semanticContextExpansionEnabled:
+          modelContext.stats.semanticContextExpansionEnabled,
         memoryContextCharacterCount: modelContext.stats.memoryContextCharacterCount,
         memorySkippedByBudgetCount: memoryContextTrace.skippedByBudgetCount,
         memorySkippedByRelevanceCount: memoryContextTrace.skippedByRelevanceCount,
@@ -251,7 +275,29 @@ function defaultRetrieveAcceptedMemories(
     limit: 50,
   });
 
-  return retrieveAcceptedMemoriesWithExplanation(acceptedMemories, ownerMessage);
+  const deterministic = retrieveAcceptedMemoriesWithExplanation(
+    acceptedMemories,
+    ownerMessage,
+  );
+  const semanticExpansion = selectSemanticContextExpansionCandidates({
+    memories: acceptedMemories,
+    ownerMessage,
+    deterministicMemoryIds: deterministic.snippets.map((snippet) => snippet.id),
+    config: readSemanticContextConfig(),
+  });
+  const semanticCandidateIds = new Set(
+    semanticExpansion.snippets.map((snippet) => snippet.id),
+  );
+
+  return {
+    snippets: [...deterministic.snippets, ...semanticExpansion.snippets],
+    explanations: [
+      ...deterministic.explanations.filter(
+        (item) => !semanticCandidateIds.has(item.memoryId),
+      ),
+      ...semanticExpansion.explanations,
+    ],
+  };
 }
 
 function titleFromContent(content: string): string {

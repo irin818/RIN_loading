@@ -20,6 +20,8 @@ export type MemorySkipReason =
   | "max_count_exceeded"
   | "memory_budget_exceeded";
 
+export type MemoryContextSource = "deterministic" | "semantic";
+
 export type MemoryInjectionExplanation = {
   memoryId: string;
   memoryType: MemoryType;
@@ -36,6 +38,7 @@ export type MemoryInjectionExplanation = {
   confidenceAdjustment: number;
   metadataBonus: number;
   metadataSignals: string[];
+  contextSource?: MemoryContextSource;
   wasInjected: boolean;
   skippedReason: MemorySkipReason | null;
   snippetLength: number;
@@ -349,10 +352,24 @@ export function toMemoryInjectionTrace(
   memoryContextCharacterCount: number,
 ): MemoryInjectionTrace {
   const summary = summarizeMemoryInjection(explanations);
+  const semanticCandidateIds = explanations
+    .filter((item) => item.contextSource === "semantic")
+    .map((item) => item.memoryId);
+  const uniqueSemanticCandidateIds = [...new Set(semanticCandidateIds)];
+  const semanticCandidateIdSet = new Set(uniqueSemanticCandidateIds);
+  const semanticInjectedMemoryIds = injectedMemoryIds.filter((memoryId) =>
+    semanticCandidateIdSet.has(memoryId),
+  );
 
   return {
     injectedMemoryCount: injectedMemoryIds.length,
     injectedMemoryIds: [...injectedMemoryIds],
+    deterministicInjectedMemoryIds: injectedMemoryIds.filter(
+      (memoryId) => !semanticCandidateIdSet.has(memoryId),
+    ),
+    semanticInjectedMemoryIds,
+    semanticCandidateIds: uniqueSemanticCandidateIds,
+    semanticContextExpansionEnabled: semanticCandidateIds.length > 0,
     memoryContextCharacterCount,
     skippedByBudgetCount: summary.skippedByBudgetCount,
     skippedByRelevanceCount: summary.skippedByRelevanceCount,
@@ -373,6 +390,7 @@ export function toMemoryInjectionTrace(
       confidenceAdjustment: item.confidenceAdjustment,
       metadataBonus: item.metadataBonus,
       metadataSignals: [...item.metadataSignals],
+      contextSource: item.contextSource ?? "deterministic",
       wasInjected: item.wasInjected,
       skippedReason: item.skippedReason,
       snippetLength: item.snippetLength,
@@ -383,6 +401,10 @@ export function toMemoryInjectionTrace(
 export type MemoryInjectionTrace = {
   injectedMemoryCount: number;
   injectedMemoryIds: string[];
+  deterministicInjectedMemoryIds: string[];
+  semanticInjectedMemoryIds: string[];
+  semanticCandidateIds: string[];
+  semanticContextExpansionEnabled: boolean;
   memoryContextCharacterCount: number;
   skippedByBudgetCount: number;
   skippedByRelevanceCount: number;
