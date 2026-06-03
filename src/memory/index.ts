@@ -54,6 +54,10 @@ export {
   runSemanticAcceptedMemoryIndexReport,
 } from "./semanticAcceptedMemoryIndex";
 export {
+  formatHybridRetrievalReport,
+  runHybridRetrievalReport,
+} from "./hybridRetrievalReport";
+export {
   formatSemanticReadinessReport,
   getSemanticReadinessReport,
 } from "./semanticReadiness";
@@ -101,6 +105,11 @@ export type {
   SemanticAcceptedMemoryIndexReport,
   SemanticAcceptedMemoryIndexStatus,
 } from "./semanticAcceptedMemoryIndex";
+export type {
+  HybridRetrievalReport,
+  HybridRetrievalReportOptions,
+  HybridRetrievalReportStatus,
+} from "./hybridRetrievalReport";
 export type {
   SemanticReadinessCheck,
   SemanticReadinessReport,
