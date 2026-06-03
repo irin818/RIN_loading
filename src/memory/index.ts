@@ -27,10 +27,14 @@ export {
 export {
   DEFAULT_FIXTURE_EMBEDDING_DIMENSION,
   DEFAULT_LOCAL_EMBEDDING_PROVIDER_CONFIG,
+  DEFAULT_LOCAL_EMBEDDING_TIMEOUT_MS,
   DISABLED_LOCAL_EMBEDDING_PROVIDER_ID,
   FIXTURE_SEMANTIC_EMBEDDING_PROVIDER_ID,
+  LocalEmbeddingProviderError,
+  classifyLocalEmbeddingError,
   cosineSimilarity,
   createFixtureSemanticEmbeddingProvider,
+  createOllamaLocalEmbeddingProvider,
   createUnsupportedLocalEmbeddingProvider,
   dotProduct,
   evaluateLocalEmbeddingProviderReadiness,
@@ -48,7 +52,11 @@ export type {
 } from "./retrievalTokens";
 export type {
   LocalEmbeddingProviderConfig,
+  LocalEmbeddingErrorCode,
+  LocalEmbeddingProvider,
   LocalEmbeddingProviderReadiness,
+  LocalEmbeddingResult,
+  LocalEmbeddingTextInput,
   SemanticEmbeddingInput,
   SemanticEmbeddingProvider,
   SemanticEmbeddingProviderKind,

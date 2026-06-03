@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  classifyLocalEmbeddingError,
   cosineSimilarity,
   createFixtureSemanticEmbeddingProvider,
+  createOllamaLocalEmbeddingProvider,
   createUnsupportedLocalEmbeddingProvider,
   dotProduct,
   evaluateLocalEmbeddingProviderReadiness,
+  LocalEmbeddingProviderError,
   normalizeVector,
 } from "./semanticEmbedding";
 
@@ -42,7 +45,12 @@ describe("fixture semantic embedding provider", () => {
       enabled: false,
       status: "disabled",
       providerId: null,
+      providerKind: "disabled-local-scaffold",
+      modelId: null,
+      dimension: null,
+      latencyMs: null,
       providerCallCount: 0,
+      errorCode: "LOCAL_EMBEDDING_DISABLED",
     });
   });
 
@@ -57,7 +65,10 @@ describe("fixture semantic embedding provider", () => {
       enabled: true,
       status: "unsupported",
       providerId: "ollama-local",
+      providerKind: "ollama-local",
+      modelId: "embedding-model",
       providerCallCount: 0,
+      errorCode: "LOCAL_EMBEDDING_UNSUPPORTED",
     });
     expect(() =>
       createUnsupportedLocalEmbeddingProvider({
@@ -66,5 +77,43 @@ describe("fixture semantic embedding provider", () => {
         model: "embedding-model",
       }),
     ).toThrow("disabled scaffold only");
+  });
+
+  it("classifies local embedding provider errors without exposing internals", () => {
+    expect(
+      classifyLocalEmbeddingError(
+        new LocalEmbeddingProviderError(
+          "LOCAL_EMBEDDING_DIMENSION_MISMATCH",
+          "private detail",
+        ),
+      ),
+    ).toEqual({
+      code: "LOCAL_EMBEDDING_DIMENSION_MISMATCH",
+      message:
+        "Local embedding provider returned an unexpected vector dimension.",
+    });
+    expect(classifyLocalEmbeddingError(new Error("secret path"))).toEqual({
+      code: "LOCAL_EMBEDDING_UNAVAILABLE",
+      message: "Local embedding provider is unavailable.",
+    });
+  });
+
+  it("creates an explicit Ollama local embedding provider boundary", () => {
+    const provider = createOllamaLocalEmbeddingProvider({
+      enabled: true,
+      provider: "ollama-local",
+      model: "nomic-embed-text",
+      baseUrl: "http://127.0.0.1:11434/",
+      timeoutMs: 1000,
+      expectedDimension: 768,
+    });
+
+    expect(provider).toMatchObject({
+      providerId: "ollama-local-embedding",
+      providerKind: "ollama-local",
+      modelId: "nomic-embed-text",
+      expectedDimension: 768,
+      timeoutMs: 1000,
+    });
   });
 });
