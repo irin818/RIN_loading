@@ -81,13 +81,13 @@ and explicit owner-controlled migration.
 
 ## Non-Goals
 
-- This ADR does not implement an Ollama adapter.
+- This ADR itself does not make Qwen3 the RIN identity.
 - This ADR does not pull or install Qwen3 4B.
 - This ADR does not remove the existing OpenAI-compatible adapter boundary.
 - This ADR does not choose a permanent model identity for RIN.
 - This ADR does not change runtime behavior by itself.
 
-- 本 ADR 不实现 Ollama adapter。
+- 本 ADR 本身不让 Qwen3 成为 RIN 身份。
 - 本 ADR 不拉取或安装 Qwen3 4B。
 - 本 ADR 不移除现有 OpenAI-compatible adapter 边界。
 - 本 ADR 不为 RIN 选择永久模型身份。
@@ -95,17 +95,19 @@ and explicit owner-controlled migration.
 
 ## Follow-Up Implementation Phases
 
-1. Add an Ollama model adapter behind the existing model abstraction.
+1. Add an Ollama model adapter behind the existing model abstraction. Completed
+   in Phase 22.
 2. Add local configuration and readiness checks for Ollama availability and the
-   `qwen3:4b` model target.
+   `qwen3:4b` model target. Completed in Phase 22.
 3. Preserve the local mock adapter as the default for deterministic tests.
 4. Keep OpenAI-compatible providers as explicitly configured optional expert or
    fallback providers.
 5. Add tests that prove UI and runtime paths still go through the adapter
    boundary and do not call providers directly.
 
-1. 在现有模型抽象层后面增加 Ollama model adapter。
-2. 增加 Ollama 可用性和 `qwen3:4b` 模型目标的本地配置与就绪检查。
+1. 在现有模型抽象层后面增加 Ollama model adapter。已在 Phase 22 完成。
+2. 增加 Ollama 可用性和 `qwen3:4b` 模型目标的本地配置与就绪检查。已在
+   Phase 22 完成。
 3. 保留本地 mock adapter 作为确定性测试默认值。
 4. 将 OpenAI-compatible 服务商保留为需要显式配置的可选专家或回退服务。
 5. 添加测试，证明 UI 和 runtime 路径仍然经过 adapter 边界，不会直接调用服务商。

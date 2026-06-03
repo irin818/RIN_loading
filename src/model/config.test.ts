@@ -3,6 +3,7 @@ import {
   createDefaultModelRuntimeConfig,
   getModelRuntimeStatus,
   normalizeModelRuntimeConfig,
+  OLLAMA_ADAPTER_ID,
   OPENAI_COMPATIBLE_ADAPTER_ID,
 } from "./config";
 import { MOCK_MODEL_ADAPTER_ID } from "./mockAdapter";
@@ -19,6 +20,7 @@ describe("model runtime config", () => {
     expect(status.activeAdapter).toBe(MOCK_MODEL_ADAPTER_ID);
     expect(status.selectedProvider).toBe("mock");
     expect(status.externalCallsEnabled).toBe(false);
+    expect(status.localCallsConfigured).toBe(false);
     expect(status.missingEnvironment).toEqual([]);
   });
 
@@ -36,6 +38,22 @@ describe("model runtime config", () => {
     expect(status.activeAdapter).toBe(OPENAI_COMPATIBLE_ADAPTER_ID);
     expect(status.selectedProvider).toBe("openai-compatible");
     expect(status.externalCallsEnabled).toBe(true);
+    expect(status.localCallsConfigured).toBe(false);
+    expect(status.missingEnvironment).toEqual([]);
+  });
+
+  it("accepts environment-only selection for the Ollama local adapter", () => {
+    const config = createDefaultModelRuntimeConfig(
+      new Date("2026-05-31T00:00:00.000Z"),
+    );
+    const status = getModelRuntimeStatus(config, {
+      RIN_MODEL_ADAPTER: OLLAMA_ADAPTER_ID,
+    });
+
+    expect(status.activeAdapter).toBe(OLLAMA_ADAPTER_ID);
+    expect(status.selectedProvider).toBe("local");
+    expect(status.externalCallsEnabled).toBe(false);
+    expect(status.localCallsConfigured).toBe(true);
     expect(status.missingEnvironment).toEqual([]);
   });
 
@@ -53,6 +71,7 @@ describe("model runtime config", () => {
     expect(config.adapters.map((adapter) => adapter.id)).toContain(
       OPENAI_COMPATIBLE_ADAPTER_ID,
     );
+    expect(config.adapters.map((adapter) => adapter.id)).toContain(OLLAMA_ADAPTER_ID);
     expect(config.apiKeysStoredHere).toBe(false);
   });
 });

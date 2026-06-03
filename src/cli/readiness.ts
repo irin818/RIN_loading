@@ -21,7 +21,17 @@ if (report.missingEnvironment.length > 0) {
 console.log("");
 console.log(`Ready / 就绪: ${report.ok ? "yes" : "no"}`);
 console.log(
-  `External model ready / 外部模型就绪: ${
+  `Live model ready / 真实模型就绪: ${
+    report.readyForLiveModel ? "yes" : "no"
+  }`,
+);
+console.log(
+  `Local model ready / 本地模型就绪: ${
+    report.readyForLocalModel ? "yes" : "no"
+  }`,
+);
+console.log(
+  `Optional external model ready / 可选外部模型就绪: ${
     report.readyForExternalModel ? "yes" : "no"
   }`,
 );
