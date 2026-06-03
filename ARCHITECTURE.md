@@ -35,7 +35,9 @@ Current known module boundaries include:
 - `src/ui/`: React UI shell and body view components. The Console displays local
   runtime status (active adapter, provider, and local model settings) and
   structured conversation recovery errors through RIN server APIs without calling
-  model providers directly.
+  model providers directly. Console recovery actions (manual status refresh and
+  retry of a retryable failed turn) use RIN local APIs and do not bypass the
+  runtime or provider boundaries.
 - `src/body/`: current body adapter protocol, SVG/live2d-compatible body state
   mapping, and local body interaction logic.
 - `src/runtime/`: local conversation/runtime boundary.
