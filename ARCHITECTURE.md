@@ -69,19 +69,21 @@ Current known module boundaries include:
 - `src/memory/`: memory proposal, review, metadata, and manager boundary. It also
   provides deterministic retrieval of explicitly accepted memories for bounded
   injection into model context, plus safe injection explanation metadata (matched
-  keywords, overlap counts, memory type, type-match bonus, type signals, skip
-  reasons) without logging full memory text by default; it uses lightweight
-  deterministic token normalization (plural folding, separator splitting,
-  stopwords, CJK bigrams) and a small type-aware ranking boost rather than
-  embeddings. Type alone cannot inject a memory: content token overlap remains
-  required and accepted-only filtering remains the hard boundary. Owner-reviewed
-  metadata (`tags`, `importance`, `confidence`, `source`, review timestamps) is
-  local slow-variable data stored separately from core memory content. Metadata is
-  validated and audited through review/edit flows, but it does not affect
-  retrieval ranking or model context injection yet. The module also contains a
-  local in-memory evaluation harness for retrieval/injection quality that does
-  not call model providers or touch real owner data; it does not auto-write or
-  auto-accept memories.
+  keywords, overlap counts, memory type, type-match bonus, matched tags,
+  metadata bonus components, metadata signals, and skip reasons) without logging
+  full memory text by default; it uses lightweight deterministic token
+  normalization (plural folding, separator splitting, stopwords, CJK bigrams),
+  a small type-aware ranking boost, and bounded owner-reviewed metadata boosts
+  rather than embeddings. Type and metadata alone cannot inject a memory:
+  content token overlap remains required and accepted-only filtering remains the
+  hard boundary. Owner-reviewed metadata (`tags`, `importance`, `confidence`,
+  `source`, review timestamps) is local slow-variable data stored separately from
+  core memory content. Matching tags and `high` importance may add capped ranking
+  bonuses after lexical overlap; `low` confidence can dampen metadata bonus;
+  source and timestamps remain trace-only. The module also contains a local
+  in-memory evaluation harness for retrieval/injection quality that does not call
+  model providers or touch real owner data; it does not auto-write or auto-accept
+  memories.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
 - `src/storage/`: controlled local storage layout and manifest logic.

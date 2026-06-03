@@ -1,6 +1,6 @@
 # Owner-Reviewed Memory Metadata Proposal
 
-Status: Metadata-aware retrieval policy defined for Mega-Milestone 6
+Status: Metadata-aware retrieval implemented in Mega-Milestone 6
 
 ## Purpose
 
@@ -95,7 +95,7 @@ Missing first-class memory metadata:
 - Metadata must not cause a weak lexical match to outrank a materially stronger
   lexical match.
 
-Mega-Milestone 6 policy:
+Mega-Milestone 6 implemented policy:
 
 - `tags`: owner-reviewed tags may add a small bonus only when normalized query
   tokens match normalized tags and memory content already has lexical overlap.
@@ -112,6 +112,20 @@ Mega-Milestone 6 policy:
   `tagMatchBonus`, `importanceBonus`, `confidenceAdjustment`, `metadataBonus`,
   and `metadataSignals`; it must not expose full memory text, raw prompts, model
   context snippets, or raw metadata JSON.
+
+Implemented retrieval behavior:
+
+- base token score remains the primary relevance dimension.
+- `tags` can add a capped `tagMatchBonus` when normalized owner-query tokens
+  match owner-reviewed tags.
+- `high` importance can add `importanceBonus = 1`; `normal` and `low` are
+  neutral.
+- `low` confidence applies `confidenceAdjustment = -1` when metadata bonus would
+  otherwise be positive; `medium` and `high` are neutral.
+- total metadata contribution is capped as `metadataBonus`.
+- source, `reviewedAt`, and `acceptedAt` are not ranking signals.
+- metadata score fields are included in memory context trace only as safe
+  explanation data.
 
 ## Migration Plan
 
@@ -209,7 +223,7 @@ Mega-Milestone 5 added readiness coverage only:
 - metadata validation rejects or normalizes invalid values
 - metadata does not store full memory text
 
-Mega-Milestone 6 must add ranking coverage for:
+Mega-Milestone 6 adds ranking coverage for:
 
 - tag match boosts a relevant memory
 - tag-only zero lexical-overlap memory is excluded
@@ -219,6 +233,8 @@ Mega-Milestone 6 must add ranking coverage for:
 - non-accepted metadata-rich memories remain excluded
 - metadata trace fields are safe and explainable
 - old memories with no metadata behave neutrally
+
+The built-in evaluation suite now has 24 provider-free cases.
 
 ## Non-Goals
 

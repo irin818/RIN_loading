@@ -1,6 +1,6 @@
 # Memory Retrieval Ranking Signals
 
-Status: Metadata-aware retrieval policy defined for Mega-Milestone 6
+Status: Metadata-aware retrieval implemented in Mega-Milestone 6
 
 ## Purpose
 
@@ -23,9 +23,9 @@ The current schema exposes:
 | source | Partly present | `source_message_id` links a memory item to a source message when available. There is no richer source kind. |
 | `createdAt` | Present | Mapped from `created_at`. Not currently used for ranking. |
 | `updatedAt` | Present | Mapped from `updated_at`. Used as a recency tie-break. Review decisions update this timestamp. |
-| tags | Present as owner-reviewed metadata | Stored in `memory_metadata` side-table JSON. Mega-Milestone 6 may use normalized query/tag overlap as a small bounded ranking signal only after content overlap exists. |
-| importance | Present as owner-reviewed metadata | Bounded owner-reviewed metadata. Mega-Milestone 6 may use `high` as a small bounded bonus only after content overlap exists. |
-| confidence | Present as owner-reviewed metadata | Bounded owner-reviewed metadata. Mega-Milestone 6 may use `low` only to dampen metadata bonus; default remains neutral. |
+| tags | Present as owner-reviewed metadata | Stored in `memory_metadata` side-table JSON. Retrieval uses normalized query/tag overlap as a small capped ranking signal only after content overlap exists. |
+| importance | Present as owner-reviewed metadata | Bounded owner-reviewed metadata. Retrieval uses `high` as a small bounded bonus only after content overlap exists. |
+| confidence | Present as owner-reviewed metadata | Bounded owner-reviewed metadata. Retrieval uses `low` only to dampen metadata bonus; default remains neutral. |
 | accepted/reviewed time | Present as metadata timestamps | `acceptedAt` / `reviewedAt` are stored for metadata/review visibility. Retrieval still uses `updatedAt` tie-breaks. |
 | usage stats | Missing | No usage count, last injected time, last matched time, or feedback counters. |
 | other metadata | Thin | Metadata includes a safe owner-provided source string; no richer source kind exists yet. |
@@ -103,19 +103,29 @@ The current retrieval path is:
    to the existing `MemoryType` union. If the memory has content overlap and its
    type has at least one matched type signal, retrieval adds
    `typeMatchBonus = 1`; otherwise the bonus is `0`.
-8. Candidates with zero content overlap are skipped as `zero_relevance`, even if
+8. `scoreMetadataSignalMatch` uses only owner-reviewed metadata on the accepted
+   memory record. When content overlap exists:
+   - normalized query tokens can match owner-reviewed tags and add capped
+     `tagMatchBonus`.
+   - `importance = high` adds a small `importanceBonus`.
+   - `confidence = low` applies a negative `confidenceAdjustment` when metadata
+     would otherwise add bonus.
+   - `source`, `acceptedAt`, and `reviewedAt` have no ranking effect.
+   - total `metadataBonus` is capped.
+9. Candidates with zero content overlap are skipped as `zero_relevance`, even if
    the query has a type signal matching the memory's type.
-9. Candidates are sorted by:
-   - descending final score (`tokenScore + typeMatchBonus`)
+10. Candidates are sorted by:
+   - descending final score (`tokenScore * 10 + typeMatchBonus + metadataBonus`)
    - descending token score
    - descending overlap count
    - descending type match bonus
+   - descending metadata bonus
    - descending `updatedAt`
    - ascending memory id
-10. Retrieval applies `maxInjectedMemories`.
-11. Context assembly applies memory-context character budget and whole-context
+11. Retrieval applies `maxInjectedMemories`.
+12. Context assembly applies memory-context character budget and whole-context
     budget. Dropped candidates can become `memory_budget_exceeded`.
-12. Trace/explanation fields currently include:
+13. Trace/explanation fields currently include:
     - `memoryId`
     - `memoryType`
     - `matchedKeywords`
@@ -125,10 +135,16 @@ The current retrieval path is:
     - `normalizedQueryTokenCount`
     - `typeMatchBonus`
     - `matchedTypeSignals`
+    - `matchedTags`
+    - `tagMatchBonus`
+    - `importanceBonus`
+    - `confidenceAdjustment`
+    - `metadataBonus`
+    - `metadataSignals`
     - `wasInjected`
     - `skippedReason`
     - `snippetLength`
-13. Persisted `memoryContext` trace stores safe metadata only. It excludes full
+14. Persisted `memoryContext` trace stores safe metadata only. It excludes full
     memory text, model context snippets, and raw prompt text.
 
 ## Current Evaluation Coverage
@@ -152,11 +168,17 @@ The built-in memory evaluation harness currently covers:
 - non-accepted memory exclusion even with a good type signal
 - CJK plus type signal overlap
 - type trace privacy checks
+- tag match boosting a relevant accepted memory
+- tag-only zero lexical-overlap exclusion
+- bounded importance influence
+- low-confidence metadata dampening
+- strong lexical relevance beating metadata bonus
+- non-accepted metadata-rich memory exclusion
+- metadata trace privacy checks
+- old/no-metadata neutral behavior
 
 Remaining gaps:
 
-- Metadata shape is covered only as a no-ranking readiness case. Future
-  metadata-aware ranking still needs dedicated fixtures.
 - No fixture covers usage stats because those fields do not exist.
 - Limited near-miss coverage for ambiguous technical overlap.
 
@@ -218,7 +240,7 @@ Any future ranking work must preserve:
 
 ## Mega-Milestone 6 Metadata Ranking Policy
 
-Metadata-aware retrieval may use only owner-reviewed metadata already stored on
+Metadata-aware retrieval uses only owner-reviewed metadata already stored on
 accepted memory records. It must remain deterministic, local, and explainable:
 
 - Token relevance is primary. Ranking must keep token score ahead of metadata
@@ -227,11 +249,11 @@ accepted memory records. It must remain deterministic, local, and explainable:
 - Zero lexical overlap remains excluded. Tags, importance, confidence, source,
   and timestamps must not inject a memory whose content has no token or CJK
   bigram overlap with the owner query.
-- Tags may add a small bonus only when normalized query tokens match
-  owner-reviewed tags. The tag contribution is capped.
-- Importance may add a small bounded bonus for `high` importance only after
-  lexical overlap exists. `normal` and `low` are neutral.
-- Confidence may dampen metadata effects when confidence is `low`. `medium` and
+- Tags add `tagMatchBonus` only when normalized query tokens match owner-reviewed
+  tags. The tag contribution is capped.
+- Importance adds a small bounded bonus for `high` importance only after lexical
+  overlap exists. `normal` and `low` are neutral.
+- Confidence dampens metadata effects when confidence is `low`. `medium` and
   `high` are neutral for now so confidence does not become a second importance
   field.
 - Source is trace/explanation-only and has no ranking effect.
@@ -248,33 +270,34 @@ accepted memory records. It must remain deterministic, local, and explainable:
 
 ## Implementation Decision
 
-The current schema exposes a reliable `memoryType` / `memory_type` field, so
-Milestone 4 implements a constrained type-aware ranking component under these
-limits:
+The current schema exposes reliable `memoryType` and owner-reviewed metadata
+fields, so retrieval now uses constrained type-aware and metadata-aware ranking
+components under these limits:
 
 - Do not add schema fields.
-- Do not use tags or importance.
 - Do not add embeddings or semantic search.
 - Keep token relevance primary with `tokenScore = latinTokenMatchCount * 2 +
-  cjkBigramMatchCount`.
-- Add only `typeMatchBonus = 1` when a deterministic query type signal matches
-  an accepted memory's existing `memoryType`.
-- Keep `typeMatchBonus = 0` for zero-overlap memory content so type alone cannot
-  inject a memory.
+  cjkBigramMatchCount`, weighted ahead of metadata by final scoring.
+- Add `typeMatchBonus = 1` when a deterministic query type signal matches an
+  accepted memory's existing `memoryType`.
+- Add only bounded metadata components: tag match, high importance, and low
+  confidence damping.
+- Keep type and metadata bonuses at `0` for zero-overlap memory content so they
+  cannot inject a memory.
 - Preserve accepted-only filtering, context budgets, recency tie-breaks, and
   stable id tie-breaks.
-- Expose only safe trace metadata: `memoryType`, `typeMatchBonus`, and
-  `matchedTypeSignals`.
+- Expose only safe trace metadata: `memoryType`, `typeMatchBonus`,
+  `matchedTypeSignals`, `matchedTags`, metadata bonus components, and
+  `metadataSignals`.
 - Protect the behavior with `npm run rin:memory-eval` fixtures.
 
-Tags, importance, confidence, reviewed timestamps, and usage stats should be
-handled later through a separate owner-reviewed metadata proposal before any
-migration or retrieval use.
+Source, reviewed timestamps, accepted timestamps, and usage stats remain
+non-ranking signals unless a future design changes that with evaluation coverage.
 
 ## Non-Goals
 
 - Add schema fields or migrations.
-- Add tags or importance.
+- Add new metadata fields.
 - Add embeddings, vector DB, or semantic retrieval.
 - Add memory editor UI.
 - Change model provider boundaries or the default adapter.
