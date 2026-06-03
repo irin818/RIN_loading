@@ -65,7 +65,9 @@ Current known module boundaries include:
   deterministic retrieval of explicitly accepted memories for bounded injection
   into model context, plus safe injection explanation metadata (matched keywords,
   overlap counts, skip reasons) without logging full memory text by default; it
-  does not auto-write or auto-accept memories.
+  uses lightweight deterministic token normalization (plural folding, separator
+  splitting, stopwords, CJK bigrams) rather than embeddings; it does not
+  auto-write or auto-accept memories.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
 - `src/storage/`: controlled local storage layout and manifest logic.
