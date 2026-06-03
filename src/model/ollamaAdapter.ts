@@ -1,3 +1,4 @@
+import type { OllamaGenerationOptions } from "./config";
 import type { ModelAdapter, ModelMessage, ModelRequest, ModelResponse } from "./types";
 
 export type OllamaAdapterOptions = {
@@ -6,12 +7,24 @@ export type OllamaAdapterOptions = {
   baseUrl: string;
   model: string;
   timeoutMs: number;
+  generationOptions: OllamaGenerationOptions;
   fetchFn?: typeof fetch;
 };
 
 type OllamaChatMessage = {
   role: "system" | "user" | "assistant";
   content: string;
+};
+
+type OllamaChatRequestBody = {
+  model: string;
+  messages: OllamaChatMessage[];
+  stream: false;
+  options: {
+    num_predict: number;
+    temperature: number;
+    top_p: number;
+  };
 };
 
 export function createOllamaAdapter(options: OllamaAdapterOptions): ModelAdapter {
@@ -70,29 +83,45 @@ async function requestOllamaChat(
         model: options.model,
         messages: request.messages.map(toOllamaChatMessage),
         stream: false,
-      }),
+        options: {
+          num_predict: options.generationOptions.numPredict,
+          temperature: options.generationOptions.temperature,
+          top_p: options.generationOptions.topP,
+        },
+      } satisfies OllamaChatRequestBody),
       signal: controller.signal,
     });
     const body = await readJsonResponse(response);
 
     if (!response.ok) {
       throw new Error(
-        readOllamaError(body) ??
+        readOllamaError(body, response.status, options.model) ??
           `Ollama returned ${response.status} for local chat request.`,
       );
     }
 
     return readOllamaAssistantContent(body);
   } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`Ollama local API timed out at ${endpoint}.`);
+    if (isAbortError(error)) {
+      throw new Error(
+        [
+          `Ollama local model timed out at ${endpoint}.`,
+          `Timeout: ${options.timeoutMs}ms.`,
+          "Reduce prompt length, lower RIN_OLLAMA_NUM_PREDICT, ensure Ollama is running, or try a smaller model/restart Ollama.",
+        ].join(" "),
+      );
     }
 
     if (error instanceof Error && error.message.startsWith("Ollama ")) {
       throw error;
     }
 
-    throw new Error(`Ollama local API unavailable at ${endpoint}.`);
+    throw new Error(
+      [
+        `Ollama local API is not reachable at ${endpoint}.`,
+        `Start Ollama with \`open -ga Ollama\`, confirm \`curl http://127.0.0.1:11434/api/tags\`, and pull the model with \`ollama pull ${options.model}\`.`,
+      ].join(" "),
+    );
   } finally {
     clearTimeout(timeoutId);
   }
@@ -126,14 +155,23 @@ function readOllamaAssistantContent(value: unknown): string {
   return content;
 }
 
-function readOllamaError(value: unknown): string | null {
+function readOllamaError(
+  value: unknown,
+  status: number,
+  model: string,
+): string | null {
   if (!isRecord(value)) {
-    return null;
+    return readStatusError(status, model);
   }
 
-  return typeof value.error === "string" && value.error.trim().length > 0
-    ? `Ollama returned an error: ${value.error.trim()}`
-    : null;
+  if (typeof value.error !== "string" || value.error.trim().length === 0) {
+    return readStatusError(status, model);
+  }
+
+  const errorText = value.error.trim();
+  const guidance = readOllamaGuidance(errorText, model);
+
+  return `Ollama returned an error: ${errorText}${guidance}`;
 }
 
 function readRequiredOption(value: string, envName: string): string {
@@ -148,6 +186,38 @@ function readRequiredOption(value: string, envName: string): string {
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    error.name === "AbortError"
+  );
+}
+
+function readStatusError(status: number, model: string): string {
+  if (status === 404) {
+    return `Ollama returned 404 for local chat request. Confirm the model is pulled with \`ollama pull ${model}\`.`;
+  }
+
+  return `Ollama returned ${status} for local chat request. Confirm Ollama is running and check \`curl http://127.0.0.1:11434/api/tags\`.`;
+}
+
+function readOllamaGuidance(errorText: string, model: string): string {
+  const normalized = errorText.toLowerCase();
+
+  if (
+    normalized.includes("not found") ||
+    normalized.includes("not pulled") ||
+    normalized.includes("model") ||
+    normalized.includes("pull")
+  ) {
+    return ` Confirm the selected model is available with \`ollama pull ${model}\`.`;
+  }
+
+  return " Confirm Ollama is running and reduce RIN_OLLAMA_NUM_PREDICT if local generation is slow.";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

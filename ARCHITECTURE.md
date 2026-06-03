@@ -45,7 +45,9 @@ Current known module boundaries include:
   configurable adapter selection, and adapter boundaries for local-model-first
   reasoning plus optional external expert or fallback providers. The first real
   local runtime adapter is Ollama, with Qwen3 4B (`qwen3:4b`) as the recommended
-  initial chat model target when explicitly selected.
+  initial chat model target when explicitly selected. Local adapter runtime
+  controls such as timeout and bounded generation options live at this adapter
+  boundary, not in UI or identity logic.
 - `src/memory/`: memory proposal, review, and manager boundary.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.

@@ -9,7 +9,15 @@ export {
   OLLAMA_BASE_URL_ENV,
   OLLAMA_DEFAULT_BASE_URL,
   OLLAMA_DEFAULT_MODEL,
+  OLLAMA_DEFAULT_NUM_PREDICT,
+  OLLAMA_DEFAULT_TEMPERATURE,
+  OLLAMA_DEFAULT_TIMEOUT_MS,
+  OLLAMA_DEFAULT_TOP_P,
   OLLAMA_MODEL_ENV,
+  OLLAMA_NUM_PREDICT_ENV,
+  OLLAMA_TEMPERATURE_ENV,
+  OLLAMA_TIMEOUT_MS_ENV,
+  OLLAMA_TOP_P_ENV,
   OPENAI_COMPATIBLE_ADAPTER_ID,
 } from "./config";
 export { createOllamaAdapter } from "./ollamaAdapter";
@@ -22,6 +30,8 @@ export {
 } from "./registry";
 export type {
   ModelAdapterConfig,
+  OllamaGenerationOptions,
+  OllamaRuntimeOptions,
   ModelRuntimeConfig,
   ModelRuntimeStatus,
 } from "./config";
