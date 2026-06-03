@@ -160,6 +160,10 @@ by browser code using public paths such as `/live2d/rin/...`.
 - `docs/LOCAL_PLANNER_POLICY.md`
 - `docs/CONSOLE_OPERATIONS_POLICY.md`
 - `docs/BACKUP_MIGRATION_POLICY.md`
+- `docs/RIN_V0_1_READINESS_CHECKLIST.md`
+- `docs/RIN_V0_1_PRIVACY_AUDIT.md`
+- `docs/RIN_V0_1_OPERATIONS_GUIDE.md`
+- `docs/RIN_V0_1_RELEASE_NOTES.md`
 - `docs/decisions/ADR-0001-local-model-first-reasoning.md`
 - `docs/decisions/ADR-0002-local-semantic-memory-retrieval.md`
 

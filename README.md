@@ -142,6 +142,7 @@ npm run rin:memory-maintenance-report
 npm run rin:planner-smoke
 npm run rin:backup-dry-run
 npm run rin:restore-dry-run
+npm run rin:full-check
 ```
 
 For changes that affect memory retrieval, bounded context assembly,
@@ -715,6 +716,17 @@ hashes for local RIN data that would be included. It creates no archive, perform
 no cloud sync, and excludes logs, dependency/build output, environment files, and
 secret-like paths. Restore dry-run validates a manifest when supplied and reports
 overwrite risk without copying or mutating data.
+
+For v0.1 stabilization and release readiness, use:
+
+```sh
+npm run rin:full-check
+```
+
+See `docs/RIN_V0_1_READINESS_CHECKLIST.md`,
+`docs/RIN_V0_1_PRIVACY_AUDIT.md`, `docs/RIN_V0_1_OPERATIONS_GUIDE.md`, and
+`docs/RIN_V0_1_RELEASE_NOTES.md` for the release checklist, privacy boundaries,
+standard operations, and known limitations.
 
 Ultra-Milestone 11 和 Super-Milestone 12-14 增加仅报告的 semantic provider 与
 accepted-memory report 命令，但不改变生产检索。`npm run
