@@ -24,6 +24,10 @@ export type SemanticReadinessReport = {
   vectorDbConfigured: false;
   realDataIndexingEnabled: false;
   localEmbeddingProvider: LocalEmbeddingProviderReadiness;
+  tempEmbeddingProvider: string;
+  tempEmbeddingProviderKind: string;
+  tempEmbeddingCandidateCount: number;
+  providerCallCountByProviderKind: Record<string, number>;
   providerCallCount: 0;
   checks: SemanticReadinessCheck[];
 };
@@ -93,6 +97,14 @@ export function getSemanticReadinessReport(
     vectorDbConfigured: false,
     realDataIndexingEnabled: false,
     localEmbeddingProvider,
+    tempEmbeddingProvider: semanticEval.tempEmbeddingProvider,
+    tempEmbeddingProviderKind: semanticEval.tempEmbeddingProviderKind,
+    tempEmbeddingCandidateCount: semanticEval.tempEmbeddingCandidateCount,
+    providerCallCountByProviderKind: {
+      [semanticEval.tempEmbeddingProviderKind]:
+        semanticEval.tempEmbeddingProviderCallCount,
+      "disabled-local-scaffold": localEmbeddingProvider.providerCallCount,
+    },
     providerCallCount: 0,
     checks,
   };
@@ -110,6 +122,12 @@ export function formatSemanticReadinessReport(
       report.fixturePrototypeAvailable ? "yes" : "no"
     }`,
     `Local embedding provider: ${report.localEmbeddingProvider.status}`,
+    `Local embedding error code: ${
+      report.localEmbeddingProvider.errorCode ?? "none"
+    }`,
+    `Temp embedding provider: ${report.tempEmbeddingProvider}`,
+    `Temp embedding provider kind: ${report.tempEmbeddingProviderKind}`,
+    `Temp embedding candidates: ${report.tempEmbeddingCandidateCount}`,
     `Production semantic retrieval enabled: ${
       report.productionSemanticRetrievalEnabled ? "yes" : "no"
     }`,
@@ -130,6 +148,9 @@ export function formatSemanticReadinessReport(
       report.realDataIndexingEnabled ? "yes" : "no"
     }`,
     `providerCallCount: ${report.providerCallCount}`,
+    `providerCallCountByProviderKind: ${formatProviderCallCounts(
+      report.providerCallCountByProviderKind,
+    )}`,
     "Checks:",
   ];
 
@@ -139,4 +160,14 @@ export function formatSemanticReadinessReport(
   }
 
   return lines.join("\n");
+}
+
+function formatProviderCallCounts(counts: Record<string, number>): string {
+  const entries = Object.entries(counts).sort(([left], [right]) =>
+    left.localeCompare(right),
+  );
+
+  return entries.length > 0
+    ? entries.map(([provider, count]) => `${provider}=${count}`).join(", ")
+    : "none";
 }

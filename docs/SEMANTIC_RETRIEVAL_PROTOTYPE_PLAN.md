@@ -20,6 +20,14 @@ does not add a real embedding model, vector database dependency, provider call,
 schema migration, real `.rin-data` indexing, runtime behavior, or context
 injection.
 
+Ultra-Milestone 11 refines the local embedding provider scaffold into a concrete
+report-only adapter boundary. Default semantic eval remains fixture-only and
+provider-free, while a temp fixture embedding evaluation path indexes accepted
+temp records through the provider abstraction and reports candidate IDs only. An
+optional `npm run rin:semantic-live-readiness` command may probe a local Ollama
+embedding endpoint only when explicitly configured; it is not part of default
+checks or production behavior.
+
 ## Prototype Goals
 
 The first prototype should answer whether local semantic candidates improve
@@ -232,6 +240,17 @@ This readiness command reports deterministic baseline status, fixture prototype
 availability, disabled local embedding provider status, no vector DB, no real
 `.rin-data` indexing, no production integration, and `providerCallCount: 0`.
 
+Ultra-Milestone 11 expands these reports:
+
+- `npm run rin:semantic-eval` distinguishes fixture prototype candidates from
+  temp fixture embedding candidates.
+- `npm run rin:semantic-readiness` reports the disabled local provider scaffold,
+  temp embedding provider, temp candidate count, safe provider error code, and
+  provider-call counts by provider kind.
+- `npm run rin:semantic-live-readiness` is explicit and skippable. Without live
+  provider config it exits as a safe skipped report with
+  `LOCAL_EMBEDDING_DISABLED`.
+
 Possible future command shapes remain separate from this default fixture-only
 path:
 
@@ -244,6 +263,11 @@ npm run rin:semantic-eval -- --provider=ollama-local --temp-index
 Default behavior should be fixture-only, provider-free, and real-data-free. Any
 real local accepted-memory run should require an explicit opt-in flag such as
 `--local-data` and should write only to ignored local output.
+
+Ultra-Milestone 11 still forbids real accepted-memory indexing. Temp fixture
+embedding can exercise the provider/index boundary, but real `.rin-data` remains
+out of scope until a future report-only accepted-memory index milestone adds
+explicit owner opt-in, lifecycle checks, privacy gates, and rollback gates.
 
 ## Expected Eval Comparison Shape
 

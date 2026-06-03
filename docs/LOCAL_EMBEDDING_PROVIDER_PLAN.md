@@ -1,11 +1,15 @@
 # Local Embedding Provider Plan
 
-Status: design plan for future local-only semantic retrieval.
+Status: report-only local embedding adapter boundary implemented for
+Ultra-Milestone 11.
 
-Mega-Milestone 10 adds a fixture/mock embedding provider and a disabled local
-embedding provider scaffold. It does not add a real embedding model dependency,
-does not call Ollama, does not call external providers, and does not connect
-semantic retrieval to production context injection.
+Mega-Milestone 10 added a fixture/mock embedding provider and a disabled local
+embedding provider scaffold. Ultra-Milestone 11 refines that scaffold into a
+report-only local embedding adapter boundary, temp fixture embedding/indexing
+path, safe error taxonomy, and an explicit optional live local readiness command.
+It does not add a real embedding model dependency, does not call Ollama from
+default checks, does not call external providers, and does not connect semantic
+retrieval to production context injection.
 
 ## Provider Boundary Shape
 
@@ -19,9 +23,23 @@ Future embedding providers should implement a narrow local boundary:
 - timeout and structured error metadata
 - provider-call count for audit
 
-The current implemented provider is `fixture-mock-local-embedding`. It accepts
-fixture-only semantic terms, produces deterministic vectors, and reports
+The current default implemented provider is `fixture-mock-local-embedding`. It
+accepts fixture-only semantic terms, produces deterministic vectors, and reports
 `providerCallCount: 0`. It is a test/prototype provider, not a semantic model.
+
+Ultra-Milestone 11 adds a separate `LocalEmbeddingProvider` boundary for future
+real local providers. The concrete boundary is async and report-only:
+
+- `providerId`
+- `providerKind`
+- `modelId`
+- `expectedDimension`
+- `timeoutMs`
+- `checkReadiness()`
+- `embedText()` for explicit temp/report-only calls
+
+This real-provider boundary is not used by production retrieval, context
+assembly, server APIs, Console behavior, or default semantic evaluation.
 
 ## Possible Local Providers
 
@@ -39,11 +57,25 @@ Current status: implemented for tests and reports only.
 
 ### Future Ollama Embedding Endpoint
 
-Current status: not implemented.
+Current status: adapter boundary scaffolded, live readiness optional and
+explicit.
 
-This may be considered only if a local Ollama embedding endpoint is explicitly
-available and the owner opts in. It must use a dedicated embedding boundary; the
-chat adapter must not be reused implicitly as an embedding provider.
+The scaffold may call a local Ollama embedding endpoint only through the explicit
+live readiness command:
+
+```sh
+npm run rin:semantic-live-readiness
+```
+
+By default this command skips safely with `LOCAL_EMBEDDING_DISABLED`. To attempt
+a live local probe, the owner must explicitly set `RIN_SEMANTIC_LIVE_PROVIDER`
+and a local embedding model such as `RIN_SEMANTIC_OLLAMA_EMBEDDING_MODEL`. The
+command uses a tiny temp probe string, reports provider availability, dimension,
+latency, and safe error codes, and does not print probe text, memory text, env
+values, endpoints, or local paths.
+
+This uses a dedicated embedding boundary; the chat adapter is not reused
+implicitly as an embedding provider.
 
 Required future behavior:
 
@@ -53,6 +85,16 @@ Required future behavior:
 - vector dimension validation
 - no cloud fallback
 - no production retrieval integration until eval gates pass
+
+Implemented report-only safety in Ultra-Milestone 11:
+
+- default disabled readiness returns `LOCAL_EMBEDDING_DISABLED`
+- unsupported configs return `LOCAL_EMBEDDING_UNSUPPORTED`
+- unavailable, timeout, invalid response, and dimension mismatch have safe error
+  codes
+- default `npm run rin:semantic-eval` and `npm run rin:semantic-readiness`
+  remain provider-free with `providerCallCount: 0`
+- optional live readiness is explicit and skippable
 
 ### Future Local Embedding Process
 
@@ -75,6 +117,9 @@ Default readiness must not call providers. It should report:
 
 - fixture prototype available
 - local embedding provider disabled
+- local embedding error code
+- temp fixture embedding provider and candidate count
+- provider-call counts by provider kind
 - production semantic retrieval disabled
 - vector DB absent
 - real `.rin-data` indexing disabled
@@ -87,12 +132,12 @@ without indexing real memory by default.
 
 Future real local providers must produce structured errors:
 
-- unavailable runtime
-- missing model
-- timeout
-- invalid vector dimension
-- invalid provider response
-- unsupported configuration
+- `LOCAL_EMBEDDING_DISABLED`
+- `LOCAL_EMBEDDING_UNSUPPORTED`
+- `LOCAL_EMBEDDING_UNAVAILABLE`
+- `LOCAL_EMBEDDING_TIMEOUT`
+- `LOCAL_EMBEDDING_INVALID_RESPONSE`
+- `LOCAL_EMBEDDING_DIMENSION_MISMATCH`
 
 Errors must be reportable without stack traces, secrets, full memory text, or
 local private paths.
@@ -143,3 +188,7 @@ Before any real provider affects production retrieval:
 - No schema migration.
 - No real `.rin-data` indexing.
 - No production context injection.
+
+Ultra-Milestone 11 preserves these non-goals. It adds an adapter boundary and
+report-only temp/live readiness paths, but real accepted-memory indexing remains
+blocked until a later owner-opt-in milestone.

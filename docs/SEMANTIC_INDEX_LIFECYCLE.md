@@ -1,7 +1,9 @@
 # Semantic Index Lifecycle
 
 Status: design plan. Mega-Milestone 10 implements only an in-memory fixture
-vector index for evaluation. No persistent semantic index exists yet.
+vector index for evaluation. Ultra-Milestone 11 adds report-only temp fixture
+embedding/indexing through the provider boundary. No persistent semantic index
+exists yet.
 
 ## Current In-Memory Prototype
 
@@ -9,6 +11,7 @@ The current prototype:
 
 - uses `src/memory/vectorIndex.ts`
 - indexes synthetic fixture vectors only
+- may index accepted temp fixture records in memory for report-only evaluation
 - supports topK, candidate caps, minimum score, and deterministic id tie-breaks
 - writes no files
 - reads no real `.rin-data`
@@ -24,6 +27,10 @@ control. Possible storage forms:
 - temporary OS directory for report-only experiments
 
 Persistent storage must wait for a dedicated schema/index decision.
+
+Ultra-Milestone 11 does not create persistent index files. Temp fixture indexes
+are rebuilt in memory during `npm run rin:semantic-eval` and discarded at process
+exit. Optional live provider readiness does not build an index.
 
 ## Index Rebuild Policy
 
@@ -123,6 +130,8 @@ Production index integration is deferred until:
 
 - local provider design is approved
 - persistent index ADR is approved
+- report-only accepted-memory index plan is implemented behind explicit owner
+  opt-in
 - stale/delete/update behavior is tested
 - opt-in gates are implemented
 - owner can disable semantic retrieval
