@@ -69,12 +69,15 @@ Current known module boundaries include:
 - `src/memory/`: memory proposal, review, and manager boundary. It also provides
   deterministic retrieval of explicitly accepted memories for bounded injection
   into model context, plus safe injection explanation metadata (matched keywords,
-  overlap counts, skip reasons) without logging full memory text by default; it
-  uses lightweight deterministic token normalization (plural folding, separator
-  splitting, stopwords, CJK bigrams) rather than embeddings. It also contains a
-  local in-memory evaluation harness for retrieval/injection quality that does
-  not call model providers or touch real owner data; it does not auto-write or
-  auto-accept memories.
+  overlap counts, memory type, type-match bonus, type signals, skip reasons)
+  without logging full memory text by default; it uses lightweight deterministic
+  token normalization (plural folding, separator splitting, stopwords, CJK
+  bigrams) and a small type-aware ranking boost rather than embeddings. Type
+  alone cannot inject a memory: content token overlap remains required and
+  accepted-only filtering remains the hard boundary. It also contains a local
+  in-memory evaluation harness for retrieval/injection quality that does not call
+  model providers or touch real owner data; it does not auto-write or auto-accept
+  memories.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
 - `src/storage/`: controlled local storage layout and manifest logic.

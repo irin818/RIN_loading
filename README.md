@@ -145,13 +145,13 @@ conversation runtime 路径，`npm run rin:memory-eval` 仍然特别重要，并
 npm run rin:memory-eval
 ```
 
-Expected successful output includes `Passed: 10` and `Failed: 0`. This check
+Expected successful output includes `Passed: 16` and `Failed: 0`. This check
 uses in-memory fixtures only: it does not call model providers, does not require
 Ollama, and does not use real owner data. It protects accepted-only retrieval,
 budget limits, privacy, and traceability alongside the normal type/test/lint/
 build/readiness checks.
 
-成功时预期输出包含 `Passed: 10` 和 `Failed: 0`。该检查只使用内存 fixture：
+成功时预期输出包含 `Passed: 16` 和 `Failed: 0`。该检查只使用内存 fixture：
 不会调用模型服务商，不需要 Ollama，也不会使用真实所有者数据。它与常规
 type/test/lint/build/readiness 检查一起保护 accepted-only 检索、预算限制、隐私和可追溯性。
 
@@ -450,6 +450,22 @@ Phase 34 让 Console 可以按历史 RIN 回复查看已持久化的 `memoryCont
 查看注入数量、缩短后的记忆 ID、匹配 token、重叠计数、评分组成和跳过原因。Console 只使用
 生成当时已持久化的追溯：不会重新计算 memoryContext，不会再次查询记忆检索，不会调用模型
 provider，不会暴露完整记忆文本，也不会增加记忆编辑器。
+
+Milestone 4 adds deterministic type-aware ranking for accepted-memory retrieval.
+The existing `memoryType` field can add a small `typeMatchBonus` only after
+memory content already has token overlap, so token relevance remains primary and
+type alone cannot inject a memory. Trace metadata may show the memory type, type
+bonus, and matched type signals, but it still excludes full memory text. This
+adds no schema fields, migrations, embeddings, vector database, semantic
+retrieval service, memory editor, or provider calls. `npm run rin:memory-eval`
+now protects the type-aware ranking behavior with in-memory fixtures.
+
+Milestone 4 为 accepted-memory 检索增加了确定性的 type-aware ranking。现有的
+`memoryType` 字段只有在记忆内容已经存在 token 重叠时，才能增加一个很小的
+`typeMatchBonus`，因此 token 相关性仍是主信号，单靠类型不会注入记忆。追溯元数据可以显示
+记忆类型、类型 bonus 和匹配到的类型信号，但仍不会包含完整记忆文本。该改动不增加 schema
+字段、migration、embeddings、向量数据库、语义检索服务、记忆编辑器或 provider 调用。
+`npm run rin:memory-eval` 现在通过内存 fixture 保护 type-aware ranking 行为。
 
 ## Local Model Stability
 

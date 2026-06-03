@@ -1,4 +1,4 @@
-import type { MemoryRecord } from "./manager";
+import type { MemoryRecord, MemoryType } from "./manager";
 import {
   buildRetrievalTokenProfile,
   scoreRetrievalOverlap,
@@ -22,11 +22,14 @@ export type MemorySkipReason =
 
 export type MemoryInjectionExplanation = {
   memoryId: string;
+  memoryType: MemoryType;
   matchedKeywords: string[];
   overlapCount: number;
   latinTokenMatchCount: number;
   cjkBigramMatchCount: number;
   normalizedQueryTokenCount: number;
+  typeMatchBonus: number;
+  matchedTypeSignals: string[];
   wasInjected: boolean;
   skippedReason: MemorySkipReason | null;
   snippetLength: number;
@@ -49,9 +52,44 @@ export const DEFAULT_MAX_SNIPPET_CHARACTERS = 240;
 
 type ScoredMemory = {
   snippet: AcceptedMemorySnippet;
+  memoryType: MemoryType;
   score: number;
+  tokenScore: number;
+  typeMatchBonus: number;
+  matchedTypeSignals: string[];
   match: ReturnType<typeof scoreRetrievalOverlap>;
   updatedAt: string;
+};
+
+type TypeSignalMatch = {
+  bonus: number;
+  matchedSignals: string[];
+};
+
+const TYPE_MATCH_BONUS = 1;
+
+const MEMORY_TYPE_SIGNALS: Record<
+  MemoryType,
+  { latin: string[]; cjk: string[] }
+> = {
+  raw_log: { latin: ["raw", "log"], cjk: ["原始", "日志"] },
+  episodic: { latin: ["episode", "episodic", "event"], cjk: ["事件", "经历"] },
+  semantic: { latin: ["semantic", "fact", "knowledge"], cjk: ["事实", "知识"] },
+  preference: {
+    latin: ["preference", "prefer", "preferred", "like"],
+    cjk: ["偏好", "喜欢"],
+  },
+  procedural: {
+    latin: ["procedure", "procedural", "workflow", "process", "step"],
+    cjk: ["流程", "步骤"],
+  },
+  goal: { latin: ["goal", "objective"], cjk: ["目标"] },
+  project: {
+    latin: ["project", "code", "github", "branch", "commit", "repo", "repository"],
+    cjk: ["项目", "代码"],
+  },
+  reflection: { latin: ["reflection", "reflect", "review"], cjk: ["反思", "复盘"] },
+  identity: { latin: ["identity", "profile", "persona", "owner"], cjk: ["身份"] },
 };
 
 /**
@@ -105,17 +143,21 @@ export function retrieveAcceptedMemoriesWithExplanation(
     }
 
     const text = memorySnippetText(memory.content, maxSnippetCharacters);
-    const memoryProfile = buildRetrievalTokenProfile(text, memory.memoryType);
+    const memoryProfile = buildRetrievalTokenProfile(text);
     const match = scoreRetrievalOverlap(ownerProfile, memoryProfile);
+    const typeMatch = scoreTypeSignalMatch(ownerProfile, memory.memoryType);
 
     if (text.length === 0) {
       explanations.push({
         memoryId: memory.id,
+        memoryType: memory.memoryType,
         matchedKeywords: [],
         overlapCount: 0,
         latinTokenMatchCount: 0,
         cjkBigramMatchCount: 0,
         normalizedQueryTokenCount: ownerProfile.normalizedTokenCount,
+        typeMatchBonus: 0,
+        matchedTypeSignals: [],
         wasInjected: false,
         skippedReason: "empty_snippet",
         snippetLength: 0,
@@ -126,11 +168,14 @@ export function retrieveAcceptedMemoriesWithExplanation(
     if (match.overlapCount === 0) {
       explanations.push({
         memoryId: memory.id,
+        memoryType: memory.memoryType,
         matchedKeywords: [],
         overlapCount: 0,
         latinTokenMatchCount: 0,
         cjkBigramMatchCount: 0,
         normalizedQueryTokenCount: ownerProfile.normalizedTokenCount,
+        typeMatchBonus: 0,
+        matchedTypeSignals: [],
         wasInjected: false,
         skippedReason: "zero_relevance",
         snippetLength: text.length,
@@ -140,7 +185,11 @@ export function retrieveAcceptedMemoriesWithExplanation(
 
     scored.push({
       snippet: { id: memory.id, text },
-      score: match.score,
+      memoryType: memory.memoryType,
+      score: match.score + typeMatch.bonus,
+      tokenScore: match.score,
+      typeMatchBonus: typeMatch.bonus,
+      matchedTypeSignals: typeMatch.matchedSignals,
       match,
       updatedAt: memory.updatedAt,
     });
@@ -155,11 +204,14 @@ export function retrieveAcceptedMemoriesWithExplanation(
     const isSelected = selectedIds.has(item.snippet.id);
     explanations.push({
       memoryId: item.snippet.id,
+      memoryType: item.memoryType,
       matchedKeywords: item.match.matchedKeywords,
       overlapCount: item.match.overlapCount,
       latinTokenMatchCount: item.match.latinTokenMatchCount,
       cjkBigramMatchCount: item.match.cjkBigramMatchCount,
       normalizedQueryTokenCount: ownerProfile.normalizedTokenCount,
+      typeMatchBonus: item.typeMatchBonus,
+      matchedTypeSignals: [...item.matchedTypeSignals],
       wasInjected: false,
       skippedReason: isSelected ? null : "max_count_exceeded",
       snippetLength: item.snippet.text.length,
@@ -261,11 +313,14 @@ export function toMemoryInjectionTrace(
     skippedByMaxCountCount: summary.skippedByMaxCountCount,
     items: explanations.map((item) => ({
       memoryId: item.memoryId,
+      memoryType: item.memoryType,
       matchedKeywords: [...item.matchedKeywords],
       overlapCount: item.overlapCount,
       latinTokenMatchCount: item.latinTokenMatchCount,
       cjkBigramMatchCount: item.cjkBigramMatchCount,
       normalizedQueryTokenCount: item.normalizedQueryTokenCount,
+      typeMatchBonus: item.typeMatchBonus,
+      matchedTypeSignals: [...item.matchedTypeSignals],
       wasInjected: item.wasInjected,
       skippedReason: item.skippedReason,
       snippetLength: item.snippetLength,
@@ -313,8 +368,16 @@ function compareScoredMemories(left: ScoredMemory, right: ScoredMemory): number 
     return right.score - left.score;
   }
 
+  if (right.tokenScore !== left.tokenScore) {
+    return right.tokenScore - left.tokenScore;
+  }
+
   if (right.match.overlapCount !== left.match.overlapCount) {
     return right.match.overlapCount - left.match.overlapCount;
+  }
+
+  if (right.typeMatchBonus !== left.typeMatchBonus) {
+    return right.typeMatchBonus - left.typeMatchBonus;
   }
 
   if (right.updatedAt !== left.updatedAt) {
@@ -322,4 +385,20 @@ function compareScoredMemories(left: ScoredMemory, right: ScoredMemory): number 
   }
 
   return left.snippet.id < right.snippet.id ? -1 : 1;
+}
+
+function scoreTypeSignalMatch(
+  ownerProfile: ReturnType<typeof buildRetrievalTokenProfile>,
+  memoryType: MemoryType,
+): TypeSignalMatch {
+  const signals = MEMORY_TYPE_SIGNALS[memoryType];
+  const matchedSignals = [
+    ...signals.latin.filter((token) => ownerProfile.latinTokens.has(token)),
+    ...signals.cjk.filter((bigram) => ownerProfile.cjkBigrams.has(bigram)),
+  ].sort();
+
+  return {
+    bonus: matchedSignals.length > 0 ? TYPE_MATCH_BONUS : 0,
+    matchedSignals,
+  };
 }

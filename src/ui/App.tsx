@@ -523,6 +523,11 @@ export function App() {
                     {item.cjkBigramMatchCount > 0
                       ? ` · cjk ${item.cjkBigramMatchCount}`
                       : null}
+                    {" · type "}
+                    {item.memoryType}
+                    {item.typeMatchBonus > 0
+                      ? ` +${item.typeMatchBonus}: ${formatMatchedKeywords(item.matchedTypeSignals)}`
+                      : null}
                     {" · keywords: "}
                     {formatMatchedKeywords(item.matchedKeywords)}
                   </li>
@@ -549,6 +554,9 @@ export function App() {
                       {formatMemorySkipReason(item.skippedReason)}
                       {item.overlapCount > 0
                         ? ` · overlap ${item.overlapCount} · keywords: ${formatMatchedKeywords(item.matchedKeywords)}`
+                        : null}
+                      {item.typeMatchBonus > 0
+                        ? ` · type ${item.memoryType} +${item.typeMatchBonus}: ${formatMatchedKeywords(item.matchedTypeSignals)}`
                         : null}
                     </li>
                   ))}

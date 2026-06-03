@@ -25,6 +25,8 @@ export type MemoryEvaluationCaseResult = {
   injectedIds: string[];
   expectedInjectedIds: string[];
   matchedTokensByMemoryId: Record<string, string[]>;
+  matchedTypeSignalsByMemoryId: Record<string, string[]>;
+  typeMatchBonusesByMemoryId: Record<string, number>;
   skipReasonsByMemoryId: Record<string, MemorySkipReason | null>;
   privacyPassed: boolean;
   trace: MemoryInjectionTrace;
@@ -100,6 +102,18 @@ export function evaluateMemoryCase(
   const matchedTokensByMemoryId = Object.fromEntries(
     trace.items.map((traceItem) => [traceItem.memoryId, traceItem.matchedKeywords]),
   );
+  const matchedTypeSignalsByMemoryId = Object.fromEntries(
+    trace.items.map((traceItem) => [
+      traceItem.memoryId,
+      traceItem.matchedTypeSignals,
+    ]),
+  );
+  const typeMatchBonusesByMemoryId = Object.fromEntries(
+    trace.items.map((traceItem) => [
+      traceItem.memoryId,
+      traceItem.typeMatchBonus,
+    ]),
+  );
   const skipReasonsByMemoryId = Object.fromEntries(
     trace.items.map((traceItem) => [traceItem.memoryId, traceItem.skippedReason]),
   );
@@ -127,6 +141,30 @@ export function evaluateMemoryCase(
           `Expected ${memoryId} matched tokens to include ${token}; actual=${actualTokens.join(",")}`,
         );
       }
+    }
+  }
+
+  for (const [memoryId, expectedSignals] of Object.entries(
+    item.expectedMatchedTypeSignals ?? {},
+  )) {
+    const actualSignals = matchedTypeSignalsByMemoryId[memoryId] ?? [];
+    for (const signal of expectedSignals) {
+      if (!actualSignals.includes(signal)) {
+        failures.push(
+          `Expected ${memoryId} matched type signals to include ${signal}; actual=${actualSignals.join(",")}`,
+        );
+      }
+    }
+  }
+
+  for (const [memoryId, expectedBonus] of Object.entries(
+    item.expectedTypeMatchBonuses ?? {},
+  )) {
+    const actualBonus = typeMatchBonusesByMemoryId[memoryId];
+    if (actualBonus !== expectedBonus) {
+      failures.push(
+        `Expected ${memoryId} type match bonus ${expectedBonus}; actual=${actualBonus ?? "missing"}`,
+      );
     }
   }
 
@@ -174,6 +212,8 @@ export function evaluateMemoryCase(
     injectedIds,
     expectedInjectedIds: item.expectedInjectedIds,
     matchedTokensByMemoryId,
+    matchedTypeSignalsByMemoryId,
+    typeMatchBonusesByMemoryId,
     skipReasonsByMemoryId,
     privacyPassed,
     trace,
@@ -205,7 +245,7 @@ function toMemoryRecord(
 
   return {
     id: input.id,
-    memoryType: "semantic",
+    memoryType: input.memoryType ?? "semantic",
     content: { text: input.text },
     sourceMessageId: null,
     status,

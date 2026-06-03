@@ -124,11 +124,14 @@ function makeMemoryContext(
     items: [
       {
         memoryId,
+        memoryType: "semantic" as const,
         matchedKeywords,
         overlapCount,
         latinTokenMatchCount: overlapCount,
         cjkBigramMatchCount: 0,
         normalizedQueryTokenCount: matchedKeywords.length,
+        typeMatchBonus: 0,
+        matchedTypeSignals: [],
         wasInjected: true,
         skippedReason: null,
         snippetLength: 42,
@@ -528,22 +531,28 @@ describe("App", () => {
               items: [
                 {
                   memoryId,
+                  memoryType: "project",
                   matchedKeywords: ["local", "ollama", "reasoning"],
                   overlapCount: 3,
                   latinTokenMatchCount: 3,
                   cjkBigramMatchCount: 0,
                   normalizedQueryTokenCount: 4,
+                  typeMatchBonus: 1,
+                  matchedTypeSignals: ["project"],
                   wasInjected: true,
                   skippedReason: null,
                   snippetLength: 42,
                 },
                 {
                   memoryId: "bbbbbbbb-bbbb-cccc-dddd-eeeeeeeeeeee",
+                  memoryType: "semantic",
                   matchedKeywords: [],
                   overlapCount: 0,
                   latinTokenMatchCount: 0,
                   cjkBigramMatchCount: 0,
                   normalizedQueryTokenCount: 4,
+                  typeMatchBonus: 0,
+                  matchedTypeSignals: [],
                   wasInjected: false,
                   skippedReason: "zero_relevance",
                   snippetLength: 30,
@@ -575,6 +584,7 @@ describe("App", () => {
       screen.getByRole("button", { name: /Memory context/ }),
     ).toBeInTheDocument();
     expect(panel.textContent).toMatch(/overlap 3/);
+    expect(panel.textContent).toMatch(/type project \+1: project/);
     expect(panel.textContent).toMatch(/local, ollama, reasoning/);
     expect(screen.queryByText(/Owner prefers local Ollama/)).toBeNull();
   });
@@ -597,11 +607,14 @@ describe("App", () => {
       items: [
         {
           memoryId,
+          memoryType: "semantic",
           matchedKeywords: ["local", "model"],
           overlapCount: 2,
           latinTokenMatchCount: 2,
           cjkBigramMatchCount: 0,
           normalizedQueryTokenCount: 2,
+          typeMatchBonus: 0,
+          matchedTypeSignals: [],
           wasInjected: true,
           skippedReason: null,
           snippetLength: 42,
