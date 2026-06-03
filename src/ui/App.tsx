@@ -8,6 +8,12 @@ import type {
   ConversationErrorPayload,
   ConversationMessageRecord,
 } from "../conversation";
+import type {
+  MemoryConfidence,
+  MemoryImportance,
+  MemoryMetadataInput,
+  MemoryRecord,
+} from "../memory";
 import { rinLive2dBodyAdapter } from "../body";
 import { CURRENT_PHASES, RIN_PROJECT_NAME } from "../core/project";
 import { runtimeBoundaries } from "../runtime";
@@ -36,6 +42,13 @@ const localDataFiles = [
   "logs/audit_log.jsonl",
 ];
 
+type MemoryMetadataDraft = {
+  tags: string;
+  importance: MemoryImportance;
+  confidence: MemoryConfidence;
+  source: string;
+};
+
 export function App() {
   const [snapshot, setSnapshot] = useState<LocalConsoleSnapshot | null>(null);
   const [apiStatus, setApiStatus] = useState<"loading" | "connected" | "offline">(
@@ -44,6 +57,9 @@ export function App() {
   const [messageDraft, setMessageDraft] = useState("");
   const [turnStatus, setTurnStatus] = useState<"idle" | "sending" | "error">("idle");
   const [memoryReviewingId, setMemoryReviewingId] = useState<string | null>(null);
+  const [memoryMetadataDrafts, setMemoryMetadataDrafts] = useState<
+    Record<string, MemoryMetadataDraft>
+  >({});
   const [activeConversationId, setActiveConversationId] = useState<string | null>(
     null,
   );
@@ -245,9 +261,10 @@ export function App() {
   }
 
   async function reviewMemory(
-    memoryItemId: string,
+    item: MemoryRecord,
     decision: "accept" | "reject" | "archive",
   ) {
+    const memoryItemId = item.id;
     setMemoryReviewingId(memoryItemId);
 
     try {
@@ -256,7 +273,10 @@ export function App() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ decision }),
+          body: JSON.stringify({
+            decision,
+            metadata: metadataInputFromDraft(metadataDraftFor(item)),
+          }),
         },
       );
 
@@ -272,6 +292,60 @@ export function App() {
     } finally {
       setMemoryReviewingId(null);
     }
+  }
+
+  async function saveMemoryMetadata(item: MemoryRecord) {
+    setMemoryReviewingId(item.id);
+
+    try {
+      const response = await fetch(
+        `/api/memory/${encodeURIComponent(item.id)}/metadata`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            metadata: metadataInputFromDraft(metadataDraftFor(item)),
+            reason: "owner reviewed metadata",
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Memory metadata update failed: ${response.status}`);
+      }
+
+      const body = (await response.json()) as {
+        ok: true;
+        snapshot: LocalConsoleSnapshot;
+      };
+      setSnapshot(body.snapshot);
+    } finally {
+      setMemoryReviewingId(null);
+    }
+  }
+
+  function metadataDraftFor(item: MemoryRecord): MemoryMetadataDraft {
+    return (
+      memoryMetadataDrafts[item.id] ?? {
+        tags: item.metadata.tags.join(", "),
+        importance: item.metadata.importance,
+        confidence: item.metadata.confidence,
+        source: item.metadata.source ?? "",
+      }
+    );
+  }
+
+  function updateMemoryMetadataDraft(
+    item: MemoryRecord,
+    patch: Partial<MemoryMetadataDraft>,
+  ) {
+    setMemoryMetadataDrafts((current) => ({
+      ...current,
+      [item.id]: {
+        ...metadataDraftFor(item),
+        ...patch,
+      },
+    }));
   }
 
   if (bodyOnly) {
@@ -849,25 +923,105 @@ export function App() {
                   <li key={item.id}>
                     <strong>{item.status}</strong>
                     <span>{memoryText(item.content)}</span>
-                    <small>{item.memoryType}</small>
+                    <small>
+                      {item.memoryType}
+                      {item.metadata.tags.length > 0
+                        ? ` · tags: ${item.metadata.tags.join(", ")}`
+                        : ""}
+                      {` · importance: ${item.metadata.importance}`}
+                      {` · confidence: ${item.metadata.confidence}`}
+                    </small>
+                    <div className="memory-metadata-controls">
+                      <label>
+                        Tags
+                        <input
+                          value={metadataDraftFor(item).tags}
+                          onChange={(event) =>
+                            updateMemoryMetadataDraft(item, {
+                              tags: event.target.value,
+                            })
+                          }
+                          placeholder="project, preference"
+                          disabled={memoryReviewingId === item.id}
+                        />
+                      </label>
+                      <label>
+                        Importance
+                        <select
+                          value={metadataDraftFor(item).importance}
+                          onChange={(event) =>
+                            updateMemoryMetadataDraft(item, {
+                              importance: event.target.value as MemoryImportance,
+                            })
+                          }
+                          disabled={memoryReviewingId === item.id}
+                        >
+                          <option value="low">low</option>
+                          <option value="normal">normal</option>
+                          <option value="high">high</option>
+                        </select>
+                      </label>
+                      <label>
+                        Confidence
+                        <select
+                          value={metadataDraftFor(item).confidence}
+                          onChange={(event) =>
+                            updateMemoryMetadataDraft(item, {
+                              confidence: event.target.value as MemoryConfidence,
+                            })
+                          }
+                          disabled={memoryReviewingId === item.id}
+                        >
+                          <option value="low">low</option>
+                          <option value="medium">medium</option>
+                          <option value="high">high</option>
+                        </select>
+                      </label>
+                      <label>
+                        Source
+                        <input
+                          value={metadataDraftFor(item).source}
+                          onChange={(event) =>
+                            updateMemoryMetadataDraft(item, {
+                              source: event.target.value,
+                            })
+                          }
+                          placeholder="owner review"
+                          disabled={memoryReviewingId === item.id}
+                        />
+                      </label>
+                    </div>
+                    <p className="memory-metadata-note">
+                      Owner-reviewed metadata only. Not used for ranking yet.
+                    </p>
                     {item.status === "proposal" ? (
                       <div className="memory-actions">
                         <button
                           type="button"
                           disabled={memoryReviewingId === item.id}
-                          onClick={() => void reviewMemory(item.id, "accept")}
+                          onClick={() => void reviewMemory(item, "accept")}
                         >
                           Accept / 接受
                         </button>
                         <button
                           type="button"
                           disabled={memoryReviewingId === item.id}
-                          onClick={() => void reviewMemory(item.id, "reject")}
+                          onClick={() => void reviewMemory(item, "reject")}
                         >
                           Reject / 拒绝
                         </button>
                       </div>
-                    ) : null}
+                    ) : (
+                      <div className="memory-actions">
+                        <button
+                          type="button"
+                          disabled={memoryReviewingId === item.id}
+                          onClick={() => void saveMemoryMetadata(item)}
+                        >
+                          Save metadata / 保存元数据
+                        </button>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -912,6 +1066,20 @@ function memoryText(content: Record<string, unknown>): string {
   return typeof content.text === "string"
     ? content.text
     : JSON.stringify(content);
+}
+
+function metadataInputFromDraft(
+  draft: MemoryMetadataDraft,
+): MemoryMetadataInput {
+  return {
+    tags: draft.tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter((tag) => tag.length > 0),
+    importance: draft.importance,
+    confidence: draft.confidence,
+    source: draft.source.trim().length > 0 ? draft.source : null,
+  };
 }
 
 function shortId(id: string): string {
