@@ -1,6 +1,6 @@
 # Owner-Reviewed Memory Metadata Proposal
 
-Status: Draft / Proposed for Mega-Milestone 5
+Status: Implemented foundation in Mega-Milestone 5 / Ranking use deferred
 
 ## Purpose
 
@@ -131,7 +131,8 @@ metadata semantics are proven.
 
 ## Recommended Implementation
 
-Implement the side-table foundation with a minimal metadata subset:
+Mega-Milestone 5 implements the side-table foundation with this minimal metadata
+subset:
 
 - `tags`
 - `importance`
@@ -143,6 +144,22 @@ Implement the side-table foundation with a minimal metadata subset:
 Do not implement ranking or retrieval writes for `useCount` / `lastUsedAt` in
 this milestone. Keep those design-only until usage tracking has an anti-runaway
 policy.
+
+Implemented storage:
+
+- `memory_metadata` side table keyed by `memory_id`
+- safe metadata JSON for `tags`, `importance`, `confidence`, and `source`
+- `reviewed_at`, `accepted_at`, and `updated_at` columns
+- optional metadata on loaded `MemoryRecord` values
+- metadata audit events for review/edit actions
+
+Implemented UI foundation:
+
+- compact metadata controls in the existing Console memory review list
+- comma-separated owner tag entry
+- bounded `importance` and `confidence` selects
+- optional owner source field
+- explicit note that metadata is not used for ranking yet
 
 Backward compatibility:
 
@@ -163,7 +180,7 @@ Future metadata-aware ranking should add fixtures for:
 - old memory backward compatibility
 - no runaway `useCount` / `lastUsedAt` reinforcement
 
-This milestone should add readiness coverage only:
+Mega-Milestone 5 adds readiness coverage only:
 
 - metadata can be saved and loaded
 - metadata can be present without changing retrieval output

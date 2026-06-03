@@ -23,12 +23,12 @@ The current schema exposes:
 | source | Partly present | `source_message_id` links a memory item to a source message when available. There is no richer source kind. |
 | `createdAt` | Present | Mapped from `created_at`. Not currently used for ranking. |
 | `updatedAt` | Present | Mapped from `updated_at`. Used as a recency tie-break. Review decisions update this timestamp. |
-| tags | Missing | No first-class tags table, JSON field, or typed record property. |
-| importance | Missing | No owner-reviewed importance field. |
-| confidence | Missing for memory items | `ai_state` has a `confidence` placeholder, but `memory_items` does not. |
-| accepted/reviewed time | Missing as first-class fields | Acceptance/review is represented indirectly by status and `updated_at`; audit events record review metadata separately. |
+| tags | Present as owner-reviewed metadata | Stored in `memory_metadata` side-table JSON. Not used for ranking yet. |
+| importance | Present as owner-reviewed metadata | Bounded owner-reviewed metadata. Not used for ranking yet. |
+| confidence | Present as owner-reviewed metadata | Bounded owner-reviewed metadata. Not used for ranking yet. |
+| accepted/reviewed time | Present as metadata timestamps | `acceptedAt` / `reviewedAt` are stored for metadata/review visibility. Retrieval still uses `updatedAt` tie-breaks. |
 | usage stats | Missing | No usage count, last injected time, last matched time, or feedback counters. |
-| other metadata | Thin | Audit events contain review facts, but retrieval receives only `MemoryRecord` fields. |
+| other metadata | Thin | Metadata includes a safe owner-provided source string; no richer source kind exists yet. |
 
 ## Existing Usable Signals
 
@@ -53,15 +53,13 @@ memory content already has token overlap.
 
 ## Missing Signals
 
-These signals do not currently exist as reliable first-class memory metadata:
+These signals do not currently exist as reliable first-class memory metadata or
+ranking-ready signals:
 
-- Owner-reviewed tags.
-- Owner-reviewed importance.
-- Owner-reviewed confidence.
-- Accepted-at or reviewed-at timestamps separate from `updatedAt`.
 - Usage statistics such as match count, injection count, last matched, or last injected.
 - Feedback signals about whether an injected memory helped a response.
 - Structured source kind beyond `sourceMessageId`.
+- Any approved policy for metadata-aware retrieval ranking.
 
 ## Deferred Signals
 
@@ -158,8 +156,9 @@ The built-in memory evaluation harness currently covers:
 
 Remaining gaps:
 
-- No fixture covers tags, importance, confidence, or usage stats because those
-  fields do not exist.
+- Metadata shape is covered only as a no-ranking readiness case. Future
+  metadata-aware ranking still needs dedicated fixtures.
+- No fixture covers usage stats because those fields do not exist.
 - Limited near-miss coverage for ambiguous technical overlap.
 
 ## Candidate Ranking Signals
@@ -175,19 +174,25 @@ These can be considered without schema migration:
 - A small explicit type/category component based on `memoryType`; this is now
   implemented as `typeMatchBonus`.
 
-### Needs Schema Extension
+### Needs Separate Ranking Design
 
-These require a separate schema proposal before implementation:
+These have storage now, but require a separate ranking design before retrieval
+can use them:
 
 - Owner-reviewed tags.
 - Owner-reviewed importance.
 - Owner-reviewed confidence.
-- Accepted/reviewed timestamps separate from `updatedAt`.
+
+### Needs Schema Extension
+
+These require a separate schema proposal before implementation:
+
 - Usage stats such as match count, injection count, or last injected time.
 - Source kind beyond `sourceMessageId`.
 
-Tags and importance are especially useful, but they should be owner-reviewed
-slow-variable metadata, not inferred automatically from model output.
+Tags and importance are especially useful, but their ranking influence must be
+owner-reviewed, bounded, and protected by evaluation fixtures rather than inferred
+automatically from model output.
 
 ### Should Defer
 
@@ -199,6 +204,7 @@ These should not be implemented yet:
 - Learned ranking.
 - Provider-assisted ranking.
 - Automatic tag or importance generation.
+- Metadata-aware ranking before a separate evaluation-backed design.
 
 ## Safety Constraints
 

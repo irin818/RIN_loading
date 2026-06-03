@@ -66,22 +66,27 @@ Current known module boundaries include:
   the conversation runtime can classify local model failures (timeout,
   unavailable, missing model, invalid or provider response) without inspecting
   Ollama or provider internals.
-- `src/memory/`: memory proposal, review, and manager boundary. It also provides
-  deterministic retrieval of explicitly accepted memories for bounded injection
-  into model context, plus safe injection explanation metadata (matched keywords,
-  overlap counts, memory type, type-match bonus, type signals, skip reasons)
-  without logging full memory text by default; it uses lightweight deterministic
-  token normalization (plural folding, separator splitting, stopwords, CJK
-  bigrams) and a small type-aware ranking boost rather than embeddings. Type
-  alone cannot inject a memory: content token overlap remains required and
-  accepted-only filtering remains the hard boundary. It also contains a local
-  in-memory evaluation harness for retrieval/injection quality that does not call
-  model providers or touch real owner data; it does not auto-write or auto-accept
-  memories.
+- `src/memory/`: memory proposal, review, metadata, and manager boundary. It also
+  provides deterministic retrieval of explicitly accepted memories for bounded
+  injection into model context, plus safe injection explanation metadata (matched
+  keywords, overlap counts, memory type, type-match bonus, type signals, skip
+  reasons) without logging full memory text by default; it uses lightweight
+  deterministic token normalization (plural folding, separator splitting,
+  stopwords, CJK bigrams) and a small type-aware ranking boost rather than
+  embeddings. Type alone cannot inject a memory: content token overlap remains
+  required and accepted-only filtering remains the hard boundary. Owner-reviewed
+  metadata (`tags`, `importance`, `confidence`, `source`, review timestamps) is
+  local slow-variable data stored separately from core memory content. Metadata is
+  validated and audited through review/edit flows, but it does not affect
+  retrieval ranking or model context injection yet. The module also contains a
+  local in-memory evaluation harness for retrieval/injection quality that does
+  not call model providers or touch real owner data; it does not auto-write or
+  auto-accept memories.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
 - `src/storage/`: controlled local storage layout and manifest logic.
-- `src/database/`: SQLite schema, migrations, and connection helpers.
+- `src/database/`: SQLite schema, migrations, and connection helpers, including
+  side-table storage for optional owner-reviewed memory metadata.
 - `src/tools/`: built-in low-risk tool registry and execution path.
 - `src/bundle/`: manual Agent State Bundle export and safe import.
 - `src/cli/`: Node-side command entry points.
