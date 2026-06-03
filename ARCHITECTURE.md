@@ -38,12 +38,14 @@ Current known module boundaries include:
 - `src/runtime/`: local conversation/runtime boundary.
 - `src/conversation/`: conversation persistence, history retrieval, and runtime
   turn handling.
+- `src/context/`: fast-variable context assembly between conversation runtime
+  and model adapters. It builds bounded model input, adds the compact RIN system
+  prompt, and does not own identity, memory storage, policy, or provider calls.
 - `src/model/`: provider-neutral model abstraction, local mock adapter,
   configurable adapter selection, and adapter boundaries for local-model-first
-  reasoning plus optional external expert or fallback providers. The first
-  intended real local runtime is Ollama with Qwen3 4B (`qwen3:4b`) as the
-  recommended initial chat model target, but that adapter is not currently
-  implemented.
+  reasoning plus optional external expert or fallback providers. The first real
+  local runtime adapter is Ollama, with Qwen3 4B (`qwen3:4b`) as the recommended
+  initial chat model target when explicitly selected.
 - `src/memory/`: memory proposal, review, and manager boundary.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
@@ -143,7 +145,8 @@ passing checks.
   archived status.
 - Conversation history is local SQLite state. The UI may select and continue a
   conversation, but it still writes through the runtime instead of mutating
-  storage directly.
+  storage directly. Runtime model calls use bounded fast-variable context rather
+  than sending unlimited stored history to model adapters.
 - Bundle import is deliberately conservative: it restores into a new empty data
   directory and refuses to overwrite existing local state.
 - There may be parallel Codex conversations working on Live2D assets; avoid file

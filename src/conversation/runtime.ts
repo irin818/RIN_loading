@@ -5,9 +5,10 @@ import {
   listConversationMessages,
 } from "./repository";
 import type { ConversationTurnResult } from "./types";
+import { buildModelContext } from "../context";
 import { appendAuditEvent, openRinDatabase } from "../database";
 import { maybeCreateOwnerMemoryProposal } from "../memory";
-import { getConfiguredModelAdapter, type ModelMessage } from "../model";
+import { getConfiguredModelAdapter } from "../model";
 import { evaluateModelResponse } from "../policy";
 import { appendRawEvent } from "../rawLog";
 import { snapshotSlowVariables } from "../slowVariables";
@@ -62,17 +63,18 @@ export async function processOwnerMessage(
       ownerMessage,
       now,
     );
-    const modelMessages: ModelMessage[] = [
+    const conversationMessages = [
       ...listConversationMessages(database, conversation.id).map((message) => ({
         role: message.role,
         content: message.content,
       })),
     ];
+    const modelContext = buildModelContext(conversationMessages);
     const adapter = await getConfiguredModelAdapter(layout);
     const modelResponse = await adapter.generate({
       ownerId: input.ownerId,
       conversationId: conversation.id,
-      messages: modelMessages,
+      messages: modelContext.messages,
     });
     const policyDecision = evaluateModelResponse(modelResponse);
 
@@ -83,6 +85,10 @@ export async function processOwnerMessage(
         conversationId: conversation.id,
         metadata: modelResponse.metadata,
         policyDecision,
+        contextBudgetApplied: modelContext.stats.contextBudgetApplied,
+        modelContextMessageCount: modelContext.stats.messageCount,
+        modelContextCharacterCount: modelContext.stats.characterCount,
+        modelContextDroppedMessageCount: modelContext.stats.droppedMessageCount,
       },
       now,
     });
@@ -109,6 +115,10 @@ export async function processOwnerMessage(
         rinMessageId: rinMessage.id,
         modelAdapter: modelResponse.adapterId,
         memoryProposalId: memoryProposal?.id ?? null,
+        contextBudgetApplied: modelContext.stats.contextBudgetApplied,
+        modelContextMessageCount: modelContext.stats.messageCount,
+        modelContextCharacterCount: modelContext.stats.characterCount,
+        modelContextDroppedMessageCount: modelContext.stats.droppedMessageCount,
       },
       now,
     });
