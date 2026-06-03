@@ -241,6 +241,10 @@ A semantic comparison prototype passes only if:
 - semantic-only false positives are visible in the report
 - report-only accepted-memory and hybrid commands remain disabled by default
 - explicit report command outputs are ID/count/status-only
+- semantic trace persistence stores only sanitized IDs/counts/status fields
+- opt-in semantic context expansion is disabled by default and preserves the
+  deterministic baseline, system prompt, latest owner message, accepted-only
+  filtering, caps, and budgets
 
 A semantic comparison prototype fails if:
 

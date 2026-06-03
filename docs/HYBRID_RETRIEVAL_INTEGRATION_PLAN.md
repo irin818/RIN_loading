@@ -110,6 +110,38 @@ Super-Milestone 12-14 implements stage 5 only as a report command. Hybrid
 candidate IDs are never passed to `buildModelContext`, conversation runtime,
 server APIs, Console behavior, or persisted production traces.
 
+Package 2 may persist safe semantic/hybrid report traces and may add opt-in
+semantic context candidate expansion. This must not replace deterministic
+retrieval. The first persistence step should use existing audit storage unless a
+separate table becomes necessary, because semantic report traces are derived
+audit records rather than canonical memory or index state.
+
+Persisted semantic/hybrid traces may include only safe fields:
+
+- report mode, status, and opt-in state
+- deterministic, semantic, hybrid, semantic-only, deterministic-only, and overlap
+  candidate IDs
+- accepted-only violation IDs and safe error codes
+- provider mode/kind/id, candidate caps, counts, and provider-call count
+- `productionIntegrationEnabled`, `contextInjectionEnabled`,
+  `fullTextIncluded`, and `vectorIncluded` safety flags
+
+Persisted semantic/hybrid traces must not include full memory text, raw owner
+prompts, model context snippets, raw metadata JSON, embedding vectors, secrets,
+environment dumps, or local paths.
+
+Opt-in semantic context expansion policy:
+
+- default is off
+- deterministic retrieval remains first and remains the baseline
+- semantic candidates may add only accepted memories not already selected
+- semantic candidates are deduped, capped, and counted against the memory context
+  character budget and whole context budget
+- generated system prompt and latest owner message remain preserved
+- semantic candidates are traceable as semantic/context-expansion source and can
+  be disabled by removing local config
+- default checks must remain provider-free
+
 ## Rollback Plan
 
 Rollback must leave deterministic retrieval untouched:
