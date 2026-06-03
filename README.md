@@ -138,6 +138,8 @@ npm run rin:semantic-live-index-report
 npm run rin:hybrid-retrieval-report
 npm run rin:semantic-trace-list
 npm run rin:semantic-trace-read
+npm run rin:memory-maintenance-report
+npm run rin:planner-smoke
 ```
 
 For changes that affect memory retrieval, bounded context assembly,
@@ -680,6 +682,22 @@ counted against memory and whole-context budgets, and traced separately from
 deterministic memory IDs. The generated system prompt and latest owner message
 remain preserved. Default checks and default report commands remain
 provider-free and do not call Ollama.
+
+Package 3 adds suggestion-only memory maintenance, a dry-run action permission
+foundation, and a finite local planner smoke loop:
+
+```sh
+npm run rin:memory-maintenance-report
+npm run rin:planner-smoke
+```
+
+The maintenance report reads local memory records and prints IDs, statuses,
+types, counts, and safe reason codes only; it does not mutate, archive, delete,
+or rewrite memory. The action permission scaffold is deny-by-default for unknown,
+destructive, and external actions, and all Package 3 registry actions are
+dry-run-only. The planner smoke command runs a deterministic fixture plan,
+dry-runs actions through the permission layer, starts no background loop, calls no
+providers, and executes no real actions.
 
 Ultra-Milestone 11 和 Super-Milestone 12-14 增加仅报告的 semantic provider 与
 accepted-memory report 命令，但不改变生产检索。`npm run
