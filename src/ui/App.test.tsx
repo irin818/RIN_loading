@@ -132,6 +132,12 @@ function makeMemoryContext(
         normalizedQueryTokenCount: matchedKeywords.length,
         typeMatchBonus: 0,
         matchedTypeSignals: [],
+        matchedTags: [],
+        tagMatchBonus: 0,
+        importanceBonus: 0,
+        confidenceAdjustment: 0,
+        metadataBonus: 0,
+        metadataSignals: [],
         wasInjected: true,
         skippedReason: null,
         snippetLength: 42,
@@ -735,6 +741,12 @@ describe("App", () => {
                   normalizedQueryTokenCount: 4,
                   typeMatchBonus: 1,
                   matchedTypeSignals: ["project"],
+                  matchedTags: ["reasoning"],
+                  tagMatchBonus: 1,
+                  importanceBonus: 1,
+                  confidenceAdjustment: 0,
+                  metadataBonus: 2,
+                  metadataSignals: ["tag_match", "importance_high"],
                   wasInjected: true,
                   skippedReason: null,
                   snippetLength: 42,
@@ -749,6 +761,12 @@ describe("App", () => {
                   normalizedQueryTokenCount: 4,
                   typeMatchBonus: 0,
                   matchedTypeSignals: [],
+                  matchedTags: [],
+                  tagMatchBonus: 0,
+                  importanceBonus: 0,
+                  confidenceAdjustment: 0,
+                  metadataBonus: 0,
+                  metadataSignals: [],
                   wasInjected: false,
                   skippedReason: "zero_relevance",
                   snippetLength: 30,
@@ -781,6 +799,9 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(panel.textContent).toMatch(/overlap 3/);
     expect(panel.textContent).toMatch(/type project \+1: project/);
+    expect(panel.textContent).toMatch(/metadata \+2/);
+    expect(panel.textContent).toMatch(/tags \+1: reasoning/);
+    expect(panel.textContent).toMatch(/importance \+1/);
     expect(panel.textContent).toMatch(/local, ollama, reasoning/);
     expect(screen.queryByText(/Owner prefers local Ollama/)).toBeNull();
   });
@@ -811,6 +832,12 @@ describe("App", () => {
           normalizedQueryTokenCount: 2,
           typeMatchBonus: 0,
           matchedTypeSignals: [],
+          matchedTags: [],
+          tagMatchBonus: 0,
+          importanceBonus: 0,
+          confidenceAdjustment: 0,
+          metadataBonus: 0,
+          metadataSignals: [],
           wasInjected: true,
           skippedReason: null,
           snippetLength: 42,
