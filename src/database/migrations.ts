@@ -111,4 +111,19 @@ export const RIN_DATABASE_MIGRATIONS: RinDatabaseMigration[] = [
       );
     `,
   },
+  {
+    version: 4,
+    name: "add_memory_metadata",
+    sql: `
+      CREATE TABLE IF NOT EXISTS memory_metadata (
+        memory_id TEXT PRIMARY KEY,
+        metadata_json TEXT NOT NULL,
+        reviewed_at TEXT,
+        accepted_at TEXT,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (memory_id) REFERENCES memory_items(id)
+          ON DELETE CASCADE
+      );
+    `,
+  },
 ];

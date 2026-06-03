@@ -140,6 +140,30 @@ function makeMemoryContext(
   };
 }
 
+function makeMemoryItem(
+  overrides: Partial<LocalConsoleSnapshot["memory"]["recent"][number]> & {
+    id: string;
+  },
+): LocalConsoleSnapshot["memory"]["recent"][number] {
+  return {
+    id: overrides.id,
+    memoryType: overrides.memoryType ?? "semantic",
+    content: overrides.content ?? { text: "Owner reviewed memory." },
+    metadata: overrides.metadata ?? {
+      tags: [],
+      importance: "normal",
+      confidence: "medium",
+      source: null,
+      reviewedAt: null,
+      acceptedAt: null,
+    },
+    sourceMessageId: overrides.sourceMessageId ?? null,
+    status: overrides.status ?? "proposal",
+    createdAt: overrides.createdAt ?? "2026-06-04T00:00:00.000Z",
+    updatedAt: overrides.updatedAt ?? "2026-06-04T00:00:00.000Z",
+  };
+}
+
 const ollamaSnapshot = makeSnapshot({
   modelConfig: {
     activeAdapter: "rin-ollama-local",
@@ -508,6 +532,178 @@ describe("App", () => {
       const url = typeof input === "string" ? input : String(input);
       expect(url.startsWith("/api/")).toBe(true);
     }
+  });
+
+  it("sends owner-reviewed metadata when accepting a memory proposal", async () => {
+    const proposal = makeMemoryItem({
+      id: "memory-proposal-1",
+      status: "proposal",
+      memoryType: "project",
+      content: { text: "Owner wants project memory metadata." },
+    });
+    const snapshot = makeSnapshot({
+      memory: {
+        proposals: 1,
+        accepted: 0,
+        rejected: 0,
+        archived: 0,
+        recent: [proposal],
+      },
+    });
+    let reviewBody: Record<string, unknown> | null = null;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("/api/memory/memory-proposal-1/review")) {
+        reviewBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return jsonResponse({
+          ok: true,
+          item: proposal,
+          snapshot: makeSnapshot({
+            memory: {
+              proposals: 0,
+              accepted: 1,
+              rejected: 0,
+              archived: 0,
+              recent: [
+                {
+                  ...proposal,
+                  status: "accepted",
+                  metadata: {
+                    tags: ["project", "rin"],
+                    importance: "high",
+                    confidence: "high",
+                    source: "owner review",
+                    reviewedAt: "2026-06-04T00:01:00.000Z",
+                    acceptedAt: "2026-06-04T00:01:00.000Z",
+                  },
+                },
+              ],
+            },
+          }),
+        });
+      }
+
+      return jsonResponse(snapshot);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await screen.findByText(/Connected to local runtime/);
+    fireEvent.change(screen.getByLabelText("Tags"), {
+      target: { value: "project, rin" },
+    });
+    fireEvent.change(screen.getByLabelText("Importance"), {
+      target: { value: "high" },
+    });
+    fireEvent.change(screen.getByLabelText("Confidence"), {
+      target: { value: "high" },
+    });
+    fireEvent.change(screen.getByLabelText("Source"), {
+      target: { value: "owner review" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Accept/ }));
+
+    expect(await screen.findByText(/accepted/)).toBeInTheDocument();
+    expect(reviewBody).toMatchObject({
+      decision: "accept",
+      metadata: {
+        tags: ["project", "rin"],
+        importance: "high",
+        confidence: "high",
+        source: "owner review",
+      },
+    });
+    expect(screen.getByText(/Not used for ranking yet/)).toBeInTheDocument();
+  });
+
+  it("saves metadata for an accepted memory through the local API", async () => {
+    const accepted = makeMemoryItem({
+      id: "memory-accepted-1",
+      status: "accepted",
+      metadata: {
+        tags: ["old"],
+        importance: "normal",
+        confidence: "medium",
+        source: null,
+        reviewedAt: "2026-06-04T00:01:00.000Z",
+        acceptedAt: "2026-06-04T00:01:00.000Z",
+      },
+    });
+    const snapshot = makeSnapshot({
+      memory: {
+        proposals: 0,
+        accepted: 1,
+        rejected: 0,
+        archived: 0,
+        recent: [accepted],
+      },
+    });
+    let metadataBody: Record<string, unknown> | null = null;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("/api/memory/memory-accepted-1/metadata")) {
+        metadataBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return jsonResponse({
+          ok: true,
+          item: accepted,
+          snapshot: makeSnapshot({
+            memory: {
+              proposals: 0,
+              accepted: 1,
+              rejected: 0,
+              archived: 0,
+              recent: [
+                {
+                  ...accepted,
+                  metadata: {
+                    tags: ["preference"],
+                    importance: "low",
+                    confidence: "high",
+                    source: "owner review",
+                    reviewedAt: "2026-06-04T00:02:00.000Z",
+                    acceptedAt: "2026-06-04T00:01:00.000Z",
+                  },
+                },
+              ],
+            },
+          }),
+        });
+      }
+
+      return jsonResponse(snapshot);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await screen.findByText(/Connected to local runtime/);
+    fireEvent.change(screen.getByLabelText("Tags"), {
+      target: { value: "preference" },
+    });
+    fireEvent.change(screen.getByLabelText("Importance"), {
+      target: { value: "low" },
+    });
+    fireEvent.change(screen.getByLabelText("Confidence"), {
+      target: { value: "high" },
+    });
+    fireEvent.change(screen.getByLabelText("Source"), {
+      target: { value: "owner review" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Save metadata/ }));
+
+    expect(await screen.findByText(/tags: preference/)).toBeInTheDocument();
+    expect(metadataBody).toMatchObject({
+      metadata: {
+        tags: ["preference"],
+        importance: "low",
+        confidence: "high",
+        source: "owner review",
+      },
+      reason: "owner reviewed metadata",
+    });
   });
 
   it("displays memory injection trace without full memory text", async () => {

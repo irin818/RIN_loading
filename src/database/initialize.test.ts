@@ -30,7 +30,7 @@ describe("initializeRinDatabase", () => {
     );
 
     expect(status.schemaVersion).toBe(RIN_DATABASE_SCHEMA_VERSION);
-    expect(status.appliedMigrations).toEqual([1, 2, 3]);
+    expect(status.appliedMigrations).toEqual([1, 2, 3, 4]);
     expect(status.tables.map((table) => table.name)).toEqual(
       Array.from(RIN_DATABASE_TABLES),
     );
@@ -39,6 +39,7 @@ describe("initializeRinDatabase", () => {
     expect(status.counts.messages).toBe(0);
     expect(status.counts.messageMemoryContexts).toBe(0);
     expect(status.counts.memoryItems).toBe(0);
+    expect(status.counts.memoryMetadata).toBe(0);
     expect(status.counts.auditEvents).toBeGreaterThan(0);
   });
 
@@ -50,7 +51,7 @@ describe("initializeRinDatabase", () => {
     await initializeRinDatabase(storage.layout);
     const status = inspectRinDatabase(storage.layout);
 
-    expect(status.appliedMigrations).toEqual([1, 2, 3]);
+    expect(status.appliedMigrations).toEqual([1, 2, 3, 4]);
   });
 });
 

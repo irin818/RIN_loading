@@ -13,10 +13,30 @@ export type MemoryType =
   | "reflection"
   | "identity";
 
+export type MemoryImportance = "low" | "normal" | "high";
+export type MemoryConfidence = "low" | "medium" | "high";
+
+export type MemoryMetadata = {
+  tags: string[];
+  importance: MemoryImportance;
+  confidence: MemoryConfidence;
+  source: string | null;
+  reviewedAt: string | null;
+  acceptedAt: string | null;
+};
+
+export type MemoryMetadataInput = {
+  tags?: readonly string[];
+  importance?: MemoryImportance;
+  confidence?: MemoryConfidence;
+  source?: string | null;
+};
+
 export type MemoryProposal = {
   id: string;
   memoryType: MemoryType;
   content: Record<string, unknown>;
+  metadata: MemoryMetadata;
   sourceMessageId: string | null;
   status: "proposal";
   createdAt: string;
@@ -39,7 +59,17 @@ type MemoryItemRow = {
   status: MemoryStatus;
   created_at: string;
   updated_at: string;
+  metadata_json: string | null;
+  metadata_reviewed_at: string | null;
+  metadata_accepted_at: string | null;
+  metadata_updated_at: string | null;
 };
+
+const DEFAULT_MEMORY_IMPORTANCE: MemoryImportance = "normal";
+const DEFAULT_MEMORY_CONFIDENCE: MemoryConfidence = "medium";
+const MAX_METADATA_TAGS = 8;
+const MAX_METADATA_TAG_LENGTH = 32;
+const MAX_METADATA_SOURCE_LENGTH = 96;
 
 export function maybeCreateOwnerMemoryProposal(
   database: RinDatabase,
@@ -114,6 +144,7 @@ export function createMemoryProposal(
     id,
     memoryType: input.memoryType,
     content: input.content,
+    metadata: defaultMemoryMetadata(),
     sourceMessageId: input.sourceMessageId ?? null,
     status: "proposal",
     createdAt: timestamp,
@@ -134,9 +165,9 @@ export function listMemoryItems(
     return database
       .prepare(
         `
-          SELECT * FROM memory_items
-          WHERE status = ?
-          ORDER BY updated_at DESC
+          ${memoryItemSelectSql()}
+          WHERE memory_items.status = ?
+          ORDER BY memory_items.updated_at DESC
           LIMIT ?
         `,
       )
@@ -147,8 +178,8 @@ export function listMemoryItems(
   return database
     .prepare(
       `
-        SELECT * FROM memory_items
-        ORDER BY updated_at DESC
+        ${memoryItemSelectSql()}
+        ORDER BY memory_items.updated_at DESC
         LIMIT ?
       `,
     )
@@ -161,7 +192,12 @@ export function getMemoryItem(
   memoryItemId: string,
 ): MemoryRecord {
   const row = database
-    .prepare("SELECT * FROM memory_items WHERE id = ?")
+    .prepare(
+      `
+        ${memoryItemSelectSql()}
+        WHERE memory_items.id = ?
+      `,
+    )
     .get(memoryItemId) as MemoryItemRow | undefined;
 
   if (!row) {
@@ -177,6 +213,7 @@ export function reviewMemoryProposal(
     memoryItemId: string;
     decision: MemoryReviewDecision;
     reason?: string | null;
+    metadata?: MemoryMetadataInput;
     now: Date;
   },
 ): MemoryRecord {
@@ -208,6 +245,15 @@ export function reviewMemoryProposal(
     )
     .run(nextStatus, timestamp, input.memoryItemId);
 
+  const metadata = normalizeMemoryMetadata(input.metadata, current.metadata, {
+    reviewedAt: timestamp,
+    acceptedAt:
+      nextStatus === "accepted"
+        ? (current.metadata.acceptedAt ?? timestamp)
+        : current.metadata.acceptedAt,
+  });
+  upsertMemoryMetadata(database, input.memoryItemId, metadata, timestamp);
+
   appendAuditEvent(database, {
     eventType: "memory.proposal_reviewed",
     payload: {
@@ -218,14 +264,52 @@ export function reviewMemoryProposal(
       nextStatus,
       reason: input.reason ?? null,
       sourceMessageId: current.sourceMessageId,
+      metadata: auditMemoryMetadata(metadata),
     },
     now: input.now,
   });
 
   return {
     ...current,
+    metadata,
     status: nextStatus,
     updatedAt: timestamp,
+  };
+}
+
+export function updateMemoryMetadata(
+  database: RinDatabase,
+  input: {
+    memoryItemId: string;
+    metadata: MemoryMetadataInput;
+    reason?: string | null;
+    now: Date;
+  },
+): MemoryRecord {
+  const current = getMemoryItem(database, input.memoryItemId);
+  const timestamp = input.now.toISOString();
+  const metadata = normalizeMemoryMetadata(input.metadata, current.metadata, {
+    reviewedAt: timestamp,
+    acceptedAt: current.metadata.acceptedAt,
+  });
+
+  upsertMemoryMetadata(database, input.memoryItemId, metadata, timestamp);
+
+  appendAuditEvent(database, {
+    eventType: "memory.metadata_reviewed",
+    payload: {
+      memoryItemId: input.memoryItemId,
+      memoryType: current.memoryType,
+      status: current.status,
+      reason: input.reason ?? null,
+      metadata: auditMemoryMetadata(metadata),
+    },
+    now: input.now,
+  });
+
+  return {
+    ...current,
+    metadata,
   };
 }
 
@@ -266,6 +350,7 @@ function mapMemoryItem(row: MemoryItemRow): MemoryRecord {
     id: row.id,
     memoryType: row.memory_type,
     content: parseMemoryContent(row.content_json),
+    metadata: parseMemoryMetadata(row),
     sourceMessageId: row.source_message_id,
     status: row.status,
     createdAt: row.created_at,
@@ -279,4 +364,195 @@ function parseMemoryContent(raw: string): Record<string, unknown> {
   return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
     ? (parsed as Record<string, unknown>)
     : {};
+}
+
+function memoryItemSelectSql(): string {
+  return `
+    SELECT
+      memory_items.*,
+      memory_metadata.metadata_json AS metadata_json,
+      memory_metadata.reviewed_at AS metadata_reviewed_at,
+      memory_metadata.accepted_at AS metadata_accepted_at,
+      memory_metadata.updated_at AS metadata_updated_at
+    FROM memory_items
+    LEFT JOIN memory_metadata
+      ON memory_metadata.memory_id = memory_items.id
+  `;
+}
+
+function defaultMemoryMetadata(): MemoryMetadata {
+  return {
+    tags: [],
+    importance: DEFAULT_MEMORY_IMPORTANCE,
+    confidence: DEFAULT_MEMORY_CONFIDENCE,
+    source: null,
+    reviewedAt: null,
+    acceptedAt: null,
+  };
+}
+
+function normalizeMemoryMetadata(
+  input: MemoryMetadataInput | undefined,
+  existing: MemoryMetadata = defaultMemoryMetadata(),
+  timestamps: {
+    reviewedAt?: string | null;
+    acceptedAt?: string | null;
+  } = {},
+): MemoryMetadata {
+  return {
+    tags:
+      input?.tags !== undefined ? normalizeTags(input.tags) : [...existing.tags],
+    importance:
+      input?.importance !== undefined
+        ? normalizeImportance(input.importance)
+        : existing.importance,
+    confidence:
+      input?.confidence !== undefined
+        ? normalizeConfidence(input.confidence)
+        : existing.confidence,
+    source:
+      input?.source !== undefined ? normalizeSource(input.source) : existing.source,
+    reviewedAt:
+      timestamps.reviewedAt !== undefined
+        ? timestamps.reviewedAt
+        : existing.reviewedAt,
+    acceptedAt:
+      timestamps.acceptedAt !== undefined
+        ? timestamps.acceptedAt
+        : existing.acceptedAt,
+  };
+}
+
+function normalizeTags(tags: readonly string[]): string[] {
+  const normalized = tags
+    .map((tag) =>
+      tag
+        .normalize("NFKC")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9\u4e00-\u9fff_-]/gu, ""),
+    )
+    .filter((tag) => tag.length > 0)
+    .map((tag) => tag.slice(0, MAX_METADATA_TAG_LENGTH));
+
+  return [...new Set(normalized)].slice(0, MAX_METADATA_TAGS);
+}
+
+function normalizeImportance(value: MemoryImportance): MemoryImportance {
+  if (value === "low" || value === "normal" || value === "high") {
+    return value;
+  }
+
+  throw new Error(`Invalid memory importance: ${String(value)}`);
+}
+
+function normalizeConfidence(value: MemoryConfidence): MemoryConfidence {
+  if (value === "low" || value === "medium" || value === "high") {
+    return value;
+  }
+
+  throw new Error(`Invalid memory confidence: ${String(value)}`);
+}
+
+function normalizeSource(value: string | null): string | null {
+  if (value === null) {
+    return null;
+  }
+
+  const normalized = value.normalize("NFKC").replace(/\s+/g, " ").trim();
+
+  return normalized.length > 0
+    ? normalized.slice(0, MAX_METADATA_SOURCE_LENGTH)
+    : null;
+}
+
+function upsertMemoryMetadata(
+  database: RinDatabase,
+  memoryItemId: string,
+  metadata: MemoryMetadata,
+  updatedAt: string,
+): void {
+  database
+    .prepare(
+      `
+        INSERT INTO memory_metadata (
+          memory_id,
+          metadata_json,
+          reviewed_at,
+          accepted_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(memory_id) DO UPDATE SET
+          metadata_json = excluded.metadata_json,
+          reviewed_at = excluded.reviewed_at,
+          accepted_at = excluded.accepted_at,
+          updated_at = excluded.updated_at
+      `,
+    )
+    .run(
+      memoryItemId,
+      JSON.stringify({
+        tags: metadata.tags,
+        importance: metadata.importance,
+        confidence: metadata.confidence,
+        source: metadata.source,
+      }),
+      metadata.reviewedAt,
+      metadata.acceptedAt,
+      updatedAt,
+    );
+}
+
+function parseMemoryMetadata(row: MemoryItemRow): MemoryMetadata {
+  const fallback = defaultMemoryMetadata();
+
+  if (!row.metadata_json) {
+    return fallback;
+  }
+
+  try {
+    const parsed = JSON.parse(row.metadata_json) as unknown;
+    const record =
+      typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : {};
+
+    return {
+      tags: Array.isArray(record.tags)
+        ? normalizeTags(
+            record.tags.filter((tag): tag is string => typeof tag === "string"),
+          )
+        : [],
+      importance:
+        record.importance === "low" ||
+        record.importance === "normal" ||
+        record.importance === "high"
+          ? record.importance
+          : DEFAULT_MEMORY_IMPORTANCE,
+      confidence:
+        record.confidence === "low" ||
+        record.confidence === "medium" ||
+        record.confidence === "high"
+          ? record.confidence
+          : DEFAULT_MEMORY_CONFIDENCE,
+      source: typeof record.source === "string" ? normalizeSource(record.source) : null,
+      reviewedAt: row.metadata_reviewed_at,
+      acceptedAt: row.metadata_accepted_at,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function auditMemoryMetadata(metadata: MemoryMetadata): MemoryMetadata {
+  return {
+    tags: [...metadata.tags],
+    importance: metadata.importance,
+    confidence: metadata.confidence,
+    source: metadata.source,
+    reviewedAt: metadata.reviewedAt,
+    acceptedAt: metadata.acceptedAt,
+  };
 }

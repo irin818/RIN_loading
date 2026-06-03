@@ -16,6 +16,8 @@ import { openRinDatabase } from "../database";
 import {
   listMemoryItems,
   reviewMemoryProposal,
+  updateMemoryMetadata,
+  type MemoryMetadataInput,
   type MemoryReviewDecision,
   type MemoryStatus,
 } from "../memory";
@@ -200,6 +202,48 @@ async function routeRequest(
     return;
   }
 
+  if (url.pathname.startsWith("/api/memory/") && url.pathname.endsWith("/metadata")) {
+    if (request.method !== "POST") {
+      writeMethodNotAllowed(response);
+      return;
+    }
+
+    const memoryItemId = decodeURIComponent(
+      url.pathname.slice("/api/memory/".length, -"/metadata".length),
+    );
+    const body = await readJsonBody(request);
+    const storage = await initializeRinStorage(loadEnvironment());
+    const database = openRinDatabase(storage.layout);
+    let item: ReturnType<typeof updateMemoryMetadata> | null = null;
+
+    try {
+      database.exec("BEGIN;");
+      item = updateMemoryMetadata(database, {
+        memoryItemId,
+        metadata: readMemoryMetadataInput(body.metadata),
+        reason: typeof body.reason === "string" ? body.reason : null,
+        now: new Date(),
+      });
+      database.exec("COMMIT;");
+    } catch (error) {
+      database.exec("ROLLBACK;");
+      throw error;
+    } finally {
+      database.close();
+    }
+
+    if (!item) {
+      throw new Error("Memory metadata update did not produce an item.");
+    }
+
+    writeJson(response, 200, {
+      ok: true,
+      item,
+      snapshot: await readLocalConsoleSnapshot(),
+    });
+    return;
+  }
+
   if (url.pathname.startsWith("/api/memory/") && url.pathname.endsWith("/review")) {
     if (request.method !== "POST") {
       writeMethodNotAllowed(response);
@@ -231,6 +275,7 @@ async function routeRequest(
         memoryItemId,
         decision,
         reason: typeof body.reason === "string" ? body.reason : null,
+        metadata: readMemoryMetadataInput(body.metadata),
         now: new Date(),
       });
       database.exec("COMMIT;");
@@ -299,6 +344,35 @@ function readMemoryReviewDecision(value: unknown): MemoryReviewDecision | null {
   return value === "accept" || value === "reject" || value === "archive"
     ? value
     : null;
+}
+
+function readMemoryMetadataInput(value: unknown): MemoryMetadataInput {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return {};
+  }
+
+  const record = value as Record<string, unknown>;
+  return {
+    tags: Array.isArray(record.tags)
+      ? record.tags.filter((item): item is string => typeof item === "string")
+      : undefined,
+    importance:
+      record.importance === "low" ||
+      record.importance === "normal" ||
+      record.importance === "high"
+        ? record.importance
+        : undefined,
+    confidence:
+      record.confidence === "low" ||
+      record.confidence === "medium" ||
+      record.confidence === "high"
+        ? record.confidence
+        : undefined,
+    source:
+      typeof record.source === "string" || record.source === null
+        ? record.source
+        : undefined,
+  };
 }
 
 function isReadRequest(request: IncomingMessage): boolean {

@@ -5,8 +5,13 @@ export {
   listMemoryItems,
   maybeCreateOwnerMemoryProposal,
   reviewMemoryProposal,
+  updateMemoryMetadata,
 } from "./manager";
 export type {
+  MemoryConfidence,
+  MemoryImportance,
+  MemoryMetadata,
+  MemoryMetadataInput,
   MemoryProposal,
   MemoryRecord,
   MemoryReviewDecision,
