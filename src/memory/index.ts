@@ -52,6 +52,10 @@ export {
   formatSemanticReadinessReport,
   getSemanticReadinessReport,
 } from "./semanticReadiness";
+export {
+  formatSemanticLiveReadinessReport,
+  getSemanticLiveReadinessReport,
+} from "./semanticLiveReadiness";
 export type {
   RetrievalMatchResult,
   RetrievalTokenProfile,
@@ -89,6 +93,10 @@ export type {
   SemanticReadinessCheck,
   SemanticReadinessReport,
 } from "./semanticReadiness";
+export type {
+  SemanticLiveReadinessEnvironment,
+  SemanticLiveReadinessReport,
+} from "./semanticLiveReadiness";
 export {
   DEFAULT_MAX_INJECTED_MEMORIES,
   DEFAULT_MAX_SNIPPET_CHARACTERS,
