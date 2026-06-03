@@ -222,9 +222,13 @@ cloud embeddings as an opt-in expert path, and never as the default.
    into model context. Completed by Mega-Milestone 9 through
    `npm run rin:semantic-eval`.
 3. Prototype a local-only embedding/index adapter using temp fixtures and safe
-   reports. Do not read real `.rin-data` by default.
+   reports. Ultra-Milestone 10 completes the fixture/mock in-memory readiness
+   layer for this stage without real `.rin-data`, real providers, dependencies,
+   or production integration.
 4. Compare deterministic, semantic, and hybrid candidate IDs against existing
-   memory eval fixtures plus new paraphrase fixtures.
+   memory eval fixtures plus new paraphrase fixtures. Ultra-Milestone 10 extends
+   this comparison with fixture/mock embedding candidates, topK/candidate caps,
+   tie-break coverage, no-candidate cases, and semantic readiness reporting.
 5. Add stale-index, delete, update, and privacy tests before any persistent
    index design.
 6. If offline results are stable, propose a schema/index ADR for persistent
@@ -264,6 +268,11 @@ Mega-Milestone 9 implements this report shape for fixture-only semantic
 candidate annotations. It remains provider-free and report-only; it does not add
 embeddings, vector indexes, runtime integration, context injection, schema
 migrations, or real `.rin-data` access.
+
+Ultra-Milestone 10 extends the report with deterministic fixture/mock embedding
+prototype candidates and an in-memory vector index. The implementation still
+uses synthetic fixtures only, reports `providerCallCount: 0`, and keeps
+production semantic retrieval disabled.
 - context budget impact
 - deterministic regression count
 

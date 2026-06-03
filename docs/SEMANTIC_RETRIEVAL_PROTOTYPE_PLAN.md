@@ -12,6 +12,14 @@ this plan. The implemented harness is provider-free, report-only, and synthetic
 fixture-only; it still does not implement real semantic retrieval, embeddings,
 vector search, runtime behavior, or context injection.
 
+Ultra-Milestone 10 implements the next readiness step: deterministic
+fixture/mock embedding utilities, an in-memory vector index, fixture-only
+prototype semantic candidate generation, a disabled local embedding provider
+scaffold, and `npm run rin:semantic-readiness`. This remains report-only and
+does not add a real embedding model, vector database dependency, provider call,
+schema migration, real `.rin-data` indexing, runtime behavior, or context
+injection.
+
 ## Prototype Goals
 
 The first prototype should answer whether local semantic candidates improve
@@ -99,10 +107,13 @@ Required behavior:
 
 The safest first implementation milestone is fixture-only and is now
 implemented by `src/memory/semanticEvaluation.ts` plus
-`src/memory/semanticEvaluationFixtures.ts`:
+`src/memory/semanticEvaluationFixtures.ts`. Ultra-Milestone 10 extends this with
+`src/memory/semanticEmbedding.ts`, `src/memory/vectorIndex.ts`, and
+`src/memory/semanticPrototype.ts`:
 
 1. Build deterministic baseline candidates from existing fixture memories.
-2. Build semantic candidates from explicit fixture annotations.
+2. Build semantic candidates from explicit fixture annotations and
+   fixture/mock embedding terms.
 3. Compare IDs and safe metrics.
 4. Write no files.
 5. Make no provider calls.
@@ -197,7 +208,8 @@ same or stricter protection as memory storage.
 ## Current Fixture-Only CLI Shape
 
 Mega-Milestone 9 adds a fixture-only command that is explicit and separate from
-production checks:
+production checks. Ultra-Milestone 10 hardens that report with fixture prototype
+counts, source breakdown, topK/candidate-cap values, and provider identity:
 
 ```sh
 npm run rin:semantic-eval
@@ -209,6 +221,16 @@ accepted-only violations, zero-overlap semantic candidate counts, and
 `providerCallCount: 0`. It exits non-zero if fixture expectations fail. It does
 not require Ollama, call model providers, read real `.rin-data`, add
 dependencies, or write index files.
+
+Ultra-Milestone 10 also adds:
+
+```sh
+npm run rin:semantic-readiness
+```
+
+This readiness command reports deterministic baseline status, fixture prototype
+availability, disabled local embedding provider status, no vector DB, no real
+`.rin-data` indexing, no production integration, and `providerCallCount: 0`.
 
 Possible future command shapes remain separate from this default fixture-only
 path:
@@ -235,6 +257,8 @@ type SemanticRetrievalComparison = {
   query: string;
   deterministicInjectedIds: string[];
   semanticCandidateIds: string[];
+  prototypeSemanticCandidateIds: string[];
+  safePrototypeSemanticCandidateIds: string[];
   safeSemanticCandidateIds: string[];
   hybridCandidateIds: string[];
   expectedInjectedIds: string[];
@@ -251,6 +275,9 @@ type SemanticRetrievalComparison = {
     wouldAddSemanticIds: string[];
   };
   providerCallCount: number;
+  prototypeSemanticProvider: string;
+  prototypeTopK: number;
+  prototypeCandidateCap: number;
 };
 ```
 
@@ -272,9 +299,9 @@ Stop prototype work before merge if any of these occur:
 
 ## Completed First Follow-Up Implementation Milestone
 
-Mega-Milestone 9 completes the fixture-only semantic comparison harness. It does
-not add production retrieval behavior. It produces a local report that can be
-reviewed beside the existing deterministic memory eval report. The next safe
-milestone is a local-only embedding/index prototype over temp fixtures and safe
-reports, still excluded from production retrieval and real `.rin-data` by
+Mega-Milestone 9 completes the fixture-only semantic comparison harness.
+Ultra-Milestone 10 completes the fixture/mock local embedding and vector index
+readiness layer for synthetic fixtures. Neither milestone adds production
+retrieval behavior. The next safe milestone is a local-only temp-data embedding
+prototype that still excludes production retrieval and real `.rin-data` by
 default.
