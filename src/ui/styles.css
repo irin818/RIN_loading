@@ -1335,6 +1335,23 @@ h1 {
   font-size: 0.9rem;
 }
 
+.memory-context-selected {
+  margin: 6px 0 10px;
+  color: #5c6a62;
+  font-size: 0.85rem;
+}
+
+.memory-context-select {
+  margin-top: 4px;
+  align-self: flex-start;
+}
+
+.memory-context-select[aria-pressed="true"] {
+  border-color: #3d8b5f;
+  background: #e7f4ec;
+  color: #1f5c3b;
+}
+
 .memory-context-empty {
   margin: 8px 0 0;
   color: #5c6a62;

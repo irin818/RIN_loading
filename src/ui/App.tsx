@@ -11,7 +11,6 @@ import type {
 import { rinLive2dBodyAdapter } from "../body";
 import { CURRENT_PHASES, RIN_PROJECT_NAME } from "../core/project";
 import { runtimeBoundaries } from "../runtime";
-import type { MemoryInjectionTrace } from "../memory";
 import { parseConversationError, safeLocalBaseUrl } from "./consoleStatus";
 import {
   formatMatchedKeywords,
@@ -57,8 +56,8 @@ export function App() {
   const [lastTurn, setLastTurn] = useState<ConversationTurnResponse["turn"] | null>(
     null,
   );
-  const [lastMemoryContext, setLastMemoryContext] =
-    useState<MemoryInjectionTrace | null>(null);
+  const [selectedMemoryContextMessageId, setSelectedMemoryContextMessageId] =
+    useState<string | null>(null);
   const [conversationError, setConversationError] =
     useState<ConversationErrorPayload | null>(null);
   const [lastFailedInput, setLastFailedInput] = useState<string | null>(null);
@@ -111,6 +110,12 @@ export function App() {
     });
   const bodyAdapterId = snapshot?.body.adapterId ?? previewBodyAdapterId;
   const live2dReady = snapshot?.body.live2dReady ?? true;
+  const selectedMemoryContextMessage = selectedMemoryContextMessageId
+    ? conversationMessages.find(
+        (message) => message.id === selectedMemoryContextMessageId,
+      )
+    : null;
+  const selectedMemoryContext = selectedMemoryContextMessage?.memoryContext ?? null;
 
   async function sendMessage(content: string) {
     if (content.trim().length === 0 || apiStatus !== "connected") {
@@ -146,14 +151,21 @@ export function App() {
       }
 
       const body = (await response.json()) as ConversationTurnResponse;
+      const rinMessage = {
+        ...body.turn.rinMessage,
+        memoryContext:
+          body.turn.rinMessage.memoryContext ?? body.turn.memoryContext,
+      };
       setSnapshot(body.snapshot);
       setLastTurn(body.turn);
-      setLastMemoryContext(body.turn.memoryContext);
+      setSelectedMemoryContextMessageId(
+        rinMessage.memoryContext ? rinMessage.id : null,
+      );
       setActiveConversationId(body.turn.conversation.id);
       setConversationMessages((current) =>
         activeConversationId === body.turn.conversation.id
-          ? [...current, body.turn.ownerMessage, body.turn.rinMessage]
-          : [body.turn.ownerMessage, body.turn.rinMessage],
+          ? [...current, body.turn.ownerMessage, rinMessage]
+          : [body.turn.ownerMessage, rinMessage],
       );
       setMessageDraft("");
       setConversationError(null);
@@ -215,7 +227,9 @@ export function App() {
       setActiveConversationId(body.conversation.id);
       setConversationMessages(body.messages);
       setLastTurn(null);
-      setLastMemoryContext(findLatestMessageMemoryContext(body.messages));
+      setSelectedMemoryContextMessageId(
+        findLatestMemoryContextMessageId(body.messages),
+      );
       setConversationLoadStatus("idle");
     } catch {
       setConversationLoadStatus("error");
@@ -226,7 +240,7 @@ export function App() {
     setActiveConversationId(null);
     setConversationMessages([]);
     setLastTurn(null);
-    setLastMemoryContext(null);
+    setSelectedMemoryContextMessageId(null);
     setConversationLoadStatus("idle");
   }
 
@@ -471,30 +485,34 @@ export function App() {
             <p>{lastTurn.rinMessage.content}</p>
           </div>
         ) : null}
-        {lastMemoryContext ? (
+        {selectedMemoryContext ? (
           <div className="memory-context-trace" aria-label="Memory context trace">
             <strong>Memory context / 记忆上下文</strong>
+            <p className="memory-context-selected">
+              Selected RIN reply / 已选择 RIN 回复：
+              <code>{shortId(selectedMemoryContextMessage?.id ?? "")}</code>
+            </p>
             <dl className="status-grid compact">
               <div>
                 <dt>Injected / 已注入</dt>
-                <dd>{lastMemoryContext.injectedMemoryCount}</dd>
+                <dd>{selectedMemoryContext.injectedMemoryCount}</dd>
               </div>
               <div>
                 <dt>Skipped (budget) / 预算跳过</dt>
-                <dd>{lastMemoryContext.skippedByBudgetCount}</dd>
+                <dd>{selectedMemoryContext.skippedByBudgetCount}</dd>
               </div>
               <div>
                 <dt>Skipped (relevance) / 相关性跳过</dt>
-                <dd>{lastMemoryContext.skippedByRelevanceCount}</dd>
+                <dd>{selectedMemoryContext.skippedByRelevanceCount}</dd>
               </div>
               <div>
                 <dt>Skipped (max count) / 数量上限跳过</dt>
-                <dd>{lastMemoryContext.skippedByMaxCountCount}</dd>
+                <dd>{selectedMemoryContext.skippedByMaxCountCount}</dd>
               </div>
             </dl>
-            {injectedMemoryItems(lastMemoryContext.items).length > 0 ? (
+            {injectedMemoryItems(selectedMemoryContext.items).length > 0 ? (
               <ul className="memory-context-list">
-                {injectedMemoryItems(lastMemoryContext.items).map((item) => (
+                {injectedMemoryItems(selectedMemoryContext.items).map((item) => (
                   <li key={item.memoryId}>
                     <code>{shortId(item.memoryId)}</code>
                     {" · overlap "}
@@ -517,14 +535,14 @@ export function App() {
                 本回合未注入记忆。
               </p>
             )}
-            {skippedMemoryItems(lastMemoryContext.items).length > 0 ? (
+            {skippedMemoryItems(selectedMemoryContext.items).length > 0 ? (
               <details className="memory-context-skipped">
                 <summary>
                   Skipped memories / 跳过的记忆 (
-                  {skippedMemoryItems(lastMemoryContext.items).length})
+                  {skippedMemoryItems(selectedMemoryContext.items).length})
                 </summary>
                 <ul className="memory-context-list">
-                  {skippedMemoryItems(lastMemoryContext.items).map((item) => (
+                  {skippedMemoryItems(selectedMemoryContext.items).map((item) => (
                     <li key={item.memoryId}>
                       <code>{shortId(item.memoryId)}</code>
                       {" · "}
@@ -545,6 +563,16 @@ export function App() {
               <article key={message.id} data-role={message.role}>
                 <strong>{message.role}</strong>
                 <p>{message.content}</p>
+                {message.role === "rin" && message.memoryContext ? (
+                  <button
+                    type="button"
+                    className="memory-context-select"
+                    aria-pressed={selectedMemoryContextMessageId === message.id}
+                    onClick={() => setSelectedMemoryContextMessageId(message.id)}
+                  >
+                    Memory context / 记忆上下文
+                  </button>
+                ) : null}
               </article>
             ))}
           </div>
@@ -882,14 +910,14 @@ function shortId(id: string): string {
   return id.slice(0, 8);
 }
 
-function findLatestMessageMemoryContext(
+function findLatestMemoryContextMessageId(
   messages: readonly ConversationMessageRecord[],
-): MemoryInjectionTrace | null {
+): string | null {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
 
     if (message.role === "rin" && message.memoryContext) {
-      return message.memoryContext;
+      return message.id;
     }
   }
 
