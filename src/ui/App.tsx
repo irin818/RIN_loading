@@ -20,6 +20,7 @@ import { runtimeBoundaries } from "../runtime";
 import { parseConversationError, safeLocalBaseUrl } from "./consoleStatus";
 import {
   formatMatchedKeywords,
+  formatMetadataRankingSignal,
   formatMemorySkipReason,
   injectedMemoryItems,
   skippedMemoryItems,
@@ -602,6 +603,9 @@ export function App() {
                     {item.typeMatchBonus > 0
                       ? ` +${item.typeMatchBonus}: ${formatMatchedKeywords(item.matchedTypeSignals)}`
                       : null}
+                    {formatMetadataRankingSignal(item)
+                      ? ` · ${formatMetadataRankingSignal(item)}`
+                      : null}
                     {" · keywords: "}
                     {formatMatchedKeywords(item.matchedKeywords)}
                   </li>
@@ -631,6 +635,9 @@ export function App() {
                         : null}
                       {item.typeMatchBonus > 0
                         ? ` · type ${item.memoryType} +${item.typeMatchBonus}: ${formatMatchedKeywords(item.matchedTypeSignals)}`
+                        : null}
+                      {formatMetadataRankingSignal(item)
+                        ? ` · ${formatMetadataRankingSignal(item)}`
                         : null}
                     </li>
                   ))}

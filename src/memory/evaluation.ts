@@ -27,6 +27,12 @@ export type MemoryEvaluationCaseResult = {
   matchedTokensByMemoryId: Record<string, string[]>;
   matchedTypeSignalsByMemoryId: Record<string, string[]>;
   typeMatchBonusesByMemoryId: Record<string, number>;
+  matchedTagsByMemoryId: Record<string, string[]>;
+  tagMatchBonusesByMemoryId: Record<string, number>;
+  importanceBonusesByMemoryId: Record<string, number>;
+  confidenceAdjustmentsByMemoryId: Record<string, number>;
+  metadataBonusesByMemoryId: Record<string, number>;
+  metadataSignalsByMemoryId: Record<string, string[]>;
   skipReasonsByMemoryId: Record<string, MemorySkipReason | null>;
   privacyPassed: boolean;
   trace: MemoryInjectionTrace;
@@ -114,6 +120,39 @@ export function evaluateMemoryCase(
       traceItem.typeMatchBonus,
     ]),
   );
+  const matchedTagsByMemoryId = Object.fromEntries(
+    trace.items.map((traceItem) => [traceItem.memoryId, traceItem.matchedTags]),
+  );
+  const tagMatchBonusesByMemoryId = Object.fromEntries(
+    trace.items.map((traceItem) => [
+      traceItem.memoryId,
+      traceItem.tagMatchBonus,
+    ]),
+  );
+  const importanceBonusesByMemoryId = Object.fromEntries(
+    trace.items.map((traceItem) => [
+      traceItem.memoryId,
+      traceItem.importanceBonus,
+    ]),
+  );
+  const confidenceAdjustmentsByMemoryId = Object.fromEntries(
+    trace.items.map((traceItem) => [
+      traceItem.memoryId,
+      traceItem.confidenceAdjustment,
+    ]),
+  );
+  const metadataBonusesByMemoryId = Object.fromEntries(
+    trace.items.map((traceItem) => [
+      traceItem.memoryId,
+      traceItem.metadataBonus,
+    ]),
+  );
+  const metadataSignalsByMemoryId = Object.fromEntries(
+    trace.items.map((traceItem) => [
+      traceItem.memoryId,
+      traceItem.metadataSignals,
+    ]),
+  );
   const skipReasonsByMemoryId = Object.fromEntries(
     trace.items.map((traceItem) => [traceItem.memoryId, traceItem.skippedReason]),
   );
@@ -168,6 +207,76 @@ export function evaluateMemoryCase(
     }
   }
 
+  for (const [memoryId, expectedTags] of Object.entries(
+    item.expectedMatchedTags ?? {},
+  )) {
+    const actualTags = matchedTagsByMemoryId[memoryId] ?? [];
+    for (const tag of expectedTags) {
+      if (!actualTags.includes(tag)) {
+        failures.push(
+          `Expected ${memoryId} matched tags to include ${tag}; actual=${actualTags.join(",")}`,
+        );
+      }
+    }
+  }
+
+  for (const [memoryId, expectedBonus] of Object.entries(
+    item.expectedTagMatchBonuses ?? {},
+  )) {
+    const actualBonus = tagMatchBonusesByMemoryId[memoryId];
+    if (actualBonus !== expectedBonus) {
+      failures.push(
+        `Expected ${memoryId} tag match bonus ${expectedBonus}; actual=${actualBonus ?? "missing"}`,
+      );
+    }
+  }
+
+  for (const [memoryId, expectedBonus] of Object.entries(
+    item.expectedImportanceBonuses ?? {},
+  )) {
+    const actualBonus = importanceBonusesByMemoryId[memoryId];
+    if (actualBonus !== expectedBonus) {
+      failures.push(
+        `Expected ${memoryId} importance bonus ${expectedBonus}; actual=${actualBonus ?? "missing"}`,
+      );
+    }
+  }
+
+  for (const [memoryId, expectedAdjustment] of Object.entries(
+    item.expectedConfidenceAdjustments ?? {},
+  )) {
+    const actualAdjustment = confidenceAdjustmentsByMemoryId[memoryId];
+    if (actualAdjustment !== expectedAdjustment) {
+      failures.push(
+        `Expected ${memoryId} confidence adjustment ${expectedAdjustment}; actual=${actualAdjustment ?? "missing"}`,
+      );
+    }
+  }
+
+  for (const [memoryId, expectedBonus] of Object.entries(
+    item.expectedMetadataBonuses ?? {},
+  )) {
+    const actualBonus = metadataBonusesByMemoryId[memoryId];
+    if (actualBonus !== expectedBonus) {
+      failures.push(
+        `Expected ${memoryId} metadata bonus ${expectedBonus}; actual=${actualBonus ?? "missing"}`,
+      );
+    }
+  }
+
+  for (const [memoryId, expectedSignals] of Object.entries(
+    item.expectedMetadataSignals ?? {},
+  )) {
+    const actualSignals = metadataSignalsByMemoryId[memoryId] ?? [];
+    for (const signal of expectedSignals) {
+      if (!actualSignals.includes(signal)) {
+        failures.push(
+          `Expected ${memoryId} metadata signals to include ${signal}; actual=${actualSignals.join(",")}`,
+        );
+      }
+    }
+  }
+
   for (const [memoryId, expectedReason] of Object.entries(
     item.expectedSkipReasons ?? {},
   )) {
@@ -214,6 +323,12 @@ export function evaluateMemoryCase(
     matchedTokensByMemoryId,
     matchedTypeSignalsByMemoryId,
     typeMatchBonusesByMemoryId,
+    matchedTagsByMemoryId,
+    tagMatchBonusesByMemoryId,
+    importanceBonusesByMemoryId,
+    confidenceAdjustmentsByMemoryId,
+    metadataBonusesByMemoryId,
+    metadataSignalsByMemoryId,
     skipReasonsByMemoryId,
     privacyPassed,
     trace,

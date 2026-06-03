@@ -145,13 +145,13 @@ conversation runtime 路径，`npm run rin:memory-eval` 仍然特别重要，并
 npm run rin:memory-eval
 ```
 
-Expected successful output includes `Passed: 17` and `Failed: 0`. This check
+Expected successful output includes `Passed: 24` and `Failed: 0`. This check
 uses in-memory fixtures only: it does not call model providers, does not require
 Ollama, and does not use real owner data. It protects accepted-only retrieval,
 budget limits, privacy, and traceability alongside the normal type/test/lint/
 build/readiness checks.
 
-成功时预期输出包含 `Passed: 17` 和 `Failed: 0`。该检查只使用内存 fixture：
+成功时预期输出包含 `Passed: 24` 和 `Failed: 0`。该检查只使用内存 fixture：
 不会调用模型服务商，不需要 Ollama，也不会使用真实所有者数据。它与常规
 type/test/lint/build/readiness 检查一起保护 accepted-only 检索、预算限制、隐私和可追溯性。
 
@@ -484,6 +484,28 @@ Mega-Milestone 5 增加了 owner-reviewed memory metadata foundation。记忆条
 本 milestone 不让元数据影响检索排序，不把元数据注入模型上下文，也不增加 embeddings、
 向量搜索或语义检索。未来 metadata-aware ranking 必须单独设计，并由
 `npm run rin:memory-eval` 保护。
+
+Mega-Milestone 6 adds metadata-aware accepted-memory retrieval under the
+evaluation gate. Retrieval may now use only owner-reviewed metadata after content
+already has lexical overlap: matching tags and `high` importance can add small
+bounded bonuses, while `low` confidence dampens metadata bonus. Source and review
+timestamps remain trace/explanation-only. Metadata cannot inject zero-overlap
+memories, cannot override materially stronger token relevance, and still does
+not add embeddings, vector search, semantic retrieval, provider calls, or
+model-generated metadata. Memory context trace can show safe metadata score
+fields such as matched tags, metadata bonus, and metadata signals without full
+memory text or raw metadata JSON. `npm run rin:memory-eval` now covers 24
+provider-free fixtures for this behavior.
+
+Mega-Milestone 6 在 evaluation gate 下加入 metadata-aware accepted-memory
+retrieval。检索现在只能在记忆内容已经存在词汇重叠之后使用 owner-reviewed
+metadata：匹配到的 tags 和 `high` importance 可以增加小的有界 bonus，而 `low`
+confidence 会削弱 metadata bonus。source 与 review timestamps 仍只用于追溯/解释。
+metadata 不能注入零词汇重叠的记忆，不能覆盖明显更强的 token relevance，也不会增加
+embeddings、向量搜索、语义检索、provider 调用或模型生成的 metadata。memory context
+trace 可以显示安全的 metadata score 字段，例如 matched tags、metadata bonus 和
+metadata signals，但不包含完整记忆文本或原始 metadata JSON。`npm run rin:memory-eval`
+现在用 24 个 provider-free fixtures 保护该行为。
 
 ## Local Model Stability
 
