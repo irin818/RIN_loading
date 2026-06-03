@@ -4,10 +4,59 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { defaultEnvironment } from "../config/environment";
 import { inspectRinDatabase, openRinDatabase } from "../database";
+import { createMemoryProposal, reviewMemoryProposal } from "../memory";
 import { ModelError, type ModelAdapter } from "../model";
 import { initializeRinStorage } from "../storage";
+import type { RinDataLayout } from "../storage";
 import { isConversationError } from "./errors";
 import { processOwnerMessage } from "./runtime";
+
+function seedAcceptedMemory(
+  layout: RinDataLayout,
+  text: string,
+  now: Date,
+): string {
+  const database = openRinDatabase(layout);
+
+  try {
+    const proposal = createMemoryProposal(database, {
+      memoryType: "semantic",
+      content: { text },
+      now,
+    });
+    reviewMemoryProposal(database, {
+      memoryItemId: proposal.id,
+      decision: "accept",
+      now,
+    });
+    return proposal.id;
+  } finally {
+    database.close();
+  }
+}
+
+function latestModelResponsePayload(
+  layout: RinDataLayout,
+): Record<string, unknown> {
+  const database = openRinDatabase(layout);
+
+  try {
+    const row = database
+      .prepare(
+        `
+          SELECT payload_json
+          FROM raw_events
+          WHERE event_type = 'model.response_received'
+          ORDER BY created_at DESC
+          LIMIT 1
+        `,
+      )
+      .get() as { payload_json: string };
+    return JSON.parse(row.payload_json) as Record<string, unknown>;
+  } finally {
+    database.close();
+  }
+}
 
 function failingLocalAdapter(): ModelAdapter {
   return {
@@ -127,6 +176,86 @@ describe("processOwnerMessage", () => {
     } finally {
       database.close();
     }
+  });
+
+  it("injects a relevant accepted memory into model context and records its id", async () => {
+    const cwd = await createTempRoot();
+    const storage = await initializeRinStorage(defaultEnvironment, { cwd });
+    const memoryId = seedAcceptedMemory(
+      storage.layout,
+      "Owner prefers local Ollama reasoning models.",
+      new Date("2026-05-19T00:00:00.000Z"),
+    );
+
+    await processOwnerMessage(storage.layout, {
+      ownerId: defaultEnvironment.ownerId,
+      content: "Which local Ollama reasoning models should RIN use?",
+      now: new Date("2026-05-19T00:01:00.000Z"),
+    });
+
+    const payload = latestModelResponsePayload(storage.layout);
+
+    expect(payload.injectedMemoryCount).toBe(1);
+    expect(payload.injectedMemoryIds).toEqual([memoryId]);
+    expect(payload.memoryContextCharacterCount).toBeGreaterThan(0);
+  });
+
+  it("does not inject pending or rejected memories", async () => {
+    const cwd = await createTempRoot();
+    const storage = await initializeRinStorage(defaultEnvironment, { cwd });
+    const now = new Date("2026-05-19T00:00:00.000Z");
+    const database = openRinDatabase(storage.layout);
+
+    try {
+      createMemoryProposal(database, {
+        memoryType: "semantic",
+        content: { text: "Owner prefers local Ollama reasoning models." },
+        now,
+      });
+      const rejected = createMemoryProposal(database, {
+        memoryType: "semantic",
+        content: { text: "Owner prefers local Ollama reasoning models too." },
+        now,
+      });
+      reviewMemoryProposal(database, {
+        memoryItemId: rejected.id,
+        decision: "reject",
+        now,
+      });
+    } finally {
+      database.close();
+    }
+
+    await processOwnerMessage(storage.layout, {
+      ownerId: defaultEnvironment.ownerId,
+      content: "Which local Ollama reasoning models should RIN use?",
+      now: new Date("2026-05-19T00:01:00.000Z"),
+    });
+
+    const payload = latestModelResponsePayload(storage.layout);
+
+    expect(payload.injectedMemoryCount).toBe(0);
+    expect(payload.injectedMemoryIds).toEqual([]);
+  });
+
+  it("does not inject an accepted memory that is unrelated to the message", async () => {
+    const cwd = await createTempRoot();
+    const storage = await initializeRinStorage(defaultEnvironment, { cwd });
+    seedAcceptedMemory(
+      storage.layout,
+      "Owner enjoys weekend hiking trips.",
+      new Date("2026-05-19T00:00:00.000Z"),
+    );
+
+    await processOwnerMessage(storage.layout, {
+      ownerId: defaultEnvironment.ownerId,
+      content: "Explain the SQLite schema migration plan.",
+      now: new Date("2026-05-19T00:01:00.000Z"),
+    });
+
+    const payload = latestModelResponsePayload(storage.layout);
+
+    expect(payload.injectedMemoryCount).toBe(0);
   });
 
   it("maps a local model failure to a structured conversation error", async () => {

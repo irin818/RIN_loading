@@ -96,6 +96,107 @@ describe("buildModelContext", () => {
   });
 });
 
+describe("buildModelContext memory injection", () => {
+  it("injects a memory block after the system prompt and before conversation", () => {
+    const context = buildModelContext([owner("hello")], undefined, {
+      memories: [
+        { id: "m1", text: "Owner prefers local Ollama models." },
+        { id: "m2", text: "Owner works on the RIN project." },
+      ],
+    });
+
+    expect(context.messages.map((message) => message.role)).toEqual([
+      "system",
+      "system",
+      "owner",
+    ]);
+    expect(context.messages[1].content).toContain(
+      "Relevant accepted owner memories:",
+    );
+    expect(context.messages[1].content).toContain("[memory:m1]");
+    expect(context.messages[1].content).toContain("[memory:m2]");
+    expect(context.messages[1].content).toContain(
+      "prefer the current user message",
+    );
+    expect(context.messages.at(-1)).toEqual(owner("hello"));
+  });
+
+  it("records injected memory ids, count, and character count in stats", () => {
+    const context = buildModelContext([owner("hello")], undefined, {
+      memories: [{ id: "m1", text: "Owner prefers local Ollama models." }],
+    });
+
+    expect(context.stats.injectedMemoryCount).toBe(1);
+    expect(context.stats.injectedMemoryIds).toEqual(["m1"]);
+    expect(context.stats.memoryContextCharacterCount).toBe(
+      context.messages[1].content.length,
+    );
+  });
+
+  it("reports no injected memories when none are provided", () => {
+    const context = buildModelContext([owner("hello")]);
+
+    expect(context.messages.filter((message) => message.role === "system")).toHaveLength(
+      1,
+    );
+    expect(context.stats.injectedMemoryCount).toBe(0);
+    expect(context.stats.injectedMemoryIds).toEqual([]);
+    expect(context.stats.memoryContextCharacterCount).toBe(0);
+  });
+
+  it("respects maxMemoryContextCharacters by dropping the least relevant memories", () => {
+    const context = buildModelContext([owner("hello")], undefined, {
+      memories: [
+        { id: "m1", text: "first memory snippet" },
+        { id: "m2", text: "second memory snippet" },
+        { id: "m3", text: "third memory snippet" },
+      ],
+      maxMemoryContextCharacters: 355,
+    });
+
+    expect(context.stats.injectedMemoryCount).toBe(2);
+    expect(context.stats.memoryContextCharacterCount).toBeLessThanOrEqual(355);
+    expect(context.stats.injectedMemoryIds).toEqual(["m1", "m2"]);
+    expect(context.stats.injectedMemoryIds).not.toContain("m3");
+  });
+
+  it("respects maxInjectedMemories", () => {
+    const memories = Array.from({ length: 8 }, (_, index) => ({
+      id: `m${index}`,
+      text: `memory ${index}`,
+    }));
+
+    const context = buildModelContext([owner("hello")], undefined, {
+      memories,
+      maxInjectedMemories: 2,
+    });
+
+    expect(context.stats.injectedMemoryCount).toBe(2);
+  });
+
+  it("never drops the latest owner message to make room for memories", () => {
+    const context = buildModelContext(
+      [owner("the latest owner message must remain")],
+      {
+        maxRecentMessages: 12,
+        maxInputCharacters: 60,
+        preserveLatestOwnerMessage: true,
+      },
+      {
+        memories: [
+          { id: "m1", text: "a".repeat(300) },
+          { id: "m2", text: "b".repeat(300) },
+        ],
+      },
+    );
+
+    expect(context.messages.at(-1)).toEqual(
+      owner("the latest owner message must remain"),
+    );
+    expect(context.stats.injectedMemoryCount).toBe(0);
+  });
+});
+
 function owner(content: string): ModelMessage {
   return { role: "owner", content };
 }

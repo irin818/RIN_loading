@@ -284,10 +284,34 @@ policy check、SQLite 记录、状态更新和慢变量快照路径。
 
 RIN does not send unbounded conversation history to local models. Phase 23 adds
 a first character-based context budget and compact RIN system prompt before
-model adapter calls. Long-term memory retrieval is still future work.
+model adapter calls.
 
 RIN 不会把无界对话历史发送给本地模型。Phase 23 在模型 adapter 调用前加入第一版
-基于字符数的上下文预算和紧凑 RIN system prompt。长期记忆检索仍是后续工作。
+基于字符数的上下文预算和紧凑 RIN system prompt。
+
+Phase 28 lets explicitly accepted long-term memories begin influencing model
+context in a bounded, auditable way. Before each model call, RIN selects a small,
+deterministic subset of accepted memories relevant to the current owner message
+(first version: keyword overlap with recency as a tiebreaker) and injects them as
+a compact system-level memory block placed after the RIN system prompt and before
+conversation messages. Only memories explicitly accepted through the existing
+review flow are ever used; pending, rejected, and archived memories are never
+injected, and no memories are auto-written or auto-accepted. Injection is limited
+(by default at most 5 memories and 2000 characters) and always yields to the
+budget priority order: RIN system prompt, latest owner message, accepted memories,
+then recent conversation messages — so memories can never push out the latest
+owner message. Injected memory ids, count, and character size are recorded in the
+raw/audit logs for traceability. There is no embeddings or vector database yet.
+
+Phase 28 让经过明确接受的长期记忆开始以有界、可审计的方式影响模型上下文。在每次
+模型调用前，RIN 会针对当前所有者消息选择一小批确定性的相关已接受记忆（第一版：
+关键词重叠并以时间近因作为并列排序依据），并将它们作为紧凑的系统级记忆块注入，
+位置在 RIN system prompt 之后、对话消息之前。只有通过现有审查流程被明确接受的记忆
+才会被使用；待审、被拒绝和已归档的记忆绝不会被注入，也不会自动写入或自动接受记忆。
+注入是有限的（默认最多 5 条记忆、2000 个字符），并始终服从预算优先级：RIN system
+prompt、最新所有者消息、已接受记忆，然后才是最近的对话消息——因此记忆永远不会挤掉
+最新的所有者消息。被注入的记忆 id、数量和字符大小会记录在原始/审计日志中以便追溯。
+目前还没有 embeddings 或向量数据库。
 
 ## Local Model Stability
 

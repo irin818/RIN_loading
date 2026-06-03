@@ -8,7 +8,12 @@ import { ConversationError, toConversationError } from "./errors";
 import type { ConversationTurnResult } from "./types";
 import { buildModelContext } from "../context";
 import { appendAuditEvent, openRinDatabase, type RinDatabase } from "../database";
-import { maybeCreateOwnerMemoryProposal } from "../memory";
+import {
+  listMemoryItems,
+  maybeCreateOwnerMemoryProposal,
+  selectRelevantAcceptedMemories,
+  type AcceptedMemorySnippet,
+} from "../memory";
 import { getConfiguredModelAdapter, type ModelAdapter } from "../model";
 import { evaluateModelResponse } from "../policy";
 import { appendRawEvent } from "../rawLog";
@@ -25,6 +30,10 @@ export type ProcessOwnerMessageInput = {
 
 export type ProcessOwnerMessageDeps = {
   resolveAdapter?: (layout: RinDataLayout) => Promise<ModelAdapter>;
+  selectAcceptedMemories?: (
+    database: RinDatabase,
+    ownerMessage: string,
+  ) => AcceptedMemorySnippet[];
 };
 
 export async function processOwnerMessage(
@@ -39,6 +48,8 @@ export async function processOwnerMessage(
   }
 
   const resolveAdapter = deps.resolveAdapter ?? getConfiguredModelAdapter;
+  const selectAcceptedMemories =
+    deps.selectAcceptedMemories ?? defaultSelectAcceptedMemories;
   const now = input.now ?? new Date();
   const database = openRinDatabase(layout);
 
@@ -76,7 +87,10 @@ export async function processOwnerMessage(
         content: message.content,
       })),
     ];
-    const modelContext = buildModelContext(conversationMessages);
+    const acceptedMemories = selectAcceptedMemories(database, content);
+    const modelContext = buildModelContext(conversationMessages, undefined, {
+      memories: acceptedMemories,
+    });
     const adapter = await resolveAdapter(layout);
     const modelResponse = await adapter.generate({
       ownerId: input.ownerId,
@@ -96,6 +110,9 @@ export async function processOwnerMessage(
         modelContextMessageCount: modelContext.stats.messageCount,
         modelContextCharacterCount: modelContext.stats.characterCount,
         modelContextDroppedMessageCount: modelContext.stats.droppedMessageCount,
+        injectedMemoryCount: modelContext.stats.injectedMemoryCount,
+        injectedMemoryIds: modelContext.stats.injectedMemoryIds,
+        memoryContextCharacterCount: modelContext.stats.memoryContextCharacterCount,
       },
       now,
     });
@@ -126,6 +143,9 @@ export async function processOwnerMessage(
         modelContextMessageCount: modelContext.stats.messageCount,
         modelContextCharacterCount: modelContext.stats.characterCount,
         modelContextDroppedMessageCount: modelContext.stats.droppedMessageCount,
+        injectedMemoryCount: modelContext.stats.injectedMemoryCount,
+        injectedMemoryIds: modelContext.stats.injectedMemoryIds,
+        memoryContextCharacterCount: modelContext.stats.memoryContextCharacterCount,
       },
       now,
     });
@@ -185,6 +205,24 @@ function logTurnFailure(
   } catch {
     // Logging the failure must never mask the original conversation error.
   }
+}
+
+/**
+ * Retrieve a small, relevant subset of explicitly accepted memories for the
+ * current owner message. Only accepted memories are queried; pending, rejected,
+ * and archived memories are never injected. Selection is deterministic and
+ * bounded by the context builder's injection limits.
+ */
+function defaultSelectAcceptedMemories(
+  database: RinDatabase,
+  ownerMessage: string,
+): AcceptedMemorySnippet[] {
+  const acceptedMemories = listMemoryItems(database, {
+    status: "accepted",
+    limit: 50,
+  });
+
+  return selectRelevantAcceptedMemories(acceptedMemories, ownerMessage);
 }
 
 function titleFromContent(content: string): string {
