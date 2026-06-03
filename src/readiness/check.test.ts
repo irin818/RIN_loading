@@ -56,6 +56,10 @@ describe("readRinReadiness", () => {
         RIN_MODEL_ADAPTER: "rin-ollama-local",
         RIN_OLLAMA_BASE_URL: "http://127.0.0.1:11434",
         RIN_OLLAMA_MODEL: "qwen3:4b",
+        RIN_OLLAMA_TIMEOUT_MS: "120000",
+        RIN_OLLAMA_NUM_PREDICT: "256",
+        RIN_OLLAMA_TEMPERATURE: "0.5",
+        RIN_OLLAMA_TOP_P: "0.85",
       },
       {
         fetchFn: async () =>
@@ -73,9 +77,46 @@ describe("readRinReadiness", () => {
     expect(report.checks.find((check) => check.key === "model-adapter")?.status).toBe(
       "pass",
     );
+    const runtimeCheck = report.checks.find(
+      (check) => check.key === "ollama-runtime",
+    );
+    expect(runtimeCheck?.status).toBe("pass");
+    expect(runtimeCheck?.english).toContain("timeout=120000ms");
+    expect(runtimeCheck?.english).toContain("num_predict=256");
     expect(report.checks.find((check) => check.key === "live-model")?.status).toBe(
       "pass",
     );
+  });
+
+  it("warns about invalid Ollama runtime control environment", async () => {
+    const cwd = await createTempRoot();
+    await initializeRinStorage(defaultEnvironment, { cwd });
+    const report = await readRinReadiness(
+      cwd,
+      {
+        RIN_MODEL_ADAPTER: "rin-ollama-local",
+        RIN_OLLAMA_TIMEOUT_MS: "fast",
+        RIN_OLLAMA_NUM_PREDICT: "0",
+        RIN_OLLAMA_TEMPERATURE: "9",
+        RIN_OLLAMA_TOP_P: "-1",
+      },
+      {
+        fetchFn: async () =>
+          new Response(
+            JSON.stringify({ models: [{ name: "qwen3:4b" }] }),
+            { status: 200 },
+          ),
+      },
+    );
+    const runtimeCheck = report.checks.find(
+      (check) => check.key === "ollama-runtime",
+    );
+
+    expect(report.ok).toBe(true);
+    expect(report.readyForLocalModel).toBe(true);
+    expect(runtimeCheck?.status).toBe("warn");
+    expect(runtimeCheck?.english).toContain("Invalid RIN_OLLAMA_TIMEOUT_MS");
+    expect(runtimeCheck?.english).toContain("num_predict=512");
   });
 
   it("reports actionable Ollama guidance when the selected model is missing", async () => {

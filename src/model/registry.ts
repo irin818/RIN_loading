@@ -11,6 +11,10 @@ import {
   OLLAMA_BASE_URL_ENV,
   OLLAMA_DEFAULT_BASE_URL,
   OLLAMA_DEFAULT_MODEL,
+  OLLAMA_DEFAULT_NUM_PREDICT,
+  OLLAMA_DEFAULT_TEMPERATURE,
+  OLLAMA_DEFAULT_TIMEOUT_MS,
+  OLLAMA_DEFAULT_TOP_P,
   OLLAMA_MODEL_ENV,
   OPENAI_COMPATIBLE_ADAPTER_ID,
   OPENAI_COMPATIBLE_BASE_URL_ENV,
@@ -30,7 +34,12 @@ const adapters = new Map<string, ModelAdapter>([
       displayName: "Ollama local chat adapter",
       baseUrl: OLLAMA_DEFAULT_BASE_URL,
       model: OLLAMA_DEFAULT_MODEL,
-      timeoutMs: 30_000,
+      timeoutMs: OLLAMA_DEFAULT_TIMEOUT_MS,
+      generationOptions: {
+        numPredict: OLLAMA_DEFAULT_NUM_PREDICT,
+        temperature: OLLAMA_DEFAULT_TEMPERATURE,
+        topP: OLLAMA_DEFAULT_TOP_P,
+      },
     }),
   ],
 ]);
@@ -104,6 +113,7 @@ export async function getConfiguredModelAdapter(
       baseUrl,
       model,
       timeoutMs: options.timeoutMs,
+      generationOptions: options.generationOptions,
     });
   }
 

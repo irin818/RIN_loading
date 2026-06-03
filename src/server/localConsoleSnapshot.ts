@@ -10,7 +10,12 @@ import { listRecentConversations } from "../conversation";
 import { inspectRinDatabase } from "../database";
 import { openRinDatabase } from "../database";
 import { getMemoryCounts, listMemoryItems } from "../memory";
-import { getModelRuntimeStatus, loadModelRuntimeConfig } from "../model";
+import {
+  getModelRuntimeStatus,
+  getOllamaRuntimeOptions,
+  loadModelRuntimeConfig,
+  OLLAMA_ADAPTER_ID,
+} from "../model";
 import { listTools, registerBuiltinTools } from "../tools";
 import {
   createDataLayout,
@@ -36,6 +41,7 @@ export async function readLocalConsoleSnapshot(
   const permissions = await readJsonFile(join(layout.rootDir, "config/permissions.json"));
   const modelConfig = await loadModelRuntimeConfig(layout);
   const modelStatus = getModelRuntimeStatus(modelConfig, environmentSource);
+  const ollamaConfig = readOllamaSnapshotConfig(modelConfig, environmentSource);
   const toolRegistry = await readJsonFile(join(layout.rootDir, "config/tool_registry.json"));
   registerBuiltinTools();
 
@@ -96,7 +102,10 @@ export async function readLocalConsoleSnapshot(
       adapterCount: modelStatus.adapterCount,
       apiKeysStoredHere: modelStatus.apiKeysStoredHere,
       externalCallsEnabled: modelStatus.externalCallsEnabled,
+      localCallsConfigured: modelStatus.localCallsConfigured,
       missingEnvironment: modelStatus.missingEnvironment,
+      ollama:
+        modelStatus.activeAdapter === OLLAMA_ADAPTER_ID ? ollamaConfig : null,
     },
     toolRegistry: {
       toolCount: listTools().length + readArrayLength(toolRegistry, "tools"),
@@ -112,16 +121,16 @@ export async function readLocalConsoleSnapshot(
     featureGates: [
       {
         key: "chat-runtime",
-        english: "Basic local conversation runtime uses the mock adapter only.",
-        chinese: "基础本地对话运行时仅使用 mock adapter。",
+        english: "Basic local conversation runtime uses the configured model adapter.",
+        chinese: "基础本地对话运行时使用已配置的模型 adapter。",
         enabled: true,
       },
       {
         key: "model-calls",
         english:
-          "External model calls are available only through an explicitly configured model adapter.",
-        chinese: "外部模型调用只能通过显式配置的模型 adapter 启用。",
-        enabled: modelStatus.externalCallsEnabled,
+          "Live model calls are available only through an explicitly configured model adapter.",
+        chinese: "真实模型调用只能通过显式配置的模型 adapter 启用。",
+        enabled: modelStatus.externalCallsEnabled || modelStatus.localCallsConfigured,
       },
       {
         key: "memory-writes",
@@ -142,6 +151,31 @@ export async function readLocalConsoleSnapshot(
         enabled: true,
       },
     ],
+  };
+}
+
+function readOllamaSnapshotConfig(
+  modelConfig: Awaited<ReturnType<typeof loadModelRuntimeConfig>>,
+  source: ReturnType<typeof loadEnvironmentSource>,
+): LocalConsoleSnapshot["modelConfig"]["ollama"] {
+  const adapter = modelConfig.adapters.find(
+    (config) => config.id === OLLAMA_ADAPTER_ID,
+  );
+
+  if (!adapter) {
+    return null;
+  }
+
+  const options = getOllamaRuntimeOptions(adapter, source);
+
+  return {
+    baseUrl: options.baseUrl,
+    model: options.model,
+    timeoutMs: options.timeoutMs,
+    numPredict: options.generationOptions.numPredict,
+    temperature: options.generationOptions.temperature,
+    topP: options.generationOptions.topP,
+    invalidEnvironment: options.invalidEnvironment,
   };
 }
 

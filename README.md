@@ -12,10 +12,10 @@ Before modifying this project, read [PROJECT_CHARTER.md](./PROJECT_CHARTER.md).
 
 ## 当前范围
 
-This repository currently contains Phase 0 through Phase 23 as local MVP
+This repository currently contains Phase 0 through Phase 24 as local MVP
 templates:
 
-当前仓库包含 Phase 0 到 Phase 23 的本地 MVP 模板：
+当前仓库包含 Phase 0 到 Phase 24 的本地 MVP 模板：
 
 - Project definition and charter.
 - 项目定义与项目宪章。
@@ -53,6 +53,10 @@ templates:
   prevents unbounded conversation history from being sent to model adapters.
 - 有界模型上下文构建器，会加入紧凑的 RIN system prompt，并防止把无界对话历史
   直接发送给模型 adapter。
+- Local Ollama runtime controls for timeout, output length, and sampling
+  stability when `rin-ollama-local` is explicitly selected.
+- 本地 Ollama runtime 控制项，可在显式选择 `rin-ollama-local` 时配置超时、
+  输出长度和采样稳定性。
 - Controlled local memory review for accepting, rejecting, or archiving memory
   proposals.
 - 受控的本地记忆审查流程，可接受、拒绝或归档记忆提案。
@@ -102,21 +106,21 @@ npm run dev
 Phase 2 introduced a Node-side storage foundation that initializes a controlled
 local data directory and writes a `manifest.json` with the storage schema
 version. Phase 3 added SQLite persistence. Phase 4 added model abstraction.
-Phase 5 added a basic local conversation path through the runtime. Phase 6-23
+Phase 5 added a basic local conversation path through the runtime. Phase 6-24
 added raw logs, memory proposals, policy checks, state history, export bundles,
 permission-gated L0 tools, an original chibi SVG body rig, a local-only body
 interaction shell, configurable model adapter selection, and controlled memory
 review, local conversation history browsing, safe bundle import, readiness
 reporting, the first Ollama local chat adapter, and bounded model context
-assembly before adapter calls.
+assembly plus local runtime controls before adapter calls.
 
 Phase 2 引入 Node 侧存储基础，可以初始化受控本地数据目录，并写入带有存储
 schema 版本的 `manifest.json`。Phase 3 增加 SQLite 持久化。Phase 4 增加模型
-抽象层。Phase 5 增加通过 runtime 的基础本地对话路径。Phase 6-23 增加原始
+抽象层。Phase 5 增加通过 runtime 的基础本地对话路径。Phase 6-24 增加原始
 日志、记忆提案、策略检查、状态历史、导出包、受权限控制的 L0 工具、原创 Q 版
 SVG 身体 rig、仅本地运行的身体交互壳、可配置的模型 adapter 选择，以及受控记忆
 审查、本地对话历史浏览、安全 bundle 导入、就绪检查报告、第一个 Ollama 本地聊天
-adapter，以及 adapter 调用前的有界模型上下文组装。
+adapter，以及 adapter 调用前的有界模型上下文组装和本地 runtime 控制项。
 
 Initialize local RIN data:
 
@@ -245,6 +249,10 @@ ollama pull qwen3:4b
 RIN_MODEL_ADAPTER=rin-ollama-local
 RIN_OLLAMA_BASE_URL=http://127.0.0.1:11434
 RIN_OLLAMA_MODEL=qwen3:4b
+RIN_OLLAMA_TIMEOUT_MS=120000
+RIN_OLLAMA_NUM_PREDICT=512
+RIN_OLLAMA_TEMPERATURE=0.6
+RIN_OLLAMA_TOP_P=0.9
 ```
 
 Ollama does not need an API key. Keep the base URL bound to localhost unless a
@@ -280,6 +288,49 @@ model adapter calls. Long-term memory retrieval is still future work.
 
 RIN 不会把无界对话历史发送给本地模型。Phase 23 在模型 adapter 调用前加入第一版
 基于字符数的上下文预算和紧凑 RIN system prompt。长期记忆检索仍是后续工作。
+
+## Local Model Stability
+
+## 本地模型稳定性
+
+Phase 24 adds scoped runtime controls for the local Ollama adapter:
+
+Phase 24 为本地 Ollama adapter 增加了有限的 runtime 控制项：
+
+```sh
+RIN_OLLAMA_TIMEOUT_MS=120000
+RIN_OLLAMA_NUM_PREDICT=512
+RIN_OLLAMA_TEMPERATURE=0.6
+RIN_OLLAMA_TOP_P=0.9
+```
+
+Use `RIN_OLLAMA_TIMEOUT_MS` to prevent local model calls from hanging
+indefinitely. Use `RIN_OLLAMA_NUM_PREDICT` to keep output length bounded; lower
+it, for example to `256`, if local generation is slow. `RIN_OLLAMA_TEMPERATURE`
+and `RIN_OLLAMA_TOP_P` keep sampling stable by default.
+
+使用 `RIN_OLLAMA_TIMEOUT_MS` 防止本地模型调用无限挂起。使用
+`RIN_OLLAMA_NUM_PREDICT` 控制输出长度；如果本地生成较慢，可以把它降低到
+例如 `256`。`RIN_OLLAMA_TEMPERATURE` 和 `RIN_OLLAMA_TOP_P` 默认保持较稳定的
+采样。
+
+Common local failures and fixes:
+
+常见本地故障与处理：
+
+- Ollama not running: start it with `open -ga Ollama`, then confirm
+  `curl http://127.0.0.1:11434/api/tags`.
+- Ollama 未运行：用 `open -ga Ollama` 启动，然后确认
+  `curl http://127.0.0.1:11434/api/tags`。
+- Model not pulled: run `ollama pull qwen3:4b`.
+- 模型未拉取：运行 `ollama pull qwen3:4b`。
+- Local timeout: reduce prompt length, lower `RIN_OLLAMA_NUM_PREDICT`, restart
+  Ollama, or try a smaller local model.
+- 本地超时：缩短 prompt，降低 `RIN_OLLAMA_NUM_PREDICT`，重启 Ollama，或尝试更小
+  的本地模型。
+- Long prompt or slow generation: keep the context budget enabled and prefer a
+  lower output limit before raising timeout.
+- prompt 过长或生成过慢：保持上下文预算启用，优先降低输出长度，再考虑增加超时。
 
 The initializer creates readable JSON files for the owner model, AI identity,
 AI state, policy config, model config, tool registry, and permissions. These are

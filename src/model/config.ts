@@ -12,7 +12,15 @@ export const OLLAMA_ADAPTER_ID = "rin-ollama-local";
 export const OLLAMA_BASE_URL_ENV = "RIN_OLLAMA_BASE_URL";
 export const OLLAMA_DEFAULT_BASE_URL = "http://127.0.0.1:11434";
 export const OLLAMA_DEFAULT_MODEL = "qwen3:4b";
+export const OLLAMA_DEFAULT_NUM_PREDICT = 512;
+export const OLLAMA_DEFAULT_TEMPERATURE = 0.6;
+export const OLLAMA_DEFAULT_TIMEOUT_MS = 120_000;
+export const OLLAMA_DEFAULT_TOP_P = 0.9;
 export const OLLAMA_MODEL_ENV = "RIN_OLLAMA_MODEL";
+export const OLLAMA_NUM_PREDICT_ENV = "RIN_OLLAMA_NUM_PREDICT";
+export const OLLAMA_TEMPERATURE_ENV = "RIN_OLLAMA_TEMPERATURE";
+export const OLLAMA_TIMEOUT_MS_ENV = "RIN_OLLAMA_TIMEOUT_MS";
+export const OLLAMA_TOP_P_ENV = "RIN_OLLAMA_TOP_P";
 export const MODEL_ADAPTER_ENV = "RIN_MODEL_ADAPTER";
 
 export type ModelEnvironmentSource = Record<string, string | undefined>;
@@ -49,6 +57,20 @@ export type ModelRuntimeStatus = {
   externalCallsEnabled: boolean;
   localCallsConfigured: boolean;
   missingEnvironment: string[];
+};
+
+export type OllamaGenerationOptions = {
+  numPredict: number;
+  temperature: number;
+  topP: number;
+};
+
+export type OllamaRuntimeOptions = {
+  baseUrl: string | null;
+  model: string | null;
+  timeoutMs: number;
+  generationOptions: OllamaGenerationOptions;
+  invalidEnvironment: string[];
 };
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -169,15 +191,39 @@ export function getOpenAiCompatibleRuntimeOptions(
 export function getOllamaRuntimeOptions(
   adapter: ModelAdapterConfig,
   source: ModelEnvironmentSource = process.env,
-): {
-  baseUrl: string | null;
-  model: string | null;
-  timeoutMs: number;
-} {
+): OllamaRuntimeOptions {
+  const timeout = readEnvInteger(
+    source[OLLAMA_TIMEOUT_MS_ENV],
+    { min: 1 },
+  );
+  const numPredict = readEnvInteger(
+    source[OLLAMA_NUM_PREDICT_ENV],
+    { min: 1 },
+  );
+  const temperature = readEnvNumber(
+    source[OLLAMA_TEMPERATURE_ENV],
+    { min: 0, max: 2 },
+  );
+  const topP = readEnvNumber(source[OLLAMA_TOP_P_ENV], {
+    minExclusive: 0,
+    max: 1,
+  });
+
   return {
     baseUrl: readString(source[OLLAMA_BASE_URL_ENV]) ?? adapter.baseUrl,
     model: readString(source[OLLAMA_MODEL_ENV]) ?? adapter.model,
-    timeoutMs: adapter.timeoutMs,
+    timeoutMs: timeout.value ?? adapter.timeoutMs,
+    generationOptions: {
+      numPredict: numPredict.value ?? OLLAMA_DEFAULT_NUM_PREDICT,
+      temperature: temperature.value ?? OLLAMA_DEFAULT_TEMPERATURE,
+      topP: topP.value ?? OLLAMA_DEFAULT_TOP_P,
+    },
+    invalidEnvironment: [
+      timeout.invalid ? OLLAMA_TIMEOUT_MS_ENV : null,
+      numPredict.invalid ? OLLAMA_NUM_PREDICT_ENV : null,
+      temperature.invalid ? OLLAMA_TEMPERATURE_ENV : null,
+      topP.invalid ? OLLAMA_TOP_P_ENV : null,
+    ].filter((item): item is string => item !== null),
   };
 }
 
@@ -241,7 +287,7 @@ function createDefaultAdapterConfigs(): ModelAdapterConfig[] {
       model: OLLAMA_DEFAULT_MODEL,
       baseUrl: OLLAMA_DEFAULT_BASE_URL,
       apiKeyEnv: null,
-      timeoutMs: DEFAULT_TIMEOUT_MS,
+      timeoutMs: OLLAMA_DEFAULT_TIMEOUT_MS,
     },
     {
       id: OPENAI_COMPATIBLE_ADAPTER_ID,
@@ -323,6 +369,50 @@ function readPositiveInteger(value: unknown): number | null {
   return Number.isInteger(value) && typeof value === "number" && value > 0
     ? value
     : null;
+}
+
+function readEnvInteger(
+  value: string | undefined,
+  bounds: { min: number },
+): { value: number | null; invalid: boolean } {
+  const raw = readString(value);
+
+  if (!raw) {
+    return { value: null, invalid: false };
+  }
+
+  const parsed = Number(raw);
+
+  if (!Number.isInteger(parsed) || parsed < bounds.min) {
+    return { value: null, invalid: true };
+  }
+
+  return { value: parsed, invalid: false };
+}
+
+function readEnvNumber(
+  value: string | undefined,
+  bounds: { min?: number; minExclusive?: number; max: number },
+): { value: number | null; invalid: boolean } {
+  const raw = readString(value);
+
+  if (!raw) {
+    return { value: null, invalid: false };
+  }
+
+  const parsed = Number(raw);
+  const belowMin =
+    bounds.min !== undefined
+      ? parsed < bounds.min
+      : bounds.minExclusive !== undefined
+        ? parsed <= bounds.minExclusive
+        : false;
+
+  if (!Number.isFinite(parsed) || belowMin || parsed > bounds.max) {
+    return { value: null, invalid: true };
+  }
+
+  return { value: parsed, invalid: false };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -31,6 +31,8 @@ describe("readLocalConsoleSnapshot", () => {
     expect(snapshot.ownerModel.status).toBe("placeholder");
     expect(snapshot.toolRegistry.toolCount).toBe(2);
     expect(snapshot.modelConfig.apiKeysStoredHere).toBe(false);
+    expect(snapshot.modelConfig.localCallsConfigured).toBe(false);
+    expect(snapshot.modelConfig.ollama).toBeNull();
     expect(
       snapshot.featureGates.find((gate) => gate.key === "chat-runtime")?.enabled,
     ).toBe(true);
@@ -55,6 +57,42 @@ describe("readLocalConsoleSnapshot", () => {
             ].includes(gate.key),
         )
         .every((gate) => !gate.enabled),
+    ).toBe(true);
+  });
+
+  it("reports selected Ollama runtime settings from local environment", async () => {
+    const cwd = await createTempRoot();
+    await writeFile(
+      join(cwd, ".env"),
+      [
+        "RIN_MODEL_ADAPTER=rin-ollama-local",
+        "RIN_OLLAMA_TIMEOUT_MS=120000",
+        "RIN_OLLAMA_NUM_PREDICT=256",
+        "RIN_OLLAMA_TEMPERATURE=0.5",
+        "RIN_OLLAMA_TOP_P=0.85",
+      ].join("\n"),
+      "utf8",
+    );
+    await initializeRinStorage(defaultEnvironment, {
+      cwd,
+      now: () => new Date("2026-05-19T00:00:00.000Z"),
+    });
+
+    const snapshot = await readLocalConsoleSnapshot(cwd);
+
+    expect(snapshot.modelConfig.activeAdapter).toBe("rin-ollama-local");
+    expect(snapshot.modelConfig.localCallsConfigured).toBe(true);
+    expect(snapshot.modelConfig.ollama).toEqual({
+      baseUrl: "http://127.0.0.1:11434",
+      model: "qwen3:4b",
+      timeoutMs: 120_000,
+      numPredict: 256,
+      temperature: 0.5,
+      topP: 0.85,
+      invalidEnvironment: [],
+    });
+    expect(
+      snapshot.featureGates.find((gate) => gate.key === "model-calls")?.enabled,
     ).toBe(true);
   });
 });

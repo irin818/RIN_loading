@@ -59,7 +59,17 @@ export type LocalConsoleSnapshot = {
     adapterCount: number;
     apiKeysStoredHere: boolean;
     externalCallsEnabled: boolean;
+    localCallsConfigured: boolean;
     missingEnvironment: string[];
+    ollama: null | {
+      baseUrl: string | null;
+      model: string | null;
+      timeoutMs: number;
+      numPredict: number;
+      temperature: number;
+      topP: number;
+      invalidEnvironment: string[];
+    };
   };
   toolRegistry: {
     toolCount: number;
