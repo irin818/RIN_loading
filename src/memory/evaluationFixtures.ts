@@ -20,6 +20,12 @@ export type MemoryEvaluationCase = {
   expectedMatchedTokens?: Record<string, string[]>;
   expectedMatchedTypeSignals?: Record<string, string[]>;
   expectedTypeMatchBonuses?: Record<string, number>;
+  expectedMatchedTags?: Record<string, string[]>;
+  expectedTagMatchBonuses?: Record<string, number>;
+  expectedImportanceBonuses?: Record<string, number>;
+  expectedConfidenceAdjustments?: Record<string, number>;
+  expectedMetadataBonuses?: Record<string, number>;
+  expectedMetadataSignals?: Record<string, string[]>;
   expectedSkipReasons?: Record<string, MemorySkipReason>;
   expectedPrivacyForbiddenText?: string[];
   maxInjectedMemories?: number;
@@ -363,7 +369,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
     ],
   },
   {
-    caseId: "metadata-present-no-ranking-or-trace",
+    caseId: "metadata-token-relevance-dominates",
     query: "project memory notes",
     acceptedMemories: [
       {
@@ -393,9 +399,272 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
     expectedSkipReasons: {
       "mem-metadata-high": "max_count_exceeded",
     },
+    expectedMatchedTags: {
+      "mem-metadata-high": ["project"],
+    },
+    expectedTagMatchBonuses: {
+      "mem-metadata-high": 1,
+      "mem-metadata-strong-tokens": 0,
+    },
+    expectedImportanceBonuses: {
+      "mem-metadata-high": 1,
+      "mem-metadata-strong-tokens": 0,
+    },
+    expectedMetadataBonuses: {
+      "mem-metadata-high": 2,
+      "mem-metadata-strong-tokens": 0,
+    },
+    expectedMetadataSignals: {
+      "mem-metadata-high": ["tag_match", "importance_high"],
+    },
     expectedPrivacyForbiddenText: [
       "urgent-metadata-tag",
       "owner-reviewed-source",
     ],
+  },
+  {
+    caseId: "metadata-tag-match-boosts-relevant-memory",
+    query: "project memory notes",
+    acceptedMemories: [
+      {
+        id: "mem-tag-project",
+        text: "Owner keeps memory notes.",
+        metadata: {
+          tags: ["project"],
+          importance: "normal",
+          confidence: "medium",
+          source: null,
+        },
+        updatedAt: "2026-05-19T00:00:00.000Z",
+      },
+      {
+        id: "mem-tag-neutral-newer",
+        text: "Owner keeps memory notes.",
+        metadata: {
+          tags: [],
+          importance: "normal",
+          confidence: "medium",
+          source: null,
+        },
+        updatedAt: "2026-05-19T00:01:00.000Z",
+      },
+    ],
+    maxInjectedMemories: 1,
+    expectedInjectedIds: ["mem-tag-project"],
+    expectedNotInjectedIds: ["mem-tag-neutral-newer"],
+    expectedMatchedTags: {
+      "mem-tag-project": ["project"],
+    },
+    expectedTagMatchBonuses: {
+      "mem-tag-project": 1,
+      "mem-tag-neutral-newer": 0,
+    },
+    expectedMetadataBonuses: {
+      "mem-tag-project": 1,
+      "mem-tag-neutral-newer": 0,
+    },
+    expectedMetadataSignals: {
+      "mem-tag-project": ["tag_match"],
+    },
+    expectedSkipReasons: {
+      "mem-tag-neutral-newer": "max_count_exceeded",
+    },
+  },
+  {
+    caseId: "metadata-tag-only-zero-overlap-excluded",
+    query: "project github branch",
+    acceptedMemories: [
+      {
+        id: "mem-tag-only-zero-overlap",
+        text: "Owner enjoys weekend hiking trips.",
+        metadata: {
+          tags: ["project", "github"],
+          importance: "high",
+          confidence: "high",
+          source: null,
+        },
+      },
+    ],
+    expectedInjectedIds: [],
+    expectedNotInjectedIds: ["mem-tag-only-zero-overlap"],
+    expectedTagMatchBonuses: {
+      "mem-tag-only-zero-overlap": 0,
+    },
+    expectedImportanceBonuses: {
+      "mem-tag-only-zero-overlap": 0,
+    },
+    expectedMetadataBonuses: {
+      "mem-tag-only-zero-overlap": 0,
+    },
+    expectedSkipReasons: {
+      "mem-tag-only-zero-overlap": "zero_relevance",
+    },
+  },
+  {
+    caseId: "metadata-importance-bonus-bounded",
+    query: "memory notes",
+    acceptedMemories: [
+      {
+        id: "mem-importance-high",
+        text: "Owner keeps memory notes.",
+        metadata: {
+          tags: [],
+          importance: "high",
+          confidence: "medium",
+          source: null,
+        },
+        updatedAt: "2026-05-19T00:00:00.000Z",
+      },
+      {
+        id: "mem-importance-normal-newer",
+        text: "Owner keeps memory notes.",
+        metadata: {
+          tags: [],
+          importance: "normal",
+          confidence: "medium",
+          source: null,
+        },
+        updatedAt: "2026-05-19T00:01:00.000Z",
+      },
+    ],
+    maxInjectedMemories: 1,
+    expectedInjectedIds: ["mem-importance-high"],
+    expectedNotInjectedIds: ["mem-importance-normal-newer"],
+    expectedImportanceBonuses: {
+      "mem-importance-high": 1,
+      "mem-importance-normal-newer": 0,
+    },
+    expectedMetadataBonuses: {
+      "mem-importance-high": 1,
+      "mem-importance-normal-newer": 0,
+    },
+    expectedMetadataSignals: {
+      "mem-importance-high": ["importance_high"],
+    },
+    expectedSkipReasons: {
+      "mem-importance-normal-newer": "max_count_exceeded",
+    },
+  },
+  {
+    caseId: "metadata-low-confidence-dampens-bonus",
+    query: "project memory notes",
+    acceptedMemories: [
+      {
+        id: "mem-confidence-low",
+        text: "Owner keeps memory notes.",
+        metadata: {
+          tags: ["project"],
+          importance: "high",
+          confidence: "low",
+          source: null,
+        },
+      },
+    ],
+    expectedInjectedIds: ["mem-confidence-low"],
+    expectedMatchedTags: {
+      "mem-confidence-low": ["project"],
+    },
+    expectedTagMatchBonuses: {
+      "mem-confidence-low": 1,
+    },
+    expectedImportanceBonuses: {
+      "mem-confidence-low": 1,
+    },
+    expectedConfidenceAdjustments: {
+      "mem-confidence-low": -1,
+    },
+    expectedMetadataBonuses: {
+      "mem-confidence-low": 1,
+    },
+    expectedMetadataSignals: {
+      "mem-confidence-low": [
+        "tag_match",
+        "importance_high",
+        "confidence_low_dampened",
+      ],
+    },
+  },
+  {
+    caseId: "metadata-rich-non-accepted-excluded",
+    query: "project memory notes",
+    acceptedMemories: [],
+    nonAcceptedMemories: [
+      {
+        id: "mem-pending-metadata-rich",
+        text: "Project memory notes should not inject while pending.",
+        status: "proposal",
+        metadata: {
+          tags: ["project"],
+          importance: "high",
+          confidence: "high",
+          source: "owner-reviewed-source",
+        },
+      },
+    ],
+    expectedInjectedIds: [],
+    expectedNotInjectedIds: ["mem-pending-metadata-rich"],
+    expectedPrivacyForbiddenText: ["owner-reviewed-source"],
+  },
+  {
+    caseId: "metadata-trace-privacy-safe-fields",
+    query: "project private phrase",
+    acceptedMemories: [
+      {
+        id: "mem-metadata-private-trace",
+        text: "Owner private retrieval phrase should stay out of metadata trace.",
+        metadata: {
+          tags: ["project"],
+          importance: "high",
+          confidence: "medium",
+          source: "owner-reviewed-secret-source",
+        },
+      },
+    ],
+    expectedInjectedIds: ["mem-metadata-private-trace"],
+    expectedMatchedTags: {
+      "mem-metadata-private-trace": ["project"],
+    },
+    expectedMetadataBonuses: {
+      "mem-metadata-private-trace": 2,
+    },
+    expectedMetadataSignals: {
+      "mem-metadata-private-trace": ["tag_match", "importance_high"],
+    },
+    expectedPrivacyForbiddenText: [
+      "Owner private retrieval phrase should stay out of metadata trace",
+      "owner-reviewed-secret-source",
+    ],
+  },
+  {
+    caseId: "metadata-missing-behaves-neutral",
+    query: "memory notes",
+    acceptedMemories: [
+      {
+        id: "mem-no-metadata-newer",
+        text: "Owner keeps memory notes.",
+        updatedAt: "2026-05-19T00:01:00.000Z",
+      },
+      {
+        id: "mem-low-neutral-older",
+        text: "Owner keeps memory notes.",
+        metadata: {
+          tags: [],
+          importance: "low",
+          confidence: "medium",
+          source: null,
+        },
+        updatedAt: "2026-05-19T00:00:00.000Z",
+      },
+    ],
+    maxInjectedMemories: 1,
+    expectedInjectedIds: ["mem-no-metadata-newer"],
+    expectedNotInjectedIds: ["mem-low-neutral-older"],
+    expectedMetadataBonuses: {
+      "mem-no-metadata-newer": 0,
+      "mem-low-neutral-older": 0,
+    },
+    expectedSkipReasons: {
+      "mem-low-neutral-older": "max_count_exceeded",
+    },
   },
 ];
