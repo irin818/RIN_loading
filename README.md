@@ -29,9 +29,10 @@ templates:
 - 本地数据目录布局与 schema manifest。
 - SQLite database foundation with schema migrations and audit events.
 - 带 schema migration 和审计事件的 SQLite 数据库地基。
-- Provider-neutral model abstraction with local mock defaults and configurable
-  external adapter selection.
-- 服务商中立的模型抽象层，本地 mock 默认值，以及可配置的外部 adapter 选择。
+- Provider-neutral model abstraction with local-model-first direction, local
+  mock defaults, and configurable adapter selection.
+- 服务商中立的模型抽象层、本地模型优先方向、本地 mock 默认值，以及可配置的
+  adapter 选择。
 - Basic local conversation path through the runtime.
 - 通过 runtime 的基础本地对话路径。
 - Raw logs, memory proposals, policy checks, state history, export bundles,
@@ -40,9 +41,10 @@ templates:
 - 原始日志、记忆提案、策略检查、状态历史、导出包、受权限控制的低风险工具，
   原创 Q 版 SVG 身体 rig，以及仅本地运行的身体交互壳。
 - Configurable model adapter selection with local mock defaults and an
-  OpenAI-compatible adapter that is active only when explicitly configured.
+  OpenAI-compatible adapter that is active only when explicitly configured as an
+  optional external provider.
 - 可配置的模型 adapter 选择；默认使用本地 mock，OpenAI-compatible adapter
-  只有在显式配置后才会启用。
+  只有在作为可选外部服务显式配置后才会启用。
 - Controlled local memory review for accepting, rejecting, or archiving memory
   proposals.
 - 受控的本地记忆审查流程，可接受、拒绝或归档记忆提案。
@@ -51,21 +53,22 @@ templates:
 - Manual Agent State Bundle export and safe import into a new empty data
   directory.
 - 手动 Agent State Bundle 导出，以及安全导入到新的空数据目录。
-- A local readiness report for checking whether only external API environment
-  remains before live model use.
-- 本地就绪检查报告，用于确认距离真实模型使用是否只剩外部 API 环境变量。
+- A local readiness report for checking local state and remaining model/provider
+  setup before live model use.
+- 本地就绪检查报告，用于检查本地状态，以及真实模型使用前仍缺少的模型或服务商设置。
 
 It intentionally does not store API keys in tracked files or local core config,
 does not allow UI-direct model calls, and does not implement automatic
 long-term memory writes without review, medium-risk or high-risk automatic
 tools, real Live2D asset loading, synchronization, multi-user systems, SaaS
-backends, or hard-coded provider-specific model calls. It also does not yet
+backends, API-first core architecture, hard-coded provider-specific model calls,
+or claims that Ollama/Qwen3 integration already exists. It also does not yet
 implement a native transparent desktop window.
 
 当前阶段有意不在已跟踪文件或本地核心配置中存储 API Key，不允许 UI 直接调用
 模型服务商，也不实现未经审查的自动长期记忆写入、中高风险工具自动执行、
-真实 Live2D 模型资产加载、同步、多用户系统、SaaS 后台，以及硬编码的特定
-模型服务商调用。当前也尚未实现原生透明桌面窗口。
+真实 Live2D 模型资产加载、同步、多用户系统、SaaS 后台、API 优先的核心架构，
+以及硬编码的特定模型服务商调用。当前也尚未实现原生透明桌面窗口。
 
 ## Install
 
@@ -205,15 +208,24 @@ Console 现在包含一个基础本地对话模板。它使用已配置的模型
 mock。以 `/remember ` 开头的消息会创建可在 Console 中接受或拒绝的记忆提案。
 最近对话可以重新打开，并通过同一个本地 conversation id 继续。
 
-## Model Adapter Configuration
+## Model Direction and Adapter Configuration
 
-## 模型 Adapter 配置
+## 模型方向与 Adapter 配置
 
-RIN defaults to `rin-mock-local`. To test an OpenAI-compatible provider later,
-keep real secrets in an untracked `.env` or shell environment and set:
+RIN is local-model-first. The recommended first real local chat target is
+Ollama with Qwen3 4B (`qwen3:4b`). That adapter is a future implementation
+task; the current default remains the local mock adapter.
 
-RIN 默认使用 `rin-mock-local`。之后如果要测试 OpenAI-compatible 服务商，
-真实密钥必须放在未跟踪的 `.env` 或 shell 环境变量中，并设置：
+RIN 是本地模型优先的系统。推荐的第一个真实本地聊天目标是 Ollama 与
+Qwen3 4B（`qwen3:4b`）。这个 adapter 属于后续实现任务；当前默认值仍然是
+本地 mock adapter。
+
+External APIs remain optional expert or fallback providers. To test an
+OpenAI-compatible provider later, keep real secrets in an untracked `.env` or
+shell environment and set:
+
+外部 API 仍只是可选的专家或回退服务。之后如果要测试 OpenAI-compatible
+服务商，真实密钥必须放在未跟踪的 `.env` 或 shell 环境变量中，并设置：
 
 ```sh
 RIN_MODEL_ADAPTER=rin-openai-compatible
