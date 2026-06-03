@@ -48,6 +48,9 @@ Current known module boundaries include:
 - `src/context/`: fast-variable context assembly between conversation runtime
   and model adapters. It builds bounded model input, adds the compact RIN system
   prompt, and does not own identity, memory storage, policy, or provider calls.
+  It may now receive accepted memory snippets from the memory layer and inject a
+  compact, budgeted memory context block; context assembly remains budgeted and
+  memory storage/review stays separate from context assembly.
 - `src/model/`: provider-neutral model abstraction, local mock adapter,
   configurable adapter selection, and adapter boundaries for local-model-first
   reasoning plus optional external expert or fallback providers. The first real
@@ -58,7 +61,9 @@ Current known module boundaries include:
   the conversation runtime can classify local model failures (timeout,
   unavailable, missing model, invalid or provider response) without inspecting
   Ollama or provider internals.
-- `src/memory/`: memory proposal, review, and manager boundary.
+- `src/memory/`: memory proposal, review, and manager boundary. It also provides
+  deterministic retrieval of explicitly accepted memories for bounded injection
+  into model context; it does not auto-write or auto-accept memories.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
 - `src/storage/`: controlled local storage layout and manifest logic.
