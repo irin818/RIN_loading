@@ -66,6 +66,29 @@ sanity pass when practical and report any skipped checks. If a check fails due
 to unrelated pre-existing issues, report the failure without attempting broad
 unrelated fixes.
 
+## Memory Retrieval Evaluation Policy
+
+Run `npm run rin:memory-eval` for any change that touches memory retrieval,
+context assembly, memory context traceability, memoryContext persistence/reload,
+or runtime paths that affect model context, including:
+
+- `src/memory/*`
+- `src/context/*`
+- `src/conversation/runtime.ts`
+- memoryContext persistence or reload logic
+- retrieval scoring, tokenization, trace, or fixture expectations
+
+This check matters because accepted memories are slow variables that can
+influence fast model context. The evaluation harness must remain deterministic,
+local, provider-free, and real-data-free: it must not call model providers, must
+not require Ollama, and must not use real owner data.
+
+Failures in `npm run rin:memory-eval` should block merge unless the task
+intentionally updates retrieval behavior or fixture expectations. If fixtures or
+expectations are updated, the final report must explain why the expectation
+changed and how accepted-only, budget, privacy, and traceability constraints are
+preserved.
+
 ## Protected Governance File Policy
 
 Protected governance files:

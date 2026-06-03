@@ -99,6 +99,43 @@ npm install
 npm run dev
 ```
 
+## Development Checks
+
+## 开发检查
+
+Use the standard checks for implementation work:
+
+实施代码改动时使用标准检查：
+
+```sh
+npm run typecheck
+npm test
+npm run lint
+npm run build
+npm run rin:readiness
+```
+
+For changes that affect memory retrieval, bounded context assembly,
+memoryContext traceability/persistence, or conversation runtime paths that shape
+model context, also run:
+
+如果改动影响记忆检索、有界上下文组装、memoryContext 追溯/持久化，或会影响模型上下文的
+conversation runtime 路径，还必须运行：
+
+```sh
+npm run rin:memory-eval
+```
+
+Expected successful output includes `Passed: 10` and `Failed: 0`. This check
+uses in-memory fixtures only: it does not call model providers, does not require
+Ollama, and does not use real owner data. It protects accepted-only retrieval,
+budget limits, privacy, and traceability alongside the normal type/test/lint/
+build/readiness checks.
+
+成功时预期输出包含 `Passed: 10` 和 `Failed: 0`。该检查只使用内存 fixture：
+不会调用模型服务商，不需要 Ollama，也不会使用真实所有者数据。它与常规
+type/test/lint/build/readiness 检查一起保护 accepted-only 检索、预算限制、隐私和可追溯性。
+
 ## Local Data Foundation
 
 ## 本地数据基础
