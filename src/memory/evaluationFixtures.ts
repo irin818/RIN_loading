@@ -1,10 +1,11 @@
-import type { MemoryStatus, MemoryType } from "./manager";
+import type { MemoryMetadataInput, MemoryStatus, MemoryType } from "./manager";
 import type { MemorySkipReason } from "./retrieval";
 
 export type MemoryEvaluationMemoryInput = {
   id: string;
   text: string;
   memoryType?: MemoryType;
+  metadata?: MemoryMetadataInput;
   status?: MemoryStatus;
   updatedAt?: string;
 };
@@ -359,6 +360,42 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
     },
     expectedPrivacyForbiddenText: [
       "Owner private retrieval phrase should stay out of type trace",
+    ],
+  },
+  {
+    caseId: "metadata-present-no-ranking-or-trace",
+    query: "project memory notes",
+    acceptedMemories: [
+      {
+        id: "mem-metadata-high",
+        text: "Owner keeps memory notes.",
+        metadata: {
+          tags: ["urgent-metadata-tag", "project"],
+          importance: "high",
+          confidence: "high",
+          source: "owner-reviewed-source",
+        },
+      },
+      {
+        id: "mem-metadata-strong-tokens",
+        text: "Owner keeps project memory notes.",
+        metadata: {
+          tags: [],
+          importance: "low",
+          confidence: "low",
+          source: null,
+        },
+      },
+    ],
+    maxInjectedMemories: 1,
+    expectedInjectedIds: ["mem-metadata-strong-tokens"],
+    expectedNotInjectedIds: ["mem-metadata-high"],
+    expectedSkipReasons: {
+      "mem-metadata-high": "max_count_exceeded",
+    },
+    expectedPrivacyForbiddenText: [
+      "urgent-metadata-tag",
+      "owner-reviewed-source",
     ],
   },
 ];
