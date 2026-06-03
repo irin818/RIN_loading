@@ -1,6 +1,6 @@
 # Memory Retrieval Ranking Signals
 
-Status: Draft / Proposed
+Status: Draft / Implementation planned in this milestone
 
 ## Purpose
 
@@ -211,14 +211,15 @@ Any future ranking work must preserve:
 - No auto-writing or auto-accepting memory.
 - No direct provider calls from UI or retrieval.
 
-## Recommendation
+## Implementation Decision
 
 The current schema exposes a reliable `memoryType` / `memory_type` field, so a
 small type-aware ranking phase is safe to consider next. That phase should keep
 token overlap as the primary ranking signal, add only a small deterministic type
 component, and make the component visible in safe trace metadata.
 
-Recommended next path: Phase 37A, type-aware memory ranking, with these limits:
+Milestone 4 will proceed with a constrained type-aware ranking implementation
+under these limits:
 
 - Do not add schema fields.
 - Do not use tags or importance.
