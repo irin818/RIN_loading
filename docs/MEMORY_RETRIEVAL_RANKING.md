@@ -1,13 +1,13 @@
 # Memory Retrieval Ranking Signals
 
-Status: Implemented in Milestone 4
+Status: Metadata-aware retrieval policy defined for Mega-Milestone 6
 
 ## Purpose
 
-This note records the current memory schema, deterministic retrieval path, and
-the small type-aware ranking signal implemented in Milestone 4. It also
-identifies which signals still require a schema proposal and which signals
-remain deferred.
+This note records the current memory schema, deterministic retrieval path, the
+small type-aware ranking signal implemented in Milestone 4, and the
+owner-reviewed metadata ranking policy for Mega-Milestone 6. It also identifies
+which signals still require a schema proposal and which signals remain deferred.
 
 ## Current Schema Findings
 
@@ -23,9 +23,9 @@ The current schema exposes:
 | source | Partly present | `source_message_id` links a memory item to a source message when available. There is no richer source kind. |
 | `createdAt` | Present | Mapped from `created_at`. Not currently used for ranking. |
 | `updatedAt` | Present | Mapped from `updated_at`. Used as a recency tie-break. Review decisions update this timestamp. |
-| tags | Present as owner-reviewed metadata | Stored in `memory_metadata` side-table JSON. Not used for ranking yet. |
-| importance | Present as owner-reviewed metadata | Bounded owner-reviewed metadata. Not used for ranking yet. |
-| confidence | Present as owner-reviewed metadata | Bounded owner-reviewed metadata. Not used for ranking yet. |
+| tags | Present as owner-reviewed metadata | Stored in `memory_metadata` side-table JSON. Mega-Milestone 6 may use normalized query/tag overlap as a small bounded ranking signal only after content overlap exists. |
+| importance | Present as owner-reviewed metadata | Bounded owner-reviewed metadata. Mega-Milestone 6 may use `high` as a small bounded bonus only after content overlap exists. |
+| confidence | Present as owner-reviewed metadata | Bounded owner-reviewed metadata. Mega-Milestone 6 may use `low` only to dampen metadata bonus; default remains neutral. |
 | accepted/reviewed time | Present as metadata timestamps | `acceptedAt` / `reviewedAt` are stored for metadata/review visibility. Retrieval still uses `updatedAt` tie-breaks. |
 | usage stats | Missing | No usage count, last injected time, last matched time, or feedback counters. |
 | other metadata | Thin | Metadata includes a safe owner-provided source string; no richer source kind exists yet. |
@@ -59,7 +59,6 @@ ranking-ready signals:
 - Usage statistics such as match count, injection count, last matched, or last injected.
 - Feedback signals about whether an injected memory helped a response.
 - Structured source kind beyond `sourceMessageId`.
-- Any approved policy for metadata-aware retrieval ranking.
 
 ## Deferred Signals
 
@@ -173,15 +172,8 @@ These can be considered without schema migration:
 - Stable id tie-break for deterministic ordering.
 - A small explicit type/category component based on `memoryType`; this is now
   implemented as `typeMatchBonus`.
-
-### Needs Separate Ranking Design
-
-These have storage now, but require a separate ranking design before retrieval
-can use them:
-
-- Owner-reviewed tags.
-- Owner-reviewed importance.
-- Owner-reviewed confidence.
+- Small owner-reviewed metadata components defined by the Mega-Milestone 6
+  policy below.
 
 ### Needs Schema Extension
 
@@ -204,7 +196,7 @@ These should not be implemented yet:
 - Learned ranking.
 - Provider-assisted ranking.
 - Automatic tag or importance generation.
-- Metadata-aware ranking before a separate evaluation-backed design.
+- Metadata-aware ranking outside the bounded Mega-Milestone 6 policy.
 
 ## Safety Constraints
 
@@ -223,6 +215,36 @@ Any future ranking work must preserve:
 - No embeddings/vector database/semantic retrieval.
 - No auto-writing or auto-accepting memory.
 - No direct provider calls from UI or retrieval.
+
+## Mega-Milestone 6 Metadata Ranking Policy
+
+Metadata-aware retrieval may use only owner-reviewed metadata already stored on
+accepted memory records. It must remain deterministic, local, and explainable:
+
+- Token relevance is primary. Ranking must keep token score ahead of metadata
+  effects, and metadata must not cause a weak lexical match to outrank a
+  materially stronger lexical match.
+- Zero lexical overlap remains excluded. Tags, importance, confidence, source,
+  and timestamps must not inject a memory whose content has no token or CJK
+  bigram overlap with the owner query.
+- Tags may add a small bonus only when normalized query tokens match
+  owner-reviewed tags. The tag contribution is capped.
+- Importance may add a small bounded bonus for `high` importance only after
+  lexical overlap exists. `normal` and `low` are neutral.
+- Confidence may dampen metadata effects when confidence is `low`. `medium` and
+  `high` are neutral for now so confidence does not become a second importance
+  field.
+- Source is trace/explanation-only and has no ranking effect.
+- `acceptedAt` and `reviewedAt` are trace/explanation-only for now and do not
+  change primary score or recency ordering.
+- Total metadata bonus is capped and must be visible in trace fields such as
+  `matchedTags`, `tagMatchBonus`, `importanceBonus`, `confidenceAdjustment`,
+  `metadataBonus`, and `metadataSignals`.
+- Trace must not expose full memory text, raw prompt text, model context
+  snippets, or raw metadata JSON.
+- Evaluation fixtures must guard tag matching, zero-overlap exclusion, bounded
+  importance, confidence damping, token dominance, non-accepted exclusion,
+  privacy, and old/no-metadata neutrality.
 
 ## Implementation Decision
 

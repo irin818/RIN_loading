@@ -1,6 +1,6 @@
 # Owner-Reviewed Memory Metadata Proposal
 
-Status: Implemented foundation in Mega-Milestone 5 / Ranking use deferred
+Status: Metadata-aware retrieval policy defined for Mega-Milestone 6
 
 ## Purpose
 
@@ -83,14 +83,35 @@ Missing first-class memory metadata:
 
 ## Ranking Use Policy
 
-- Metadata must not affect retrieval ranking in Mega-Milestone 5.
-- Future tag- or importance-aware ranking must be protected by
-  `npm run rin:memory-eval`.
+- Metadata may affect retrieval ranking in Mega-Milestone 6 only through
+  explicit deterministic score components.
+- Metadata ranking must be protected by `npm run rin:memory-eval`.
 - Token relevance remains primary unless a future ADR explicitly changes that.
 - Usage statistics must not create runaway reinforcement loops where frequently
   used memories become increasingly dominant without owner intent.
 - Metadata must not be injected into model context unless a future design
   explicitly authorizes that behavior.
+- Metadata must not inject zero lexical-overlap memories.
+- Metadata must not cause a weak lexical match to outrank a materially stronger
+  lexical match.
+
+Mega-Milestone 6 policy:
+
+- `tags`: owner-reviewed tags may add a small bonus only when normalized query
+  tokens match normalized tags and memory content already has lexical overlap.
+  Tag-only zero-overlap memories remain excluded.
+- `importance`: owner-reviewed `high` importance may add a small bounded bonus
+  when lexical overlap exists. `normal` and `low` are neutral for now.
+- `confidence`: `low` confidence may dampen metadata bonus. `medium` and `high`
+  are neutral for now so confidence does not silently amplify memory influence.
+- `source`: source remains explanatory/trace-only and has no ranking effect.
+- `reviewedAt` / `acceptedAt`: timestamps remain trace-only for now and do not
+  affect primary score or recency.
+- Total metadata bonus is capped and traceable.
+- Trace may expose safe metadata score fields such as `matchedTags`,
+  `tagMatchBonus`, `importanceBonus`, `confidenceAdjustment`, `metadataBonus`,
+  and `metadataSignals`; it must not expose full memory text, raw prompts, model
+  context snippets, or raw metadata JSON.
 
 ## Migration Plan
 
@@ -169,7 +190,7 @@ Backward compatibility:
 
 ## Evaluation Plan
 
-Future metadata-aware ranking should add fixtures for:
+Metadata-aware ranking should add fixtures for:
 
 - tag match cases
 - bounded importance influence cases
@@ -180,7 +201,7 @@ Future metadata-aware ranking should add fixtures for:
 - old memory backward compatibility
 - no runaway `useCount` / `lastUsedAt` reinforcement
 
-Mega-Milestone 5 adds readiness coverage only:
+Mega-Milestone 5 added readiness coverage only:
 
 - metadata can be saved and loaded
 - metadata can be present without changing retrieval output
@@ -188,11 +209,22 @@ Mega-Milestone 5 adds readiness coverage only:
 - metadata validation rejects or normalizes invalid values
 - metadata does not store full memory text
 
+Mega-Milestone 6 must add ranking coverage for:
+
+- tag match boosts a relevant memory
+- tag-only zero lexical-overlap memory is excluded
+- importance bonus remains bounded
+- low confidence dampens metadata bonus
+- strong lexical relevance beats weak metadata
+- non-accepted metadata-rich memories remain excluded
+- metadata trace fields are safe and explainable
+- old memories with no metadata behave neutrally
+
 ## Non-Goals
 
 - No embeddings or vector database.
 - No semantic retrieval service.
-- No metadata-aware retrieval ranking in this milestone.
+- No opaque or model-assisted metadata ranking.
 - No trusted model-authored metadata.
 - No unbounded usage reinforcement.
 - No provider calls.
