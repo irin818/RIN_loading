@@ -11,7 +11,14 @@ import type {
 import { rinLive2dBodyAdapter } from "../body";
 import { CURRENT_PHASES, RIN_PROJECT_NAME } from "../core/project";
 import { runtimeBoundaries } from "../runtime";
+import type { MemoryInjectionTrace } from "../memory";
 import { parseConversationError, safeLocalBaseUrl } from "./consoleStatus";
+import {
+  formatMatchedKeywords,
+  formatMemorySkipReason,
+  injectedMemoryItems,
+  skippedMemoryItems,
+} from "./memoryContextTrace";
 import { RinBodyShell } from "./RinBodyShell";
 import { RinLive2DModel } from "./RinLive2DModel";
 import "./styles.css";
@@ -50,6 +57,8 @@ export function App() {
   const [lastTurn, setLastTurn] = useState<ConversationTurnResponse["turn"] | null>(
     null,
   );
+  const [lastMemoryContext, setLastMemoryContext] =
+    useState<MemoryInjectionTrace | null>(null);
   const [conversationError, setConversationError] =
     useState<ConversationErrorPayload | null>(null);
   const [lastFailedInput, setLastFailedInput] = useState<string | null>(null);
@@ -139,6 +148,7 @@ export function App() {
       const body = (await response.json()) as ConversationTurnResponse;
       setSnapshot(body.snapshot);
       setLastTurn(body.turn);
+      setLastMemoryContext(body.turn.memoryContext);
       setActiveConversationId(body.turn.conversation.id);
       setConversationMessages((current) =>
         activeConversationId === body.turn.conversation.id
@@ -214,6 +224,7 @@ export function App() {
     setActiveConversationId(null);
     setConversationMessages([]);
     setLastTurn(null);
+    setLastMemoryContext(null);
     setConversationLoadStatus("idle");
   }
 
@@ -456,6 +467,68 @@ export function App() {
             <strong>Latest turn / 最新回合</strong>
             <p>{lastTurn.ownerMessage.content}</p>
             <p>{lastTurn.rinMessage.content}</p>
+          </div>
+        ) : null}
+        {lastMemoryContext ? (
+          <div className="memory-context-trace" aria-label="Memory context trace">
+            <strong>Memory context / 记忆上下文</strong>
+            <dl className="status-grid compact">
+              <div>
+                <dt>Injected / 已注入</dt>
+                <dd>{lastMemoryContext.injectedMemoryCount}</dd>
+              </div>
+              <div>
+                <dt>Skipped (budget) / 预算跳过</dt>
+                <dd>{lastMemoryContext.skippedByBudgetCount}</dd>
+              </div>
+              <div>
+                <dt>Skipped (relevance) / 相关性跳过</dt>
+                <dd>{lastMemoryContext.skippedByRelevanceCount}</dd>
+              </div>
+              <div>
+                <dt>Skipped (max count) / 数量上限跳过</dt>
+                <dd>{lastMemoryContext.skippedByMaxCountCount}</dd>
+              </div>
+            </dl>
+            {injectedMemoryItems(lastMemoryContext.items).length > 0 ? (
+              <ul className="memory-context-list">
+                {injectedMemoryItems(lastMemoryContext.items).map((item) => (
+                  <li key={item.memoryId}>
+                    <code>{shortId(item.memoryId)}</code>
+                    {" · overlap "}
+                    {item.overlapCount}
+                    {" · keywords: "}
+                    {formatMatchedKeywords(item.matchedKeywords)}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="memory-context-empty">
+                No memories injected for this turn.
+                <br />
+                本回合未注入记忆。
+              </p>
+            )}
+            {skippedMemoryItems(lastMemoryContext.items).length > 0 ? (
+              <details className="memory-context-skipped">
+                <summary>
+                  Skipped memories / 跳过的记忆 (
+                  {skippedMemoryItems(lastMemoryContext.items).length})
+                </summary>
+                <ul className="memory-context-list">
+                  {skippedMemoryItems(lastMemoryContext.items).map((item) => (
+                    <li key={item.memoryId}>
+                      <code>{shortId(item.memoryId)}</code>
+                      {" · "}
+                      {formatMemorySkipReason(item.skippedReason)}
+                      {item.overlapCount > 0
+                        ? ` · overlap ${item.overlapCount} · keywords: ${formatMatchedKeywords(item.matchedKeywords)}`
+                        : null}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
           </div>
         ) : null}
         {conversationMessages.length > 0 ? (

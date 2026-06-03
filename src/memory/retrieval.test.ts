@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { MemoryRecord, MemoryStatus } from "./manager";
 import {
+  finalizeInjectionExplanations,
   memorySnippetText,
+  retrieveAcceptedMemoriesWithExplanation,
   selectRelevantAcceptedMemories,
+  summarizeMemoryInjection,
+  toMemoryInjectionTrace,
 } from "./retrieval";
 
 function memory(
@@ -112,6 +116,154 @@ describe("selectRelevantAcceptedMemories", () => {
     );
 
     expect(result).toEqual([]);
+  });
+});
+
+describe("retrieveAcceptedMemoriesWithExplanation", () => {
+  it("includes matched keywords and overlap count for relevant memories", () => {
+    const result = retrieveAcceptedMemoriesWithExplanation(
+      [
+        memory({
+          id: "m1",
+          content: { text: "Owner prefers local Ollama models." },
+        }),
+      ],
+      "Which local Ollama model should RIN use?",
+    );
+
+    expect(result.snippets).toHaveLength(1);
+    expect(result.explanations).toEqual([
+      expect.objectContaining({
+        memoryId: "m1",
+        matchedKeywords: expect.arrayContaining(["local", "ollama"]),
+        overlapCount: expect.any(Number),
+        snippetLength: expect.any(Number),
+      }),
+    ]);
+    expect(result.explanations[0]?.overlapCount).toBeGreaterThan(0);
+    expect(result.explanations[0]?.matchedKeywords.length).toBe(
+      result.explanations[0]?.overlapCount,
+    );
+  });
+
+  it("records zero_relevance for accepted memories with no overlap", () => {
+    const result = retrieveAcceptedMemoriesWithExplanation(
+      [memory({ id: "m1", content: { text: "Owner enjoys hiking trips." } })],
+      "Explain the SQLite schema migration plan.",
+    );
+
+    expect(result.snippets).toEqual([]);
+    expect(result.explanations).toEqual([
+      {
+        memoryId: "m1",
+        matchedKeywords: [],
+        overlapCount: 0,
+        wasInjected: false,
+        skippedReason: "zero_relevance",
+        snippetLength: expect.any(Number),
+      },
+    ]);
+  });
+
+  it("omits pending, rejected, and archived memories from explanations", () => {
+    const statuses: MemoryStatus[] = ["proposal", "rejected", "archived"];
+    const memories = statuses.map((status, index) =>
+      memory({
+        id: `m-${status}`,
+        status,
+        content: { text: "Owner prefers local Ollama models." },
+        updatedAt: `2026-05-19T00:0${index}:00.000Z`,
+      }),
+    );
+
+    const result = retrieveAcceptedMemoriesWithExplanation(
+      memories,
+      "local Ollama model preference",
+    );
+
+    expect(result.explanations).toEqual([]);
+  });
+
+  it("marks memories beyond maxInjectedMemories with max_count_exceeded", () => {
+    const memories = Array.from({ length: 4 }, (_, index) =>
+      memory({
+        id: `m${index}`,
+        content: { text: `Owner project note ${index} about local models.` },
+        updatedAt: `2026-05-19T00:0${index}:00.000Z`,
+      }),
+    );
+
+    const result = retrieveAcceptedMemoriesWithExplanation(
+      memories,
+      "local models project note",
+      { maxInjectedMemories: 2 },
+    );
+
+    expect(result.snippets).toHaveLength(2);
+    const skipped = result.explanations.filter(
+      (item) => item.skippedReason === "max_count_exceeded",
+    );
+    expect(skipped).toHaveLength(2);
+    expect(skipped.every((item) => item.wasInjected === false)).toBe(true);
+  });
+});
+
+describe("finalizeInjectionExplanations", () => {
+  it("marks budget-dropped candidates with memory_budget_exceeded", () => {
+    const explanations = [
+      {
+        memoryId: "m1",
+        matchedKeywords: ["local"],
+        overlapCount: 1,
+        wasInjected: false,
+        skippedReason: null,
+        snippetLength: 20,
+      },
+      {
+        memoryId: "m2",
+        matchedKeywords: ["local"],
+        overlapCount: 1,
+        wasInjected: false,
+        skippedReason: null,
+        snippetLength: 20,
+      },
+    ];
+
+    const finalized = finalizeInjectionExplanations(explanations, ["m1"]);
+
+    expect(finalized[0]).toMatchObject({
+      memoryId: "m1",
+      wasInjected: true,
+      skippedReason: null,
+    });
+    expect(finalized[1]).toMatchObject({
+      memoryId: "m2",
+      wasInjected: false,
+      skippedReason: "memory_budget_exceeded",
+    });
+  });
+});
+
+describe("toMemoryInjectionTrace", () => {
+  it("does not include memory text in trace items", () => {
+    const trace = toMemoryInjectionTrace(
+      [
+        {
+          memoryId: "m1",
+          matchedKeywords: ["local"],
+          overlapCount: 1,
+          wasInjected: true,
+          skippedReason: null,
+          snippetLength: 42,
+        },
+      ],
+      ["m1"],
+      120,
+    );
+
+    expect(trace.items[0]).not.toHaveProperty("text");
+    expect(JSON.stringify(trace)).not.toContain("Owner prefers");
+    expect(summarizeMemoryInjection(trace.items).skippedByBudgetCount).toBe(0);
   });
 });
 

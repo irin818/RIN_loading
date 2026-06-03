@@ -1,5 +1,12 @@
 import type { ModelMessage } from "../model";
-import type { AcceptedMemorySnippet } from "../memory";
+import type {
+  AcceptedMemorySnippet,
+  MemoryInjectionExplanation,
+} from "../memory";
+import {
+  finalizeInjectionExplanations,
+  summarizeMemoryInjection,
+} from "../memory";
 import {
   DEFAULT_CONTEXT_BUDGET,
   type ContextBudgetPolicy,
@@ -14,6 +21,10 @@ export type ModelContextStats = {
   injectedMemoryCount: number;
   injectedMemoryIds: string[];
   memoryContextCharacterCount: number;
+  memoryInjectionExplanations: MemoryInjectionExplanation[];
+  memorySkippedByBudgetCount: number;
+  memorySkippedByRelevanceCount: number;
+  memorySkippedByMaxCountCount: number;
 };
 
 export type BuiltModelContext = {
@@ -23,6 +34,7 @@ export type BuiltModelContext = {
 
 export type MemoryInjectionOptions = {
   memories?: readonly AcceptedMemorySnippet[];
+  explanations?: readonly MemoryInjectionExplanation[];
   maxInjectedMemories?: number;
   maxMemoryContextCharacters?: number;
 };
@@ -84,6 +96,12 @@ export function buildModelContext(
   memorySnippets = bounded.memorySnippets;
 
   const memoryMessage = composeMemoryMessage(memorySnippets);
+  const injectedMemoryIds = memorySnippets.map((snippet) => snippet.id);
+  const memoryInjectionExplanations = finalizeInjectionExplanations(
+    memoryOptions.explanations ?? [],
+    injectedMemoryIds,
+  );
+  const skippedSummary = summarizeMemoryInjection(memoryInjectionExplanations);
   const messages = [
     systemMessage,
     ...(memoryMessage ? [memoryMessage] : []),
@@ -99,10 +117,14 @@ export function buildModelContext(
       droppedMessageCount:
         conversationMessages.length - bounded.messages.length,
       injectedMemoryCount: memorySnippets.length,
-      injectedMemoryIds: memorySnippets.map((snippet) => snippet.id),
+      injectedMemoryIds,
       memoryContextCharacterCount: memoryMessage
         ? memoryMessage.content.length
         : 0,
+      memoryInjectionExplanations,
+      memorySkippedByBudgetCount: skippedSummary.skippedByBudgetCount,
+      memorySkippedByRelevanceCount: skippedSummary.skippedByRelevanceCount,
+      memorySkippedByMaxCountCount: skippedSummary.skippedByMaxCountCount,
     },
   };
 }

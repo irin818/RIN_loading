@@ -103,6 +103,7 @@ function makeTurn(content: string, reply: string) {
       modelAdapter: "rin-mock-local",
       createdAt: "2026-06-04T00:00:01.000Z",
     },
+    memoryContext: null,
   };
 }
 
@@ -474,5 +475,68 @@ describe("App", () => {
       const url = typeof input === "string" ? input : String(input);
       expect(url.startsWith("/api/")).toBe(true);
     }
+  });
+
+  it("displays memory injection trace without full memory text", async () => {
+    const memoryId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      const method = (init?.method ?? "GET").toUpperCase();
+
+      if (url.includes("/api/conversations") && method === "POST") {
+        return jsonResponse({
+          ok: true,
+          turn: {
+            ...makeTurn("local Ollama reasoning models", "RIN reply"),
+            memoryContext: {
+              injectedMemoryCount: 1,
+              injectedMemoryIds: [memoryId],
+              memoryContextCharacterCount: 180,
+              skippedByBudgetCount: 0,
+              skippedByRelevanceCount: 1,
+              skippedByMaxCountCount: 0,
+              items: [
+                {
+                  memoryId,
+                  matchedKeywords: ["local", "ollama", "reasoning"],
+                  overlapCount: 3,
+                  wasInjected: true,
+                  skippedReason: null,
+                  snippetLength: 42,
+                },
+                {
+                  memoryId: "bbbbbbbb-bbbb-cccc-dddd-eeeeeeeeeeee",
+                  matchedKeywords: [],
+                  overlapCount: 0,
+                  wasInjected: false,
+                  skippedReason: "zero_relevance",
+                  snippetLength: 30,
+                },
+              ],
+            },
+          },
+          snapshot: ollamaSnapshot,
+        });
+      }
+
+      return jsonResponse(ollamaSnapshot);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await screen.findByText(/Connected to local runtime/);
+
+    fireEvent.change(
+      screen.getByPlaceholderText(/Type a local test message/),
+      { target: { value: "local Ollama reasoning models" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Send/ }));
+
+    const panel = await screen.findByLabelText("Memory context trace");
+    expect(panel.textContent).toContain("aaaaaaaa");
+    expect(panel.textContent).toMatch(/overlap 3/);
+    expect(panel.textContent).toMatch(/local, ollama, reasoning/);
+    expect(screen.queryByText(/Owner prefers local Ollama/)).toBeNull();
   });
 });

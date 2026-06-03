@@ -11,8 +11,9 @@ import { appendAuditEvent, openRinDatabase, type RinDatabase } from "../database
 import {
   listMemoryItems,
   maybeCreateOwnerMemoryProposal,
-  selectRelevantAcceptedMemories,
-  type AcceptedMemorySnippet,
+  retrieveAcceptedMemoriesWithExplanation,
+  toMemoryInjectionTrace,
+  type AcceptedMemoryRetrievalResult,
 } from "../memory";
 import { getConfiguredModelAdapter, type ModelAdapter } from "../model";
 import { evaluateModelResponse } from "../policy";
@@ -30,10 +31,10 @@ export type ProcessOwnerMessageInput = {
 
 export type ProcessOwnerMessageDeps = {
   resolveAdapter?: (layout: RinDataLayout) => Promise<ModelAdapter>;
-  selectAcceptedMemories?: (
+  retrieveAcceptedMemories?: (
     database: RinDatabase,
     ownerMessage: string,
-  ) => AcceptedMemorySnippet[];
+  ) => AcceptedMemoryRetrievalResult;
 };
 
 export async function processOwnerMessage(
@@ -48,8 +49,8 @@ export async function processOwnerMessage(
   }
 
   const resolveAdapter = deps.resolveAdapter ?? getConfiguredModelAdapter;
-  const selectAcceptedMemories =
-    deps.selectAcceptedMemories ?? defaultSelectAcceptedMemories;
+  const retrieveAcceptedMemories =
+    deps.retrieveAcceptedMemories ?? defaultRetrieveAcceptedMemories;
   const now = input.now ?? new Date();
   const database = openRinDatabase(layout);
 
@@ -87,10 +88,16 @@ export async function processOwnerMessage(
         content: message.content,
       })),
     ];
-    const acceptedMemories = selectAcceptedMemories(database, content);
+    const memoryRetrieval = retrieveAcceptedMemories(database, content);
     const modelContext = buildModelContext(conversationMessages, undefined, {
-      memories: acceptedMemories,
+      memories: memoryRetrieval.snippets,
+      explanations: memoryRetrieval.explanations,
     });
+    const memoryContextTrace = toMemoryInjectionTrace(
+      modelContext.stats.memoryInjectionExplanations,
+      modelContext.stats.injectedMemoryIds,
+      modelContext.stats.memoryContextCharacterCount,
+    );
     const adapter = await resolveAdapter(layout);
     const modelResponse = await adapter.generate({
       ownerId: input.ownerId,
@@ -113,6 +120,10 @@ export async function processOwnerMessage(
         injectedMemoryCount: modelContext.stats.injectedMemoryCount,
         injectedMemoryIds: modelContext.stats.injectedMemoryIds,
         memoryContextCharacterCount: modelContext.stats.memoryContextCharacterCount,
+        memorySkippedByBudgetCount: memoryContextTrace.skippedByBudgetCount,
+        memorySkippedByRelevanceCount: memoryContextTrace.skippedByRelevanceCount,
+        memorySkippedByMaxCountCount: memoryContextTrace.skippedByMaxCountCount,
+        memoryInjectionItems: memoryContextTrace.items,
       },
       now,
     });
@@ -146,6 +157,10 @@ export async function processOwnerMessage(
         injectedMemoryCount: modelContext.stats.injectedMemoryCount,
         injectedMemoryIds: modelContext.stats.injectedMemoryIds,
         memoryContextCharacterCount: modelContext.stats.memoryContextCharacterCount,
+        memorySkippedByBudgetCount: memoryContextTrace.skippedByBudgetCount,
+        memorySkippedByRelevanceCount: memoryContextTrace.skippedByRelevanceCount,
+        memorySkippedByMaxCountCount: memoryContextTrace.skippedByMaxCountCount,
+        memoryInjectionItems: memoryContextTrace.items,
       },
       now,
     });
@@ -159,6 +174,8 @@ export async function processOwnerMessage(
       },
       ownerMessage,
       rinMessage,
+      memoryContext:
+        memoryContextTrace.items.length > 0 ? memoryContextTrace : null,
     };
   } catch (error) {
     database.exec("ROLLBACK;");
@@ -213,16 +230,16 @@ function logTurnFailure(
  * and archived memories are never injected. Selection is deterministic and
  * bounded by the context builder's injection limits.
  */
-function defaultSelectAcceptedMemories(
+function defaultRetrieveAcceptedMemories(
   database: RinDatabase,
   ownerMessage: string,
-): AcceptedMemorySnippet[] {
+): AcceptedMemoryRetrievalResult {
   const acceptedMemories = listMemoryItems(database, {
     status: "accepted",
     limit: 50,
   });
 
-  return selectRelevantAcceptedMemories(acceptedMemories, ownerMessage);
+  return retrieveAcceptedMemoriesWithExplanation(acceptedMemories, ownerMessage);
 }
 
 function titleFromContent(content: string): string {

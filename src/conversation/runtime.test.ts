@@ -187,17 +187,37 @@ describe("processOwnerMessage", () => {
       new Date("2026-05-19T00:00:00.000Z"),
     );
 
-    await processOwnerMessage(storage.layout, {
+    const turn = await processOwnerMessage(storage.layout, {
       ownerId: defaultEnvironment.ownerId,
       content: "Which local Ollama reasoning models should RIN use?",
       now: new Date("2026-05-19T00:01:00.000Z"),
     });
+
+    expect(turn.memoryContext?.injectedMemoryCount).toBe(1);
+    expect(turn.memoryContext?.items[0]?.matchedKeywords.length).toBeGreaterThan(
+      0,
+    );
 
     const payload = latestModelResponsePayload(storage.layout);
 
     expect(payload.injectedMemoryCount).toBe(1);
     expect(payload.injectedMemoryIds).toEqual([memoryId]);
     expect(payload.memoryContextCharacterCount).toBeGreaterThan(0);
+    const items = payload.memoryInjectionItems as Array<Record<string, unknown>>;
+    expect(items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          memoryId,
+          wasInjected: true,
+          overlapCount: expect.any(Number),
+          matchedKeywords: expect.any(Array),
+        }),
+      ]),
+    );
+    expect(JSON.stringify(items)).not.toContain(
+      "Owner prefers local Ollama reasoning models",
+    );
+    expect(items.every((item) => !("text" in item))).toBe(true);
   });
 
   it("does not inject pending or rejected memories", async () => {
