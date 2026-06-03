@@ -91,6 +91,69 @@ describe("selectRelevantAcceptedMemories", () => {
     expect(result.map((item) => item.id)).toEqual(["high", "tie-b", "low"]);
   });
 
+  it("uses memory type as a small deterministic tie-break only after token overlap", () => {
+    const result = selectRelevantAcceptedMemories(
+      [
+        memory({
+          id: "semantic-note",
+          memoryType: "semantic",
+          content: { text: "Owner uses memory notes." },
+          updatedAt: "2026-05-19T00:05:00.000Z",
+        }),
+        memory({
+          id: "project-note",
+          memoryType: "project",
+          content: { text: "Owner uses memory notes." },
+          updatedAt: "2026-05-19T00:00:00.000Z",
+        }),
+      ],
+      "project memory notes",
+    );
+
+    expect(result.map((item) => item.id)).toEqual([
+      "project-note",
+      "semantic-note",
+    ]);
+  });
+
+  it("keeps stronger token relevance ahead of type bonus", () => {
+    const result = selectRelevantAcceptedMemories(
+      [
+        memory({
+          id: "type-match",
+          memoryType: "project",
+          content: { text: "Owner uses memory notes." },
+        }),
+        memory({
+          id: "strong-token-match",
+          memoryType: "semantic",
+          content: { text: "Owner uses project memory notes." },
+        }),
+      ],
+      "project memory notes",
+    );
+
+    expect(result.map((item) => item.id)).toEqual([
+      "strong-token-match",
+      "type-match",
+    ]);
+  });
+
+  it("does not inject zero-overlap memories solely due to type", () => {
+    const result = selectRelevantAcceptedMemories(
+      [
+        memory({
+          id: "project-only-type",
+          memoryType: "project",
+          content: { text: "Owner enjoys weekend hiking trips." },
+        }),
+      ],
+      "project code github branch",
+    );
+
+    expect(result).toEqual([]);
+  });
+
   it("respects maxInjectedMemories", () => {
     const memories = Array.from({ length: 8 }, (_, index) =>
       memory({
@@ -156,11 +219,14 @@ describe("retrieveAcceptedMemoriesWithExplanation", () => {
     expect(result.explanations).toEqual([
       {
         memoryId: "m1",
+        memoryType: "semantic" as const,
         matchedKeywords: [],
         overlapCount: 0,
         latinTokenMatchCount: 0,
         cjkBigramMatchCount: 0,
         normalizedQueryTokenCount: expect.any(Number),
+        typeMatchBonus: 0,
+        matchedTypeSignals: [],
         wasInjected: false,
         skippedReason: "zero_relevance",
         snippetLength: expect.any(Number),
@@ -216,22 +282,28 @@ describe("finalizeInjectionExplanations", () => {
     const explanations = [
       {
         memoryId: "m1",
+        memoryType: "semantic" as const,
         matchedKeywords: ["local"],
         overlapCount: 1,
         latinTokenMatchCount: 1,
         cjkBigramMatchCount: 0,
         normalizedQueryTokenCount: 1,
+        typeMatchBonus: 0,
+        matchedTypeSignals: [],
         wasInjected: false,
         skippedReason: null,
         snippetLength: 20,
       },
       {
         memoryId: "m2",
+        memoryType: "semantic" as const,
         matchedKeywords: ["local"],
         overlapCount: 1,
         latinTokenMatchCount: 1,
         cjkBigramMatchCount: 0,
         normalizedQueryTokenCount: 1,
+        typeMatchBonus: 0,
+        matchedTypeSignals: [],
         wasInjected: false,
         skippedReason: null,
         snippetLength: 20,
@@ -259,11 +331,14 @@ describe("toMemoryInjectionTrace", () => {
       [
         {
           memoryId: "m1",
+          memoryType: "semantic" as const,
           matchedKeywords: ["local"],
           overlapCount: 1,
           latinTokenMatchCount: 1,
           cjkBigramMatchCount: 0,
           normalizedQueryTokenCount: 3,
+          typeMatchBonus: 0,
+          matchedTypeSignals: [],
           wasInjected: true,
           skippedReason: null,
           snippetLength: 42,

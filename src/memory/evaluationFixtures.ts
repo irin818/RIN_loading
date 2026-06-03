@@ -1,9 +1,10 @@
-import type { MemoryStatus } from "./manager";
+import type { MemoryStatus, MemoryType } from "./manager";
 import type { MemorySkipReason } from "./retrieval";
 
 export type MemoryEvaluationMemoryInput = {
   id: string;
   text: string;
+  memoryType?: MemoryType;
   status?: MemoryStatus;
   updatedAt?: string;
 };
@@ -16,6 +17,8 @@ export type MemoryEvaluationCase = {
   expectedInjectedIds: string[];
   expectedNotInjectedIds?: string[];
   expectedMatchedTokens?: Record<string, string[]>;
+  expectedMatchedTypeSignals?: Record<string, string[]>;
+  expectedTypeMatchBonuses?: Record<string, number>;
   expectedSkipReasons?: Record<string, MemorySkipReason>;
   expectedPrivacyForbiddenText?: string[];
   maxInjectedMemories?: number;
