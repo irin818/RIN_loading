@@ -45,6 +45,9 @@ Current known module boundaries include:
   turn handling. It also maps typed model failures into structured, user-visible
   conversation errors (stable error codes, recovery guidance, HTTP status) and
   records a `conversation.turn_failed` event without storing a fake RIN reply.
+  Successful RIN turns may store safe memory context trace metadata for
+  audit/reload visibility; this metadata excludes full memory text, model context
+  snippets, and raw prompt text.
 - `src/context/`: fast-variable context assembly between conversation runtime
   and model adapters. It builds bounded model input, adds the compact RIN system
   prompt, and does not own identity, memory storage, policy, or provider calls.

@@ -98,4 +98,17 @@ export const RIN_DATABASE_MIGRATIONS: RinDatabaseMigration[] = [
       );
     `,
   },
+  {
+    version: 3,
+    name: "add_message_memory_context_traces",
+    sql: `
+      CREATE TABLE IF NOT EXISTS message_memory_contexts (
+        message_id TEXT PRIMARY KEY,
+        trace_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (message_id) REFERENCES messages(id)
+          ON DELETE CASCADE
+      );
+    `,
+  },
 ];

@@ -214,6 +214,8 @@ export function App() {
       setSnapshot(body.snapshot);
       setActiveConversationId(body.conversation.id);
       setConversationMessages(body.messages);
+      setLastTurn(null);
+      setLastMemoryContext(findLatestMessageMemoryContext(body.messages));
       setConversationLoadStatus("idle");
     } catch {
       setConversationLoadStatus("error");
@@ -878,4 +880,18 @@ function memoryText(content: Record<string, unknown>): string {
 
 function shortId(id: string): string {
   return id.slice(0, 8);
+}
+
+function findLatestMessageMemoryContext(
+  messages: readonly ConversationMessageRecord[],
+): MemoryInjectionTrace | null {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+
+    if (message.role === "rin" && message.memoryContext) {
+      return message.memoryContext;
+    }
+  }
+
+  return null;
 }

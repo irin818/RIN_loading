@@ -1,3 +1,5 @@
+import type { MemoryInjectionTrace } from "../memory";
+
 export type ConversationRecord = {
   id: string;
   title: string;
@@ -12,9 +14,8 @@ export type ConversationMessageRecord = {
   content: string;
   modelAdapter: string | null;
   createdAt: string;
+  memoryContext: MemoryInjectionTrace | null;
 };
-
-import type { MemoryInjectionTrace } from "../memory";
 
 export type ConversationTurnResult = {
   conversation: ConversationRecord;
