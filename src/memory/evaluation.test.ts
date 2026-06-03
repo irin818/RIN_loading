@@ -4,6 +4,7 @@ import {
   formatMemoryEvaluationSummary,
   runBuiltInMemoryEvaluation,
   runMemoryEvaluationCases,
+  summarizeMemoryEvaluationCategories,
 } from "./evaluation";
 import type { MemoryEvaluationCase } from "./evaluationFixtures";
 
@@ -24,6 +25,70 @@ describe("runBuiltInMemoryEvaluation", () => {
     expect(summary).toContain("RIN memory injection evaluation.");
     expect(summary).toContain(`Total: ${result.total}`);
     expect(summary).toContain("Failed: 0");
+    expect(summary).toContain("providerCallCount: 0");
+    expect(summary).toContain("Failed case IDs: none");
+    expect(summary).toContain("Categories:");
+    expect(result.categorySummaries.length).toBeGreaterThan(0);
+    expect(result.categorySummaries.map((item) => item.category)).toContain(
+      "metadata-aware",
+    );
+    expect(result.categorySummaries.map((item) => item.category)).toContain(
+      "privacy",
+    );
+  });
+
+  it("summarizes category pass and failure counts without memory text", () => {
+    const result = runMemoryEvaluationCases([
+      {
+        caseId: "category-pass",
+        categories: ["lexical"],
+        query: "local model",
+        acceptedMemories: [{ id: "a", text: "local model preference" }],
+        expectedInjectedIds: ["a"],
+      },
+      {
+        caseId: "category-fail",
+        categories: ["lexical", "privacy"],
+        query: "private model",
+        acceptedMemories: [
+          {
+            id: "b",
+            text: "private full memory text should not appear in summary",
+          },
+        ],
+        expectedInjectedIds: ["missing"],
+      },
+    ]);
+    const summary = formatMemoryEvaluationSummary(result);
+
+    expect(result.failedCaseIds).toEqual(["category-fail"]);
+    expect(
+      summarizeMemoryEvaluationCategories(result.caseResults),
+    ).toMatchObject([
+      {
+        category: "lexical",
+        total: 2,
+        passed: 1,
+        failed: 1,
+        failedCaseIds: ["category-fail"],
+      },
+      {
+        category: "privacy",
+        total: 1,
+        passed: 0,
+        failed: 1,
+        failedCaseIds: ["category-fail"],
+      },
+    ]);
+    expect(summary).toContain("Failed case IDs: category-fail");
+    expect(summary).toContain(
+      "- lexical: 1 passed / 1 failed (2 total); failed IDs: category-fail",
+    );
+    expect(summary).toContain(
+      "- privacy: 0 passed / 1 failed (1 total); failed IDs: category-fail",
+    );
+    expect(summary).toContain("providerCallCount: 0");
+    expect(summary).not.toContain("private full memory text");
   });
 });
 
@@ -64,6 +129,7 @@ describe("evaluateMemoryCase", () => {
     expect(result.passed).toBe(false);
     expect(result.privacyPassed).toBe(false);
     expect(result.failures.join("\n")).toContain("Trace leaked forbidden");
+    expect(result.failures.join("\n")).not.toContain("local model preference");
   });
 
   it("evaluates pending, rejected, and archived memories as excluded", () => {

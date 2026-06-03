@@ -1,6 +1,18 @@
 import type { MemoryMetadataInput, MemoryStatus, MemoryType } from "./manager";
 import type { MemorySkipReason } from "./retrieval";
 
+export type MemoryEvaluationCategory =
+  | "lexical"
+  | "cjk"
+  | "type-aware"
+  | "metadata-aware"
+  | "privacy"
+  | "budget"
+  | "non-accepted"
+  | "trace"
+  | "token-dominance"
+  | "zero-overlap";
+
 export type MemoryEvaluationMemoryInput = {
   id: string;
   text: string;
@@ -12,6 +24,7 @@ export type MemoryEvaluationMemoryInput = {
 
 export type MemoryEvaluationCase = {
   caseId: string;
+  categories?: MemoryEvaluationCategory[];
   query: string;
   acceptedMemories: MemoryEvaluationMemoryInput[];
   nonAcceptedMemories?: MemoryEvaluationMemoryInput[];
@@ -35,6 +48,7 @@ export type MemoryEvaluationCase = {
 export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   {
     caseId: "plural-model-models",
+    categories: ["lexical", "privacy", "trace"],
     query: "Which local Ollama model should RIN use?",
     acceptedMemories: [
       {
@@ -50,6 +64,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "plural-api-memory-system",
+    categories: ["lexical"],
     query: "Check api memory system behavior.",
     acceptedMemories: [
       {
@@ -64,6 +79,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "separator-ollama-qwen3-local-model-first",
+    categories: ["lexical"],
     query: "qwen3 local model first runtime",
     acceptedMemories: [
       {
@@ -78,6 +94,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "cjk-local-model",
+    categories: ["lexical", "cjk"],
     query: "请说明本地模型偏好",
     acceptedMemories: [
       {
@@ -92,6 +109,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "mixed-qwen3-local-model",
+    categories: ["lexical", "cjk"],
     query: "qwen3 本地模型",
     acceptedMemories: [
       {
@@ -106,6 +124,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "non-accepted-exclusion",
+    categories: ["non-accepted"],
     query: "local Ollama model preference",
     acceptedMemories: [
       {
@@ -135,6 +154,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "unrelated-memory-exclusion",
+    categories: ["zero-overlap"],
     query: "SQLite schema migration plan",
     acceptedMemories: [
       {
@@ -150,6 +170,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "max-count-exclusion",
+    categories: ["budget"],
     query: "local model memory preference",
     acceptedMemories: [
       {
@@ -172,6 +193,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "memory-budget-exclusion",
+    categories: ["budget"],
     query: "first second third memory snippet",
     acceptedMemories: [
       { id: "mem-budget-1", text: "first memory snippet" },
@@ -188,6 +210,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "privacy-no-text-leak",
+    categories: ["privacy", "trace"],
     query: "private retrieval phrase",
     acceptedMemories: [
       {
@@ -205,6 +228,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "type-bonus-breaks-token-tie",
+    categories: ["type-aware"],
     query: "project memory notes",
     acceptedMemories: [
       {
@@ -240,6 +264,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "type-only-zero-overlap-excluded",
+    categories: ["type-aware", "zero-overlap"],
     query: "project github branch",
     acceptedMemories: [
       {
@@ -259,6 +284,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "token-relevance-beats-type-bonus",
+    categories: ["type-aware", "token-dominance"],
     query: "project memory notes",
     acceptedMemories: [
       {
@@ -288,6 +314,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "non-accepted-type-signal-excluded",
+    categories: ["type-aware", "non-accepted"],
     query: "project memory notes",
     acceptedMemories: [],
     nonAcceptedMemories: [
@@ -312,6 +339,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "cjk-type-bonus-breaks-token-tie",
+    categories: ["cjk", "type-aware"],
     query: "项目 本地模型",
     acceptedMemories: [
       {
@@ -346,6 +374,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "type-trace-privacy-no-text-leak",
+    categories: ["type-aware", "privacy", "trace"],
     query: "preference private retrieval phrase",
     acceptedMemories: [
       {
@@ -370,6 +399,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "metadata-token-relevance-dominates",
+    categories: ["metadata-aware", "token-dominance", "privacy"],
     query: "project memory notes",
     acceptedMemories: [
       {
@@ -424,6 +454,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "metadata-tag-match-boosts-relevant-memory",
+    categories: ["metadata-aware"],
     query: "project memory notes",
     acceptedMemories: [
       {
@@ -472,6 +503,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "metadata-tag-only-zero-overlap-excluded",
+    categories: ["metadata-aware", "zero-overlap"],
     query: "project github branch",
     acceptedMemories: [
       {
@@ -502,6 +534,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "metadata-importance-bonus-bounded",
+    categories: ["metadata-aware"],
     query: "memory notes",
     acceptedMemories: [
       {
@@ -547,6 +580,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "metadata-low-confidence-dampens-bonus",
+    categories: ["metadata-aware"],
     query: "project memory notes",
     acceptedMemories: [
       {
@@ -586,6 +620,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "metadata-rich-non-accepted-excluded",
+    categories: ["metadata-aware", "non-accepted", "privacy"],
     query: "project memory notes",
     acceptedMemories: [],
     nonAcceptedMemories: [
@@ -607,6 +642,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "metadata-trace-privacy-safe-fields",
+    categories: ["metadata-aware", "privacy", "trace"],
     query: "project private phrase",
     acceptedMemories: [
       {
@@ -637,6 +673,7 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
   },
   {
     caseId: "metadata-missing-behaves-neutral",
+    categories: ["metadata-aware"],
     query: "memory notes",
     acceptedMemories: [
       {
@@ -665,6 +702,194 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
     },
     expectedSkipReasons: {
       "mem-low-neutral-older": "max_count_exceeded",
+    },
+  },
+  {
+    caseId: "metadata-near-miss-token-dominance",
+    categories: ["metadata-aware", "token-dominance"],
+    query: "github branch release checklist",
+    acceptedMemories: [
+      {
+        id: "mem-metadata-near-miss",
+        text: "Owner keeps github release notes.",
+        metadata: {
+          tags: ["branch", "checklist"],
+          importance: "high",
+          confidence: "high",
+          source: null,
+        },
+      },
+      {
+        id: "mem-lexical-strong-checklist",
+        text: "Owner keeps github branch release checklist.",
+        metadata: {
+          tags: [],
+          importance: "low",
+          confidence: "low",
+          source: null,
+        },
+      },
+    ],
+    maxInjectedMemories: 1,
+    expectedInjectedIds: ["mem-lexical-strong-checklist"],
+    expectedNotInjectedIds: ["mem-metadata-near-miss"],
+    expectedMatchedTags: {
+      "mem-metadata-near-miss": ["branch", "checklist"],
+    },
+    expectedTagMatchBonuses: {
+      "mem-metadata-near-miss": 1,
+      "mem-lexical-strong-checklist": 0,
+    },
+    expectedImportanceBonuses: {
+      "mem-metadata-near-miss": 1,
+      "mem-lexical-strong-checklist": 0,
+    },
+    expectedMetadataBonuses: {
+      "mem-metadata-near-miss": 2,
+      "mem-lexical-strong-checklist": 0,
+    },
+    expectedMetadataSignals: {
+      "mem-metadata-near-miss": ["tag_match", "importance_high"],
+    },
+    expectedSkipReasons: {
+      "mem-metadata-near-miss": "max_count_exceeded",
+    },
+  },
+  {
+    caseId: "cjk-near-miss-token-dominance",
+    categories: ["cjk", "token-dominance"],
+    query: "本地模型安全策略",
+    acceptedMemories: [
+      {
+        id: "mem-cjk-near-miss",
+        text: "本地模型展览安排。",
+      },
+      {
+        id: "mem-cjk-strong-policy",
+        text: "本地模型安全策略。",
+      },
+    ],
+    maxInjectedMemories: 1,
+    expectedInjectedIds: ["mem-cjk-strong-policy"],
+    expectedNotInjectedIds: ["mem-cjk-near-miss"],
+    expectedSkipReasons: {
+      "mem-cjk-near-miss": "max_count_exceeded",
+    },
+  },
+  {
+    caseId: "metadata-rich-budget-edge",
+    categories: ["metadata-aware", "budget"],
+    query: "project memory budget notes",
+    acceptedMemories: [
+      {
+        id: "mem-budget-metadata-first",
+        text: "project memory budget notes first",
+        metadata: {
+          tags: ["project"],
+          importance: "high",
+          confidence: "high",
+          source: null,
+        },
+      },
+      {
+        id: "mem-budget-metadata-second",
+        text: "project memory budget notes second",
+        metadata: {
+          tags: ["project"],
+          importance: "high",
+          confidence: "high",
+          source: null,
+        },
+      },
+    ],
+    maxMemoryContextCharacters: 355,
+    expectedInjectedIds: ["mem-budget-metadata-first"],
+    expectedNotInjectedIds: ["mem-budget-metadata-second"],
+    expectedMetadataBonuses: {
+      "mem-budget-metadata-first": 2,
+      "mem-budget-metadata-second": 2,
+    },
+    expectedSkipReasons: {
+      "mem-budget-metadata-second": "memory_budget_exceeded",
+    },
+  },
+  {
+    caseId: "metadata-privacy-no-leak-with-source",
+    categories: ["metadata-aware", "privacy", "trace"],
+    query: "project private phrase",
+    acceptedMemories: [
+      {
+        id: "mem-metadata-source-private",
+        text: "Owner private metadata source phrase should stay out of trace.",
+        metadata: {
+          tags: ["project"],
+          importance: "high",
+          confidence: "high",
+          source: "private-source-note",
+        },
+      },
+    ],
+    expectedInjectedIds: ["mem-metadata-source-private"],
+    expectedMatchedTags: {
+      "mem-metadata-source-private": ["project"],
+    },
+    expectedMetadataBonuses: {
+      "mem-metadata-source-private": 2,
+    },
+    expectedPrivacyForbiddenText: [
+      "Owner private metadata source phrase should stay out of trace",
+      "private-source-note",
+    ],
+  },
+  {
+    caseId: "type-metadata-interaction-breaks-tie",
+    categories: ["type-aware", "metadata-aware"],
+    query: "preference project memory notes",
+    acceptedMemories: [
+      {
+        id: "mem-interaction-neutral-newer",
+        memoryType: "semantic",
+        text: "Owner keeps project memory notes.",
+        metadata: {
+          tags: [],
+          importance: "normal",
+          confidence: "medium",
+          source: null,
+        },
+        updatedAt: "2026-05-19T00:01:00.000Z",
+      },
+      {
+        id: "mem-interaction-preference-metadata",
+        memoryType: "preference",
+        text: "Owner keeps project memory notes.",
+        metadata: {
+          tags: ["project"],
+          importance: "high",
+          confidence: "medium",
+          source: null,
+        },
+        updatedAt: "2026-05-19T00:00:00.000Z",
+      },
+    ],
+    maxInjectedMemories: 1,
+    expectedInjectedIds: ["mem-interaction-preference-metadata"],
+    expectedNotInjectedIds: ["mem-interaction-neutral-newer"],
+    expectedMatchedTypeSignals: {
+      "mem-interaction-preference-metadata": ["preference"],
+    },
+    expectedTypeMatchBonuses: {
+      "mem-interaction-preference-metadata": 1,
+      "mem-interaction-neutral-newer": 0,
+    },
+    expectedMatchedTags: {
+      "mem-interaction-preference-metadata": ["project"],
+    },
+    expectedMetadataBonuses: {
+      "mem-interaction-preference-metadata": 2,
+      "mem-interaction-neutral-newer": 0,
+    },
+    expectedSkipReasons: {
+      "mem-interaction-neutral-newer": "max_count_exceeded",
     },
   },
 ];

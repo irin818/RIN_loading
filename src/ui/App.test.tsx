@@ -794,6 +794,8 @@ describe("App", () => {
 
     const panel = await screen.findByLabelText("Memory context trace");
     expect(panel.textContent).toContain("aaaaaaaa");
+    expect(panel.textContent).toContain("Trace items / 候选记录");
+    expect(panel.textContent).toContain("Context chars / 上下文字符");
     expect(
       screen.getByRole("button", { name: /Memory context/ }),
     ).toBeInTheDocument();
@@ -803,6 +805,7 @@ describe("App", () => {
     expect(panel.textContent).toMatch(/tags \+1: reasoning/);
     expect(panel.textContent).toMatch(/importance \+1/);
     expect(panel.textContent).toMatch(/local, ollama, reasoning/);
+    expect(panel.textContent).not.toContain("{");
     expect(screen.queryByText(/Owner prefers local Ollama/)).toBeNull();
   });
 

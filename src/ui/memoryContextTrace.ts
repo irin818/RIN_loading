@@ -21,6 +21,27 @@ export function formatMatchedKeywords(keywords: readonly string[]): string {
   return keywords.length > 0 ? keywords.join(", ") : "none";
 }
 
+export function formatLexicalRankingSignal(
+  item: MemoryInjectionExplanation,
+): string {
+  return [
+    `lexical overlap ${item.overlapCount}/${item.normalizedQueryTokenCount}`,
+    `(latin ${item.latinTokenMatchCount}, cjk ${item.cjkBigramMatchCount})`,
+    `keywords: ${formatMatchedKeywords(item.matchedKeywords)}`,
+  ].join(" ");
+}
+
+export function formatTypeRankingSignal(
+  item: MemoryInjectionExplanation,
+): string {
+  const signalSuffix =
+    item.matchedTypeSignals.length > 0
+      ? `: ${formatMatchedKeywords(item.matchedTypeSignals)}`
+      : "";
+
+  return `type ${item.memoryType} ${formatSignedBonus(item.typeMatchBonus)}${signalSuffix}`;
+}
+
 export function formatMetadataRankingSignal(
   item: MemoryInjectionExplanation,
 ): string | null {
@@ -56,6 +77,32 @@ export function formatMetadataRankingSignal(
   return parts.join(" · ");
 }
 
+export function formatMetadataRankingBreakdown(
+  item: MemoryInjectionExplanation,
+): string {
+  const tagSuffix =
+    item.matchedTags.length > 0
+      ? `: ${formatMatchedKeywords(item.matchedTags)}`
+      : "";
+  const signalSuffix =
+    item.metadataSignals.length > 0
+      ? `; signals: ${formatMatchedKeywords(item.metadataSignals)}`
+      : "";
+
+  return `metadata ${formatSignedBonus(item.metadataBonus)} (tags +${item.tagMatchBonus}${tagSuffix}; importance +${item.importanceBonus}; confidence ${formatSignedBonus(item.confidenceAdjustment)}${signalSuffix})`;
+}
+
+export function formatMemoryRankingBreakdown(
+  item: MemoryInjectionExplanation,
+): string {
+  return [
+    formatLexicalRankingSignal(item),
+    formatTypeRankingSignal(item),
+    formatMetadataRankingBreakdown(item),
+    `result: ${formatMemorySkipReason(item.skippedReason)}`,
+  ].join(" · ");
+}
+
 export function injectedMemoryItems(
   items: readonly MemoryInjectionExplanation[],
 ): MemoryInjectionExplanation[] {
@@ -66,4 +113,8 @@ export function skippedMemoryItems(
   items: readonly MemoryInjectionExplanation[],
 ): MemoryInjectionExplanation[] {
   return items.filter((item) => !item.wasInjected);
+}
+
+function formatSignedBonus(value: number): string {
+  return value >= 0 ? `+${value}` : `${value}`;
 }

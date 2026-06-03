@@ -51,13 +51,16 @@ export {
   formatMemoryEvaluationSummary,
   runBuiltInMemoryEvaluation,
   runMemoryEvaluationCases,
+  summarizeMemoryEvaluationCategories,
 } from "./evaluation";
 export { BUILT_IN_MEMORY_EVALUATION_CASES } from "./evaluationFixtures";
 export type {
+  MemoryEvaluationCategorySummary,
   MemoryEvaluationCaseResult,
   MemoryEvaluationRunResult,
 } from "./evaluation";
 export type {
   MemoryEvaluationCase,
+  MemoryEvaluationCategory,
   MemoryEvaluationMemoryInput,
 } from "./evaluationFixtures";

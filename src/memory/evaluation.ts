@@ -10,6 +10,7 @@ import {
 import {
   BUILT_IN_MEMORY_EVALUATION_CASES,
   type MemoryEvaluationCase,
+  type MemoryEvaluationCategory,
   type MemoryEvaluationMemoryInput,
 } from "./evaluationFixtures";
 
@@ -20,6 +21,7 @@ export type MemoryEvaluationFailure = {
 
 export type MemoryEvaluationCaseResult = {
   caseId: string;
+  categories: MemoryEvaluationCategory[];
   passed: boolean;
   failures: string[];
   injectedIds: string[];
@@ -38,12 +40,21 @@ export type MemoryEvaluationCaseResult = {
   trace: MemoryInjectionTrace;
 };
 
+export type MemoryEvaluationCategorySummary = {
+  category: MemoryEvaluationCategory;
+  total: number;
+  passed: number;
+  failed: number;
+  failedCaseIds: string[];
+};
+
 export type MemoryEvaluationRunResult = {
   total: number;
   passed: number;
   failed: number;
   failedCaseIds: string[];
   providerCallCount: 0;
+  categorySummaries: MemoryEvaluationCategorySummary[];
   caseResults: MemoryEvaluationCaseResult[];
 };
 
@@ -67,6 +78,7 @@ export function runMemoryEvaluationCases(
     failed: failedCaseIds.length,
     failedCaseIds,
     providerCallCount: 0,
+    categorySummaries: summarizeMemoryEvaluationCategories(caseResults),
     caseResults,
   };
 }
@@ -304,18 +316,21 @@ export function evaluateMemoryCase(
   }
 
   const traceJson = JSON.stringify(trace);
-  for (const forbidden of item.expectedPrivacyForbiddenText ?? []) {
+  for (const [index, forbidden] of (
+    item.expectedPrivacyForbiddenText ?? []
+  ).entries()) {
     if (traceJson.includes(forbidden)) {
-      failures.push(`Trace leaked forbidden memory text: ${forbidden}`);
+      failures.push(`Trace leaked forbidden memory text entry ${index + 1}.`);
     }
   }
 
   const privacyPassed = !failures.some((failure) =>
-    failure.startsWith("Trace leaked forbidden memory text:"),
+    failure.startsWith("Trace leaked forbidden memory text"),
   );
 
   return {
     caseId: item.caseId,
+    categories: [...(item.categories ?? [])],
     passed: failures.length === 0,
     failures,
     injectedIds,
@@ -335,6 +350,41 @@ export function evaluateMemoryCase(
   };
 }
 
+export function summarizeMemoryEvaluationCategories(
+  caseResults: readonly MemoryEvaluationCaseResult[],
+): MemoryEvaluationCategorySummary[] {
+  const summaries = new Map<MemoryEvaluationCategory, MemoryEvaluationCategorySummary>();
+
+  for (const result of caseResults) {
+    for (const category of result.categories) {
+      const existing =
+        summaries.get(category) ??
+        {
+          category,
+          total: 0,
+          passed: 0,
+          failed: 0,
+          failedCaseIds: [],
+        };
+
+      existing.total += 1;
+
+      if (result.passed) {
+        existing.passed += 1;
+      } else {
+        existing.failed += 1;
+        existing.failedCaseIds.push(result.caseId);
+      }
+
+      summaries.set(category, existing);
+    }
+  }
+
+  return [...summaries.values()].sort((left, right) =>
+    left.category.localeCompare(right.category),
+  );
+}
+
 export function formatMemoryEvaluationSummary(
   result: MemoryEvaluationRunResult,
 ): string {
@@ -343,10 +393,27 @@ export function formatMemoryEvaluationSummary(
     `Total: ${result.total}`,
     `Passed: ${result.passed}`,
     `Failed: ${result.failed}`,
+    `providerCallCount: ${result.providerCallCount}`,
+    `Failed case IDs: ${
+      result.failedCaseIds.length > 0 ? result.failedCaseIds.join(", ") : "none"
+    }`,
   ];
 
-  if (result.failedCaseIds.length > 0) {
-    lines.push(`Failed case IDs: ${result.failedCaseIds.join(", ")}`);
+  if (result.categorySummaries.length > 0) {
+    lines.push("Categories:");
+
+    for (const summary of result.categorySummaries) {
+      const failureSuffix =
+        summary.failedCaseIds.length > 0
+          ? `; failed IDs: ${summary.failedCaseIds.join(", ")}`
+          : "";
+
+      lines.push(
+        `- ${summary.category}: ${summary.passed} passed / ${summary.failed} failed (${summary.total} total)${failureSuffix}`,
+      );
+    }
+  } else {
+    lines.push("Categories: none");
   }
 
   return lines.join("\n");

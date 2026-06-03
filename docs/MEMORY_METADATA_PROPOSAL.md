@@ -234,7 +234,20 @@ Mega-Milestone 6 adds ranking coverage for:
 - metadata trace fields are safe and explainable
 - old memories with no metadata behave neutrally
 
-The built-in evaluation suite now has 24 provider-free cases.
+Mega-Milestone 7 adds memory quality visibility coverage for:
+
+- category-level evaluation reporting
+- failed case IDs and `providerCallCount`
+- metadata near-miss token dominance
+- CJK near-miss token dominance
+- metadata-rich budget edges
+- metadata source privacy
+- type and metadata interaction
+- safe read-only ranking breakdown formatting
+
+The built-in evaluation suite now has 29 provider-free cases. The added
+visibility surfaces do not change metadata ranking policy, do not call
+providers, do not expose full memory text, and do not add semantic retrieval.
 
 ## Non-Goals
 

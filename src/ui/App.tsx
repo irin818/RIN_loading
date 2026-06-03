@@ -19,9 +19,7 @@ import { CURRENT_PHASES, RIN_PROJECT_NAME } from "../core/project";
 import { runtimeBoundaries } from "../runtime";
 import { parseConversationError, safeLocalBaseUrl } from "./consoleStatus";
 import {
-  formatMatchedKeywords,
-  formatMetadataRankingSignal,
-  formatMemorySkipReason,
+  formatMemoryRankingBreakdown,
   injectedMemoryItems,
   skippedMemoryItems,
 } from "./memoryContextTrace";
@@ -573,6 +571,14 @@ export function App() {
                 <dd>{selectedMemoryContext.injectedMemoryCount}</dd>
               </div>
               <div>
+                <dt>Trace items / 候选记录</dt>
+                <dd>{selectedMemoryContext.items.length}</dd>
+              </div>
+              <div>
+                <dt>Context chars / 上下文字符</dt>
+                <dd>{selectedMemoryContext.memoryContextCharacterCount}</dd>
+              </div>
+              <div>
                 <dt>Skipped (budget) / 预算跳过</dt>
                 <dd>{selectedMemoryContext.skippedByBudgetCount}</dd>
               </div>
@@ -590,24 +596,8 @@ export function App() {
                 {injectedMemoryItems(selectedMemoryContext.items).map((item) => (
                   <li key={item.memoryId}>
                     <code>{shortId(item.memoryId)}</code>
-                    {" · overlap "}
-                    {item.overlapCount}
-                    {item.latinTokenMatchCount > 0
-                      ? ` · latin ${item.latinTokenMatchCount}`
-                      : null}
-                    {item.cjkBigramMatchCount > 0
-                      ? ` · cjk ${item.cjkBigramMatchCount}`
-                      : null}
-                    {" · type "}
-                    {item.memoryType}
-                    {item.typeMatchBonus > 0
-                      ? ` +${item.typeMatchBonus}: ${formatMatchedKeywords(item.matchedTypeSignals)}`
-                      : null}
-                    {formatMetadataRankingSignal(item)
-                      ? ` · ${formatMetadataRankingSignal(item)}`
-                      : null}
-                    {" · keywords: "}
-                    {formatMatchedKeywords(item.matchedKeywords)}
+                    {" · "}
+                    {formatMemoryRankingBreakdown(item)}
                   </li>
                 ))}
               </ul>
@@ -629,16 +619,7 @@ export function App() {
                     <li key={item.memoryId}>
                       <code>{shortId(item.memoryId)}</code>
                       {" · "}
-                      {formatMemorySkipReason(item.skippedReason)}
-                      {item.overlapCount > 0
-                        ? ` · overlap ${item.overlapCount} · keywords: ${formatMatchedKeywords(item.matchedKeywords)}`
-                        : null}
-                      {item.typeMatchBonus > 0
-                        ? ` · type ${item.memoryType} +${item.typeMatchBonus}: ${formatMatchedKeywords(item.matchedTypeSignals)}`
-                        : null}
-                      {formatMetadataRankingSignal(item)
-                        ? ` · ${formatMetadataRankingSignal(item)}`
-                        : null}
+                      {formatMemoryRankingBreakdown(item)}
                     </li>
                   ))}
                 </ul>
