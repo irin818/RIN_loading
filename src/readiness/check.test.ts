@@ -23,11 +23,13 @@ describe("readRinReadiness", () => {
 
     expect(report.ok).toBe(true);
     expect(report.readyForExternalModel).toBe(false);
+    expect(report.readyForLocalModel).toBe(false);
+    expect(report.readyForLiveModel).toBe(false);
     expect(report.checks.find((check) => check.key === "manifest")?.status).toBe(
       "pass",
     );
     expect(
-      report.checks.find((check) => check.key === "external-model")?.status,
+      report.checks.find((check) => check.key === "live-model")?.status,
     ).toBe("warn");
   });
 
@@ -40,7 +42,61 @@ describe("readRinReadiness", () => {
 
     expect(report.ok).toBe(true);
     expect(report.readyForExternalModel).toBe(false);
+    expect(report.readyForLocalModel).toBe(false);
+    expect(report.readyForLiveModel).toBe(false);
     expect(report.missingEnvironment).toContain("RIN_OPENAI_COMPATIBLE_API_KEY");
+  });
+
+  it("reports the Ollama local adapter as ready when the model is present", async () => {
+    const cwd = await createTempRoot();
+    await initializeRinStorage(defaultEnvironment, { cwd });
+    const report = await readRinReadiness(
+      cwd,
+      {
+        RIN_MODEL_ADAPTER: "rin-ollama-local",
+        RIN_OLLAMA_BASE_URL: "http://127.0.0.1:11434",
+        RIN_OLLAMA_MODEL: "qwen3:4b",
+      },
+      {
+        fetchFn: async () =>
+          new Response(
+            JSON.stringify({ models: [{ name: "qwen3:4b" }] }),
+            { status: 200 },
+          ),
+      },
+    );
+
+    expect(report.ok).toBe(true);
+    expect(report.readyForExternalModel).toBe(false);
+    expect(report.readyForLocalModel).toBe(true);
+    expect(report.readyForLiveModel).toBe(true);
+    expect(report.checks.find((check) => check.key === "model-adapter")?.status).toBe(
+      "pass",
+    );
+    expect(report.checks.find((check) => check.key === "live-model")?.status).toBe(
+      "pass",
+    );
+  });
+
+  it("reports actionable Ollama guidance when the selected model is missing", async () => {
+    const cwd = await createTempRoot();
+    await initializeRinStorage(defaultEnvironment, { cwd });
+    const report = await readRinReadiness(
+      cwd,
+      {
+        RIN_MODEL_ADAPTER: "rin-ollama-local",
+      },
+      {
+        fetchFn: async () =>
+          new Response(JSON.stringify({ models: [] }), { status: 200 }),
+      },
+    );
+    const modelCheck = report.checks.find((check) => check.key === "model-adapter");
+
+    expect(report.ok).toBe(true);
+    expect(report.readyForLocalModel).toBe(false);
+    expect(modelCheck?.status).toBe("warn");
+    expect(modelCheck?.english).toContain("ollama pull qwen3:4b");
   });
 });
 

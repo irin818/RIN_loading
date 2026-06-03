@@ -133,20 +133,20 @@ owner or device identity.
 - UI code must not import Node filesystem storage modules directly.
 - UI 代码不得直接导入 Node 文件系统存储模块。
 
-## Still Deferred After Phase 21
+## Still Deferred After Phase 22
 
-## Phase 21 后仍延后实现的内容
+## Phase 22 后仍延后实现的内容
 
-The following are intentionally still not implemented after Phase 21:
+The following are intentionally still not implemented after Phase 22:
 
-以下内容在 Phase 21 后仍然有意不实现：
+以下内容在 Phase 22 后仍然有意不实现：
 
 - UI-direct model provider calls.
 - UI 直接调用模型服务商。
 - Hard-coded provider-specific model calls.
 - 硬编码的特定服务商模型调用。
-- Real Ollama or Qwen3 adapter implementation.
-- 真实 Ollama 或 Qwen3 adapter 实现。
+- Streaming local model responses.
+- 本地模型流式响应。
 - API-first core architecture.
 - API 优先的核心架构。
 - API key storage in tracked files or local core config.
@@ -166,9 +166,9 @@ The following are intentionally still not implemented after Phase 21:
 - SaaS administration.
 - SaaS 管理后台。
 
-## Phase 3-21 Current Runtime Template
+## Phase 3-22 Current Runtime Template
 
-## Phase 3-21 当前运行时模板
+## Phase 3-22 当前运行时模板
 
 - Phase 3 adds a local SQLite foundation with schema migrations, conversation,
   message, memory placeholder, and audit event tables.
@@ -241,3 +241,11 @@ The following are intentionally still not implemented after Phase 21:
   external API environment variables. It does not implement an Ollama adapter.
 - Phase 21 增加本地就绪检查报告。它会检查本地数据、SQLite、模型 adapter 配置、
   API Key 存储策略，以及缺少的可选外部 API 环境变量。它不实现 Ollama adapter。
+- Phase 22 adds the `rin-ollama-local` adapter for local Ollama chat. The
+  adapter defaults to `http://127.0.0.1:11434` and `qwen3:4b`, uses
+  non-streaming `/api/chat`, maps RIN roles through the model adapter boundary,
+  and keeps the safe mock adapter as the default unless explicitly selected.
+- Phase 22 增加 `rin-ollama-local` adapter，用于本地 Ollama 聊天。该 adapter
+  默认使用 `http://127.0.0.1:11434` 与 `qwen3:4b`，通过非流式 `/api/chat`
+  调用，经由模型 adapter 边界映射 RIN 角色，并在未显式选择时继续保留安全的
+  mock adapter 作为默认值。

@@ -8,6 +8,11 @@ export const OPENAI_COMPATIBLE_ADAPTER_ID = "rin-openai-compatible";
 export const OPENAI_COMPATIBLE_API_KEY_ENV = "RIN_OPENAI_COMPATIBLE_API_KEY";
 export const OPENAI_COMPATIBLE_BASE_URL_ENV = "RIN_OPENAI_COMPATIBLE_BASE_URL";
 export const OPENAI_COMPATIBLE_MODEL_ENV = "RIN_OPENAI_COMPATIBLE_MODEL";
+export const OLLAMA_ADAPTER_ID = "rin-ollama-local";
+export const OLLAMA_BASE_URL_ENV = "RIN_OLLAMA_BASE_URL";
+export const OLLAMA_DEFAULT_BASE_URL = "http://127.0.0.1:11434";
+export const OLLAMA_DEFAULT_MODEL = "qwen3:4b";
+export const OLLAMA_MODEL_ENV = "RIN_OLLAMA_MODEL";
 export const MODEL_ADAPTER_ENV = "RIN_MODEL_ADAPTER";
 
 export type ModelEnvironmentSource = Record<string, string | undefined>;
@@ -42,6 +47,7 @@ export type ModelRuntimeStatus = {
   adapterCount: number;
   apiKeysStoredHere: boolean;
   externalCallsEnabled: boolean;
+  localCallsConfigured: boolean;
   missingEnvironment: string[];
 };
 
@@ -119,6 +125,11 @@ export function getModelRuntimeStatus(
     selected?.provider === "openai-compatible"
       ? getMissingOpenAiCompatibleEnvironment(selected, source)
       : [];
+  const localCallsConfigured =
+    activeAdapter === OLLAMA_ADAPTER_ID &&
+    selected?.provider === "local" &&
+    getMissingOllamaEnvironment(selected, source).length === 0 &&
+    (selected.enabled || source[MODEL_ADAPTER_ENV] === selected.id);
 
   return {
     activeAdapter,
@@ -129,6 +140,7 @@ export function getModelRuntimeStatus(
       selected?.provider === "openai-compatible" &&
       missingEnvironment.length === 0 &&
       (selected.enabled || source[MODEL_ADAPTER_ENV] === selected.id),
+    localCallsConfigured,
     missingEnvironment,
   };
 }
@@ -150,6 +162,21 @@ export function getOpenAiCompatibleRuntimeOptions(
     model: readString(source[OPENAI_COMPATIBLE_MODEL_ENV]) ?? adapter.model,
     apiKey: readString(source[apiKeyEnv]),
     apiKeyEnv,
+    timeoutMs: adapter.timeoutMs,
+  };
+}
+
+export function getOllamaRuntimeOptions(
+  adapter: ModelAdapterConfig,
+  source: ModelEnvironmentSource = process.env,
+): {
+  baseUrl: string | null;
+  model: string | null;
+  timeoutMs: number;
+} {
+  return {
+    baseUrl: readString(source[OLLAMA_BASE_URL_ENV]) ?? adapter.baseUrl,
+    model: readString(source[OLLAMA_MODEL_ENV]) ?? adapter.model,
     timeoutMs: adapter.timeoutMs,
   };
 }
@@ -176,6 +203,24 @@ function getMissingOpenAiCompatibleEnvironment(
   return missing;
 }
 
+function getMissingOllamaEnvironment(
+  adapter: ModelAdapterConfig,
+  source: ModelEnvironmentSource,
+): string[] {
+  const options = getOllamaRuntimeOptions(adapter, source);
+  const missing: string[] = [];
+
+  if (!options.baseUrl) {
+    missing.push(OLLAMA_BASE_URL_ENV);
+  }
+
+  if (!options.model) {
+    missing.push(OLLAMA_MODEL_ENV);
+  }
+
+  return missing;
+}
+
 function createDefaultAdapterConfigs(): ModelAdapterConfig[] {
   return [
     {
@@ -185,6 +230,16 @@ function createDefaultAdapterConfigs(): ModelAdapterConfig[] {
       enabled: true,
       model: null,
       baseUrl: null,
+      apiKeyEnv: null,
+      timeoutMs: DEFAULT_TIMEOUT_MS,
+    },
+    {
+      id: OLLAMA_ADAPTER_ID,
+      displayName: "Ollama local chat adapter",
+      provider: "local",
+      enabled: false,
+      model: OLLAMA_DEFAULT_MODEL,
+      baseUrl: OLLAMA_DEFAULT_BASE_URL,
       apiKeyEnv: null,
       timeoutMs: DEFAULT_TIMEOUT_MS,
     },

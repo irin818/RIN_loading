@@ -6,6 +6,7 @@ import { defaultEnvironment } from "../config/environment";
 import { initializeRinStorage } from "../storage";
 import {
   getConfiguredModelAdapter,
+  OLLAMA_ADAPTER_ID,
   OPENAI_COMPATIBLE_ADAPTER_ID,
 } from "./index";
 import { MOCK_MODEL_ADAPTER_ID } from "./mockAdapter";
@@ -41,6 +42,17 @@ describe("getConfiguredModelAdapter", () => {
 
     expect(adapter.id).toBe(OPENAI_COMPATIBLE_ADAPTER_ID);
     expect(adapter.provider).toBe("openai-compatible");
+  });
+
+  it("creates the Ollama local adapter with explicit environment selection", async () => {
+    const cwd = await createTempRoot();
+    const storage = await initializeRinStorage(defaultEnvironment, { cwd });
+    const adapter = await getConfiguredModelAdapter(storage.layout, {
+      RIN_MODEL_ADAPTER: OLLAMA_ADAPTER_ID,
+    });
+
+    expect(adapter.id).toBe(OLLAMA_ADAPTER_ID);
+    expect(adapter.provider).toBe("local");
   });
 
   it("rejects the OpenAI-compatible adapter when secrets are missing", async () => {
