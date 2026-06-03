@@ -131,6 +131,7 @@ npm run lint
 npm run build
 npm run rin:readiness
 npm run rin:memory-eval
+npm run rin:semantic-eval
 ```
 
 For changes that affect memory retrieval, bounded context assembly,
@@ -158,6 +159,29 @@ type/test/lint/build/readiness checks.
 fixture：不会调用模型服务商，不需要 Ollama，也不会使用真实所有者数据。它与常规
 type/test/lint/build/readiness 检查一起保护 accepted-only 检索、预算限制、隐私、
 可追溯性、type-aware ranking、metadata-aware ranking、token-dominance 和 near-miss 行为。
+
+Semantic retrieval comparison is a separate fixture-only report command:
+
+语义检索比较是一个单独的 fixture-only 报告命令：
+
+```sh
+npm run rin:semantic-eval
+```
+
+`npm run rin:semantic-eval` compares the current deterministic injected memory
+IDs with explicit fixture-only semantic candidate IDs and report-only hybrid
+candidate IDs. It reports false positives, false negatives, accepted-only
+violations, zero-overlap semantic candidates, privacy checks, and
+`providerCallCount: 0`. It does not require Ollama, does not call model
+providers, does not read real `.rin-data`, and does not connect semantic
+candidates to production retrieval or context injection.
+
+`npm run rin:semantic-eval` 会比较当前 deterministic 注入记忆 ID、显式
+fixture-only semantic candidate ID，以及仅用于报告的 hybrid candidate ID。它会报告
+false positives、false negatives、accepted-only violations、zero-overlap
+semantic candidates、privacy checks 和 `providerCallCount: 0`。它不需要 Ollama，
+不调用模型 provider，不读取真实 `.rin-data`，也不会把 semantic candidates 接入生产检索
+或 context injection。
 
 Local Ollama readiness is a separate optional live-model check when local model
 behavior is in scope:
@@ -557,6 +581,23 @@ injection 前通过 evaluation gate。设计记录在
 [`MEMORY_RETRIEVAL_EVALUATION_PLAN.md`](./docs/MEMORY_RETRIEVAL_EVALUATION_PLAN.md)。
 本 milestone 不增加 embeddings、vector DB、schema migration、provider calls、
 dependencies 或 UI 行为。
+
+Mega-Milestone 9 adds a fixture-only semantic retrieval comparison harness. The
+`npm run rin:semantic-eval` command runs seven synthetic, in-memory cases that
+compare deterministic injected IDs, fixture semantic candidate IDs, and
+report-only hybrid candidates. It detects false positives, false negatives,
+accepted-only violations, zero-overlap semantic candidates, privacy leaks, and
+provider calls while keeping production retrieval unchanged. The semantic
+candidates are fixture annotations only; they are not embeddings, vector search,
+runtime behavior, UI behavior, or context injection.
+
+Mega-Milestone 9 增加了 fixture-only semantic retrieval comparison harness。
+`npm run rin:semantic-eval` 会运行七个 synthetic in-memory cases，比较
+deterministic 注入 ID、fixture semantic candidate ID 和仅用于报告的 hybrid
+candidates。它会检测 false positives、false negatives、accepted-only
+violations、zero-overlap semantic candidates、privacy leaks 和 provider calls，
+同时保持生产检索不变。这里的 semantic candidates 只是 fixture 注解；它们不是
+embeddings、vector search、runtime behavior、UI behavior 或 context injection。
 
 ## Local Model Stability
 

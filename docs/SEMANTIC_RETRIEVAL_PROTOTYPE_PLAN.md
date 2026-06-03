@@ -7,6 +7,11 @@ prototype. It is a plan only. It does not implement semantic retrieval, add
 embeddings, add dependencies, add migrations, or connect semantic candidates to
 production memory retrieval or context injection.
 
+Mega-Milestone 9 implements the first fixture-only comparison step described in
+this plan. The implemented harness is provider-free, report-only, and synthetic
+fixture-only; it still does not implement real semantic retrieval, embeddings,
+vector search, runtime behavior, or context injection.
+
 ## Prototype Goals
 
 The first prototype should answer whether local semantic candidates improve
@@ -92,14 +97,16 @@ Required behavior:
 
 ## Fixture-Only First Step
 
-The safest first implementation milestone should be fixture-only:
+The safest first implementation milestone is fixture-only and is now
+implemented by `src/memory/semanticEvaluation.ts` plus
+`src/memory/semanticEvaluationFixtures.ts`:
 
 1. Build deterministic baseline candidates from existing fixture memories.
-2. Build semantic candidates from fixture embeddings or a deterministic fake
-   semantic provider.
+2. Build semantic candidates from explicit fixture annotations.
 3. Compare IDs and safe metrics.
-4. Write no files except optional ignored temp output.
-5. Make no production retrieval calls.
+4. Write no files.
+5. Make no provider calls.
+6. Make no production retrieval or context-injection changes.
 
 This keeps early semantic evaluation reproducible without requiring a real
 embedding model.
@@ -187,12 +194,24 @@ Future persistent indexes should:
 If encrypted synchronization is added later, semantic index artifacts need the
 same or stricter protection as memory storage.
 
-## Expected CLI Shape
+## Current Fixture-Only CLI Shape
 
-No CLI is added in this milestone. A future prototype CLI should be explicit and
-separate from production checks.
+Mega-Milestone 9 adds a fixture-only command that is explicit and separate from
+production checks:
 
-Possible future command shape:
+```sh
+npm run rin:semantic-eval
+```
+
+The command runs only synthetic in-memory fixtures, prints concise
+total/pass/fail counts, false-positive and false-negative counts,
+accepted-only violations, zero-overlap semantic candidate counts, and
+`providerCallCount: 0`. It exits non-zero if fixture expectations fail. It does
+not require Ollama, call model providers, read real `.rin-data`, add
+dependencies, or write index files.
+
+Possible future command shapes remain separate from this default fixture-only
+path:
 
 ```sh
 npm run rin:semantic-eval -- --fixtures-only
@@ -206,31 +225,36 @@ real local accepted-memory run should require an explicit opt-in flag such as
 
 ## Expected Eval Comparison Shape
 
-Future reports should compare deterministic and semantic outputs without
+The fixture-only harness compares deterministic and semantic outputs without
 exposing memory text:
 
 ```ts
 type SemanticRetrievalComparison = {
   caseId: string;
   categories: string[];
+  query: string;
   deterministicInjectedIds: string[];
   semanticCandidateIds: string[];
+  safeSemanticCandidateIds: string[];
   hybridCandidateIds: string[];
   expectedInjectedIds: string[];
   falsePositiveIds: string[];
   falseNegativeIds: string[];
+  acceptedOnlyViolationIds: string[];
   acceptedOnlyPassed: boolean;
   privacyPassed: boolean;
   contextBudgetImpact: {
-    deterministicCharacterCount: number;
-    hybridCharacterCount: number;
-    delta: number;
+    deterministicMemoryContextCharacters: number;
+    hybridMemoryContextCharacters: number;
+    characterDelta: number;
+    wouldDropDeterministicIds: string[];
+    wouldAddSemanticIds: string[];
   };
   providerCallCount: number;
 };
 ```
 
-This is a target report shape, not an implemented exported type.
+The implemented exported types are in `src/memory/semanticEvaluation.ts`.
 
 ## Stop Conditions
 
@@ -246,8 +270,11 @@ Stop prototype work before merge if any of these occur:
 - `npm run rin:memory-eval` fails
 - deterministic fixture results regress
 
-## First Follow-Up Implementation Milestone
+## Completed First Follow-Up Implementation Milestone
 
-The next safe milestone should be a fixture-only semantic comparison harness.
-It should not add production retrieval behavior. It should produce a local report
-that can be reviewed beside the existing deterministic memory eval report.
+Mega-Milestone 9 completes the fixture-only semantic comparison harness. It does
+not add production retrieval behavior. It produces a local report that can be
+reviewed beside the existing deterministic memory eval report. The next safe
+milestone is a local-only embedding/index prototype over temp fixtures and safe
+reports, still excluded from production retrieval and real `.rin-data` by
+default.

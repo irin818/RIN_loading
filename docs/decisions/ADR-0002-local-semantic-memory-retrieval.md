@@ -219,7 +219,8 @@ cloud embeddings as an opt-in expert path, and never as the default.
 
 1. Keep production retrieval unchanged. Completed by this ADR milestone.
 2. Define a fixture-only semantic comparison report that cannot inject memories
-   into model context.
+   into model context. Completed by Mega-Milestone 9 through
+   `npm run rin:semantic-eval`.
 3. Prototype a local-only embedding/index adapter using temp fixtures and safe
    reports. Do not read real `.rin-data` by default.
 4. Compare deterministic, semantic, and hybrid candidate IDs against existing
@@ -258,6 +259,11 @@ Metrics:
 - zero-overlap semantic candidate count
 - accepted-only violation count
 - privacy violation count
+
+Mega-Milestone 9 implements this report shape for fixture-only semantic
+candidate annotations. It remains provider-free and report-only; it does not add
+embeddings, vector indexes, runtime integration, context injection, schema
+migrations, or real `.rin-data` access.
 - context budget impact
 - deterministic regression count
 
