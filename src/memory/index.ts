@@ -68,6 +68,10 @@ export {
 } from "./semanticTrace";
 export { selectSemanticContextExpansionCandidates } from "./semanticContextExpansion";
 export {
+  analyzeMemoryMaintenance,
+  formatMemoryMaintenanceReport,
+} from "./maintenance";
+export {
   formatSemanticReadinessReport,
   getSemanticReadinessReport,
 } from "./semanticReadiness";
@@ -127,6 +131,12 @@ export type {
   SemanticTraceRecord,
 } from "./semanticTrace";
 export type { SemanticContextExpansionResult } from "./semanticContextExpansion";
+export type {
+  MemoryMaintenanceOptions,
+  MemoryMaintenanceReason,
+  MemoryMaintenanceReport,
+  MemoryMaintenanceSuggestion,
+} from "./maintenance";
 export type {
   SemanticReadinessCheck,
   SemanticReadinessReport,
