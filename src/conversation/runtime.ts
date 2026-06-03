@@ -4,11 +4,12 @@ import {
   getConversation,
   listConversationMessages,
 } from "./repository";
+import { ConversationError, toConversationError } from "./errors";
 import type { ConversationTurnResult } from "./types";
 import { buildModelContext } from "../context";
-import { appendAuditEvent, openRinDatabase } from "../database";
+import { appendAuditEvent, openRinDatabase, type RinDatabase } from "../database";
 import { maybeCreateOwnerMemoryProposal } from "../memory";
-import { getConfiguredModelAdapter } from "../model";
+import { getConfiguredModelAdapter, type ModelAdapter } from "../model";
 import { evaluateModelResponse } from "../policy";
 import { appendRawEvent } from "../rawLog";
 import { snapshotSlowVariables } from "../slowVariables";
@@ -22,9 +23,14 @@ export type ProcessOwnerMessageInput = {
   now?: Date;
 };
 
+export type ProcessOwnerMessageDeps = {
+  resolveAdapter?: (layout: RinDataLayout) => Promise<ModelAdapter>;
+};
+
 export async function processOwnerMessage(
   layout: RinDataLayout,
   input: ProcessOwnerMessageInput,
+  deps: ProcessOwnerMessageDeps = {},
 ): Promise<ConversationTurnResult> {
   const content = input.content.trim();
 
@@ -32,6 +38,7 @@ export async function processOwnerMessage(
     throw new Error("Owner message cannot be empty.");
   }
 
+  const resolveAdapter = deps.resolveAdapter ?? getConfiguredModelAdapter;
   const now = input.now ?? new Date();
   const database = openRinDatabase(layout);
 
@@ -70,7 +77,7 @@ export async function processOwnerMessage(
       })),
     ];
     const modelContext = buildModelContext(conversationMessages);
-    const adapter = await getConfiguredModelAdapter(layout);
+    const adapter = await resolveAdapter(layout);
     const modelResponse = await adapter.generate({
       ownerId: input.ownerId,
       conversationId: conversation.id,
@@ -135,9 +142,48 @@ export async function processOwnerMessage(
     };
   } catch (error) {
     database.exec("ROLLBACK;");
-    throw error;
+    const conversationError = toConversationError(error);
+    logTurnFailure(database, conversationError, input, now);
+    throw conversationError;
   } finally {
     database.close();
+  }
+}
+
+/**
+ * Record a failed turn after the transaction has been rolled back so the failure
+ * is auditable without persisting a fake RIN reply. The owner message is not
+ * stored on failure because the whole turn transaction was rolled back. Only
+ * safe metadata is logged: no stack traces, secrets, or local paths.
+ */
+function logTurnFailure(
+  database: RinDatabase,
+  conversationError: ConversationError,
+  input: ProcessOwnerMessageInput,
+  now: Date,
+): void {
+  const payload = {
+    conversationId: input.conversationId ?? null,
+    errorCode: conversationError.payload.code,
+    provider: conversationError.payload.provider,
+    modelAdapter: conversationError.payload.modelAdapter,
+    retryable: conversationError.payload.retryable,
+  };
+
+  try {
+    appendRawEvent(database, {
+      eventType: "conversation.turn_failed",
+      source: conversationError.payload.modelAdapter ?? "conversation",
+      payload,
+      now,
+    });
+    appendAuditEvent(database, {
+      eventType: "conversation.turn_failed",
+      payload,
+      now,
+    });
+  } catch {
+    // Logging the failure must never mask the original conversation error.
   }
 }
 

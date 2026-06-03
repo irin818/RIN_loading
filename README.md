@@ -332,6 +332,29 @@ Common local failures and fixes:
   lower output limit before raising timeout.
 - prompt 过长或生成过慢：保持上下文预算启用，优先降低输出长度，再考虑增加超时。
 
+Phase 25 turns these failures into structured conversation errors instead of a
+generic HTTP 500. When `adapter.generate()` fails, the conversation runtime
+returns a JSON payload with a stable `error.code`
+(`LOCAL_MODEL_TIMEOUT`, `LOCAL_MODEL_UNAVAILABLE`, `LOCAL_MODEL_MISSING`,
+`MODEL_RESPONSE_INVALID`, `MODEL_PROVIDER_ERROR`, or
+`CONVERSATION_RUNTIME_ERROR`), a concise `error.message`, `error.recovery`
+guidance, and the active `modelAdapter`, `provider`, and `retryable` flag. The
+local console route returns a matching HTTP status (for example 504 for
+timeout, 503 for unavailable or missing model, 502 for invalid/provider
+responses). Failed turns do not store a fake RIN reply; the whole turn is rolled
+back and a `conversation.turn_failed` event is recorded for audit. Structured
+errors never include stack traces, secrets, or local filesystem paths.
+
+Phase 25 把这些故障变成结构化对话错误，而不是通用的 HTTP 500。当
+`adapter.generate()` 失败时，对话 runtime 会返回一个 JSON 负载，包含稳定的
+`error.code`（`LOCAL_MODEL_TIMEOUT`、`LOCAL_MODEL_UNAVAILABLE`、
+`LOCAL_MODEL_MISSING`、`MODEL_RESPONSE_INVALID`、`MODEL_PROVIDER_ERROR` 或
+`CONVERSATION_RUNTIME_ERROR`）、简洁的 `error.message`、`error.recovery` 恢复建议，
+以及当前的 `modelAdapter`、`provider` 和 `retryable` 标记。本地 console 路由会返回
+对应的 HTTP 状态（例如超时 504、不可用或缺少模型 503、无效或服务商响应 502）。
+失败的对话不会存储虚假的 RIN 回复；整个对话回合会回滚，并记录一条
+`conversation.turn_failed` 审计事件。结构化错误绝不包含堆栈、密钥或本地文件路径。
+
 The initializer creates readable JSON files for the owner model, AI identity,
 AI state, policy config, model config, tool registry, and permissions. These are
 starter state files only; they do not implement memory behavior, tool execution,

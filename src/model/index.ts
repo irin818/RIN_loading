@@ -20,6 +20,8 @@ export {
   OLLAMA_TOP_P_ENV,
   OPENAI_COMPATIBLE_ADAPTER_ID,
 } from "./config";
+export { isModelError, ModelError } from "./errors";
+export type { ModelErrorCode, ModelErrorDetails, ModelErrorInit } from "./errors";
 export { createOllamaAdapter } from "./ollamaAdapter";
 export { createOpenAiCompatibleAdapter } from "./openAiCompatibleAdapter";
 export {
