@@ -1,15 +1,13 @@
 # Memory Retrieval Ranking Signals
 
-Status: Draft / Implementation planned in this milestone
+Status: Implemented in Milestone 4
 
 ## Purpose
 
-This note inspects the current memory schema and deterministic retrieval path to
-identify which ranking signals are already safe to use, which signals require a
-schema proposal, and which signals should remain deferred.
-
-This is analysis only. It does not change retrieval behavior, schema, fixtures,
-runtime, UI, or model boundaries.
+This note records the current memory schema, deterministic retrieval path, and
+the small type-aware ranking signal implemented in Milestone 4. It also
+identifies which signals still require a schema proposal and which signals
+remain deferred.
 
 ## Current Schema Findings
 
@@ -48,10 +46,10 @@ These signals exist today and can be used without schema migration:
 - Snippet length after safe snippet extraction.
 - Source message id as metadata, although it is not currently meaningful for ranking.
 
-Important nuance: `memoryType` is already included as extra text when building a
-memory token profile. That means a query token such as `preference` can match a
-memory whose `memoryType` is `preference`, but there is no explicit type-aware
-ranking component, no type score field, and no type-specific trace explanation.
+Important nuance: before Milestone 4, `memoryType` was included as extra text
+when building a memory token profile. Milestone 4 replaced that implicit behavior
+with an explicit, traceable type component that can only add a small bonus after
+memory content already has token overlap.
 
 ## Missing Signals
 
@@ -97,32 +95,43 @@ The current retrieval path is:
    - protected technical tokens such as `api`, `model`, `local`, `memory`,
      `ollama`, `qwen3`, `rin`, `agent`, `system`, `semantic`, and `sqlite`.
    - CJK bigram extraction.
-5. Memory profiles include `memory.memoryType` as extra token text.
-6. `scoreRetrievalOverlap` computes:
+5. Memory profiles are built from snippet text only; `memoryType` is no longer
+   treated as ordinary memory text.
+6. `scoreRetrievalOverlap` computes the base token score:
    - `latinTokenMatchCount`
    - `cjkBigramMatchCount`
    - `overlapCount`
-   - `score = latinTokenMatchCount * 2 + cjkBigramMatchCount`
-7. Candidates with zero overlap are skipped as `zero_relevance`.
-8. Candidates are sorted by:
-   - descending score
+   - `tokenScore = latinTokenMatchCount * 2 + cjkBigramMatchCount`
+7. `scoreTypeSignalMatch` maps normalized query tokens and selected CJK bigrams
+   to the existing `MemoryType` union. If the memory has content overlap and its
+   type has at least one matched type signal, retrieval adds
+   `typeMatchBonus = 1`; otherwise the bonus is `0`.
+8. Candidates with zero content overlap are skipped as `zero_relevance`, even if
+   the query has a type signal matching the memory's type.
+9. Candidates are sorted by:
+   - descending final score (`tokenScore + typeMatchBonus`)
+   - descending token score
    - descending overlap count
+   - descending type match bonus
    - descending `updatedAt`
    - ascending memory id
-9. Retrieval applies `maxInjectedMemories`.
-10. Context assembly applies memory-context character budget and whole-context
+10. Retrieval applies `maxInjectedMemories`.
+11. Context assembly applies memory-context character budget and whole-context
     budget. Dropped candidates can become `memory_budget_exceeded`.
-11. Trace/explanation fields currently include:
+12. Trace/explanation fields currently include:
     - `memoryId`
+    - `memoryType`
     - `matchedKeywords`
     - `overlapCount`
     - `latinTokenMatchCount`
     - `cjkBigramMatchCount`
     - `normalizedQueryTokenCount`
+    - `typeMatchBonus`
+    - `matchedTypeSignals`
     - `wasInjected`
     - `skippedReason`
     - `snippetLength`
-12. Persisted `memoryContext` trace stores safe metadata only. It excludes full
+13. Persisted `memoryContext` trace stores safe metadata only. It excludes full
     memory text, model context snippets, and raw prompt text.
 
 ## Current Evaluation Coverage
@@ -140,12 +149,15 @@ The built-in memory evaluation harness currently covers:
 - memory budget behavior
 - privacy checks that prevent full memory text from leaking into trace
 - provider isolation with `providerCallCount: 0`
+- type bonus tie-breaking between similarly relevant accepted memories
+- zero-overlap type-only memory exclusion
+- stronger token relevance beating weaker type bonus
+- non-accepted memory exclusion even with a good type signal
+- CJK plus type signal overlap
+- type trace privacy checks
 
-Current gaps:
+Remaining gaps:
 
-- No fixture varies `memoryType`; evaluation records are converted to
-  `memoryType: "semantic"`.
-- No fixture asserts type/category-aware ranking.
 - No fixture covers tags, importance, confidence, or usage stats because those
   fields do not exist.
 - Limited near-miss coverage for ambiguous technical overlap.
@@ -160,13 +172,8 @@ These can be considered without schema migration:
 - Overlap count as a secondary signal.
 - Recency via `updatedAt` as a tie-break.
 - Stable id tie-break for deterministic ordering.
-- A small explicit type/category component based on `memoryType`, if it remains
-  explainable and subordinate to token relevance.
-
-If type/category ranking is implemented, the trace should expose a safe score
-component such as `typeMatchBonus` or `categoryMatchBonus`. The evaluation
-harness should first support memory type inputs and add cases where type changes
-ranking only among otherwise plausible candidates.
+- A small explicit type/category component based on `memoryType`; this is now
+  implemented as `typeMatchBonus`.
 
 ### Needs Schema Extension
 
@@ -213,21 +220,24 @@ Any future ranking work must preserve:
 
 ## Implementation Decision
 
-The current schema exposes a reliable `memoryType` / `memory_type` field, so a
-small type-aware ranking phase is safe to consider next. That phase should keep
-token overlap as the primary ranking signal, add only a small deterministic type
-component, and make the component visible in safe trace metadata.
-
-Milestone 4 will proceed with a constrained type-aware ranking implementation
-under these limits:
+The current schema exposes a reliable `memoryType` / `memory_type` field, so
+Milestone 4 implements a constrained type-aware ranking component under these
+limits:
 
 - Do not add schema fields.
 - Do not use tags or importance.
 - Do not add embeddings or semantic search.
-- Update the evaluation harness so cases can specify `memoryType`.
-- Add regression cases proving that type/category ranking is deterministic,
-  explainable, budget-safe, and accepted-only.
-- Update trace metadata with the new type/category score component.
+- Keep token relevance primary with `tokenScore = latinTokenMatchCount * 2 +
+  cjkBigramMatchCount`.
+- Add only `typeMatchBonus = 1` when a deterministic query type signal matches
+  an accepted memory's existing `memoryType`.
+- Keep `typeMatchBonus = 0` for zero-overlap memory content so type alone cannot
+  inject a memory.
+- Preserve accepted-only filtering, context budgets, recency tie-breaks, and
+  stable id tie-breaks.
+- Expose only safe trace metadata: `memoryType`, `typeMatchBonus`, and
+  `matchedTypeSignals`.
+- Protect the behavior with `npm run rin:memory-eval` fixtures.
 
 Tags, importance, confidence, reviewed timestamps, and usage stats should be
 handled later through a separate owner-reviewed metadata proposal before any
@@ -235,11 +245,8 @@ migration or retrieval use.
 
 ## Non-Goals
 
-- Implement ranking behavior.
-- Change retrieval scoring.
 - Add schema fields or migrations.
 - Add tags or importance.
-- Add or edit evaluation fixtures in this phase.
 - Add embeddings, vector DB, or semantic retrieval.
 - Add memory editor UI.
-- Change runtime, model, server, context, UI, or database code.
+- Change model provider boundaries or the default adapter.
