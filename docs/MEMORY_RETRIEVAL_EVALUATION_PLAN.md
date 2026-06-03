@@ -8,6 +8,11 @@ implements the first fixture-only comparison harness. The harness does not
 implement real semantic retrieval, add embeddings, add dependencies, change
 production retrieval behavior, or alter context injection.
 
+Ultra-Milestone 10 extends semantic comparison with a deterministic
+fixture/mock embedding provider, in-memory vector index, prototype candidate
+generation, and semantic readiness reporting. These additions remain
+fixture-only and report-only.
+
 ## Current Evaluation Harness
 
 The current harness is `npm run rin:memory-eval`, implemented through
@@ -65,10 +70,13 @@ semantic candidate IDs and report-only hybrid candidate IDs.
 
 The current successful output is expected to include:
 
-- `Total: 7`
-- `Passed: 7`
+- `Total: 11`
+- `Passed: 11`
 - `Failed: 0`
 - `providerCallCount: 0`
+- fixture prototype provider identity
+- prototype topK and candidate cap values
+- deterministic, semantic, prototype, and hybrid candidate counts
 - false-positive and false-negative counts
 - accepted-only violation count
 - zero-overlap semantic candidate count
@@ -83,6 +91,11 @@ The built-in semantic comparison fixtures cover:
 - privacy/no full memory text leak
 - zero-overlap semantic candidates as report-only candidates
 - deterministic baseline preservation
+- fixture/mock embedding prototype candidate generation
+- vector index deterministic ordering
+- topK and candidate cap behavior
+- query with no semantic candidates
+- old/no-semantic-annotation neutrality
 
 The harness intentionally includes expected negative signals, such as one
 false-positive candidate and one non-accepted candidate violation, so the report
@@ -99,8 +112,12 @@ Semantic comparison results include safe IDs and aggregate fields only:
 - `query`
 - `deterministicInjectedIds`
 - `semanticCandidateIds`
+- `explicitSemanticCandidateIds`
+- `prototypeSemanticCandidateIds`
+- `safePrototypeSemanticCandidateIds`
 - `safeSemanticCandidateIds`
 - `hybridCandidateIds`
+- `semanticCandidateSourceBreakdown`
 - `expectedInjectedIds`
 - `falsePositiveIds`
 - `falseNegativeIds`
@@ -113,6 +130,9 @@ Semantic comparison results include safe IDs and aggregate fields only:
 - `semanticRuntimeId`
 - `semanticModelId`
 - `indexImplementationId`
+- `prototypeSemanticProvider`
+- `prototypeTopK`
+- `prototypeCandidateCap`
 
 `privacyCheck` should be a structured safe result:
 
@@ -276,3 +296,13 @@ npm run rin:semantic-eval
 
 For now it should be reported explicitly for semantic retrieval comparison work,
 beside `npm run rin:check` and `npm run rin:memory-eval`.
+
+Ultra-Milestone 10 adds a separate readiness command:
+
+```sh
+npm run rin:semantic-readiness
+```
+
+It should pass without Ollama or provider calls. It reports that production
+semantic retrieval remains disabled, local embedding providers are disabled by
+default, no vector DB is configured, and no real `.rin-data` indexing is active.

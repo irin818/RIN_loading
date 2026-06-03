@@ -89,13 +89,16 @@ Current known module boundaries include:
   real owner data; it does not auto-write or auto-accept memories. The module
   also contains a fixture-only semantic retrieval comparison harness that
   compares deterministic injected IDs with explicit fixture semantic candidate
-  IDs and report-only hybrid candidates. It reports false positives, false
-  negatives, accepted-only violations, zero-overlap semantic candidates, privacy
-  checks, and provider-call count without embeddings, vector databases, provider
-  calls, real `.rin-data`, or production integration. Semantic retrieval is not
-  implemented in production. Future semantic retrieval must remain local-first,
-  optional, accepted-only, and evaluation-gated before it can affect context
-  injection.
+  IDs, fixture/mock embedding prototype candidate IDs, and report-only hybrid
+  candidates. It includes deterministic fixture embedding utilities, vector
+  math, an in-memory vector index, disabled local embedding provider readiness,
+  and semantic readiness reporting. It reports false positives, false negatives,
+  accepted-only violations, zero-overlap semantic candidates, privacy checks,
+  prototype candidate counts, and provider-call count without real embeddings,
+  vector databases, provider calls, real `.rin-data`, or production integration.
+  Semantic retrieval is not implemented in production. Future semantic retrieval
+  must remain local-first, optional, accepted-only, and evaluation-gated before
+  it can affect context injection.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
 - `src/storage/`: controlled local storage layout and manifest logic.
@@ -129,6 +132,10 @@ by browser code using public paths such as `/live2d/rin/...`.
 - `docs/MEMORY_RETRIEVAL_RANKING.md`
 - `docs/MEMORY_RETRIEVAL_EVALUATION_PLAN.md`
 - `docs/SEMANTIC_RETRIEVAL_PROTOTYPE_PLAN.md`
+- `docs/LOCAL_EMBEDDING_PROVIDER_PLAN.md`
+- `docs/SEMANTIC_INDEX_LIFECYCLE.md`
+- `docs/HYBRID_RETRIEVAL_INTEGRATION_PLAN.md`
+- `docs/SEMANTIC_RETRIEVAL_OPT_IN_GATES.md`
 - `docs/decisions/ADR-0001-local-model-first-reasoning.md`
 - `docs/decisions/ADR-0002-local-semantic-memory-retrieval.md`
 
@@ -196,9 +203,9 @@ passing checks.
   or any other provider directly.
 - External API keys must remain in environment variables or ignored local files.
 - Semantic retrieval remains outside production retrieval. A fixture-only
-  comparison harness exists for report-only evaluation, but there is still no
-  production embedding path, vector database, semantic index, or semantic
-  context injection path.
+  comparison and readiness program exists for report-only evaluation, but there
+  is still no production embedding path, vector database, semantic index, or
+  semantic context injection path.
 - Memory writes are still controlled slow-variable updates: owner messages can
   create proposals, and local review routes decide accepted, rejected, or
   archived status.

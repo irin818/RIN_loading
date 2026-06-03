@@ -24,10 +24,52 @@ export {
   preprocessText,
   scoreRetrievalOverlap,
 } from "./retrievalTokens";
+export {
+  DEFAULT_FIXTURE_EMBEDDING_DIMENSION,
+  DEFAULT_LOCAL_EMBEDDING_PROVIDER_CONFIG,
+  DISABLED_LOCAL_EMBEDDING_PROVIDER_ID,
+  FIXTURE_SEMANTIC_EMBEDDING_PROVIDER_ID,
+  cosineSimilarity,
+  createFixtureSemanticEmbeddingProvider,
+  createUnsupportedLocalEmbeddingProvider,
+  dotProduct,
+  evaluateLocalEmbeddingProviderReadiness,
+  normalizeVector,
+} from "./semanticEmbedding";
+export { createInMemoryVectorIndex } from "./vectorIndex";
+export { generateFixtureSemanticCandidates } from "./semanticPrototype";
+export {
+  formatSemanticReadinessReport,
+  getSemanticReadinessReport,
+} from "./semanticReadiness";
 export type {
   RetrievalMatchResult,
   RetrievalTokenProfile,
 } from "./retrievalTokens";
+export type {
+  LocalEmbeddingProviderConfig,
+  LocalEmbeddingProviderReadiness,
+  SemanticEmbeddingInput,
+  SemanticEmbeddingProvider,
+  SemanticEmbeddingProviderKind,
+  SemanticEmbeddingResult,
+  SemanticEmbeddingVector,
+} from "./semanticEmbedding";
+export type {
+  InMemoryVectorIndex,
+  VectorIndexEntry,
+  VectorIndexMatch,
+  VectorIndexQueryOptions,
+} from "./vectorIndex";
+export type {
+  FixtureSemanticCandidateGenerationOptions,
+  FixtureSemanticCandidateGenerationResult,
+  FixtureSemanticPrototypeMemory,
+} from "./semanticPrototype";
+export type {
+  SemanticReadinessCheck,
+  SemanticReadinessReport,
+} from "./semanticReadiness";
 export {
   DEFAULT_MAX_INJECTED_MEMORIES,
   DEFAULT_MAX_SNIPPET_CHARACTERS,

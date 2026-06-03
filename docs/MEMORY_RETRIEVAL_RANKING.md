@@ -193,9 +193,11 @@ The built-in memory evaluation harness currently covers:
 Remaining gaps:
 
 - No fixture covers usage stats because those fields do not exist.
-- No production semantic retrieval, vector similarity, or embedding coverage
-  exists yet. Mega-Milestone 9 adds fixture-only semantic comparison coverage,
-  but it does not change production retrieval or add embeddings.
+- No production semantic retrieval, vector similarity, or real embedding
+  coverage exists yet. Mega-Milestone 9 adds fixture-only semantic comparison
+  coverage, and Ultra-Milestone 10 adds deterministic fixture/mock embedding and
+  in-memory vector index coverage. Neither milestone changes production
+  retrieval or adds real embeddings.
 
 ## Candidate Ranking Signals
 
@@ -352,3 +354,9 @@ Mega-Milestone 9 implements that fixture-only comparison harness through
 `npm run rin:semantic-eval`. The command is report-only and compares explicit
 fixture semantic candidate IDs against deterministic retrieval; it does not add
 semantic retrieval to production.
+
+Ultra-Milestone 10 adds a fixture/mock embedding provider, vector math,
+in-memory vector index, prototype candidate generation, and
+`npm run rin:semantic-readiness`. These are still report-only and do not connect
+semantic retrieval to production retrieval, context injection, server APIs, or
+Console behavior.

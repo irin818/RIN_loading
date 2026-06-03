@@ -132,6 +132,7 @@ npm run build
 npm run rin:readiness
 npm run rin:memory-eval
 npm run rin:semantic-eval
+npm run rin:semantic-readiness
 ```
 
 For changes that affect memory retrieval, bounded context assembly,
@@ -182,6 +183,23 @@ false positives、false negatives、accepted-only violations、zero-overlap
 semantic candidates、privacy checks 和 `providerCallCount: 0`。它不需要 Ollama，
 不调用模型 provider，不读取真实 `.rin-data`，也不会把 semantic candidates 接入生产检索
 或 context injection。
+
+Semantic retrieval readiness is also report-only:
+
+语义检索 readiness 也是仅报告命令：
+
+```sh
+npm run rin:semantic-readiness
+```
+
+It reports the deterministic baseline status, semantic eval availability,
+fixture prototype availability, disabled local embedding provider scaffold, no
+vector DB, no real `.rin-data` indexing, no production integration, and
+`providerCallCount: 0`.
+
+它会报告 deterministic baseline 状态、semantic eval 可用性、fixture prototype 可用性、
+disabled local embedding provider scaffold、无 vector DB、无真实 `.rin-data` indexing、
+无生产集成，以及 `providerCallCount: 0`。
 
 Local Ollama readiness is a separate optional live-model check when local model
 behavior is in scope:
@@ -583,7 +601,7 @@ injection 前通过 evaluation gate。设计记录在
 dependencies 或 UI 行为。
 
 Mega-Milestone 9 adds a fixture-only semantic retrieval comparison harness. The
-`npm run rin:semantic-eval` command runs seven synthetic, in-memory cases that
+`npm run rin:semantic-eval` command runs synthetic, in-memory cases that
 compare deterministic injected IDs, fixture semantic candidate IDs, and
 report-only hybrid candidates. It detects false positives, false negatives,
 accepted-only violations, zero-overlap semantic candidates, privacy leaks, and
@@ -592,12 +610,33 @@ candidates are fixture annotations only; they are not embeddings, vector search,
 runtime behavior, UI behavior, or context injection.
 
 Mega-Milestone 9 增加了 fixture-only semantic retrieval comparison harness。
-`npm run rin:semantic-eval` 会运行七个 synthetic in-memory cases，比较
+`npm run rin:semantic-eval` 会运行 synthetic in-memory cases，比较
 deterministic 注入 ID、fixture semantic candidate ID 和仅用于报告的 hybrid
 candidates。它会检测 false positives、false negatives、accepted-only
 violations、zero-overlap semantic candidates、privacy leaks 和 provider calls，
 同时保持生产检索不变。这里的 semantic candidates 只是 fixture 注解；它们不是
 embeddings、vector search、runtime behavior、UI behavior 或 context injection。
+
+Ultra-Milestone 10 adds the semantic retrieval readiness program. It introduces
+a deterministic fixture/mock embedding provider, vector math utilities, an
+in-memory vector index, fixture-only prototype semantic candidate generation,
+harder `npm run rin:semantic-eval` reporting, and
+`npm run rin:semantic-readiness`. It also documents future local embedding
+providers, semantic index lifecycle, hybrid retrieval integration, and opt-in
+production gates. Production semantic retrieval remains disabled: no real
+embedding dependency, vector DB, provider call, schema migration, real
+`.rin-data` indexing, server API, Console behavior, runtime path, or context
+injection is added.
+
+Ultra-Milestone 10 增加 semantic retrieval readiness program。它加入确定性的
+fixture/mock embedding provider、vector math utilities、in-memory vector index、
+fixture-only prototype semantic candidate generation、更严格的
+`npm run rin:semantic-eval` 报告，以及 `npm run rin:semantic-readiness`。同时补充
+未来 local embedding provider、semantic index lifecycle、hybrid retrieval
+integration 和 opt-in production gates 文档。生产 semantic retrieval 仍然禁用：没有
+新增真实 embedding dependency、vector DB、provider call、schema migration、真实
+`.rin-data` indexing、server API、Console behavior、runtime path 或 context
+injection。
 
 ## Local Model Stability
 
