@@ -1059,8 +1059,33 @@ export function App() {
                 <dd>{snapshot.portability.exportBundles}</dd>
               </div>
               <div>
+                <dt>Dry-run actions</dt>
+                <dd>{snapshot.operationalStatus.permissions.dryRunActionCount}</dd>
+              </div>
+              <div>
+                <dt>Planner smoke</dt>
+                <dd>
+                  {snapshot.operationalStatus.planner.status}
+                  {snapshot.operationalStatus.planner.executedActionCount === 0
+                    ? " · zero actions"
+                    : ""}
+                </dd>
+              </div>
+              <div>
+                <dt>Backup dry-run</dt>
+                <dd>
+                  {snapshot.operationalStatus.backup.dryRunAvailable
+                    ? `${snapshot.operationalStatus.backup.fileCount} files`
+                    : "unavailable"}
+                </dd>
+              </div>
+              <div>
                 <dt>Auto-execution</dt>
-                <dd>L0/L1 only</dd>
+                <dd>
+                  {snapshot.operationalStatus.permissions.destructiveActionsBlocked
+                    ? "destructive blocked"
+                    : "review required"}
+                </dd>
               </div>
             </dl>
           </section>

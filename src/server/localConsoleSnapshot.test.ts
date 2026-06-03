@@ -30,6 +30,18 @@ describe("readLocalConsoleSnapshot", () => {
     expect(snapshot.identity.name).toBe("RIN");
     expect(snapshot.ownerModel.status).toBe("placeholder");
     expect(snapshot.toolRegistry.toolCount).toBe(2);
+    expect(snapshot.operationalStatus.model.localCallsConfigured).toBe(false);
+    expect(snapshot.operationalStatus.memory.accepted).toBe(0);
+    expect(snapshot.operationalStatus.semantic.contextExpansionEnabled).toBe(false);
+    expect(snapshot.operationalStatus.semantic.providerCallCount).toBe(0);
+    expect(snapshot.operationalStatus.permissions.dryRunActionCount).toBe(3);
+    expect(snapshot.operationalStatus.permissions.unknownActionsBlocked).toBe(true);
+    expect(snapshot.operationalStatus.planner.executedActionCount).toBe(0);
+    expect(snapshot.operationalStatus.planner.backgroundLoopStarted).toBe(false);
+    expect(snapshot.operationalStatus.backup.dryRunAvailable).toBe(true);
+    expect(snapshot.operationalStatus.backup.restoreDryRunAvailable).toBe(true);
+    expect(snapshot.operationalStatus.backup.archiveCreated).toBe(false);
+    expect(snapshot.operationalStatus.backup.cloudSyncEnabled).toBe(false);
     expect(snapshot.modelConfig.apiKeysStoredHere).toBe(false);
     expect(snapshot.modelConfig.localCallsConfigured).toBe(false);
     expect(snapshot.modelConfig.ollama).toBeNull();

@@ -140,6 +140,8 @@ npm run rin:semantic-trace-list
 npm run rin:semantic-trace-read
 npm run rin:memory-maintenance-report
 npm run rin:planner-smoke
+npm run rin:backup-dry-run
+npm run rin:restore-dry-run
 ```
 
 For changes that affect memory retrieval, bounded context assembly,
@@ -698,6 +700,21 @@ destructive, and external actions, and all Package 3 registry actions are
 dry-run-only. The planner smoke command runs a deterministic fixture plan,
 dry-runs actions through the permission layer, starts no background loop, calls no
 providers, and executes no real actions.
+
+Package 4 adds read-only operational status to the Console snapshot for model,
+memory, semantic context, permissions, planner, and backup readiness. It also
+adds local continuity dry-runs:
+
+```sh
+npm run rin:backup-dry-run
+npm run rin:restore-dry-run
+```
+
+Backup dry-run reports a safe manifest with relative file names, sizes, and
+hashes for local RIN data that would be included. It creates no archive, performs
+no cloud sync, and excludes logs, dependency/build output, environment files, and
+secret-like paths. Restore dry-run validates a manifest when supplied and reports
+overwrite risk without copying or mutating data.
 
 Ultra-Milestone 11 和 Super-Milestone 12-14 增加仅报告的 semantic provider 与
 accepted-memory report 命令，但不改变生产检索。`npm run
