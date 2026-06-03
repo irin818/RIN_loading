@@ -360,3 +360,19 @@ in-memory vector index, prototype candidate generation, and
 `npm run rin:semantic-readiness`. These are still report-only and do not connect
 semantic retrieval to production retrieval, context injection, server APIs, or
 Console behavior.
+
+Super-Milestone 12-14 adds report-only accepted-memory semantic index, live local
+index, and hybrid candidate report commands. Package 2 then adds two bounded
+follow-ups:
+
+- semantic/hybrid report traces can be persisted as sanitized audit records only
+  when explicitly requested by the report command
+- semantic context candidate expansion can be enabled only with
+  `RIN_SEMANTIC_CONTEXT=candidate-expansion`
+
+Default retrieval remains deterministic. When semantic context expansion is
+enabled, deterministic accepted-memory retrieval runs first. Semantic candidates
+can only append accepted memories that were not already selected, are capped by
+candidate count and character budgets, and are marked separately in trace fields.
+They do not add a vector database, persistent embedding store, cloud provider, or
+default provider call.

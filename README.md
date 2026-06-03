@@ -134,7 +134,10 @@ npm run rin:memory-eval
 npm run rin:semantic-eval
 npm run rin:semantic-readiness
 npm run rin:semantic-index-report
+npm run rin:semantic-live-index-report
 npm run rin:hybrid-retrieval-report
+npm run rin:semantic-trace-list
+npm run rin:semantic-trace-read
 ```
 
 For changes that affect memory retrieval, bounded context assembly,
@@ -650,6 +653,33 @@ disabled by default. Without owner opt-in they do not read real `.rin-data`, do
 not list memories, do not call providers, and print ID/count/status fields only.
 With explicit opt-in, they remain report-only, accepted-only, in-memory, and
 never inject semantic candidates into model context.
+
+Package 2 adds semantic trace persistence and an explicit semantic context
+candidate-expansion gate. Report commands can persist sanitized semantic/hybrid
+trace records only when `--record-semantic-trace` or
+`RIN_SEMANTIC_TRACE=record` is supplied; traces are stored as safe audit records
+and can be inspected with `npm run rin:semantic-trace-list` and
+`npm run rin:semantic-trace-read`. The trace payload stores IDs, counts, status,
+provider mode, safe error codes, and safety flags only. It does not store full
+memory text, raw prompts, model context snippets, raw metadata JSON, embedding
+vectors, secrets, environment dumps, or local paths.
+
+Semantic context candidate expansion remains disabled by default. To enable the
+bounded candidate-expansion path locally:
+
+```sh
+RIN_SEMANTIC_CONTEXT=candidate-expansion \
+RIN_SEMANTIC_CONTEXT_MAX_CANDIDATES=2 \
+RIN_SEMANTIC_CONTEXT_MAX_CHARACTERS=600 \
+npm run rin:console
+```
+
+When enabled, deterministic accepted-memory retrieval still runs first and
+remains the baseline. Semantic candidates are accepted-only, deduped, capped,
+counted against memory and whole-context budgets, and traced separately from
+deterministic memory IDs. The generated system prompt and latest owner message
+remain preserved. Default checks and default report commands remain
+provider-free and do not call Ollama.
 
 Ultra-Milestone 11 和 Super-Milestone 12-14 增加仅报告的 semantic provider 与
 accepted-memory report 命令，但不改变生产检索。`npm run

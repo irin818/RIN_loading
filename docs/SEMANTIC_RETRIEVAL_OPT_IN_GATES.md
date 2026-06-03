@@ -66,6 +66,8 @@ candidate report commands:
 - `npm run rin:semantic-index-report`
 - `npm run rin:semantic-live-index-report`
 - `npm run rin:hybrid-retrieval-report`
+- `npm run rin:semantic-trace-list`
+- `npm run rin:semantic-trace-read`
 
 Default readiness reports these commands as available but disabled, with memory
 listing disabled and `providerCallCount: 0`.
@@ -90,6 +92,8 @@ Required checks:
 - `npm run rin:semantic-readiness`
 - `npm run rin:semantic-index-report`
 - `npm run rin:hybrid-retrieval-report`
+- `npm run rin:semantic-trace-list`
+- `npm run rin:semantic-trace-read`
 - local embedding eval over temp fixture data
 - report-only accepted-memory index tests
 - report-only live index comparison tests

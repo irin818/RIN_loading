@@ -101,9 +101,13 @@ Current known module boundaries include:
   commands are disabled by default; without explicit owner opt-in they do not
   list real memories, read real `.rin-data`, or call providers. When explicitly
   enabled, they remain in-memory, accepted-only, ID/count/status-only, and do not
-  feed candidates into context assembly. Semantic retrieval is not implemented
-  in production. Future semantic retrieval must remain local-first, optional,
-  accepted-only, and evaluation-gated before it can affect context injection.
+  feed candidates into context assembly by default. Package 2 adds sanitized
+  semantic/hybrid trace persistence through existing audit storage and a
+  disabled-by-default semantic context candidate-expansion gate. When explicitly
+  enabled, semantic candidates are accepted-only, appended after deterministic
+  candidates, capped, budgeted, provider-free by default, and traced separately
+  from deterministic memory IDs. Deterministic retrieval remains the baseline,
+  and default checks do not call embedding providers.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
 - `src/storage/`: controlled local storage layout and manifest logic.
@@ -207,10 +211,11 @@ passing checks.
   through configured model adapters. The UI must not call Ollama, external APIs,
   or any other provider directly.
 - External API keys must remain in environment variables or ignored local files.
-- Semantic retrieval remains outside production retrieval. A fixture-only
-  comparison and readiness program exists for report-only evaluation, but there
-  is still no production embedding path, vector database, semantic index, or
-  semantic context injection path.
+- Semantic retrieval remains disabled by default. A fixture-only comparison,
+  readiness program, report-only accepted-memory index, sanitized trace
+  persistence path, and opt-in semantic context candidate-expansion gate exist,
+  but there is still no default production embedding path, vector database,
+  persistent semantic index, or provider-required semantic context path.
 - Memory writes are still controlled slow-variable updates: owner messages can
   create proposals, and local review routes decide accepted, rejected, or
   archived status.

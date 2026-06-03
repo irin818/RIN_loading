@@ -113,8 +113,17 @@ commands. They do not replace this fixture-only harness:
 - `npm run rin:hybrid-retrieval-report` is disabled by default and reports
   deterministic, semantic-only, deterministic-only, overlap, false-positive, and
   false-negative candidate IDs without context injection.
+- `npm run rin:semantic-trace-list` and `npm run rin:semantic-trace-read` inspect
+  sanitized trace audit records without provider calls.
 - Default runs of these commands must not call providers, list memories, read
   real `.rin-data`, or print full memory text.
+
+Package 2 adds opt-in semantic context candidate expansion. The default path
+remains off and must preserve deterministic injected IDs. The opt-in path must
+prove accepted-only filtering, deterministic-first merge order, duplicate
+deduping, candidate count caps, semantic character caps, whole-context budget
+enforcement, latest-owner preservation, safe trace fields, and provider-free
+default checks.
 
 ## Comparison Fields
 
@@ -245,6 +254,8 @@ A semantic comparison prototype passes only if:
 - opt-in semantic context expansion is disabled by default and preserves the
   deterministic baseline, system prompt, latest owner message, accepted-only
   filtering, caps, and budgets
+- runtime raw/audit events distinguish deterministic and semantic injected IDs
+  without full memory text
 
 A semantic comparison prototype fails if:
 
@@ -253,6 +264,7 @@ A semantic comparison prototype fails if:
 - any full memory text appears in report output
 - any provider call occurs in default fixture evaluation
 - semantic candidates are injected into model context
+- semantic context expansion is enabled without explicit config
 - deterministic fixture output changes
 - a dependency or migration is required for the default comparison
 

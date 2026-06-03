@@ -1,7 +1,8 @@
 # Hybrid Retrieval Integration Plan
 
 Status: report-only hybrid candidate expansion implemented in Super-Milestone
-12-14. It does not integrate semantic retrieval into production.
+12-14; Package 2 adds sanitized trace persistence and disabled-by-default
+semantic context candidate expansion.
 
 ## Baseline Rule
 
@@ -17,7 +18,8 @@ Future semantic retrieval should start as candidate expansion only:
 2. semantic retrieval proposes candidate IDs
 3. accepted-only filtering removes unsafe IDs
 4. report compares deterministic, semantic, and hybrid candidate IDs
-5. no semantic-only candidate reaches production context until later gates pass
+5. no semantic-only candidate reaches context unless explicit Package 2
+   candidate-expansion config is enabled and all caps/budgets apply
 
 Mega-Milestone 10 remains in fixture-only evaluation. Super-Milestone 12-14 adds
 an explicit report command:
@@ -106,15 +108,17 @@ embedding vectors, or raw metadata JSON.
 6. Production opt-in only after eval, privacy, readiness, rollback, and owner
    control gates pass.
 
-Super-Milestone 12-14 implements stage 5 only as a report command. Hybrid
-candidate IDs are never passed to `buildModelContext`, conversation runtime,
-server APIs, Console behavior, or persisted production traces.
+Super-Milestone 12-14 implements stage 5 only as a report command. Package 2
+adds an explicit candidate-expansion mode for context assembly, but the default
+path still does not pass hybrid candidate IDs to `buildModelContext`,
+conversation runtime, server APIs, Console behavior, or persisted production
+traces.
 
-Package 2 may persist safe semantic/hybrid report traces and may add opt-in
-semantic context candidate expansion. This must not replace deterministic
-retrieval. The first persistence step should use existing audit storage unless a
-separate table becomes necessary, because semantic report traces are derived
-audit records rather than canonical memory or index state.
+Package 2 persists safe semantic/hybrid report traces and adds opt-in semantic
+context candidate expansion. This does not replace deterministic retrieval. The
+first persistence step uses existing audit storage rather than a separate table
+because semantic report traces are derived audit records, not canonical memory or
+index state.
 
 Persisted semantic/hybrid traces may include only safe fields:
 
