@@ -103,9 +103,26 @@ npm run dev
 
 ## 开发检查
 
-Use the standard checks for implementation work:
+Use the aggregate local check before final reports or PRs when practical:
 
-实施代码改动时使用标准检查：
+在最终报告或 PR 前，尽量运行聚合本地检查：
+
+```sh
+npm run rin:check
+```
+
+`npm run rin:check` runs typecheck, tests, lint, build, default mock readiness,
+and `npm run rin:memory-eval` in order. It exits non-zero on the first failing
+step, does not require Ollama, does not call external APIs, and does not use real
+owner memory beyond normal test fixture behavior.
+
+`npm run rin:check` 会依次运行 typecheck、tests、lint、build、默认 mock readiness
+以及 `npm run rin:memory-eval`。任一步失败都会以非零状态退出。它不需要 Ollama，
+不调用外部 API，也不会使用真实所有者记忆（正常测试 fixture 行为除外）。
+
+If the aggregate check fails, run the individual commands to diagnose:
+
+如果聚合检查失败，可分别运行以下命令定位问题：
 
 ```sh
 npm run typecheck
@@ -113,14 +130,16 @@ npm test
 npm run lint
 npm run build
 npm run rin:readiness
+npm run rin:memory-eval
 ```
 
 For changes that affect memory retrieval, bounded context assembly,
 memoryContext traceability/persistence, or conversation runtime paths that shape
-model context, also run:
+model context, `npm run rin:memory-eval` remains especially important and should
+be reported explicitly:
 
 如果改动影响记忆检索、有界上下文组装、memoryContext 追溯/持久化，或会影响模型上下文的
-conversation runtime 路径，还必须运行：
+conversation runtime 路径，`npm run rin:memory-eval` 仍然特别重要，并应在报告中明确说明：
 
 ```sh
 npm run rin:memory-eval
@@ -135,6 +154,15 @@ build/readiness checks.
 成功时预期输出包含 `Passed: 10` 和 `Failed: 0`。该检查只使用内存 fixture：
 不会调用模型服务商，不需要 Ollama，也不会使用真实所有者数据。它与常规
 type/test/lint/build/readiness 检查一起保护 accepted-only 检索、预算限制、隐私和可追溯性。
+
+Local Ollama readiness is a separate optional live-model check when local model
+behavior is in scope:
+
+当任务涉及本地模型行为时，本地 Ollama readiness 是一个单独的可选真实模型检查：
+
+```sh
+RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_BASE_URL=http://127.0.0.1:11434 RIN_OLLAMA_MODEL=qwen3:4b npm run rin:readiness
+```
 
 ## Local Data Foundation
 
