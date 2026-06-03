@@ -86,7 +86,10 @@ Current known module boundaries include:
   in-memory evaluation harness for retrieval/injection quality that reports
   total/pass/fail counts, fixture categories, category pass/fail counts, failed
   case IDs, and provider-call count without calling model providers or touching
-  real owner data; it does not auto-write or auto-accept memories.
+  real owner data; it does not auto-write or auto-accept memories. Semantic
+  retrieval is not implemented in production. Future semantic retrieval must
+  remain local-first, optional, accepted-only, and evaluation-gated before it can
+  affect context injection.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
 - `src/storage/`: controlled local storage layout and manifest logic.
@@ -117,6 +120,11 @@ by browser code using public paths such as `/live2d/rin/...`.
 
 - `docs/PROJECT_MAP.md`
 - `docs/TECHNICAL_DIRECTION.md`
+- `docs/MEMORY_RETRIEVAL_RANKING.md`
+- `docs/MEMORY_RETRIEVAL_EVALUATION_PLAN.md`
+- `docs/SEMANTIC_RETRIEVAL_PROTOTYPE_PLAN.md`
+- `docs/decisions/ADR-0001-local-model-first-reasoning.md`
+- `docs/decisions/ADR-0002-local-semantic-memory-retrieval.md`
 
 Additional folders are reserved for future documentation:
 
@@ -181,6 +189,9 @@ passing checks.
   through configured model adapters. The UI must not call Ollama, external APIs,
   or any other provider directly.
 - External API keys must remain in environment variables or ignored local files.
+- Semantic retrieval is a design boundary only. There is no production
+  embedding path, vector database, semantic index, or semantic context injection
+  path yet.
 - Memory writes are still controlled slow-variable updates: owner messages can
   create proposals, and local review routes decide accepted, rejected, or
   archived status.
