@@ -109,6 +109,34 @@ function makeTurn(content: string, reply: string) {
   };
 }
 
+function makeMemoryContext(
+  memoryId: string,
+  matchedKeywords: string[],
+  overlapCount: number,
+) {
+  return {
+    injectedMemoryCount: 1,
+    injectedMemoryIds: [memoryId],
+    memoryContextCharacterCount: 180,
+    skippedByBudgetCount: 0,
+    skippedByRelevanceCount: 0,
+    skippedByMaxCountCount: 0,
+    items: [
+      {
+        memoryId,
+        matchedKeywords,
+        overlapCount,
+        latinTokenMatchCount: overlapCount,
+        cjkBigramMatchCount: 0,
+        normalizedQueryTokenCount: matchedKeywords.length,
+        wasInjected: true,
+        skippedReason: null,
+        snippetLength: 42,
+      },
+    ],
+  };
+}
+
 const ollamaSnapshot = makeSnapshot({
   modelConfig: {
     activeAdapter: "rin-ollama-local",
@@ -543,6 +571,9 @@ describe("App", () => {
 
     const panel = await screen.findByLabelText("Memory context trace");
     expect(panel.textContent).toContain("aaaaaaaa");
+    expect(
+      screen.getByRole("button", { name: /Memory context/ }),
+    ).toBeInTheDocument();
     expect(panel.textContent).toMatch(/overlap 3/);
     expect(panel.textContent).toMatch(/local, ollama, reasoning/);
     expect(screen.queryByText(/Owner prefers local Ollama/)).toBeNull();
@@ -622,8 +653,236 @@ describe("App", () => {
 
     const panel = await screen.findByLabelText("Memory context trace");
     expect(panel.textContent).toContain("cccccccc");
+    expect(
+      screen.getByRole("button", { name: /Memory context/ }),
+    ).toBeInTheDocument();
     expect(panel.textContent).toMatch(/overlap 2/);
     expect(panel.textContent).toMatch(/local, model/);
     expect(screen.queryByText(/Owner prefers local/)).toBeNull();
+  });
+
+  it("does not show a memory context affordance for messages without memory context", async () => {
+    const conversation = {
+      id: "conversation-without-trace",
+      title: "no stored memory trace",
+      createdAt: "2026-06-04T00:00:00.000Z",
+      updatedAt: "2026-06-04T00:00:01.000Z",
+    };
+    const snapshot = makeSnapshot({
+      recentConversations: [conversation],
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("/api/conversations/conversation-without-trace")) {
+        return jsonResponse({
+          ok: true,
+          conversation,
+          messages: [
+            {
+              id: "owner-no-trace",
+              conversationId: conversation.id,
+              role: "owner",
+              content: "related prompt",
+              modelAdapter: null,
+              createdAt: "2026-06-04T00:00:00.000Z",
+              memoryContext: null,
+            },
+            {
+              id: "rin-no-trace",
+              conversationId: conversation.id,
+              role: "rin",
+              content: "historical reply without trace",
+              modelAdapter: "rin-mock-local",
+              createdAt: "2026-06-04T00:00:01.000Z",
+              memoryContext: null,
+            },
+          ],
+          snapshot,
+        });
+      }
+
+      return jsonResponse(snapshot);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await screen.findByText(/Connected to local runtime/);
+    fireEvent.click(screen.getByRole("button", { name: "no stored memory trace" }));
+
+    expect(await screen.findByText("historical reply without trace")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Memory context/ })).toBeNull();
+    expect(screen.queryByLabelText("Memory context trace")).toBeNull();
+  });
+
+  it("selects distinct persisted memory context traces for multiple RIN messages", async () => {
+    const conversation = {
+      id: "conversation-multiple-traces",
+      title: "multiple stored traces",
+      createdAt: "2026-06-04T00:00:00.000Z",
+      updatedAt: "2026-06-04T00:00:03.000Z",
+    };
+    const firstMemoryContext = makeMemoryContext(
+      "dddddddd-bbbb-cccc-dddd-eeeeeeeeeeee",
+      ["ollama", "preference"],
+      2,
+    );
+    const secondMemoryContext = makeMemoryContext(
+      "eeeeeeee-bbbb-cccc-dddd-eeeeeeeeeeee",
+      ["memory", "audit", "trace"],
+      3,
+    );
+    const snapshot = makeSnapshot({
+      recentConversations: [conversation],
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("/api/conversations/conversation-multiple-traces")) {
+        return jsonResponse({
+          ok: true,
+          conversation,
+          messages: [
+            {
+              id: "owner-first",
+              conversationId: conversation.id,
+              role: "owner",
+              content: "first prompt",
+              modelAdapter: null,
+              createdAt: "2026-06-04T00:00:00.000Z",
+              memoryContext: null,
+            },
+            {
+              id: "rin-first",
+              conversationId: conversation.id,
+              role: "rin",
+              content: "first historical reply",
+              modelAdapter: "rin-mock-local",
+              createdAt: "2026-06-04T00:00:01.000Z",
+              memoryContext: firstMemoryContext,
+            },
+            {
+              id: "owner-second",
+              conversationId: conversation.id,
+              role: "owner",
+              content: "second prompt",
+              modelAdapter: null,
+              createdAt: "2026-06-04T00:00:02.000Z",
+              memoryContext: null,
+            },
+            {
+              id: "rin-second",
+              conversationId: conversation.id,
+              role: "rin",
+              content: "second historical reply",
+              modelAdapter: "rin-mock-local",
+              createdAt: "2026-06-04T00:00:03.000Z",
+              memoryContext: secondMemoryContext,
+            },
+          ],
+          snapshot,
+        });
+      }
+
+      return jsonResponse(snapshot);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await screen.findByText(/Connected to local runtime/);
+    fireEvent.click(screen.getByRole("button", { name: "multiple stored traces" }));
+
+    let panel = await screen.findByLabelText("Memory context trace");
+    expect(panel.textContent).toContain("eeeeeeee");
+    expect(panel.textContent).toMatch(/memory, audit, trace/);
+
+    const buttons = screen.getAllByRole("button", { name: /Memory context/ });
+    fireEvent.click(buttons[0]);
+
+    panel = await screen.findByLabelText("Memory context trace");
+    expect(panel.textContent).toContain("dddddddd");
+    expect(panel.textContent).toMatch(/ollama, preference/);
+    expect(panel.textContent).not.toContain("Owner full memory text");
+    expect(panel.textContent).not.toContain("private prompt snippet");
+  });
+
+  it("clears a selected historical trace when sending a new reply without memory context", async () => {
+    const conversation = {
+      id: "conversation-clear-selection",
+      title: "clear selection",
+      createdAt: "2026-06-04T00:00:00.000Z",
+      updatedAt: "2026-06-04T00:00:01.000Z",
+    };
+    const snapshot = makeSnapshot({
+      recentConversations: [conversation],
+    });
+    const memoryContext = makeMemoryContext(
+      "ffffffff-bbbb-cccc-dddd-eeeeeeeeeeee",
+      ["history"],
+      1,
+    );
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === "string" ? input : input.toString();
+        const method = (init?.method ?? "GET").toUpperCase();
+
+        if (url.includes("/api/conversations/conversation-clear-selection")) {
+          return jsonResponse({
+            ok: true,
+            conversation,
+            messages: [
+              {
+                id: "owner-clear-history",
+                conversationId: conversation.id,
+                role: "owner",
+                content: "history prompt",
+                modelAdapter: null,
+                createdAt: "2026-06-04T00:00:00.000Z",
+                memoryContext: null,
+              },
+              {
+                id: "rin-clear-history",
+                conversationId: conversation.id,
+                role: "rin",
+                content: "historical reply with trace",
+                modelAdapter: "rin-mock-local",
+                createdAt: "2026-06-04T00:00:01.000Z",
+                memoryContext,
+              },
+            ],
+            snapshot,
+          });
+        }
+
+        if (url.includes("/api/conversations") && method === "POST") {
+          return jsonResponse({
+            ok: true,
+            turn: makeTurn("new prompt without trace", "new reply without trace"),
+            snapshot,
+          });
+        }
+
+        return jsonResponse(snapshot);
+      },
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await screen.findByText(/Connected to local runtime/);
+    fireEvent.click(screen.getByRole("button", { name: "clear selection" }));
+    expect(await screen.findByLabelText("Memory context trace")).toBeInTheDocument();
+
+    fireEvent.change(
+      screen.getByPlaceholderText(/Type a local test message/),
+      { target: { value: "new prompt without trace" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Send/ }));
+
+    const replies = await screen.findAllByText("new reply without trace");
+    expect(replies.length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText("Memory context trace")).toBeNull();
   });
 });

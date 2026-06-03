@@ -37,7 +37,9 @@ Current known module boundaries include:
   structured conversation recovery errors through RIN server APIs without calling
   model providers directly. Console recovery actions (manual status refresh and
   retry of a retryable failed turn) use RIN local APIs and do not bypass the
-  runtime or provider boundaries.
+  runtime or provider boundaries. It can inspect persisted `memoryContext` trace
+  metadata per successful historical RIN turn without recomputing memory context
+  or exposing full memory text.
 - `src/body/`: current body adapter protocol, SVG/live2d-compatible body state
   mapping, and local body interaction logic.
 - `src/runtime/`: local conversation/runtime boundary.
