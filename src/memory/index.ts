@@ -49,6 +49,11 @@ export {
   runTempSemanticEmbeddingEvaluation,
 } from "./semanticTempEvaluation";
 export {
+  deterministicCandidateIdsForMemories,
+  formatSemanticAcceptedMemoryIndexReport,
+  runSemanticAcceptedMemoryIndexReport,
+} from "./semanticAcceptedMemoryIndex";
+export {
   formatSemanticReadinessReport,
   getSemanticReadinessReport,
 } from "./semanticReadiness";
@@ -89,6 +94,12 @@ export type {
   TempSemanticEmbeddingEvaluationResult,
   TempSemanticEmbeddingRecord,
 } from "./semanticTempEvaluation";
+export type {
+  SemanticAcceptedMemoryIndexOptions,
+  SemanticAcceptedMemoryIndexProviderMode,
+  SemanticAcceptedMemoryIndexReport,
+  SemanticAcceptedMemoryIndexStatus,
+} from "./semanticAcceptedMemoryIndex";
 export type {
   SemanticReadinessCheck,
   SemanticReadinessReport,
