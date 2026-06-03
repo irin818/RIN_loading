@@ -17,6 +17,12 @@ describe("getSemanticReadinessReport", () => {
     expect(report.tempEmbeddingProvider).toBe("fixture-mock-local-embedding");
     expect(report.tempEmbeddingProviderKind).toBe("fixture-mock-local");
     expect(report.tempEmbeddingCandidateCount).toBe(2);
+    expect(report.acceptedMemoryIndexReportAvailable).toBe(true);
+    expect(report.acceptedMemoryIndexReportEnabled).toBe(false);
+    expect(report.liveAcceptedMemoryIndexReportEnabled).toBe(false);
+    expect(report.hybridRetrievalReportAvailable).toBe(true);
+    expect(report.hybridRetrievalReportEnabled).toBe(false);
+    expect(report.memoryListingEnabled).toBe(false);
     expect(report.providerCallCountByProviderKind).toEqual({
       "disabled-local-scaffold": 0,
       "fixture-mock-local": 0,
@@ -44,6 +50,12 @@ describe("getSemanticReadinessReport", () => {
       "Temp embedding provider: fixture-mock-local-embedding",
     );
     expect(summary).toContain("Temp embedding candidates: 2");
+    expect(summary).toContain("Accepted-memory index report available: yes");
+    expect(summary).toContain("Accepted-memory index report enabled: no");
+    expect(summary).toContain("Live accepted-memory index report enabled: no");
+    expect(summary).toContain("Hybrid retrieval report available: yes");
+    expect(summary).toContain("Hybrid retrieval report enabled: no");
+    expect(summary).toContain("Memory listing enabled: no");
     expect(summary).toContain(
       "providerCallCountByProviderKind: disabled-local-scaffold=0, fixture-mock-local=0",
     );

@@ -57,8 +57,8 @@ Current status: implemented for tests and reports only.
 
 ### Future Ollama Embedding Endpoint
 
-Current status: adapter boundary scaffolded, live readiness optional and
-explicit.
+Current status: adapter boundary scaffolded; live readiness and live
+accepted-memory index reporting are optional and explicit.
 
 The scaffold may call a local Ollama embedding endpoint only through the explicit
 live readiness command:
@@ -73,6 +73,18 @@ and a local embedding model such as `RIN_SEMANTIC_OLLAMA_EMBEDDING_MODEL`. The
 command uses a tiny temp probe string, reports provider availability, dimension,
 latency, and safe error codes, and does not print probe text, memory text, env
 values, endpoints, or local paths.
+
+Super-Milestone 12-14 also adds an explicit live accepted-memory semantic index
+report command:
+
+```sh
+npm run rin:semantic-live-index-report
+```
+
+This command is disabled unless the owner also opts into report-only
+accepted-memory indexing and configures a local live embedding provider. It
+builds only an in-memory report, reports candidate IDs/counts/safe error codes,
+and does not persist embeddings or inject semantic candidates into model context.
 
 This uses a dedicated embedding boundary; the chat adapter is not reused
 implicitly as an embedding provider.
@@ -119,6 +131,10 @@ Default readiness must not call providers. It should report:
 - local embedding provider disabled
 - local embedding error code
 - temp fixture embedding provider and candidate count
+- accepted-memory index report available but disabled
+- live accepted-memory index report disabled/not configured
+- hybrid retrieval report available but disabled
+- memory listing disabled by default
 - provider-call counts by provider kind
 - production semantic retrieval disabled
 - vector DB absent
