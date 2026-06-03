@@ -31,6 +31,7 @@
     "rin:semantic-trace-list": "tsx src/cli/semanticTraceList.ts",
     "rin:semantic-trace-read": "tsx src/cli/semanticTraceRead.ts",
     "rin:memory-maintenance-report": "tsx src/cli/memoryMaintenanceReport.ts",
+    "rin:planner-smoke": "tsx src/cli/plannerSmoke.ts",
     "rin:tool": "tsx src/cli/runTool.ts",
     "rin:console": "npm run build && tsx src/server/localConsoleServer.ts",
     "rin:console:server": "tsx src/server/localConsoleServer.ts"
