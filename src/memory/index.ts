@@ -58,6 +58,15 @@ export {
   runHybridRetrievalReport,
 } from "./hybridRetrievalReport";
 export {
+  formatSemanticTraceList,
+  formatSemanticTraceRecord,
+  getSemanticTraceRecord,
+  listSemanticTraceRecords,
+  recordSemanticTrace,
+  semanticTraceFromAcceptedMemoryIndexReport,
+  semanticTraceFromHybridRetrievalReport,
+} from "./semanticTrace";
+export {
   formatSemanticReadinessReport,
   getSemanticReadinessReport,
 } from "./semanticReadiness";
@@ -110,6 +119,12 @@ export type {
   HybridRetrievalReportOptions,
   HybridRetrievalReportStatus,
 } from "./hybridRetrievalReport";
+export type {
+  SemanticTraceKind,
+  SemanticTraceListOptions,
+  SemanticTracePayload,
+  SemanticTraceRecord,
+} from "./semanticTrace";
 export type {
   SemanticReadinessCheck,
   SemanticReadinessReport,
