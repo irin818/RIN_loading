@@ -196,4 +196,169 @@ export const BUILT_IN_MEMORY_EVALUATION_CASES: MemoryEvaluationCase[] = [
       "Owner private retrieval phrase should stay out of trace",
     ],
   },
+  {
+    caseId: "type-bonus-breaks-token-tie",
+    query: "project memory notes",
+    acceptedMemories: [
+      {
+        id: "mem-type-tie-semantic",
+        memoryType: "semantic",
+        text: "Owner keeps memory notes.",
+        updatedAt: "2026-05-19T00:01:00.000Z",
+      },
+      {
+        id: "mem-type-tie-project",
+        memoryType: "project",
+        text: "Owner keeps memory notes.",
+        updatedAt: "2026-05-19T00:00:00.000Z",
+      },
+    ],
+    maxInjectedMemories: 1,
+    expectedInjectedIds: ["mem-type-tie-project"],
+    expectedNotInjectedIds: ["mem-type-tie-semantic"],
+    expectedMatchedTokens: {
+      "mem-type-tie-project": ["memory", "note"],
+      "mem-type-tie-semantic": ["memory", "note"],
+    },
+    expectedMatchedTypeSignals: {
+      "mem-type-tie-project": ["project"],
+    },
+    expectedTypeMatchBonuses: {
+      "mem-type-tie-project": 1,
+      "mem-type-tie-semantic": 0,
+    },
+    expectedSkipReasons: {
+      "mem-type-tie-semantic": "max_count_exceeded",
+    },
+  },
+  {
+    caseId: "type-only-zero-overlap-excluded",
+    query: "project github branch",
+    acceptedMemories: [
+      {
+        id: "mem-type-only-project",
+        memoryType: "project",
+        text: "Owner enjoys weekend hiking trips.",
+      },
+    ],
+    expectedInjectedIds: [],
+    expectedNotInjectedIds: ["mem-type-only-project"],
+    expectedTypeMatchBonuses: {
+      "mem-type-only-project": 0,
+    },
+    expectedSkipReasons: {
+      "mem-type-only-project": "zero_relevance",
+    },
+  },
+  {
+    caseId: "token-relevance-beats-type-bonus",
+    query: "project memory notes",
+    acceptedMemories: [
+      {
+        id: "mem-weak-project-type",
+        memoryType: "project",
+        text: "Owner keeps memory notes.",
+      },
+      {
+        id: "mem-strong-semantic-tokens",
+        memoryType: "semantic",
+        text: "Owner keeps project memory notes.",
+      },
+    ],
+    maxInjectedMemories: 1,
+    expectedInjectedIds: ["mem-strong-semantic-tokens"],
+    expectedNotInjectedIds: ["mem-weak-project-type"],
+    expectedMatchedTypeSignals: {
+      "mem-weak-project-type": ["project"],
+    },
+    expectedTypeMatchBonuses: {
+      "mem-weak-project-type": 1,
+      "mem-strong-semantic-tokens": 0,
+    },
+    expectedSkipReasons: {
+      "mem-weak-project-type": "max_count_exceeded",
+    },
+  },
+  {
+    caseId: "non-accepted-type-signal-excluded",
+    query: "project memory notes",
+    acceptedMemories: [],
+    nonAcceptedMemories: [
+      {
+        id: "mem-pending-project-type",
+        memoryType: "project",
+        text: "Project memory notes should not inject while pending.",
+        status: "proposal",
+      },
+      {
+        id: "mem-rejected-project-type",
+        memoryType: "project",
+        text: "Project memory notes should not inject after rejection.",
+        status: "rejected",
+      },
+    ],
+    expectedInjectedIds: [],
+    expectedNotInjectedIds: [
+      "mem-pending-project-type",
+      "mem-rejected-project-type",
+    ],
+  },
+  {
+    caseId: "cjk-type-bonus-breaks-token-tie",
+    query: "项目 本地模型",
+    acceptedMemories: [
+      {
+        id: "mem-cjk-type-semantic",
+        memoryType: "semantic",
+        text: "本地模型记忆。",
+        updatedAt: "2026-05-19T00:01:00.000Z",
+      },
+      {
+        id: "mem-cjk-type-project",
+        memoryType: "project",
+        text: "本地模型记忆。",
+        updatedAt: "2026-05-19T00:00:00.000Z",
+      },
+    ],
+    maxInjectedMemories: 1,
+    expectedInjectedIds: ["mem-cjk-type-project"],
+    expectedNotInjectedIds: ["mem-cjk-type-semantic"],
+    expectedMatchedTokens: {
+      "mem-cjk-type-project": ["本地", "地模", "模型"],
+    },
+    expectedMatchedTypeSignals: {
+      "mem-cjk-type-project": ["项目"],
+    },
+    expectedTypeMatchBonuses: {
+      "mem-cjk-type-project": 1,
+      "mem-cjk-type-semantic": 0,
+    },
+    expectedSkipReasons: {
+      "mem-cjk-type-semantic": "max_count_exceeded",
+    },
+  },
+  {
+    caseId: "type-trace-privacy-no-text-leak",
+    query: "preference private retrieval phrase",
+    acceptedMemories: [
+      {
+        id: "mem-type-private-phrase",
+        memoryType: "preference",
+        text: "Owner private retrieval phrase should stay out of type trace.",
+      },
+    ],
+    expectedInjectedIds: ["mem-type-private-phrase"],
+    expectedMatchedTokens: {
+      "mem-type-private-phrase": ["private", "retrieval", "phrase"],
+    },
+    expectedMatchedTypeSignals: {
+      "mem-type-private-phrase": ["preference"],
+    },
+    expectedTypeMatchBonuses: {
+      "mem-type-private-phrase": 1,
+    },
+    expectedPrivacyForbiddenText: [
+      "Owner private retrieval phrase should stay out of type trace",
+    ],
+  },
 ];
