@@ -45,10 +45,18 @@ The owner must explicitly enable semantic retrieval. The UI or CLI should state:
 Before opt-in can affect production:
 
 - `npm run rin:semantic-readiness` passes
+- default semantic readiness reports `providerCallCount: 0`
+- default semantic readiness reports the local provider scaffold as disabled
+- temp fixture embedding evaluation reports candidate IDs only
 - local embedding provider readiness passes
 - vector dimension compatibility is verified
 - index lifecycle checks pass
 - real-data indexing is explicitly enabled by owner config
+
+Ultra-Milestone 11 adds `npm run rin:semantic-live-readiness` as an explicit
+optional live-local readiness probe. Passing or skipping this command does not
+enable production retrieval. A future production opt-in must still require a
+separate accepted-memory report-only index gate before any context injection.
 
 ## Evaluation Gates
 
@@ -57,7 +65,7 @@ Required checks:
 - `npm run rin:check`
 - `npm run rin:memory-eval`
 - `npm run rin:semantic-eval`
-- future local embedding eval over temp data
+- local embedding eval over temp fixture data
 - future stale/delete/update index tests
 - future report-only live index comparison
 
@@ -98,6 +106,7 @@ Production semantic retrieval remains forbidden until:
 - full safe trace is available
 - owner can disable semantic retrieval
 - local-only provider is implemented and reviewed
+- report-only accepted-memory indexing has passed explicit opt-in gates
 - cloud embeddings remain excluded by default
 - index rebuild/delete/update behavior is tested
 - rollback to deterministic retrieval is trivial
