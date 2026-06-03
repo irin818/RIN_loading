@@ -11,6 +11,10 @@ import {
   scoreRetrievalOverlap,
 } from "./retrievalTokens";
 import {
+  generateFixtureSemanticCandidates,
+  type FixtureSemanticCandidateGenerationResult,
+} from "./semanticPrototype";
+import {
   BUILT_IN_SEMANTIC_COMPARISON_CASES,
   type SemanticComparisonCase,
   type SemanticComparisonCategory,
@@ -39,10 +43,21 @@ export type SemanticComparisonCaseResult = {
   passed: boolean;
   notes: string[];
   failureMessages: string[];
+  deterministicInjectedCount: number;
+  semanticCandidateCount: number;
+  hybridCandidateCount: number;
   deterministicInjectedIds: string[];
+  explicitSemanticCandidateIds: string[];
+  prototypeSemanticCandidateIds: string[];
+  safePrototypeSemanticCandidateIds: string[];
+  nonAcceptedPrototypeCandidateIds: string[];
   semanticCandidateIds: string[];
   safeSemanticCandidateIds: string[];
   hybridCandidateIds: string[];
+  semanticCandidateSourceBreakdown: {
+    explicitFixtureAnnotationIds: string[];
+    fixtureEmbeddingPrototypeIds: string[];
+  };
   expectedInjectedIds: string[];
   falsePositiveIds: string[];
   falseNegativeIds: string[];
@@ -53,9 +68,14 @@ export type SemanticComparisonCaseResult = {
   privacyCheck: SemanticComparisonPrivacyCheck;
   contextBudgetImpact: SemanticComparisonContextBudgetImpact;
   providerCallCount: 0;
+  prototypeEmbeddingRequestCount: number;
+  prototypeSemanticProvider: string;
+  prototypeSemanticProviderRan: boolean;
+  prototypeTopK: number;
+  prototypeCandidateCap: number;
   semanticRuntimeId: "fixture-only";
-  semanticModelId: "fixture-annotated-candidates";
-  indexImplementationId: "none-fixture-only";
+  semanticModelId: string;
+  indexImplementationId: string;
 };
 
 export type SemanticComparisonCategorySummary = {
@@ -75,6 +95,14 @@ export type SemanticComparisonRunResult = {
   falseNegativeCount: number;
   acceptedOnlyViolationCount: number;
   zeroOverlapSemanticCandidateCount: number;
+  deterministicInjectedCount: number;
+  semanticCandidateCount: number;
+  prototypeSemanticCandidateCount: number;
+  hybridCandidateCount: number;
+  prototypeRanCaseCount: number;
+  prototypeTopKValues: number[];
+  prototypeCandidateCapValues: number[];
+  prototypeSemanticProvider: string;
   providerCallCount: 0;
   categorySummaries: SemanticComparisonCategorySummary[];
   caseResults: SemanticComparisonCaseResult[];
@@ -109,6 +137,30 @@ export function runSemanticComparisonCases(
       caseResults,
       "zeroOverlapSemanticCandidateIds",
     ),
+    deterministicInjectedCount: sumLengths(
+      caseResults,
+      "deterministicInjectedIds",
+    ),
+    semanticCandidateCount: sumLengths(caseResults, "semanticCandidateIds"),
+    prototypeSemanticCandidateCount: sumLengths(
+      caseResults,
+      "prototypeSemanticCandidateIds",
+    ),
+    hybridCandidateCount: sumLengths(caseResults, "hybridCandidateIds"),
+    prototypeRanCaseCount: caseResults.filter(
+      (result) => result.prototypeSemanticProviderRan,
+    ).length,
+    prototypeTopKValues: uniqueNumbers(
+      caseResults
+        .filter((result) => result.prototypeSemanticProviderRan)
+        .map((result) => result.prototypeTopK),
+    ),
+    prototypeCandidateCapValues: uniqueNumbers(
+      caseResults
+        .filter((result) => result.prototypeSemanticProviderRan)
+        .map((result) => result.prototypeCandidateCap),
+    ),
+    prototypeSemanticProvider: "fixture-mock-local-embedding",
     providerCallCount: 0,
     categorySummaries: summarizeSemanticComparisonCategories(caseResults),
     caseResults,
@@ -145,7 +197,16 @@ export function evaluateSemanticComparisonCase(
     deterministicContext.stats.memoryContextCharacterCount,
   );
   const acceptedIds = new Set(acceptedRecords.map((memory) => memory.id));
-  const semanticCandidateIds = uniqueIds(item.semanticCandidateIds);
+  const prototypeGeneration = generatePrototypeCandidates(item);
+  const explicitSemanticCandidateIds = uniqueIds(item.semanticCandidateIds);
+  const prototypeSemanticCandidateIds =
+    prototypeGeneration.prototypeSemanticCandidateIds;
+  const safePrototypeSemanticCandidateIds =
+    prototypeGeneration.safePrototypeSemanticCandidateIds;
+  const semanticCandidateIds = uniqueIds([
+    ...explicitSemanticCandidateIds,
+    ...prototypeSemanticCandidateIds,
+  ]);
   const acceptedOnlyViolationIds = semanticCandidateIds.filter(
     (candidateId) => !acceptedIds.has(candidateId),
   );
@@ -181,20 +242,32 @@ export function evaluateSemanticComparisonCase(
     categories: item.categories ?? [],
     query: item.query,
     deterministicInjectedIds,
+    explicitSemanticCandidateIds,
+    prototypeSemanticCandidateIds,
     semanticCandidateIds,
     safeSemanticCandidateIds,
     hybridCandidateIds,
+    semanticCandidateSourceBreakdown: {
+      explicitFixtureAnnotationIds: explicitSemanticCandidateIds,
+      fixtureEmbeddingPrototypeIds: prototypeSemanticCandidateIds,
+    },
     expectedInjectedIds: item.expectedInjectedIds,
     falsePositiveIds,
     falseNegativeIds,
     acceptedOnlyViolationIds,
     zeroOverlapSemanticCandidateIds,
     providerCallCount: 0,
+    prototypeSemanticProvider: prototypeGeneration.prototypeSemanticProvider,
+    prototypeTopK: prototypeGeneration.topK,
+    prototypeCandidateCap: prototypeGeneration.candidateCap,
     contextBudgetImpact,
     notes: item.notes ?? [],
   });
   const failureMessages = collectFailures(item, {
     deterministicInjectedIds,
+    explicitSemanticCandidateIds,
+    prototypeSemanticCandidateIds,
+    safePrototypeSemanticCandidateIds,
     semanticCandidateIds,
     hybridCandidateIds,
     falsePositiveIds,
@@ -211,10 +284,22 @@ export function evaluateSemanticComparisonCase(
     passed: failureMessages.length === 0,
     notes: [...(item.notes ?? [])],
     failureMessages,
+    deterministicInjectedCount: deterministicInjectedIds.length,
+    semanticCandidateCount: semanticCandidateIds.length,
+    hybridCandidateCount: hybridCandidateIds.length,
     deterministicInjectedIds,
+    explicitSemanticCandidateIds,
+    prototypeSemanticCandidateIds,
+    safePrototypeSemanticCandidateIds,
+    nonAcceptedPrototypeCandidateIds:
+      prototypeGeneration.nonAcceptedPrototypeCandidateIds,
     semanticCandidateIds,
     safeSemanticCandidateIds,
     hybridCandidateIds,
+    semanticCandidateSourceBreakdown: {
+      explicitFixtureAnnotationIds: explicitSemanticCandidateIds,
+      fixtureEmbeddingPrototypeIds: prototypeSemanticCandidateIds,
+    },
     expectedInjectedIds: [...item.expectedInjectedIds],
     falsePositiveIds,
     falseNegativeIds,
@@ -225,9 +310,20 @@ export function evaluateSemanticComparisonCase(
     privacyCheck,
     contextBudgetImpact,
     providerCallCount: 0,
+    prototypeEmbeddingRequestCount: prototypeGeneration.embeddingRequestCount,
+    prototypeSemanticProvider: prototypeGeneration.prototypeSemanticProvider,
+    prototypeSemanticProviderRan: (item.prototypeQueryTerms ?? []).length > 0,
+    prototypeTopK: prototypeGeneration.topK,
+    prototypeCandidateCap: prototypeGeneration.candidateCap,
     semanticRuntimeId: "fixture-only",
-    semanticModelId: "fixture-annotated-candidates",
-    indexImplementationId: "none-fixture-only",
+    semanticModelId:
+      (item.prototypeQueryTerms ?? []).length > 0
+        ? "fixture-annotated-candidates+fixture-mock-local-embedding"
+        : "fixture-annotated-candidates",
+    indexImplementationId:
+      (item.prototypeQueryTerms ?? []).length > 0
+        ? "in-memory-fixture-vector-index"
+        : "none-fixture-only",
   };
 }
 
@@ -269,6 +365,29 @@ export function summarizeSemanticComparisonCategories(
   );
 }
 
+function generatePrototypeCandidates(
+  item: SemanticComparisonCase,
+): FixtureSemanticCandidateGenerationResult {
+  return generateFixtureSemanticCandidates({
+    queryId: item.caseId,
+    queryTerms: item.prototypeQueryTerms,
+    memories: [
+      ...item.acceptedMemories.map((memory) => ({
+        id: memory.id,
+        status: "accepted" as const,
+        prototypeEmbeddingTerms: memory.prototypeEmbeddingTerms,
+      })),
+      ...(item.nonAcceptedMemories ?? []).map((memory) => ({
+        id: memory.id,
+        status: memory.status ?? "proposal",
+        prototypeEmbeddingTerms: memory.prototypeEmbeddingTerms,
+      })),
+    ],
+    topK: item.prototypeCandidateTopK,
+    candidateCap: item.prototypeCandidateCap,
+  });
+}
+
 export function formatSemanticComparisonSummary(
   result: SemanticComparisonRunResult,
 ): string {
@@ -279,6 +398,22 @@ export function formatSemanticComparisonSummary(
     `Passed: ${result.passed}`,
     `Failed: ${result.failed}`,
     `providerCallCount: ${result.providerCallCount}`,
+    `Prototype provider: ${result.prototypeSemanticProvider}`,
+    `Prototype ran cases: ${result.prototypeRanCaseCount}`,
+    `Prototype topK values: ${
+      result.prototypeTopKValues.length > 0
+        ? result.prototypeTopKValues.join(", ")
+        : "none"
+    }`,
+    `Prototype candidate caps: ${
+      result.prototypeCandidateCapValues.length > 0
+        ? result.prototypeCandidateCapValues.join(", ")
+        : "none"
+    }`,
+    `Deterministic injected candidates: ${result.deterministicInjectedCount}`,
+    `Semantic candidates: ${result.semanticCandidateCount}`,
+    `Prototype semantic candidates: ${result.prototypeSemanticCandidateCount}`,
+    `Hybrid candidates: ${result.hybridCandidateCount}`,
     `False positives: ${result.falsePositiveCount}`,
     `False negatives: ${result.falseNegativeCount}`,
     `Accepted-only violations detected: ${result.acceptedOnlyViolationCount}`,
@@ -312,6 +447,9 @@ function collectFailures(
   item: SemanticComparisonCase,
   actual: {
     deterministicInjectedIds: readonly string[];
+    explicitSemanticCandidateIds: readonly string[];
+    prototypeSemanticCandidateIds: readonly string[];
+    safePrototypeSemanticCandidateIds: readonly string[];
     semanticCandidateIds: readonly string[];
     hybridCandidateIds: readonly string[];
     falsePositiveIds: readonly string[];
@@ -332,6 +470,24 @@ function collectFailures(
     );
   }
 
+  assertArrayEqual(
+    failures,
+    "explicit semantic candidate ids",
+    item.semanticCandidateIds,
+    actual.explicitSemanticCandidateIds,
+  );
+  assertArrayEqual(
+    failures,
+    "prototype semantic candidate ids",
+    item.expectedPrototypeSemanticCandidateIds ?? [],
+    actual.prototypeSemanticCandidateIds,
+  );
+  assertArrayEqual(
+    failures,
+    "safe prototype semantic candidate ids",
+    item.expectedSafePrototypeSemanticCandidateIds ?? [],
+    actual.safePrototypeSemanticCandidateIds,
+  );
   assertArrayEqual(
     failures,
     "semantic candidate ids",
@@ -511,9 +667,17 @@ function uniqueIds(ids: readonly string[]): string[] {
   return [...new Set(ids)];
 }
 
+function uniqueNumbers(values: readonly number[]): number[] {
+  return [...new Set(values)].sort((left, right) => left - right);
+}
+
 function sumLengths(
   results: readonly SemanticComparisonCaseResult[],
   key:
+    | "deterministicInjectedIds"
+    | "semanticCandidateIds"
+    | "prototypeSemanticCandidateIds"
+    | "hybridCandidateIds"
     | "falsePositiveIds"
     | "falseNegativeIds"
     | "acceptedOnlyViolationIds"

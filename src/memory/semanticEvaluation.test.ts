@@ -11,11 +11,14 @@ describe("runBuiltInSemanticComparisonEvaluation", () => {
   it("passes fixture-only semantic comparison cases without provider calls", () => {
     const result = runBuiltInSemanticComparisonEvaluation();
 
-    expect(result.total).toBe(7);
+    expect(result.total).toBe(11);
     expect(result.failed).toBe(0);
     expect(result.passed).toBe(result.total);
     expect(result.providerCallCount).toBe(0);
-    expect(result.falsePositiveCount).toBe(1);
+    expect(result.prototypeSemanticProvider).toBe("fixture-mock-local-embedding");
+    expect(result.prototypeRanCaseCount).toBe(8);
+    expect(result.prototypeSemanticCandidateCount).toBe(10);
+    expect(result.falsePositiveCount).toBe(2);
     expect(result.falseNegativeCount).toBe(0);
     expect(result.acceptedOnlyViolationCount).toBe(1);
     expect(result.zeroOverlapSemanticCandidateCount).toBeGreaterThan(0);
@@ -29,10 +32,13 @@ describe("runBuiltInSemanticComparisonEvaluation", () => {
       "RIN semantic retrieval comparison evaluation.",
     );
     expect(summary).toContain("Mode: fixture-only, provider-free, report-only.");
-    expect(summary).toContain("Total: 7");
+    expect(summary).toContain("Total: 11");
     expect(summary).toContain("Failed: 0");
     expect(summary).toContain("providerCallCount: 0");
-    expect(summary).toContain("False positives: 1");
+    expect(summary).toContain("Prototype provider: fixture-mock-local-embedding");
+    expect(summary).toContain("Prototype ran cases: 8");
+    expect(summary).toContain("Prototype semantic candidates: 10");
+    expect(summary).toContain("False positives: 2");
     expect(summary).toContain("False negatives: 0");
     expect(summary).toContain("Accepted-only violations detected: 1");
     expect(summary).toContain("Failed case IDs: none");
@@ -53,6 +59,18 @@ describe("runBuiltInSemanticComparisonEvaluation", () => {
       "Owner starts the day by triaging urgent inbox items before calendar review",
     );
   });
+
+  it("is deterministic across repeated runs", () => {
+    const first = runBuiltInSemanticComparisonEvaluation();
+    const second = runBuiltInSemanticComparisonEvaluation();
+
+    expect(first.caseResults.map((result) => result.semanticCandidateIds)).toEqual(
+      second.caseResults.map((result) => result.semanticCandidateIds),
+    );
+    expect(formatSemanticComparisonSummary(first)).toEqual(
+      formatSemanticComparisonSummary(second),
+    );
+  });
 });
 
 describe("evaluateSemanticComparisonCase", () => {
@@ -62,7 +80,14 @@ describe("evaluateSemanticComparisonCase", () => {
     expect(result.passed).toBe(true);
     expect(result.deterministicInjectedIds).toEqual([]);
     expect(result.semanticCandidateIds).toEqual(["sem-paraphrase-routine"]);
+    expect(result.prototypeSemanticCandidateIds).toEqual([
+      "sem-paraphrase-routine",
+    ]);
     expect(result.hybridCandidateIds).toEqual(["sem-paraphrase-routine"]);
+    expect(result.semanticCandidateSourceBreakdown).toEqual({
+      explicitFixtureAnnotationIds: ["sem-paraphrase-routine"],
+      fixtureEmbeddingPrototypeIds: ["sem-paraphrase-routine"],
+    });
     expect(result.falseNegativeIds).toEqual([]);
     expect(result.zeroOverlapSemanticCandidateIds).toEqual([
       "sem-paraphrase-routine",
@@ -71,6 +96,7 @@ describe("evaluateSemanticComparisonCase", () => {
       "sem-paraphrase-routine",
     ]);
     expect(result.providerCallCount).toBe(0);
+    expect(result.prototypeSemanticProvider).toBe("fixture-mock-local-embedding");
   });
 
   it("detects semantic false positives without failing expected negative fixtures", () => {
@@ -80,6 +106,20 @@ describe("evaluateSemanticComparisonCase", () => {
     expect(result.deterministicInjectedIds).toEqual(["sem-local-adapter"]);
     expect(result.falsePositiveIds).toEqual(["sem-ui-theme"]);
     expect(result.falseNegativeIds).toEqual([]);
+  });
+
+  it("detects prototype semantic false positives", () => {
+    const result = resultFor("semantic-prototype-false-positive-detected");
+
+    expect(result.passed).toBe(true);
+    expect(result.prototypeSemanticCandidateIds).toEqual([
+      "sem-prototype-near-miss",
+      "sem-prototype-target",
+    ]);
+    expect(result.falsePositiveIds).toEqual(["sem-prototype-near-miss"]);
+    expect(
+      result.semanticCandidateSourceBreakdown.explicitFixtureAnnotationIds,
+    ).toEqual([]);
   });
 
   it("reports deterministic and semantic candidates in a hybrid candidate set", () => {
@@ -104,6 +144,13 @@ describe("evaluateSemanticComparisonCase", () => {
     expect(result.passed).toBe(true);
     expect(result.acceptedOnlyPassed).toBe(false);
     expect(result.acceptedOnlyViolationIds).toEqual(["sem-pending-boundary"]);
+    expect(result.prototypeSemanticCandidateIds).toEqual([
+      "sem-accepted-boundary",
+      "sem-pending-boundary",
+    ]);
+    expect(result.safePrototypeSemanticCandidateIds).toEqual([
+      "sem-accepted-boundary",
+    ]);
     expect(result.safeSemanticCandidateIds).toEqual(["sem-accepted-boundary"]);
     expect(result.hybridCandidateIds).toEqual(["sem-accepted-boundary"]);
   });
@@ -136,6 +183,31 @@ describe("evaluateSemanticComparisonCase", () => {
     expect(result.contextBudgetImpact.wouldAddSemanticIds).toEqual([
       "sem-secret-hygiene",
     ]);
+  });
+
+  it("applies prototype topK, candidate cap, and tie-break ordering", () => {
+    const result = resultFor("semantic-prototype-topk-cap-tiebreak");
+
+    expect(result.passed).toBe(true);
+    expect(result.prototypeTopK).toBe(3);
+    expect(result.prototypeCandidateCap).toBe(2);
+    expect(result.prototypeSemanticCandidateIds).toEqual([
+      "sem-tie-a",
+      "sem-tie-b",
+    ]);
+  });
+
+  it("keeps no-candidate and no-annotation fixtures neutral", () => {
+    const noCandidates = resultFor("semantic-prototype-no-candidates");
+    const neutral = resultFor("semantic-old-no-annotation-neutrality");
+
+    expect(noCandidates.passed).toBe(true);
+    expect(noCandidates.prototypeSemanticCandidateIds).toEqual([]);
+    expect(noCandidates.hybridCandidateIds).toEqual(["sem-no-prototype-terms"]);
+    expect(neutral.passed).toBe(true);
+    expect(neutral.prototypeSemanticProviderRan).toBe(false);
+    expect(neutral.semanticCandidateIds).toEqual([]);
+    expect(neutral.hybridCandidateIds).toEqual(["sem-neutral-metadata"]);
   });
 
   it("can fail safely when deterministic baseline expectations drift", () => {

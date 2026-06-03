@@ -23,6 +23,7 @@
     "rin:readiness": "tsx src/cli/readiness.ts",
     "rin:memory-eval": "tsx src/cli/memoryEval.ts",
     "rin:semantic-eval": "tsx src/cli/semanticEval.ts",
+    "rin:semantic-readiness": "tsx src/cli/semanticReadiness.ts",
     "rin:tool": "tsx src/cli/runTool.ts",
     "rin:console": "npm run build && tsx src/server/localConsoleServer.ts",
     "rin:console:server": "tsx src/server/localConsoleServer.ts"
