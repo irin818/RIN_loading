@@ -1122,6 +1122,39 @@ h1 {
   color: #8a261d;
 }
 
+.conversation-error {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  border: 1px solid #e0b4ab;
+  border-left: 3px solid #b8412f;
+  border-radius: 8px;
+  background: #fdf1ed;
+  padding: 12px 14px;
+}
+
+.conversation-error-message {
+  color: #7b321d;
+}
+
+.conversation-error-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 0;
+  color: #6c4a3f;
+  font-size: 0.82rem;
+}
+
+.recovery-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  color: #4a3b35;
+  line-height: 1.45;
+}
+
 .command-list {
   display: flex;
   flex-wrap: wrap;

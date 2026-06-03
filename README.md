@@ -355,6 +355,25 @@ Phase 25 把这些故障变成结构化对话错误，而不是通用的 HTTP 50
 失败的对话不会存储虚假的 RIN 回复；整个对话回合会回滚，并记录一条
 `conversation.turn_failed` 审计事件。结构化错误绝不包含堆栈、密钥或本地文件路径。
 
+Phase 26 surfaces this existing information in the Console UI. The Model Runtime
+panel now shows the active adapter, provider, local model status, and, when the
+local Ollama adapter is selected, the model name, localhost-only base URL, and
+the `timeout`, `num_predict`, `temperature`, and `top_p` settings. When a
+conversation turn fails, the Console displays the structured `error.code`,
+`error.message`, `retryable` flag, active adapter/provider/model, and the
+`error.recovery` guidance list. The Console still does not switch models from the
+UI; model selection remains environment/config driven, and the UI only reads
+existing RIN local APIs (`/api/local-state` and the conversation endpoint)
+without calling model providers directly.
+
+Phase 26 把这些已有信息显示在 Console UI 中。模型运行时面板现在会显示当前
+adapter、provider、本地模型状态；当选择本地 Ollama adapter 时，还会显示模型名称、
+仅限 localhost 的 base URL，以及 `timeout`、`num_predict`、`temperature`、`top_p`
+设置。当对话回合失败时，Console 会显示结构化的 `error.code`、`error.message`、
+`retryable` 标记、当前 adapter/provider/model，以及 `error.recovery` 恢复建议列表。
+Console 仍然不会从 UI 切换模型；模型选择仍由环境/配置决定，UI 只读取已有的 RIN
+本地 API（`/api/local-state` 和对话端点），不会直接调用模型服务商。
+
 The initializer creates readable JSON files for the owner model, AI identity,
 AI state, policy config, model config, tool registry, and permissions. These are
 starter state files only; they do not implement memory behavior, tool execution,

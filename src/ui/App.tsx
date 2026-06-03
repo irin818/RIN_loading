@@ -4,10 +4,14 @@ import type {
   ConversationTurnResponse,
   LocalConsoleSnapshot,
 } from "../console/types";
-import type { ConversationMessageRecord } from "../conversation";
+import type {
+  ConversationErrorPayload,
+  ConversationMessageRecord,
+} from "../conversation";
 import { rinLive2dBodyAdapter } from "../body";
 import { CURRENT_PHASES, RIN_PROJECT_NAME } from "../core/project";
 import { runtimeBoundaries } from "../runtime";
+import { parseConversationError, safeLocalBaseUrl } from "./consoleStatus";
 import { RinBodyShell } from "./RinBodyShell";
 import { RinLive2DModel } from "./RinLive2DModel";
 import "./styles.css";
@@ -46,6 +50,8 @@ export function App() {
   const [lastTurn, setLastTurn] = useState<ConversationTurnResponse["turn"] | null>(
     null,
   );
+  const [conversationError, setConversationError] =
+    useState<ConversationErrorPayload | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,6 +107,7 @@ export function App() {
     }
 
     setTurnStatus("sending");
+    setConversationError(null);
 
     try {
       const response = await fetch("/api/conversations", {
@@ -113,7 +120,17 @@ export function App() {
       });
 
       if (!response.ok) {
-        throw new Error(`Conversation request failed: ${response.status}`);
+        let parsed: unknown = null;
+
+        try {
+          parsed = await response.json();
+        } catch {
+          parsed = null;
+        }
+
+        setConversationError(parseConversationError(parsed));
+        setTurnStatus("error");
+        return;
       }
 
       const body = (await response.json()) as ConversationTurnResponse;
@@ -126,8 +143,10 @@ export function App() {
           : [body.turn.ownerMessage, body.turn.rinMessage],
       );
       setMessageDraft("");
+      setConversationError(null);
       setTurnStatus("idle");
     } catch {
+      setConversationError(null);
       setTurnStatus("error");
     }
   }
@@ -348,11 +367,41 @@ export function App() {
           </button>
         </form>
         {turnStatus === "error" ? (
-          <p className="error-text">
-            Conversation failed. Check the local runtime.
-            <br />
-            对话失败。请检查本地 runtime。
-          </p>
+          conversationError ? (
+            <div
+              className="conversation-error"
+              role="alert"
+              aria-label="Conversation error"
+            >
+              <strong className="conversation-error-message">
+                {conversationError.message}
+              </strong>
+              <p className="conversation-error-meta">
+                <span>Code: {conversationError.code}</span>
+                {conversationError.retryable ? <span>Retryable</span> : null}
+                {conversationError.modelAdapter ? (
+                  <span>Adapter: {conversationError.modelAdapter}</span>
+                ) : null}
+                <span>Provider: {conversationError.provider}</span>
+                {conversationError.details.model ? (
+                  <span>Model: {conversationError.details.model}</span>
+                ) : null}
+              </p>
+              {conversationError.recovery.length > 0 ? (
+                <ul className="recovery-list" aria-label="Recovery guidance">
+                  {conversationError.recovery.map((tip) => (
+                    <li key={tip}>{tip}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : (
+            <p className="error-text">
+              Conversation failed. Check the local runtime.
+              <br />
+              对话失败。请检查本地 runtime。
+            </p>
+          )
         ) : null}
         {lastTurn ? (
           <div className="turn-preview">
@@ -528,7 +577,63 @@ export function App() {
                 <dt>Keys in config</dt>
                 <dd>{snapshot.modelConfig.apiKeysStoredHere ? "yes" : "no"}</dd>
               </div>
+              <div>
+                <dt>Local model</dt>
+                <dd>
+                  {snapshot.modelConfig.localCallsConfigured
+                    ? "configured"
+                    : "not active"}
+                </dd>
+              </div>
+              <div>
+                <dt>External model</dt>
+                <dd>
+                  {snapshot.modelConfig.externalCallsEnabled
+                    ? "configured"
+                    : "not active"}
+                </dd>
+              </div>
             </dl>
+            {snapshot.modelConfig.ollama ? (
+              <dl
+                className="status-grid compact local-model-grid"
+                aria-label="Local model settings"
+              >
+                <div>
+                  <dt>Local model name</dt>
+                  <dd>{snapshot.modelConfig.ollama.model ?? "unset"}</dd>
+                </div>
+                <div>
+                  <dt>Base URL</dt>
+                  <dd>
+                    {safeLocalBaseUrl(snapshot.modelConfig.ollama.baseUrl) ??
+                      "hidden (non-local)"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Timeout</dt>
+                  <dd>{snapshot.modelConfig.ollama.timeoutMs} ms</dd>
+                </div>
+                <div>
+                  <dt>num_predict</dt>
+                  <dd>{snapshot.modelConfig.ollama.numPredict}</dd>
+                </div>
+                <div>
+                  <dt>temperature</dt>
+                  <dd>{snapshot.modelConfig.ollama.temperature}</dd>
+                </div>
+                <div>
+                  <dt>top_p</dt>
+                  <dd>{snapshot.modelConfig.ollama.topP}</dd>
+                </div>
+              </dl>
+            ) : null}
+            {snapshot.modelConfig.ollama?.invalidEnvironment.length ? (
+              <p className="muted">
+                Invalid local model settings / 无效本地模型设置：{" "}
+                {snapshot.modelConfig.ollama.invalidEnvironment.join(", ")}
+              </p>
+            ) : null}
             {snapshot.modelConfig.missingEnvironment.length > 0 ? (
               <p className="muted">
                 Missing environment / 缺少环境变量：{" "}
