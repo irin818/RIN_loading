@@ -137,6 +137,10 @@ Current known module boundaries include:
   requires an explicit confirmation token, executes only allowed low-risk local
   actions through `src/actions/`, audits the run, blocks destructive actions,
   starts no background loop, and calls no providers.
+- `src/tasks/`: v0.6 bounded task scaffold. It defines task objects and step
+  results, separates planner/executor/checker reporting, dry-runs action
+  permissions, reports owner checkpoint requirements, starts no background loop,
+  executes no real actions, mutates no memory, and calls no providers.
 - `src/backup/`: local backup and restore continuity. Dry-run reports still
   build safe manifest-style reports with relative file names, sizes, and hashes,
   exclude logs/secrets/generated folders, create no archive, and mutate no data.
@@ -196,6 +200,8 @@ by browser code using public paths such as `/live2d/rin/...`.
 - `docs/RIN_V0_4_RELEASE_NOTES.md`
 - `docs/RIN_V0_5_TOOL_MCP_POLICY.md`
 - `docs/RIN_V0_5_RELEASE_NOTES.md`
+- `docs/RIN_V0_6_TASK_AUTONOMY_POLICY.md`
+- `docs/RIN_V0_6_RELEASE_NOTES.md`
 - `docs/decisions/ADR-0001-local-model-first-reasoning.md`
 - `docs/decisions/ADR-0002-local-semantic-memory-retrieval.md`
 
