@@ -145,11 +145,13 @@ npm run rin:planner-audit-report
 npm run rin:actions-smoke
 npm run rin:actions-audit-report
 npm run rin:backup-dry-run
+npm run rin:backup-encrypted-smoke
 npm run rin:backup-create
 npm run rin:backup-verify
 npm run rin:restore-dry-run
 npm run rin:restore-apply
 npm run rin:full-check
+npm run rin:v0-2-check
 ```
 
 For changes that affect memory retrieval, bounded context assembly,
@@ -800,6 +802,22 @@ See `docs/RIN_V0_1_READINESS_CHECKLIST.md`,
 `docs/RIN_V0_1_PRIVACY_AUDIT.md`, `docs/RIN_V0_1_OPERATIONS_GUIDE.md`, and
 `docs/RIN_V0_1_RELEASE_NOTES.md` for the release checklist, privacy boundaries,
 standard operations, and known limitations.
+
+For v0.2 stabilization and release readiness, use:
+
+```sh
+npm run rin:v0-2-check
+```
+
+`rin:v0-2-check` currently runs the full local gate, including encrypted backup
+smoke, permission-gated local action smoke, owner-confirmed planner execution
+smoke, audit reports, dry-runs, typecheck, tests, lint, build, readiness, memory
+evaluation, and semantic report-only checks.
+
+See `docs/RIN_V0_2_READINESS_CHECKLIST.md`,
+`docs/RIN_V0_2_PRIVACY_AUDIT.md`, `docs/RIN_V0_2_OPERATIONS_GUIDE.md`, and
+`docs/RIN_V0_2_RELEASE_NOTES.md` for v0.2 release gates, privacy boundaries,
+operations, and known limitations.
 
 Ultra-Milestone 11 和 Super-Milestone 12-14 增加仅报告的 semantic provider 与
 accepted-memory report 命令，但不改变生产检索。`npm run
