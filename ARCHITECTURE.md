@@ -116,14 +116,17 @@ Current known module boundaries include:
 - `src/tools/`: built-in low-risk tool registry and execution path.
 - `src/actions/`: action permission and local action envelope. It defines
   permission levels, permission decisions, safe audit envelopes, dry-run action
-  fixtures, and v0.2-B low-risk real local actions. Real local actions are
-  limited to safe project status reads, safe file listing, package/docs metadata
-  reads, and draft note/report creation in explicit safe output directories.
-  Unknown, destructive, external, secret-path, overwrite, and out-of-workspace
-  actions are blocked.
-- `src/planner/`: finite local planner/self-check scaffold. It runs a
-  deterministic fixture plan through dry-run action permissions, starts no
-  background loop, calls no providers, and executes no real actions.
+  fixtures, input/path-level local action previews, and v0.2-B low-risk real
+  local actions. Real local actions are limited to safe project status reads,
+  safe file listing, package/docs metadata reads, and draft note/report creation
+  in explicit safe output directories. Unknown, destructive, external,
+  secret-path, overwrite, and out-of-workspace actions are blocked.
+- `src/planner/`: finite local planner/self-check and owner-confirmed execution
+  scaffold. The original smoke path remains dry-run-only. v0.2-C adds a
+  bounded execution smoke flow that previews permission/dry-run decisions,
+  requires an explicit confirmation token, executes only allowed low-risk local
+  actions through `src/actions/`, audits the run, blocks destructive actions,
+  starts no background loop, and calls no providers.
 - `src/backup/`: local backup and restore continuity. Dry-run reports still
   build safe manifest-style reports with relative file names, sizes, and hashes,
   exclude logs/secrets/generated folders, create no archive, and mutate no data.
@@ -249,10 +252,11 @@ passing checks.
   archived status.
 - Memory maintenance remains suggestion-only: reports do not delete, archive, or
   rewrite memories automatically.
-- Planner scaffolds remain dry-run-only and finite by default. v0.2-B local
-  actions can execute a narrow set of low-risk local read/draft workflows after
-  permission decisions; unknown, destructive, external, secret-path, overwrite,
-  and out-of-workspace actions are blocked and audited.
+- Planner scaffolds remain finite and owner-confirmed. The default
+  `rin:planner-smoke` path is dry-run-only; the v0.2-C execution smoke path
+  requires explicit confirmation and routes all real low-risk action execution
+  through `src/actions/`. Unknown, destructive, external, secret-path,
+  overwrite, and out-of-workspace actions are blocked and audited.
 - Console operational status remains a read-only local snapshot. Backup/restore
   dry-run commands remain non-mutating defaults. Encrypted backup archive
   creation is explicit and local-only; restore apply requires a confirmation

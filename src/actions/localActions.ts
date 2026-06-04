@@ -11,6 +11,7 @@ import {
   type ActionRisk,
   type ForbiddenActionReason,
   type PermissionDecision,
+  type PermissionDecisionStatus,
 } from "./permissions";
 
 export type LocalActionStatus =
@@ -24,6 +25,7 @@ export type LocalActionDefinition = {
   risk: ActionRisk;
   requestedPermission: ActionPermissionLevel;
   description: string;
+  preview?: (input: unknown, context: LocalActionContext) => Promise<void>;
   execute: (
     input: unknown,
     context: LocalActionContext,
@@ -51,6 +53,19 @@ export type LocalActionExecutionResult = {
   auditEvent: ActionAuditEvent;
   auditEventId: string;
   output: Record<string, unknown> | null;
+  providerCallCount: 0;
+  externalNetworkUsed: false;
+  fullTextIncluded: false;
+};
+
+export type LocalActionPreviewResult = {
+  mode: "local-action-preview";
+  actionId: string;
+  actionKind: string;
+  status: PermissionDecisionStatus;
+  executed: false;
+  decision: PermissionDecision;
+  auditEvent: ActionAuditEvent;
   providerCallCount: 0;
   externalNetworkUsed: false;
   fullTextIncluded: false;
@@ -132,6 +147,7 @@ export function registerBuiltinLocalActions(): void {
     risk: "read",
     requestedPermission: "read-only",
     description: "Read safe package/config metadata without file contents.",
+    preview: previewPackageConfig,
     execute: readPackageConfig,
   });
   registerLocalAction({
@@ -140,6 +156,7 @@ export function registerBuiltinLocalActions(): void {
     risk: "read",
     requestedPermission: "read-only",
     description: "Read safe docs metadata without full text.",
+    preview: previewDocsMetadata,
     execute: readDocsMetadata,
   });
   registerLocalAction({
@@ -148,6 +165,7 @@ export function registerBuiltinLocalActions(): void {
     risk: "draft",
     requestedPermission: "draft-only",
     description: "Write a local draft report into an explicit safe output directory.",
+    preview: previewLocalDraftFile,
     execute: writeLocalDraftFile,
   });
   registerLocalAction({
@@ -156,6 +174,7 @@ export function registerBuiltinLocalActions(): void {
     risk: "draft",
     requestedPermission: "draft-only",
     description: "Write a local note into an explicit safe output directory.",
+    preview: previewLocalDraftFile,
     execute: writeLocalDraftFile,
   });
   registerLocalAction({
@@ -176,6 +195,43 @@ export function listLocalActions(): LocalActionDefinition[] {
   );
 }
 
+export async function previewLocalAction(input: {
+  actionId: string;
+  actionInput?: unknown;
+  context: LocalActionContext;
+}): Promise<LocalActionPreviewResult> {
+  const definition = localActions.get(input.actionId);
+
+  if (!definition) {
+    return previewResult({
+      request: unknownActionRequest(input.actionId),
+      decision: blockedPreviewDecision(input.actionId, ["unknown_action"]),
+    });
+  }
+
+  const request = requestForDefinition(definition);
+  let decision = decideActionPermission(request, { dryRunOnly: true });
+
+  if (decision.status === "allowed" && definition.preview) {
+    try {
+      await definition.preview(input.actionInput, input.context);
+    } catch (error) {
+      decision = {
+        actionId: definition.actionId,
+        status: "blocked",
+        grantedPermission: "forbidden",
+        reasons:
+          error instanceof LocalActionBlockedError
+            ? error.reasons
+            : ["invalid_action_input"],
+        dryRunOnly: true,
+      };
+    }
+  }
+
+  return previewResult({ request, decision });
+}
+
 export async function executeLocalAction(input: {
   actionId: string;
   actionInput?: unknown;
@@ -194,12 +250,7 @@ export async function executeLocalAction(input: {
     });
   }
 
-  const request: ActionRequest = {
-    actionId: definition.actionId,
-    actionKind: definition.actionKind,
-    risk: definition.risk,
-    requestedPermission: definition.requestedPermission,
-  };
+  const request = requestForDefinition(definition);
   const decision = decideActionPermission(request, { dryRunOnly: false });
 
   if (decision.status !== "allowed") {
@@ -442,20 +493,22 @@ async function readPackageConfig(
   };
 }
 
+async function previewPackageConfig(
+  _input: unknown,
+  context: LocalActionContext,
+): Promise<void> {
+  if (!(await readPackageSummary(context.allowedWorkspaceRoot))) {
+    throw new LocalActionBlockedError(["invalid_action_input"]);
+  }
+}
+
 async function readDocsMetadata(
   input: unknown,
   context: LocalActionContext,
 ): Promise<LocalActionExecutionPayload> {
   const relativePath = String(objectInput(input).relativePath ?? "README.md");
 
-  if (!isAllowedReadRelativePath(relativePath)) {
-    throw new LocalActionBlockedError(["secret_path"]);
-  }
-
-  const absolutePath = resolveSafeWorkspacePath(
-    context.allowedWorkspaceRoot,
-    relativePath,
-  );
+  const absolutePath = await previewDocsTarget(input, context);
   const contents = await readFile(absolutePath);
   const lineCount = contents.toString("utf8").split(/\r?\n/).length;
 
@@ -475,10 +528,74 @@ async function readDocsMetadata(
   };
 }
 
+async function previewDocsMetadata(
+  input: unknown,
+  context: LocalActionContext,
+): Promise<void> {
+  await previewDocsTarget(input, context);
+}
+
+async function previewDocsTarget(
+  input: unknown,
+  context: LocalActionContext,
+): Promise<string> {
+  const relativePath = String(objectInput(input).relativePath ?? "README.md");
+
+  if (!isAllowedReadRelativePath(relativePath)) {
+    throw new LocalActionBlockedError(["secret_path"]);
+  }
+
+  const absolutePath = resolveSafeWorkspacePath(
+    context.allowedWorkspaceRoot,
+    relativePath,
+  );
+
+  if (!(await fileExists(absolutePath))) {
+    throw new LocalActionBlockedError(["invalid_action_input"]);
+  }
+
+  return absolutePath;
+}
+
 async function writeLocalDraftFile(
   input: unknown,
   context: LocalActionContext,
 ): Promise<LocalActionExecutionPayload> {
+  const prepared = await prepareLocalDraftFile(input, context);
+
+  await mkdir(dirname(prepared.targetPath), { recursive: true });
+  await writeFile(prepared.targetPath, prepared.contents, { flag: "wx" });
+
+  return {
+    output: {
+      kind: "local-draft-file",
+      relativePath: prepared.relativePath,
+      sizeBytes: prepared.contents.byteLength,
+      fullTextIncluded: false,
+    },
+    auditSummary: {
+      kind: "local-draft-file",
+      relativePath: prepared.relativePath,
+      sizeBytes: prepared.contents.byteLength,
+    },
+  };
+}
+
+async function previewLocalDraftFile(
+  input: unknown,
+  context: LocalActionContext,
+): Promise<void> {
+  await prepareLocalDraftFile(input, context);
+}
+
+async function prepareLocalDraftFile(
+  input: unknown,
+  context: LocalActionContext,
+): Promise<{
+  relativePath: string;
+  targetPath: string;
+  contents: Buffer;
+}> {
   const value = objectInput(input);
   const outputDirectory = stringInput(value.outputDirectory);
   const fileName = stringInput(value.fileName);
@@ -508,21 +625,59 @@ async function writeLocalDraftFile(
     throw new LocalActionBlockedError(["target_exists"]);
   }
 
-  await mkdir(dirname(targetPath), { recursive: true });
-  await writeFile(targetPath, contents, { flag: "wx" });
-
   return {
-    output: {
-      kind: "local-draft-file",
-      relativePath,
-      sizeBytes: contents.byteLength,
-      fullTextIncluded: false,
-    },
-    auditSummary: {
-      kind: "local-draft-file",
-      relativePath,
-      sizeBytes: contents.byteLength,
-    },
+    relativePath,
+    targetPath,
+    contents,
+  };
+}
+
+function requestForDefinition(definition: LocalActionDefinition): ActionRequest {
+  return {
+    actionId: definition.actionId,
+    actionKind: definition.actionKind,
+    risk: definition.risk,
+    requestedPermission: definition.requestedPermission,
+  };
+}
+
+function previewResult(input: {
+  request: ActionRequest;
+  decision: PermissionDecision;
+}): LocalActionPreviewResult {
+  return {
+    mode: "local-action-preview",
+    actionId: input.request.actionId,
+    actionKind: input.request.actionKind,
+    status: input.decision.status,
+    executed: false,
+    decision: input.decision,
+    auditEvent: actionAuditEventForDecision(input.request, input.decision),
+    providerCallCount: 0,
+    externalNetworkUsed: false,
+    fullTextIncluded: false,
+  };
+}
+
+function unknownActionRequest(actionId: string): ActionRequest {
+  return {
+    actionId,
+    actionKind: "unknown",
+    risk: "destructive",
+    requestedPermission: "forbidden",
+  };
+}
+
+function blockedPreviewDecision(
+  actionId: string,
+  reasons: ForbiddenActionReason[],
+): PermissionDecision {
+  return {
+    actionId,
+    status: "blocked",
+    grantedPermission: "forbidden",
+    reasons,
+    dryRunOnly: true,
   };
 }
 

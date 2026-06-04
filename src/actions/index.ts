@@ -14,6 +14,7 @@ export {
   formatActionAuditReport,
   formatLocalActionsSmokeReport,
   listLocalActions,
+  previewLocalAction,
   registerBuiltinLocalActions,
   registerLocalAction,
   runLocalActionsSmoke,
@@ -35,6 +36,7 @@ export type {
   LocalActionDefinition,
   LocalActionExecutionPayload,
   LocalActionExecutionResult,
+  LocalActionPreviewResult,
   LocalActionStatus,
   LocalActionsSmokeReport,
 } from "./localActions";
