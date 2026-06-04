@@ -139,6 +139,10 @@ Current known module boundaries include:
   non-conflicting target files. Restore apply rewrites `manifest.json`
   directories for the target layout so old device absolute paths are not
   preserved.
+- `src/project/`: safe local project assistant reports and rollback notes. It
+  reports package scripts, governance file presence, source counts, and audit
+  event count summaries without printing full file contents, audit payloads,
+  secrets, raw prompts, local absolute paths, or model context snippets.
 - `src/bundle/`: manual Agent State Bundle export and safe import.
 - `src/cli/`: Node-side command entry points.
 - `src/server/`: local console server.
@@ -179,6 +183,8 @@ by browser code using public paths such as `/live2d/rin/...`.
 - `docs/RIN_V0_1_PRIVACY_AUDIT.md`
 - `docs/RIN_V0_1_OPERATIONS_GUIDE.md`
 - `docs/RIN_V0_1_RELEASE_NOTES.md`
+- `docs/RIN_V0_3_SCOPE_GOVERNANCE_AUDIT.md`
+- `docs/RIN_V0_3_RELEASE_NOTES.md`
 - `docs/decisions/ADR-0001-local-model-first-reasoning.md`
 - `docs/decisions/ADR-0002-local-semantic-memory-retrieval.md`
 
