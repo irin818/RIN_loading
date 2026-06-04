@@ -8,6 +8,7 @@ import { initializeRinStorage } from "../storage";
 import {
   buildActionAuditReport,
   executeLocalAction,
+  previewLocalAction,
   registerBuiltinLocalActions,
   runLocalActionsSmoke,
 } from "./localActions";
@@ -19,6 +20,55 @@ afterEach(async () => {
     tempRoots.map((root) => rm(root, { recursive: true, force: true })),
   );
   tempRoots.length = 0;
+});
+
+describe("previewLocalAction", () => {
+  it("previews input-level local action policy without writes or audits", async () => {
+    registerBuiltinLocalActions();
+    const { database, workspaceRoot } = await createActionFixture();
+
+    try {
+      const allowed = await previewLocalAction({
+        actionId: "rin.local.note.write",
+        actionInput: {
+          outputDirectory: "reports",
+          fileName: "preview.md",
+          title: "Preview",
+          body: "Should not be written.",
+        },
+        context: { database, allowedWorkspaceRoot: workspaceRoot },
+      });
+      const outside = await previewLocalAction({
+        actionId: "rin.local.note.write",
+        actionInput: {
+          outputDirectory: "../outside",
+          fileName: "preview.md",
+          title: "Preview",
+          body: "Should not be written.",
+        },
+        context: { database, allowedWorkspaceRoot: workspaceRoot },
+      });
+      const auditReport = buildActionAuditReport(database);
+
+      expect(allowed).toMatchObject({
+        status: "allowed",
+        executed: false,
+        fullTextIncluded: false,
+      });
+      expect(outside).toMatchObject({
+        status: "blocked",
+        executed: false,
+        decision: { reasons: ["outside_allowed_workspace"] },
+      });
+      expect(auditReport.totalActionAuditEvents).toBe(0);
+      await expect(stat(join(workspaceRoot, "reports/preview.md"))).rejects
+        .toMatchObject({ code: "ENOENT" });
+      await expect(stat(join(workspaceRoot, "../outside/preview.md"))).rejects
+        .toMatchObject({ code: "ENOENT" });
+    } finally {
+      database.close();
+    }
+  });
 });
 
 describe("executeLocalAction", () => {

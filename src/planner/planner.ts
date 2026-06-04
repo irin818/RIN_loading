@@ -6,6 +6,7 @@ export type PlanStep = {
   id: string;
   title: string;
   actionId: string | null;
+  actionInput?: unknown;
   status: PlanStepStatus;
 };
 
