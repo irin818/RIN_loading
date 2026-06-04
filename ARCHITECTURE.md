@@ -23,6 +23,8 @@ Current root-level configuration includes:
 - `eslint.config.js` for linting.
 - `index.html` for Vite entry.
 - `.gitignore` for generated, dependency, local-data, and secret exclusions.
+- `Start_RIN.command` and `Start_RIN_Local_Model.command` for macOS
+  double-click local Console launch.
 
 Governance and project documentation lives at the root and in `docs/`.
 
@@ -196,6 +198,7 @@ by browser code using public paths such as `/live2d/rin/...`.
 - `docs/LOCAL_EMBEDDING_PROVIDER_PLAN.md`
 - `docs/SEMANTIC_INDEX_LIFECYCLE.md`
 - `docs/HYBRID_RETRIEVAL_INTEGRATION_PLAN.md`
+- `docs/LOCAL_LAUNCHER.md`
 - `docs/SEMANTIC_RETRIEVAL_OPT_IN_GATES.md`
 - `docs/MEMORY_MAINTENANCE_POLICY.md`
 - `docs/ACTION_PERMISSION_POLICY.md`

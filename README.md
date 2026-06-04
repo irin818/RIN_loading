@@ -98,6 +98,41 @@ transparent desktop window.
 npm install
 ```
 
+## One-click local launch / 一键启动
+
+Double-click `Start_RIN.command` from the repository root to start the local RIN
+Console. It checks Node/npm, checks `node_modules/`, runs local readiness,
+starts `npm run rin:console`, opens `http://127.0.0.1:4173`, and keeps a
+terminal window open for logs.
+
+在仓库根目录双击 `Start_RIN.command` 可启动本地 RIN Console。它会检查 Node/npm、
+检查 `node_modules/`、运行本地 readiness、启动 `npm run rin:console`、打开
+`http://127.0.0.1:4173`，并保留终端窗口显示日志。
+
+If macOS blocks the launcher, run:
+
+如果 macOS 阻止启动器，运行：
+
+```sh
+chmod +x Start_RIN.command Start_RIN_Local_Model.command scripts/start-rin.sh scripts/start-rin-local-model.sh
+xattr -d com.apple.quarantine Start_RIN.command Start_RIN_Local_Model.command
+```
+
+If `node_modules/` is missing, run `npm install` once and then double-click the
+launcher again. External APIs and API keys are not required by the default
+launcher. Do not put API keys in launcher files.
+
+如果缺少 `node_modules/`，先运行一次 `npm install`，然后再次双击启动器。默认
+启动器不需要外部 API 或 API Key。不要把 API Key 写入启动器文件。
+
+Optional local model mode: double-click `Start_RIN_Local_Model.command` only when
+you explicitly want local Ollama with `qwen3:4b`. It checks Ollama locally and
+does not call external APIs. See `docs/LOCAL_LAUNCHER.md`.
+
+可选本地模型模式：只有在明确想使用本地 Ollama 和 `qwen3:4b` 时，才双击
+`Start_RIN_Local_Model.command`。它只检查本地 Ollama，不调用外部 API。详见
+`docs/LOCAL_LAUNCHER.md`。
+
 ## Run Empty Project
 
 ## 启动空项目
