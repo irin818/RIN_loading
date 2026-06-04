@@ -110,7 +110,11 @@ Current known module boundaries include:
   enabled, semantic candidates are accepted-only, appended after deterministic
   candidates, capped, budgeted, provider-free by default, and traced separately
   from deterministic memory IDs. Deterministic retrieval remains the baseline,
-  and default checks do not call embedding providers.
+  and default checks do not call embedding providers. v0.4 memory governance adds
+  suggestion-only health/conflict/archive/merge reports. These reports may read
+  memory content internally for deterministic comparison but only print memory
+  IDs, statuses, types, counts, and reason codes; they never mutate memory or
+  print full memory text.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
 - `src/storage/`: controlled local storage layout and manifest logic.
@@ -185,6 +189,8 @@ by browser code using public paths such as `/live2d/rin/...`.
 - `docs/RIN_V0_1_RELEASE_NOTES.md`
 - `docs/RIN_V0_3_SCOPE_GOVERNANCE_AUDIT.md`
 - `docs/RIN_V0_3_RELEASE_NOTES.md`
+- `docs/RIN_V0_4_MEMORY_GOVERNANCE_POLICY.md`
+- `docs/RIN_V0_4_RELEASE_NOTES.md`
 - `docs/decisions/ADR-0001-local-model-first-reasoning.md`
 - `docs/decisions/ADR-0002-local-semantic-memory-retrieval.md`
 

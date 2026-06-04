@@ -149,6 +149,9 @@ npm run rin:hybrid-retrieval-report
 npm run rin:semantic-trace-list
 npm run rin:semantic-trace-read
 npm run rin:memory-maintenance-report
+npm run rin:memory-health-report
+npm run rin:memory-conflict-report
+npm run rin:memory-governance-smoke
 npm run rin:planner-smoke
 npm run rin:planner-execution-smoke
 npm run rin:planner-audit-report
@@ -163,6 +166,7 @@ npm run rin:restore-apply
 npm run rin:full-check
 npm run rin:v0-2-check
 npm run rin:v0-3-check
+npm run rin:v0-4-check
 ```
 
 For changes that affect memory retrieval, bounded context assembly,
@@ -859,6 +863,19 @@ unless explicitly selected, configured, and confirmed. It also runs safe local
 project inspection, action audit reporting, and rollback notes reporting. See
 `docs/RIN_V0_3_SCOPE_GOVERNANCE_AUDIT.md` and
 `docs/RIN_V0_3_RELEASE_NOTES.md`.
+
+For v0.4 memory governance checks, use:
+
+```sh
+npm run rin:v0-4-check
+```
+
+v0.4 memory governance reports are suggestion-only. They may report memory IDs,
+statuses, types, counts, and reason codes for stale review, possible conflicts,
+duplicate merge candidates, and archive review candidates, but they do not
+delete, archive, merge, downgrade, overwrite, or mutate memories. See
+`docs/RIN_V0_4_MEMORY_GOVERNANCE_POLICY.md` and
+`docs/RIN_V0_4_RELEASE_NOTES.md`.
 
 Ultra-Milestone 11 和 Super-Milestone 12-14 增加仅报告的 semantic provider 与
 accepted-memory report 命令，但不改变生产检索。`npm run
