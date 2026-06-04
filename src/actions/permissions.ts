@@ -17,7 +17,12 @@ export type ForbiddenActionReason =
   | "permission_forbidden"
   | "destructive_action"
   | "external_action"
-  | "mutation_requires_confirmation";
+  | "mutation_requires_confirmation"
+  | "outside_allowed_workspace"
+  | "secret_path"
+  | "unsafe_output_path"
+  | "target_exists"
+  | "invalid_action_input";
 
 export type ActionRequest = {
   actionId: string;
@@ -34,6 +39,10 @@ export type PermissionDecision = {
   dryRunOnly: boolean;
 };
 
+export type PermissionDecisionOptions = {
+  dryRunOnly?: boolean;
+};
+
 export type ActionAuditEvent = {
   actionId: string;
   actionKind: string;
@@ -46,7 +55,10 @@ export type ActionAuditEvent = {
 
 export function decideActionPermission(
   request: ActionRequest,
+  options: PermissionDecisionOptions = {},
 ): PermissionDecision {
+  const dryRunOnly = options.dryRunOnly ?? true;
+
   if (request.requestedPermission === "forbidden") {
     return blockedDecision(request, ["permission_forbidden"]);
   }
@@ -74,7 +86,7 @@ export function decideActionPermission(
     (request.requestedPermission === "read-only" ||
       request.requestedPermission === "autonomous-within-scope")
   ) {
-    return allowedDecision(request, "read-only");
+    return allowedDecision(request, "read-only", dryRunOnly);
   }
 
   if (
@@ -82,7 +94,7 @@ export function decideActionPermission(
     (request.requestedPermission === "draft-only" ||
       request.requestedPermission === "autonomous-within-scope")
   ) {
-    return allowedDecision(request, "draft-only");
+    return allowedDecision(request, "draft-only", dryRunOnly);
   }
 
   return blockedDecision(request, ["permission_forbidden"]);
@@ -106,13 +118,14 @@ export function actionAuditEventForDecision(
 function allowedDecision(
   request: ActionRequest,
   grantedPermission: ActionPermissionLevel,
+  dryRunOnly: boolean,
 ): PermissionDecision {
   return {
     actionId: request.actionId,
     status: "allowed",
     grantedPermission,
     reasons: [],
-    dryRunOnly: true,
+    dryRunOnly,
   };
 }
 
