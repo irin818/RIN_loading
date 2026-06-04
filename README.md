@@ -173,6 +173,9 @@ npm run rin:sync-dry-run
 npm run rin:migration-check
 npm run rin:body-smoke
 npm run rin:body-state-report
+npm run rin:integrity-check
+npm run rin:recovery-smoke
+npm run rin:ops-health-report
 npm run rin:full-check
 npm run rin:v0-2-check
 npm run rin:v0-3-check
@@ -181,6 +184,7 @@ npm run rin:v0-5-check
 npm run rin:v0-6-check
 npm run rin:v0-7-check
 npm run rin:v0-8-check
+npm run rin:v0-9-check
 ```
 
 For changes that affect memory retrieval, bounded context assembly,
@@ -936,6 +940,17 @@ v0.8 reports replaceable body adapters and body state mapping without storing
 identity, memory, policy, or continuity state in the body layer. It does not add
 real Cubism `.moc3` loading or a Live2D dependency to core runtime logic. See
 `docs/RIN_V0_8_BODY_LIVE2D_POLICY.md` and `docs/RIN_V0_8_RELEASE_NOTES.md`.
+
+For v0.9 reliability and operational hardening checks, use:
+
+```sh
+npm run rin:v0-9-check
+```
+
+v0.9 reports local integrity, recovery smoke, and ops health without automatic
+repair, deletion, restore apply, hidden error suppression, provider calls, or
+full text exposure. See `docs/RIN_V0_9_RELIABILITY_POLICY.md` and
+`docs/RIN_V0_9_RELEASE_NOTES.md`.
 
 Ultra-Milestone 11 和 Super-Milestone 12-14 增加仅报告的 semantic provider 与
 accepted-memory report 命令，但不改变生产检索。`npm run
