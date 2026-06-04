@@ -220,6 +220,11 @@ by browser code using public paths such as `/live2d/rin/...`.
 - `docs/RIN_V0_8_RELEASE_NOTES.md`
 - `docs/RIN_V0_9_RELIABILITY_POLICY.md`
 - `docs/RIN_V0_9_RELEASE_NOTES.md`
+- `docs/RIN_V1_READINESS_CHECKLIST.md`
+- `docs/RIN_V1_RELEASE_NOTES.md`
+- `docs/RIN_V1_OPERATIONS_GUIDE.md`
+- `docs/RIN_V1_MIGRATION_GUIDE.md`
+- `docs/RIN_V1_SECURITY_PRIVACY_AUDIT.md`
 - `docs/decisions/ADR-0001-local-model-first-reasoning.md`
 - `docs/decisions/ADR-0002-local-semantic-memory-retrieval.md`
 

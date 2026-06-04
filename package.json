@@ -31,6 +31,7 @@
     "rin:v0-7-check": "npm run rin:v0-6-check && npm run rin:device-report && npm run rin:sync-dry-run && npm run rin:migration-check",
     "rin:v0-8-check": "npm run rin:v0-7-check && npm run rin:body-smoke && npm run rin:body-state-report",
     "rin:v0-9-check": "npm run rin:v0-8-check && npm run rin:integrity-check && npm run rin:recovery-smoke && npm run rin:ops-health-report",
+    "rin:v1-check": "npm run rin:v0-9-check",
     "rin:project-report": "tsx src/cli/projectReport.ts",
     "rin:rollback-notes": "tsx src/cli/rollbackNotes.ts",
     "rin:memory-eval": "tsx src/cli/memoryEval.ts",
