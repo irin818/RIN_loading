@@ -168,12 +168,16 @@ npm run rin:mcp-boundary-smoke
 npm run rin:tool-audit-report
 npm run rin:task-smoke
 npm run rin:task-audit-report
+npm run rin:device-report
+npm run rin:sync-dry-run
+npm run rin:migration-check
 npm run rin:full-check
 npm run rin:v0-2-check
 npm run rin:v0-3-check
 npm run rin:v0-4-check
 npm run rin:v0-5-check
 npm run rin:v0-6-check
+npm run rin:v0-7-check
 ```
 
 For changes that affect memory retrieval, bounded context assembly,
@@ -905,6 +909,17 @@ v0.6 adds a finite task scaffold with planner/executor/checker separation and
 owner checkpoint reporting. The task smoke path does not execute real actions,
 start background loops, mutate memory, or call providers. See
 `docs/RIN_V0_6_TASK_AUTONOMY_POLICY.md` and `docs/RIN_V0_6_RELEASE_NOTES.md`.
+
+For v0.7 device continuity and sync dry-run checks, use:
+
+```sh
+npm run rin:v0-7-check
+```
+
+v0.7 reports local device identity, sync dry-run state, and migration readiness
+without enabling cloud sync, plaintext sync, automatic merge, automatic
+overwrite, upload, or mutation. See `docs/RIN_V0_7_DEVICE_SYNC_POLICY.md` and
+`docs/RIN_V0_7_RELEASE_NOTES.md`.
 
 Ultra-Milestone 11 和 Super-Milestone 12-14 增加仅报告的 semantic provider 与
 accepted-memory report 命令，但不改变生产检索。`npm run
