@@ -143,6 +143,14 @@ Check readiness:
 npm run rin:readiness
 ```
 
+Run the explicit external provider smoke after API environment is configured:
+
+配置 API 环境变量后，运行显式外部 provider smoke：
+
+```sh
+RIN_EXTERNAL_MODEL_SMOKE=allow npm run rin:external-model-smoke
+```
+
 Run the full v0.2 release gate:
 
 运行完整 v0.2 发布检查：

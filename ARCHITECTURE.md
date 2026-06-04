@@ -67,7 +67,10 @@ Current known module boundaries include:
   boundary, not in UI or identity logic. Adapters throw typed model errors so
   the conversation runtime can classify local model failures (timeout,
   unavailable, missing model, invalid or provider response) without inspecting
-  Ollama or provider internals.
+  Ollama or provider internals. v0.3-A adds an explicit OpenAI-compatible
+  external provider smoke diagnostic for handoff; it is not part of default
+  checks and requires a separate live-smoke confirmation before any external
+  call.
 - `src/memory/`: memory proposal, review, metadata, and manager boundary. It also
   provides deterministic retrieval of explicitly accepted memories for bounded
   injection into model context, plus safe injection explanation metadata (matched

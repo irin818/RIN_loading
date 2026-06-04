@@ -130,6 +130,7 @@ npm test
 npm run lint
 npm run build
 npm run rin:readiness
+npm run rin:external-model-smoke
 npm run rin:memory-eval
 npm run rin:semantic-eval
 npm run rin:semantic-readiness
@@ -404,6 +405,24 @@ RIN_OPENAI_COMPATIBLE_BASE_URL=https://your-provider.example/v1
 RIN_OPENAI_COMPATIBLE_MODEL=your-model-name
 RIN_OPENAI_COMPATIBLE_API_KEY=your-api-key
 ```
+
+After setting the provider environment, run an explicit live smoke only when you
+intend to call the external provider:
+
+设置服务商环境变量后，只有在你明确想调用外部 provider 时才运行显式 live smoke：
+
+```sh
+RIN_EXTERNAL_MODEL_SMOKE=allow npm run rin:external-model-smoke
+```
+
+Without `RIN_EXTERNAL_MODEL_SMOKE=allow`, the command reports configuration or
+confirmation status and does not call the provider. The smoke report does not
+print the API key, prompt text, provider response text, full memory text, or
+local file contents. See `docs/EXTERNAL_MODEL_HANDOFF.md`.
+
+如果没有 `RIN_EXTERNAL_MODEL_SMOKE=allow`，该命令只报告配置或确认状态，不会调用
+provider。smoke 报告不会打印 API key、prompt 正文、provider 响应正文、完整记忆文本或
+本地文件内容。参见 `docs/EXTERNAL_MODEL_HANDOFF.md`。
 
 The UI never calls model providers directly. Conversation requests still go
 through the local runtime, model adapter, policy check, SQLite logging, state
