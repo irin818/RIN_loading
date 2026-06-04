@@ -141,7 +141,10 @@ npm run rin:semantic-trace-read
 npm run rin:memory-maintenance-report
 npm run rin:planner-smoke
 npm run rin:backup-dry-run
+npm run rin:backup-create
+npm run rin:backup-verify
 npm run rin:restore-dry-run
+npm run rin:restore-apply
 npm run rin:full-check
 ```
 
@@ -716,6 +719,30 @@ hashes for local RIN data that would be included. It creates no archive, perform
 no cloud sync, and excludes logs, dependency/build output, environment files, and
 secret-like paths. Restore dry-run validates a manifest when supplied and reports
 overwrite risk without copying or mutating data.
+
+v0.2-A adds a guarded encrypted local backup and restore workflow while keeping
+the dry-run commands as the safe default. Encrypted backup creation and
+verification use only local files and a shell-provided `RIN_BACKUP_PASSPHRASE`;
+the passphrase must not be committed or printed. Restore dry-run decrypts the
+archive locally, reports target file conflicts, and mutates nothing. Restore
+apply requires the explicit `RIN_RESTORE_APPLY_EMPTY_TARGET` confirmation token,
+refuses any target conflict, never performs cloud sync, and rewrites restored
+`manifest.json` directory paths for the target data layout instead of preserving
+old absolute paths.
+
+v0.2-A 增加受保护的本地加密备份与恢复流程，同时保留 dry-run 命令作为安全默认值。
+加密备份创建与校验只使用本地文件，并从 shell 环境变量 `RIN_BACKUP_PASSPHRASE`
+读取口令；口令不得提交或打印。恢复 dry-run 会在本地解密归档、报告目标文件冲突且不变更
+数据。恢复 apply 必须提供明确的 `RIN_RESTORE_APPLY_EMPTY_TARGET` 确认 token，
+遇到任何目标冲突都会拒绝写入，不执行云同步，并会把恢复后的 `manifest.json` 目录路径改写为
+目标数据 layout，避免保留旧设备绝对路径。
+
+```sh
+RIN_BACKUP_PASSPHRASE="local passphrase" npm run rin:backup-create -- /tmp/rin.rinbackup
+RIN_BACKUP_PASSPHRASE="local passphrase" npm run rin:backup-verify -- /tmp/rin.rinbackup
+RIN_BACKUP_PASSPHRASE="local passphrase" npm run rin:restore-dry-run -- /tmp/rin.rinbackup
+RIN_BACKUP_PASSPHRASE="local passphrase" npm run rin:restore-apply -- /tmp/rin.rinbackup RIN_RESTORE_APPLY_EMPTY_TARGET
+```
 
 For v0.1 stabilization and release readiness, use:
 
