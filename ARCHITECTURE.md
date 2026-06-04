@@ -159,6 +159,9 @@ Current known module boundaries include:
 - `src/body/`: v0.8 body and Live2D boundary reporting. It inventories
   replaceable body adapters and maps local state into body state output without
   storing identity, memory, policy, or continuity state in the body layer.
+- `src/reliability/`: v0.9 report-only integrity, recovery smoke, and ops
+  health checks. It does not automatically repair, delete, restore, hide errors,
+  mutate data, or call providers.
 - `src/project/`: safe local project assistant reports and rollback notes. It
   reports package scripts, governance file presence, source counts, and audit
   event count summaries without printing full file contents, audit payloads,
@@ -215,6 +218,8 @@ by browser code using public paths such as `/live2d/rin/...`.
 - `docs/RIN_V0_7_RELEASE_NOTES.md`
 - `docs/RIN_V0_8_BODY_LIVE2D_POLICY.md`
 - `docs/RIN_V0_8_RELEASE_NOTES.md`
+- `docs/RIN_V0_9_RELIABILITY_POLICY.md`
+- `docs/RIN_V0_9_RELEASE_NOTES.md`
 - `docs/decisions/ADR-0001-local-model-first-reasoning.md`
 - `docs/decisions/ADR-0002-local-semantic-memory-retrieval.md`
 
