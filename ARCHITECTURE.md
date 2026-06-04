@@ -121,9 +121,15 @@ Current known module boundaries include:
 - `src/planner/`: finite local planner/self-check scaffold. It runs a
   deterministic fixture plan through dry-run action permissions, starts no
   background loop, calls no providers, and executes no real actions.
-- `src/backup/`: local backup and restore dry-run reporting. It builds safe
-  manifest-style reports with relative file names, sizes, and hashes, excludes
-  logs/secrets/generated folders, creates no archive, and mutates no data.
+- `src/backup/`: local backup and restore continuity. Dry-run reports still
+  build safe manifest-style reports with relative file names, sizes, and hashes,
+  exclude logs/secrets/generated folders, create no archive, and mutate no data.
+  v0.2-A also adds a local encrypted `.rinbackup` archive workflow using
+  standard Node crypto, passphrase-based key derivation, archive verification,
+  conflict-reporting restore dry-run, and confirmation-gated restore apply into
+  non-conflicting target files. Restore apply rewrites `manifest.json`
+  directories for the target layout so old device absolute paths are not
+  preserved.
 - `src/bundle/`: manual Agent State Bundle export and safe import.
 - `src/cli/`: Node-side command entry points.
 - `src/server/`: local console server.
@@ -244,8 +250,10 @@ passing checks.
   unknown, destructive, and external actions are blocked; mutation actions
   require confirmation and are not executed by planner smoke.
 - Console operational status remains a read-only local snapshot. Backup/restore
-  continuity commands are dry-run reports by default, with no cloud sync, archive
-  creation, overwrite, or data mutation.
+  dry-run commands remain non-mutating defaults. Encrypted backup archive
+  creation is explicit and local-only; restore apply requires a confirmation
+  token, refuses target file conflicts, performs no cloud sync, and does not
+  automatically overwrite existing data.
 - Conversation history is local SQLite state. The UI may select and continue a
   conversation, but it still writes through the runtime instead of mutating
   storage directly. Runtime model calls use bounded fast-variable context rather

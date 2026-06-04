@@ -34,7 +34,10 @@
     "rin:memory-maintenance-report": "tsx src/cli/memoryMaintenanceReport.ts",
     "rin:planner-smoke": "tsx src/cli/plannerSmoke.ts",
     "rin:backup-dry-run": "tsx src/cli/backupDryRun.ts",
+    "rin:backup-create": "tsx src/cli/backupCreate.ts",
+    "rin:backup-verify": "tsx src/cli/backupVerify.ts",
     "rin:restore-dry-run": "tsx src/cli/restoreDryRun.ts",
+    "rin:restore-apply": "tsx src/cli/restoreApply.ts",
     "rin:tool": "tsx src/cli/runTool.ts",
     "rin:console": "npm run build && tsx src/server/localConsoleServer.ts",
     "rin:console:server": "tsx src/server/localConsoleServer.ts"
