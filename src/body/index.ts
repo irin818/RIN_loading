@@ -2,6 +2,12 @@ export { placeholderBodyAdapter } from "./placeholderAdapter";
 export { rinChibiBodyAdapter } from "./rinChibiAdapter";
 export { rinLive2dBodyAdapter } from "./rinLive2dAdapter";
 export {
+  buildBodySmokeReport,
+  buildBodyStateReport,
+  formatBodySmokeReport,
+  formatBodyStateReport,
+} from "./report";
+export {
   beginBodyShellDrag,
   defaultBodyShellBounds,
   defaultBodyShellState,
@@ -12,6 +18,11 @@ export {
   settleBodyShell,
 } from "./interaction";
 export type { BodyAdapter, BodyState } from "./types";
+export type {
+  BodyAdapterSummary,
+  BodySmokeReport,
+  BodyStateReport,
+} from "./report";
 export type {
   BodyShellBounds,
   BodyShellBubble,
