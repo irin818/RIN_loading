@@ -17,6 +17,22 @@ function localModelError(code: ModelErrorCode): ModelError {
   });
 }
 
+function emptyContentModelError(): ModelError {
+  return new ModelError({
+    code: "MODEL_RESPONSE_INVALID",
+    message: "local failure with hidden thinking text",
+    adapterId: "rin-ollama-local",
+    provider: "local",
+    details: {
+      baseUrl: "http://127.0.0.1:11434",
+      model: "qwen3:4b",
+      emptyContent: true,
+      possibleReasoningOnlyOutput: true,
+      responseFields: ["message", "message.content", "message.thinking"],
+    },
+  });
+}
+
 describe("toConversationError", () => {
   it("maps a local timeout to a 504 structured error with recovery guidance", () => {
     const error = toConversationError(localModelError("LOCAL_MODEL_TIMEOUT"));
@@ -32,7 +48,9 @@ describe("toConversationError", () => {
       baseUrl: "http://127.0.0.1:11434",
       model: "qwen3:4b",
     });
-    expect(error.payload.recovery).toContain("Reduce RIN_OLLAMA_NUM_PREDICT.");
+    expect(error.payload.recovery).toContain(
+      "Keep RIN_OLLAMA_NUM_PREDICT=1024 or reduce it if local generation is too slow.",
+    );
   });
 
   it("maps an unavailable local runtime to a 503 structured error", () => {
@@ -58,6 +76,24 @@ describe("toConversationError", () => {
 
     expect(error.httpStatus).toBe(502);
     expect(error.payload.code).toBe("MODEL_RESPONSE_INVALID");
+  });
+
+  it("carries safe empty-content diagnostics without exposing thinking text", () => {
+    const error = toConversationError(emptyContentModelError());
+    const serialized = JSON.stringify(error.payload);
+
+    expect(error.httpStatus).toBe(502);
+    expect(error.payload.code).toBe("MODEL_RESPONSE_INVALID");
+    expect(error.payload.details).toMatchObject({
+      baseUrl: "http://127.0.0.1:11434",
+      model: "qwen3:4b",
+      emptyContent: true,
+      possibleReasoningOnlyOutput: true,
+      responseFields: ["message", "message.content", "message.thinking"],
+    });
+    expect(error.payload.recovery.join(" ")).toContain("Qwen3 reasoning behavior");
+    expect(serialized).not.toContain("hidden thinking text");
+    expect(serialized).not.toContain("stack");
   });
 
   it("maps a provider error to a 502 structured error", () => {

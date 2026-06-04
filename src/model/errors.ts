@@ -10,6 +10,9 @@ export type ModelErrorCode =
 export type ModelErrorDetails = {
   baseUrl?: string;
   model?: string;
+  emptyContent?: boolean;
+  possibleReasoningOnlyOutput?: boolean;
+  responseFields?: string[];
 };
 
 export type ModelErrorInit = {

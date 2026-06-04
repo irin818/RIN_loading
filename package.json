@@ -22,6 +22,7 @@
     "rin:import": "tsx src/cli/importBundle.ts",
     "rin:readiness": "tsx src/cli/readiness.ts",
     "rin:external-model-smoke": "tsx src/cli/externalModelSmoke.ts",
+    "rin:local-chat-smoke": "tsx src/cli/localChatSmoke.ts",
     "rin:full-check": "npm run rin:check && npm run rin:semantic-eval && npm run rin:semantic-readiness && npm run rin:semantic-index-report && npm run rin:semantic-live-index-report && npm run rin:hybrid-retrieval-report && npm run rin:semantic-trace-list && npm run rin:semantic-trace-read && npm run rin:memory-maintenance-report && npm run rin:planner-smoke && npm run rin:planner-execution-smoke && npm run rin:planner-audit-report && npm run rin:actions-smoke && npm run rin:actions-audit-report && npm run rin:backup-dry-run && npm run rin:backup-encrypted-smoke && npm run rin:restore-dry-run",
     "rin:v0-2-check": "npm run rin:full-check",
     "rin:v0-3-check": "npm run rin:v0-2-check && npm run rin:external-model-smoke && npm run rin:project-report && npm run rin:actions-audit-report && npm run rin:rollback-notes",

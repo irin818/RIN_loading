@@ -127,10 +127,15 @@ launcher. Do not put API keys in launcher files.
 
 Optional local model mode: double-click `Start_RIN_Local_Model.command` only when
 you explicitly want local Ollama with `qwen3:4b`. It checks Ollama locally and
-does not call external APIs. See `docs/LOCAL_LAUNCHER.md`.
+starts with a larger Qwen3 generation budget (`RIN_OLLAMA_NUM_PREDICT=1024`,
+`RIN_OLLAMA_TIMEOUT_MS=180000`) and the adapter asks Ollama for final content
+with `think: false` to reduce empty final responses. It does not call external
+APIs. See `docs/LOCAL_LAUNCHER.md`.
 
 可选本地模型模式：只有在明确想使用本地 Ollama 和 `qwen3:4b` 时，才双击
-`Start_RIN_Local_Model.command`。它只检查本地 Ollama，不调用外部 API。详见
+`Start_RIN_Local_Model.command`。它只检查本地 Ollama，并使用更大的 Qwen3 生成预算
+（`RIN_OLLAMA_NUM_PREDICT=1024`、`RIN_OLLAMA_TIMEOUT_MS=180000`）；adapter 也会用
+`think: false` 要求 Ollama 返回最终内容，以减少空最终回复。它不调用外部 API。详见
 `docs/LOCAL_LAUNCHER.md`。
 
 ## Run Empty Project
@@ -173,6 +178,7 @@ npm run lint
 npm run build
 npm run rin:readiness
 npm run rin:external-model-smoke
+npm run rin:local-chat-smoke
 npm run rin:project-report
 npm run rin:rollback-notes
 npm run rin:memory-eval
