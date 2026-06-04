@@ -150,6 +150,10 @@ Current known module boundaries include:
   non-conflicting target files. Restore apply rewrites `manifest.json`
   directories for the target layout so old device absolute paths are not
   preserved.
+- `src/sync/`: v0.7 device continuity and sync dry-run reporting. It reports
+  local manifest device identity, sync dry-run summaries, and migration checks
+  without cloud sync, plaintext sync, automatic merge, automatic overwrite,
+  upload, mutation, or provider calls.
 - `src/project/`: safe local project assistant reports and rollback notes. It
   reports package scripts, governance file presence, source counts, and audit
   event count summaries without printing full file contents, audit payloads,
@@ -202,6 +206,8 @@ by browser code using public paths such as `/live2d/rin/...`.
 - `docs/RIN_V0_5_RELEASE_NOTES.md`
 - `docs/RIN_V0_6_TASK_AUTONOMY_POLICY.md`
 - `docs/RIN_V0_6_RELEASE_NOTES.md`
+- `docs/RIN_V0_7_DEVICE_SYNC_POLICY.md`
+- `docs/RIN_V0_7_RELEASE_NOTES.md`
 - `docs/decisions/ADR-0001-local-model-first-reasoning.md`
 - `docs/decisions/ADR-0002-local-semantic-memory-retrieval.md`
 
