@@ -185,6 +185,7 @@ npm run rin:v0-6-check
 npm run rin:v0-7-check
 npm run rin:v0-8-check
 npm run rin:v0-9-check
+npm run rin:v1-check
 ```
 
 For changes that affect memory retrieval, bounded context assembly,
@@ -951,6 +952,17 @@ v0.9 reports local integrity, recovery smoke, and ops health without automatic
 repair, deletion, restore apply, hidden error suppression, provider calls, or
 full text exposure. See `docs/RIN_V0_9_RELIABILITY_POLICY.md` and
 `docs/RIN_V0_9_RELEASE_NOTES.md`.
+
+For final v1.0 verification, use:
+
+```sh
+npm run rin:v1-check
+```
+
+v1.0 is a stable local-first foundation release. It adds no major new runtime
+behavior beyond the verified package chain and documents readiness, operations,
+migration, security/privacy, release notes, and known limitations in the
+`docs/RIN_V1_*` files.
 
 Ultra-Milestone 11 和 Super-Milestone 12-14 增加仅报告的 semantic provider 与
 accepted-memory report 命令，但不改变生产检索。`npm run
