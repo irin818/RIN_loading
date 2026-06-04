@@ -22,6 +22,16 @@ export {
 } from "./config";
 export { isModelError, ModelError } from "./errors";
 export type { ModelErrorCode, ModelErrorDetails, ModelErrorInit } from "./errors";
+export {
+  EXTERNAL_MODEL_SMOKE_CONFIRMATION_ENV,
+  EXTERNAL_MODEL_SMOKE_CONFIRMATION_VALUE,
+  formatExternalModelSmokeReport,
+  runExternalModelSmoke,
+} from "./externalProviderSmoke";
+export type {
+  ExternalModelSmokeReport,
+  ExternalModelSmokeStatus,
+} from "./externalProviderSmoke";
 export { createOllamaAdapter } from "./ollamaAdapter";
 export { createOpenAiCompatibleAdapter } from "./openAiCompatibleAdapter";
 export {
