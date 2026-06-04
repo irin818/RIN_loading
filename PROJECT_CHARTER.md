@@ -537,7 +537,7 @@ A runnable local application containing:
 Only after this milestone is complete should development continue to tool
 control, Live2D, synchronization, and advanced agent behavior.
 
-## Current Scope: Through Phase 21
+## Current Scope: Through Phase 28
 
 This repository currently covers:
 
@@ -572,14 +572,31 @@ This repository currently covers:
   state.
 - Phase 21: Local readiness report that checks data, database, model adapter,
   API key storage, and missing external model environment variables.
+- Phase 22: Local Ollama chat adapter for explicitly selected local real-chat
+  use with Qwen3 4B (`qwen3:4b`).
+- Phase 23: Bounded model context assembly with a compact RIN system prompt
+  before model adapter calls.
+- Phase 24: Scoped Ollama runtime controls for timeout, bounded output length,
+  temperature, and top-p.
+- Phase 25: Structured model and conversation errors for provider/local model
+  failures.
+- Phase 26: Console model runtime status and structured recovery visibility.
+- Phase 27: Manual Console refresh and retry flows for retryable failed turns.
+- Phase 28: Bounded accepted-memory context injection with safe trace metadata.
+
+Post-phase package work also adds encrypted local backup/restore, a
+permission-gated low-risk local action envelope, owner-confirmed planner
+execution smoke, v0.2 stabilization gates, and an explicit OpenAI-compatible
+external provider smoke command for API handoff.
 
 The current implementation still must not implement:
 
 - Hard-coded provider-specific model calls or UI-direct model calls.
 - API-first core architecture.
 - API key storage in tracked files or local core config.
-- Claims that Ollama or Qwen3 integration is implemented before the adapter
-  exists.
+- Claims that Ollama, Qwen3, or any external provider is active by default.
+- Live external provider calls without explicit owner configuration and
+  live-smoke confirmation.
 - Automatic long-term memory writes without review.
 - Medium-risk or high-risk automatic tool execution.
 - Real Live2D model asset loading.
@@ -1123,7 +1140,7 @@ RIN 必须迭代式开发。
 
 只有完成这个里程碑之后，才应继续开发工具控制、Live2D、同步和高级智能体行为。
 
-## 当前范围：截至 Phase 21
+## 当前范围：截至 Phase 28
 
 当前仓库覆盖：
 
@@ -1152,13 +1169,26 @@ RIN 必须迭代式开发。
   前提下补齐导出/导入可移植性。
 - Phase 21：本地就绪检查报告，用于检查数据、数据库、模型 adapter、API Key
   存储状态，以及缺少的外部模型环境变量。
+- Phase 22：本地 Ollama 聊天 adapter，用于显式选择后的 Qwen3 4B
+  (`qwen3:4b`) 本地真实聊天。
+- Phase 23：模型 adapter 调用前的有界模型上下文组装，以及紧凑 RIN system prompt。
+- Phase 24：Ollama runtime 控制项，包括超时、有界输出长度、temperature 和 top-p。
+- Phase 25：面向 provider/本地模型失败的结构化模型错误和对话错误。
+- Phase 26：Console 中的模型运行状态和结构化恢复信息可见性。
+- Phase 27：Console 中针对可重试失败 turn 的手动 refresh 和 retry 流程。
+- Phase 28：有界 accepted-memory context 注入，以及安全 trace metadata。
+
+后续 package 工作还增加了本地加密备份/恢复、受权限约束的低风险本地动作层、
+owner-confirmed planner execution smoke、v0.2 稳定化 gate，以及用于 API 交接的
+显式 OpenAI-compatible 外部 provider smoke 命令。
 
 当前实现仍不得包含：
 
 - 硬编码的特定服务商模型调用，或 UI 直接调用模型服务商。
 - API 优先的核心架构。
 - 在已跟踪文件或本地核心配置中存储 API Key。
-- 在 adapter 尚未存在前声称 Ollama 或 Qwen3 集成已经实现。
+- 声称 Ollama、Qwen3 或任何外部 provider 默认处于启用状态。
+- 缺少明确 owner 配置和 live-smoke 确认时调用外部 provider。
 - 未经审查的自动长期记忆写入。
 - 中高风险工具自动执行。
 - 真实 Live2D 模型资产加载。

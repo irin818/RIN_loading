@@ -12,10 +12,10 @@ Before modifying this project, read [PROJECT_CHARTER.md](./PROJECT_CHARTER.md).
 
 ## 当前范围
 
-This repository currently contains Phase 0 through Phase 24 as local MVP
+This repository currently contains Phase 0 through Phase 28 as local MVP
 templates:
 
-当前仓库包含 Phase 0 到 Phase 24 的本地 MVP 模板：
+当前仓库包含 Phase 0 到 Phase 28 的本地 MVP 模板：
 
 - Project definition and charter.
 - 项目定义与项目宪章。
@@ -57,9 +57,14 @@ templates:
   stability when `rin-ollama-local` is explicitly selected.
 - 本地 Ollama runtime 控制项，可在显式选择 `rin-ollama-local` 时配置超时、
   输出长度和采样稳定性。
+- Structured model/runtime error recovery, Console model runtime status, and
+  manual retry/refresh controls.
+- 结构化模型/runtime 错误恢复、Console 模型运行状态，以及手动 retry/refresh 控制。
 - Controlled local memory review for accepting, rejecting, or archiving memory
   proposals.
 - 受控的本地记忆审查流程，可接受、拒绝或归档记忆提案。
+- Bounded accepted-memory context injection with trace visibility.
+- 有界的 accepted-memory context 注入，以及可追溯的 trace 可见性。
 - Local conversation history browsing and continuation.
 - 本地对话历史浏览与继续对话。
 - Manual Agent State Bundle export and safe import into a new empty data
@@ -68,6 +73,8 @@ templates:
 - A local readiness report for checking local state and remaining model/provider
   setup before live model use.
 - 本地就绪检查报告，用于检查本地状态，以及真实模型使用前仍缺少的模型或服务商设置。
+- An explicit external provider smoke command for OpenAI-compatible API handoff.
+- 用于 OpenAI-compatible API 交接的显式外部 provider smoke 命令。
 
 It intentionally does not store API keys in tracked files or local core config,
 does not allow UI-direct model calls, and does not implement automatic
