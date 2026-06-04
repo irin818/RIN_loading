@@ -140,6 +140,8 @@ npm run rin:semantic-trace-list
 npm run rin:semantic-trace-read
 npm run rin:memory-maintenance-report
 npm run rin:planner-smoke
+npm run rin:actions-smoke
+npm run rin:actions-audit-report
 npm run rin:backup-dry-run
 npm run rin:backup-create
 npm run rin:backup-verify
@@ -704,6 +706,27 @@ destructive, and external actions, and all Package 3 registry actions are
 dry-run-only. The planner smoke command runs a deterministic fixture plan,
 dry-runs actions through the permission layer, starts no background loop, calls no
 providers, and executes no real actions.
+
+v0.2-B adds a small permission-gated local action envelope:
+
+```sh
+npm run rin:actions-smoke
+npm run rin:actions-audit-report
+```
+
+The first real actions are limited to safe project status reads, safe relative
+file listing, package/docs metadata reads without full file text, and creating
+local `.md`/`.txt` draft note/report files in an explicit safe output directory.
+Every action must pass a permission decision and records a safe audit event.
+Unknown, destructive, external, secret-path, overwrite, and out-of-workspace
+actions are blocked. The smoke command uses temporary fixture data; it does not
+touch real project files or call network providers.
+
+v0.2-B 增加一个小范围的 permission-gated 本地动作执行层。第一批真实动作只允许读取项目
+状态、列出安全相对文件、读取 package/docs 元数据（不输出完整文件正文），以及在明确的安全
+输出目录创建本地 `.md`/`.txt` 草稿笔记或报告。每个动作都必须先经过 permission
+decision，并记录安全 audit event。未知、删除、外部网络、secret 路径、覆盖已有文件和越界
+路径都会被拒绝。smoke 命令使用临时 fixture 数据，不触碰真实项目文件，也不调用网络服务。
 
 Package 4 adds read-only operational status to the Console snapshot for model,
 memory, semantic context, permissions, planner, and backup readiness. It also

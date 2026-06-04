@@ -114,10 +114,13 @@ Current known module boundaries include:
 - `src/database/`: SQLite schema, migrations, and connection helpers, including
   side-table storage for optional owner-reviewed memory metadata.
 - `src/tools/`: built-in low-risk tool registry and execution path.
-- `src/actions/`: dry-run action permission foundation. It defines permission
-  levels, permission decisions, safe audit envelopes, and local dry-run action
-  fixtures without executing real OS, network, file mutation, or destructive
-  actions.
+- `src/actions/`: action permission and local action envelope. It defines
+  permission levels, permission decisions, safe audit envelopes, dry-run action
+  fixtures, and v0.2-B low-risk real local actions. Real local actions are
+  limited to safe project status reads, safe file listing, package/docs metadata
+  reads, and draft note/report creation in explicit safe output directories.
+  Unknown, destructive, external, secret-path, overwrite, and out-of-workspace
+  actions are blocked.
 - `src/planner/`: finite local planner/self-check scaffold. It runs a
   deterministic fixture plan through dry-run action permissions, starts no
   background loop, calls no providers, and executes no real actions.
@@ -246,9 +249,10 @@ passing checks.
   archived status.
 - Memory maintenance remains suggestion-only: reports do not delete, archive, or
   rewrite memories automatically.
-- Action and planner scaffolds remain dry-run-only and finite by default:
-  unknown, destructive, and external actions are blocked; mutation actions
-  require confirmation and are not executed by planner smoke.
+- Planner scaffolds remain dry-run-only and finite by default. v0.2-B local
+  actions can execute a narrow set of low-risk local read/draft workflows after
+  permission decisions; unknown, destructive, external, secret-path, overwrite,
+  and out-of-workspace actions are blocked and audited.
 - Console operational status remains a read-only local snapshot. Backup/restore
   dry-run commands remain non-mutating defaults. Encrypted backup archive
   creation is explicit and local-only; restore apply requires a confirmation
