@@ -29,6 +29,7 @@
     "rin:v0-5-check": "npm run rin:v0-4-check && npm run rin:tool-registry-smoke && npm run rin:mcp-boundary-smoke && npm run rin:tool-audit-report",
     "rin:v0-6-check": "npm run rin:v0-5-check && npm run rin:task-smoke && npm run rin:task-audit-report",
     "rin:v0-7-check": "npm run rin:v0-6-check && npm run rin:device-report && npm run rin:sync-dry-run && npm run rin:migration-check",
+    "rin:v0-8-check": "npm run rin:v0-7-check && npm run rin:body-smoke && npm run rin:body-state-report",
     "rin:project-report": "tsx src/cli/projectReport.ts",
     "rin:rollback-notes": "tsx src/cli/rollbackNotes.ts",
     "rin:memory-eval": "tsx src/cli/memoryEval.ts",
@@ -64,6 +65,8 @@
     "rin:device-report": "tsx src/cli/deviceReport.ts",
     "rin:sync-dry-run": "tsx src/cli/syncDryRun.ts",
     "rin:migration-check": "tsx src/cli/migrationCheck.ts",
+    "rin:body-smoke": "tsx src/cli/bodySmoke.ts",
+    "rin:body-state-report": "tsx src/cli/bodyStateReport.ts",
     "rin:console": "npm run build && tsx src/server/localConsoleServer.ts",
     "rin:console:server": "tsx src/server/localConsoleServer.ts"
   },

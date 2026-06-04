@@ -171,6 +171,8 @@ npm run rin:task-audit-report
 npm run rin:device-report
 npm run rin:sync-dry-run
 npm run rin:migration-check
+npm run rin:body-smoke
+npm run rin:body-state-report
 npm run rin:full-check
 npm run rin:v0-2-check
 npm run rin:v0-3-check
@@ -178,6 +180,7 @@ npm run rin:v0-4-check
 npm run rin:v0-5-check
 npm run rin:v0-6-check
 npm run rin:v0-7-check
+npm run rin:v0-8-check
 ```
 
 For changes that affect memory retrieval, bounded context assembly,
@@ -315,6 +318,8 @@ with chibi anime styling, blinking, breathing, hair sway, and state mapping.
 The `/body` view now also supports local-only dragging, click reactions, and a
 temporary bilingual bubble layer. Future real Live2D assets can replace it
 through the body adapter boundary.
+The body layer is a replaceable interface only; RIN identity, memory, policy,
+and continuity state remain outside the body layer.
 
 当前身体不是 Cubism `.moc3` 文件。它是原创分层 SVG rig，具备 Q 版动漫风格、
 眨眼、呼吸、头发轻摆和状态映射。`/body` 视图现在还支持仅本地的拖拽、点击
@@ -920,6 +925,17 @@ v0.7 reports local device identity, sync dry-run state, and migration readiness
 without enabling cloud sync, plaintext sync, automatic merge, automatic
 overwrite, upload, or mutation. See `docs/RIN_V0_7_DEVICE_SYNC_POLICY.md` and
 `docs/RIN_V0_7_RELEASE_NOTES.md`.
+
+For v0.8 body and Live2D boundary checks, use:
+
+```sh
+npm run rin:v0-8-check
+```
+
+v0.8 reports replaceable body adapters and body state mapping without storing
+identity, memory, policy, or continuity state in the body layer. It does not add
+real Cubism `.moc3` loading or a Live2D dependency to core runtime logic. See
+`docs/RIN_V0_8_BODY_LIVE2D_POLICY.md` and `docs/RIN_V0_8_RELEASE_NOTES.md`.
 
 Ultra-Milestone 11 和 Super-Milestone 12-14 增加仅报告的 semantic provider 与
 accepted-memory report 命令，但不改变生产检索。`npm run

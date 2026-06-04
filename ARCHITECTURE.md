@@ -43,7 +43,9 @@ Current known module boundaries include:
   type, metadata, and skipped-reason ranking components from existing trace
   data; it does not run memory evaluation in the browser or call providers.
 - `src/body/`: current body adapter protocol, SVG/live2d-compatible body state
-  mapping, and local body interaction logic.
+  mapping, local body interaction logic, and v0.8 body boundary reports. The
+  body layer is replaceable interface code only; it does not own identity,
+  memory, policy, continuity state, provider calls, or core cognition.
 - `src/runtime/`: local conversation/runtime boundary.
 - `src/conversation/`: conversation persistence, history retrieval, and runtime
   turn handling. It also maps typed model failures into structured, user-visible
@@ -154,6 +156,9 @@ Current known module boundaries include:
   local manifest device identity, sync dry-run summaries, and migration checks
   without cloud sync, plaintext sync, automatic merge, automatic overwrite,
   upload, mutation, or provider calls.
+- `src/body/`: v0.8 body and Live2D boundary reporting. It inventories
+  replaceable body adapters and maps local state into body state output without
+  storing identity, memory, policy, or continuity state in the body layer.
 - `src/project/`: safe local project assistant reports and rollback notes. It
   reports package scripts, governance file presence, source counts, and audit
   event count summaries without printing full file contents, audit payloads,
@@ -208,6 +213,8 @@ by browser code using public paths such as `/live2d/rin/...`.
 - `docs/RIN_V0_6_RELEASE_NOTES.md`
 - `docs/RIN_V0_7_DEVICE_SYNC_POLICY.md`
 - `docs/RIN_V0_7_RELEASE_NOTES.md`
+- `docs/RIN_V0_8_BODY_LIVE2D_POLICY.md`
+- `docs/RIN_V0_8_RELEASE_NOTES.md`
 - `docs/decisions/ADR-0001-local-model-first-reasoning.md`
 - `docs/decisions/ADR-0002-local-semantic-memory-retrieval.md`
 
