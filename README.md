@@ -163,10 +163,14 @@ npm run rin:backup-create
 npm run rin:backup-verify
 npm run rin:restore-dry-run
 npm run rin:restore-apply
+npm run rin:tool-registry-smoke
+npm run rin:mcp-boundary-smoke
+npm run rin:tool-audit-report
 npm run rin:full-check
 npm run rin:v0-2-check
 npm run rin:v0-3-check
 npm run rin:v0-4-check
+npm run rin:v0-5-check
 ```
 
 For changes that affect memory retrieval, bounded context assembly,
@@ -876,6 +880,17 @@ duplicate merge candidates, and archive review candidates, but they do not
 delete, archive, merge, downgrade, overwrite, or mutate memories. See
 `docs/RIN_V0_4_MEMORY_GOVERNANCE_POLICY.md` and
 `docs/RIN_V0_4_RELEASE_NOTES.md`.
+
+For v0.5 tool/MCP boundary checks, use:
+
+```sh
+npm run rin:v0-5-check
+```
+
+v0.5 adds tool capability and audit reports plus an MCP boundary smoke report.
+MCP remains disabled by default, external/network tools remain default-deny, and
+the reports do not execute MCP tools or call providers. See
+`docs/RIN_V0_5_TOOL_MCP_POLICY.md` and `docs/RIN_V0_5_RELEASE_NOTES.md`.
 
 Ultra-Milestone 11 和 Super-Milestone 12-14 增加仅报告的 semantic provider 与
 accepted-memory report 命令，但不改变生产检索。`npm run

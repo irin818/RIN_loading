@@ -120,7 +120,10 @@ Current known module boundaries include:
 - `src/storage/`: controlled local storage layout and manifest logic.
 - `src/database/`: SQLite schema, migrations, and connection helpers, including
   side-table storage for optional owner-reviewed memory metadata.
-- `src/tools/`: built-in low-risk tool registry and execution path.
+- `src/tools/`: built-in low-risk tool registry and execution path. v0.5 also
+  adds report-only tool capability, MCP boundary, and tool audit summaries. MCP
+  remains disabled by default, external/network tools are default-deny, and the
+  reports make no MCP calls or provider calls.
 - `src/actions/`: action permission and local action envelope. It defines
   permission levels, permission decisions, safe audit envelopes, dry-run action
   fixtures, input/path-level local action previews, and v0.2-B low-risk real
@@ -191,6 +194,8 @@ by browser code using public paths such as `/live2d/rin/...`.
 - `docs/RIN_V0_3_RELEASE_NOTES.md`
 - `docs/RIN_V0_4_MEMORY_GOVERNANCE_POLICY.md`
 - `docs/RIN_V0_4_RELEASE_NOTES.md`
+- `docs/RIN_V0_5_TOOL_MCP_POLICY.md`
+- `docs/RIN_V0_5_RELEASE_NOTES.md`
 - `docs/decisions/ADR-0001-local-model-first-reasoning.md`
 - `docs/decisions/ADR-0002-local-semantic-memory-retrieval.md`
 
