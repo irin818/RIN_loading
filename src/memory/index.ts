@@ -72,6 +72,14 @@ export {
   formatMemoryMaintenanceReport,
 } from "./maintenance";
 export {
+  buildMemoryConflictReport,
+  buildMemoryGovernanceSmokeReport,
+  buildMemoryHealthReport,
+  formatMemoryConflictReport,
+  formatMemoryGovernanceSmokeReport,
+  formatMemoryHealthReport,
+} from "./governance";
+export {
   formatSemanticReadinessReport,
   getSemanticReadinessReport,
 } from "./semanticReadiness";
@@ -137,6 +145,15 @@ export type {
   MemoryMaintenanceReport,
   MemoryMaintenanceSuggestion,
 } from "./maintenance";
+export type {
+  MemoryArchiveSuggestion,
+  MemoryConflictReport,
+  MemoryConflictSuggestion,
+  MemoryGovernanceReason,
+  MemoryGovernanceSmokeReport,
+  MemoryHealthReport,
+  MemoryMergeSuggestion,
+} from "./governance";
 export type {
   SemanticReadinessCheck,
   SemanticReadinessReport,
