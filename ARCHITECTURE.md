@@ -74,7 +74,10 @@ Current known module boundaries include:
   Ollama or provider internals. v0.3-A adds an explicit OpenAI-compatible
   external provider smoke diagnostic for handoff; it is not part of default
   checks and requires a separate live-smoke confirmation before any external
-  call.
+  call. v1.1-A hardens the Ollama/Qwen3 local chat path by requesting final
+  content with `think: false`, classifying empty final content safely, and adding
+  an explicit local-only chat smoke command that skips unless the local adapter
+  is selected.
 - `src/memory/`: memory proposal, review, metadata, and manager boundary. It also
   provides deterministic retrieval of explicitly accepted memories for bounded
   injection into model context, plus safe injection explanation metadata (matched

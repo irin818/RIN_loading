@@ -56,6 +56,7 @@ describe("createOllamaAdapter", () => {
       model: string;
       messages: Array<{ role: string; content: string }>;
       stream: boolean;
+      think: boolean;
       options: {
         num_predict: number;
         temperature: number;
@@ -67,6 +68,7 @@ describe("createOllamaAdapter", () => {
     expect(body).toEqual({
       model: "qwen3:4b",
       stream: false,
+      think: false,
       options: {
         num_predict: 256,
         temperature: 0.5,
@@ -148,6 +150,91 @@ describe("createOllamaAdapter", () => {
         messages: [{ role: "owner", content: "hello" }],
       }),
     ).rejects.toThrow("Ollama response did not include message.content.");
+  });
+
+  it("classifies empty assistant content without treating thinking as a reply", async () => {
+    const adapter = createOllamaAdapter({
+      id: "rin-ollama-local",
+      displayName: "Test Ollama adapter",
+      baseUrl: "http://127.0.0.1:11434",
+      model: "qwen3:4b",
+      timeoutMs: 1_000,
+      generationOptions,
+      fetchFn: async () =>
+        new Response(
+          JSON.stringify({
+            message: {
+              role: "assistant",
+              content: "",
+              thinking: "private reasoning that must not become a reply",
+            },
+            done: true,
+          }),
+          { status: 200 },
+        ),
+    });
+    const error = await captureModelError(
+      adapter.generate({
+        ownerId: "owner-a",
+        conversationId: "conversation-a",
+        messages: [{ role: "owner", content: "请解释 RIN 的本地优先原则。" }],
+      }),
+    );
+
+    expect(error.code).toBe("MODEL_RESPONSE_INVALID");
+    expect(error.retryable).toBe(true);
+    expect(error.message).toContain("empty assistant content");
+    expect(error.message).toContain("Qwen3");
+    expect(error.details).toMatchObject({
+      baseUrl: "http://127.0.0.1:11434",
+      model: "qwen3:4b",
+      emptyContent: true,
+      possibleReasoningOnlyOutput: true,
+      responseFields: [
+        "done",
+        "message",
+        "message.content",
+        "message.role",
+        "message.thinking",
+      ],
+    });
+    expect(JSON.stringify(error.details)).not.toContain("private reasoning");
+  });
+
+  it("classifies reasoning-only top-level fields without exposing reasoning text", async () => {
+    const adapter = createOllamaAdapter({
+      id: "rin-ollama-local",
+      displayName: "Test Ollama adapter",
+      baseUrl: "http://127.0.0.1:11434",
+      model: "qwen3:4b",
+      timeoutMs: 1_000,
+      generationOptions,
+      fetchFn: async () =>
+        new Response(
+          JSON.stringify({
+            message: { role: "assistant", content: "   " },
+            reasoning: "long reasoning content that must not be exposed",
+          }),
+          { status: 200 },
+        ),
+    });
+    const error = await captureModelError(
+      adapter.generate({
+        ownerId: "owner-a",
+        conversationId: "conversation-a",
+        messages: [{ role: "owner", content: "normal prompt" }],
+      }),
+    );
+
+    expect(error.code).toBe("MODEL_RESPONSE_INVALID");
+    expect(error.details.possibleReasoningOnlyOutput).toBe(true);
+    expect(error.details.responseFields).toEqual([
+      "message",
+      "reasoning",
+      "message.content",
+      "message.role",
+    ]);
+    expect(JSON.stringify(error.details)).not.toContain("long reasoning");
   });
 
   it("throws a clear error when local model configuration is missing", () => {

@@ -21,6 +21,7 @@ type OllamaChatRequestBody = {
   model: string;
   messages: OllamaChatMessage[];
   stream: false;
+  think: false;
   options: {
     num_predict: number;
     temperature: number;
@@ -84,6 +85,7 @@ async function requestOllamaChat(
         model: options.model,
         messages: request.messages.map(toOllamaChatMessage),
         stream: false,
+        think: false,
         options: {
           num_predict: options.generationOptions.numPredict,
           temperature: options.generationOptions.temperature,
@@ -138,18 +140,25 @@ type OllamaErrorContext = {
   model: string;
 };
 
+type OllamaInvalidResponseDetails = {
+  emptyContent?: boolean;
+  possibleReasoningOnlyOutput?: boolean;
+  responseFields?: string[];
+};
+
 function modelError(
   context: OllamaErrorContext,
   code: ModelErrorCode,
   message: string,
   cause?: unknown,
+  details: OllamaInvalidResponseDetails = {},
 ): ModelError {
   return new ModelError({
     code,
     message,
     adapterId: context.id,
     provider: "local",
-    details: { baseUrl: context.baseUrl, model: context.model },
+    details: { baseUrl: context.baseUrl, model: context.model, ...details },
     cause,
   });
 }
@@ -190,15 +199,77 @@ function readOllamaAssistantContent(
 
   const content = value.message.content;
 
-  if (typeof content !== "string" || content.trim().length === 0) {
+  if (typeof content !== "string") {
     throw modelError(
       context,
       "MODEL_RESPONSE_INVALID",
       "Ollama response did not include message.content.",
+      undefined,
+      {
+        responseFields: readResponseFields(value),
+      },
+    );
+  }
+
+  if (content.trim().length === 0) {
+    const responseFields = readResponseFields(value);
+    const possibleReasoningOnlyOutput = hasReasoningLikeField(value);
+
+    throw modelError(
+      context,
+      "MODEL_RESPONSE_INVALID",
+      [
+        "Ollama returned empty assistant content.",
+        possibleReasoningOnlyOutput
+          ? "The response appears to include reasoning/thinking fields without final assistant content, which can happen with Qwen3 when the output budget is exhausted."
+          : "The response did not contain final assistant text.",
+        "Increase RIN_OLLAMA_NUM_PREDICT, use a shorter prompt, check Qwen3 reasoning behavior, or try a non-reasoning local model if available.",
+      ].join(" "),
+      undefined,
+      {
+        emptyContent: true,
+        possibleReasoningOnlyOutput,
+        responseFields,
+      },
     );
   }
 
   return content;
+}
+
+function readResponseFields(value: unknown): string[] {
+  if (!isRecord(value)) {
+    return [];
+  }
+
+  const fields = Object.keys(value).sort();
+
+  if (isRecord(value.message)) {
+    for (const key of Object.keys(value.message).sort()) {
+      fields.push(`message.${key}`);
+    }
+  }
+
+  return fields;
+}
+
+function hasReasoningLikeField(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    hasReasoningKey(value) ||
+    (isRecord(value.message) && hasReasoningKey(value.message))
+  );
+}
+
+function hasReasoningKey(value: Record<string, unknown>): boolean {
+  return Object.keys(value).some((key) =>
+    ["thinking", "reasoning", "reason", "thought", "thoughts"].includes(
+      key.toLowerCase(),
+    ),
+  );
 }
 
 type ClassifiedOllamaError = {

@@ -70,6 +70,10 @@ describe("model runtime config", () => {
 
     expect(adapter).toBeDefined();
     expect(adapter?.timeoutMs).toBe(OLLAMA_DEFAULT_TIMEOUT_MS);
+    expect(OLLAMA_DEFAULT_TIMEOUT_MS).toBe(180_000);
+    expect(OLLAMA_DEFAULT_NUM_PREDICT).toBe(1024);
+    expect(OLLAMA_DEFAULT_TEMPERATURE).toBe(0.5);
+    expect(OLLAMA_DEFAULT_TOP_P).toBe(0.9);
 
     const options = getOllamaRuntimeOptions(adapter!, {
       RIN_OLLAMA_TIMEOUT_MS: "90000",

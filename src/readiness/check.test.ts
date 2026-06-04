@@ -116,7 +116,7 @@ describe("readRinReadiness", () => {
     expect(report.readyForLocalModel).toBe(true);
     expect(runtimeCheck?.status).toBe("warn");
     expect(runtimeCheck?.english).toContain("Invalid RIN_OLLAMA_TIMEOUT_MS");
-    expect(runtimeCheck?.english).toContain("num_predict=512");
+    expect(runtimeCheck?.english).toContain("num_predict=1024");
   });
 
   it("reports actionable Ollama guidance when the selected model is missing", async () => {

@@ -33,6 +33,49 @@ ollama pull qwen3:4b
 This launcher sets only local Ollama environment variables for the process it
 starts. It does not call external APIs.
 
+The local model launcher defaults to:
+
+- `RIN_OLLAMA_TIMEOUT_MS=180000`
+- `RIN_OLLAMA_NUM_PREDICT=1024`
+- `RIN_OLLAMA_TEMPERATURE=0.5`
+- `RIN_OLLAMA_TOP_P=0.9`
+
+These defaults give Qwen3 more room to produce final assistant content. The
+Ollama adapter also sends `think: false` for local chat so Qwen3 returns final
+assistant text instead of spending the response on `message.thinking`. You can
+override the numeric settings in your shell before launching if needed.
+
+## Local Chat Smoke
+
+Run this explicit local-only smoke command to test normal local chat without
+starting the Console:
+
+```sh
+RIN_MODEL_ADAPTER=rin-ollama-local \
+RIN_OLLAMA_BASE_URL=http://127.0.0.1:11434 \
+RIN_OLLAMA_MODEL=qwen3:4b \
+RIN_OLLAMA_NUM_PREDICT=1024 \
+RIN_OLLAMA_TIMEOUT_MS=180000 \
+npm run rin:local-chat-smoke
+```
+
+Without `RIN_MODEL_ADAPTER=rin-ollama-local`, the command skips safely and does
+not call a model.
+
+## Empty Content / MODEL_RESPONSE_INVALID
+
+If Qwen3 returns `MODEL_RESPONSE_INVALID`, it may have produced no final
+`message.content`. This can happen when the model spends its output budget on
+reasoning/thinking. RIN does not store thinking-only output as a fake assistant
+reply and does not print raw provider responses.
+
+Try:
+
+- rerun with `RIN_OLLAMA_NUM_PREDICT=1024` or higher;
+- use a shorter prompt;
+- ask Qwen3 for final answer only;
+- try a non-reasoning local model if one is available.
+
 ## If macOS Blocks The Launcher
 
 If double-clicking says the file cannot be opened, run this from the repository:

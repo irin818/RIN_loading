@@ -28,10 +28,18 @@ export {
   formatExternalModelSmokeReport,
   runExternalModelSmoke,
 } from "./externalProviderSmoke";
+export {
+  formatLocalChatSmokeReport,
+  runLocalChatSmoke,
+} from "./localChatSmoke";
 export type {
   ExternalModelSmokeReport,
   ExternalModelSmokeStatus,
 } from "./externalProviderSmoke";
+export type {
+  LocalChatSmokeReport,
+  LocalChatSmokeStatus,
+} from "./localChatSmoke";
 export { createOllamaAdapter } from "./ollamaAdapter";
 export { createOpenAiCompatibleAdapter } from "./openAiCompatibleAdapter";
 export {
