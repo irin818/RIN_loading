@@ -199,9 +199,11 @@ describe("processOwnerMessage", () => {
       const payload = JSON.parse(row.payload_json) as Record<string, unknown>;
 
       expect(payload.contextBudgetApplied).toBe(true);
-      expect(payload.modelContextMessageCount).toBe(13);
+      expect(payload.modelContextMessageCount).toBe(14);
       expect(payload.modelContextCharacterCount).toEqual(expect.any(Number));
       expect(payload.modelContextDroppedMessageCount).toBeGreaterThan(0);
+      expect(payload.profileContextIncluded).toBe(true);
+      expect(payload.profileContextCharacterCount).toEqual(expect.any(Number));
     } finally {
       database.close();
     }

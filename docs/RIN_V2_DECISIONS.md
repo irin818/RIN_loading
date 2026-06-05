@@ -247,3 +247,27 @@ Implications:
 - Reusing a completed `turnId` returns the stored reply without calling the
   model adapter again.
 - See `docs/decisions/ADR-0003-conversation-turn-persistence.md`.
+
+## Decision 0013: local profiles are manual slow variables
+
+Decision:
+
+- `config/rin_profile.json` and `config/owner_profile.json` are manually
+  editable local slow-variable files.
+- They can provide compact model context through the runtime.
+- Model output cannot write or evolve these profile files.
+- Profile reports must avoid full private profile text.
+
+Rationale:
+
+- Profiles are high-impact continuity data and should not be rewritten by a
+  single generated response.
+- Compact profile context improves personalization without expanding memory
+  mutation scope.
+
+Implications:
+
+- Profile loaders validate schemas and fall back to no profile context when
+  invalid.
+- `rin:profile-validate` may fail on invalid local profile files.
+- `rin:profile-report` reports status/counts/issues only.

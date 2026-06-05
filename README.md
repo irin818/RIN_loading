@@ -184,6 +184,8 @@ npm run rin:readiness
 npm run rin:external-model-smoke
 npm run rin:local-chat-smoke
 npm run rin:conversation-runtime-report
+npm run rin:profile-validate
+npm run rin:profile-report
 npm run rin:daily-chat-eval
 npm run rin:daily-chat-live-smoke
 npm run rin:project-report
@@ -1100,15 +1102,27 @@ Phase 27 让本地模型恢复在 Console 中变得可操作。手动的 “Refr
 阻止重复 RIN 回复。重试仍会经过 RIN runtime，不会直接调用服务商；模型选择仍由环境/配置决定。
 
 The initializer creates readable JSON files for the owner model, AI identity,
-AI state, policy config, and model config. These are starter state files only;
-they do not implement memory behavior, external model configuration by
-themselves, or Live2D. Memory behavior is
+AI state, policy config, model config, local RIN profile, and local owner
+profile. These are starter state files only; they do not implement memory
+behavior, external model configuration by themselves, or Live2D. Memory behavior is
 implemented by the runtime and SQLite memory tables, not by blindly editing
 these starter files.
 
 初始化器会创建可读的 JSON 文件，包括所有者模型、AI 身份、AI 状态、策略配置、
-模型配置。这些只是起步状态文件；它们本身不实现记忆行为、外部模型配置或
-Live2D。记忆行为由 runtime 和 SQLite 记忆表实现，不是通过盲目编辑这些起步文件实现。
+模型配置、本地 RIN profile 和本地 owner profile。这些只是起步状态文件；它们本身
+不实现记忆行为、外部模型配置或 Live2D。记忆行为由 runtime 和 SQLite 记忆表实现，
+不是通过盲目编辑这些起步文件实现。
+
+`rin_profile.json` and `owner_profile.json` are manually editable local files.
+They are validated by `npm run rin:profile-validate`, summarized safely by
+`npm run rin:profile-report`, and compactly injected into model context only
+through the runtime. The report prints counts, status, and validation issues; it
+does not print full private profile text.
+
+`rin_profile.json` 和 `owner_profile.json` 是可手动编辑的本地文件。它们由
+`npm run rin:profile-validate` 验证，由 `npm run rin:profile-report` 安全汇总，
+并且只通过 runtime 以紧凑形式进入模型上下文。报告只输出计数、状态和验证问题，
+不会输出完整私有 profile 正文。
 
 ## Test
 

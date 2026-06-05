@@ -41,6 +41,7 @@ import {
 } from "../memory";
 import { getConfiguredModelAdapter, type ModelAdapter } from "../model";
 import { evaluateModelResponse } from "../policy";
+import { buildProfileContextMessage, loadProfileContext } from "../profile";
 import { appendRawEvent } from "../rawLog";
 import { snapshotSlowVariables } from "../slowVariables";
 import { updateStateAfterConversation } from "../state";
@@ -107,6 +108,8 @@ export async function processOwnerMessage(
       content: message.content,
     }));
     const memoryRetrieval = retrieveAcceptedMemories(database, content);
+    const profileContext = await loadProfileContext(layout);
+    const profileContextMessage = buildProfileContextMessage(profileContext);
     const semanticCandidateIds = memoryRetrieval.explanations
       .filter((item) => item.contextSource === "semantic")
       .map((item) => item.memoryId);
@@ -117,6 +120,7 @@ export async function processOwnerMessage(
       semanticContextExpansionEnabled: semanticCandidateIds.length > 0,
       maxInjectedMemories:
         DEFAULT_MAX_INJECTED_MEMORIES + semanticCandidateIds.length,
+      profileContext: profileContextMessage,
     });
     const memoryContextTrace = toMemoryInjectionTrace(
       modelContext.stats.memoryInjectionExplanations,
@@ -184,6 +188,9 @@ export async function processOwnerMessage(
             modelContext.stats.semanticContextExpansionEnabled,
           memoryContextCharacterCount:
             modelContext.stats.memoryContextCharacterCount,
+          profileContextIncluded: modelContext.stats.profileContextIncluded,
+          profileContextCharacterCount:
+            modelContext.stats.profileContextCharacterCount,
           memorySkippedByBudgetCount: memoryContextTrace.skippedByBudgetCount,
           memorySkippedByRelevanceCount: memoryContextTrace.skippedByRelevanceCount,
           memorySkippedByMaxCountCount: memoryContextTrace.skippedByMaxCountCount,
@@ -251,6 +258,9 @@ export async function processOwnerMessage(
             modelContext.stats.semanticContextExpansionEnabled,
           memoryContextCharacterCount:
             modelContext.stats.memoryContextCharacterCount,
+          profileContextIncluded: modelContext.stats.profileContextIncluded,
+          profileContextCharacterCount:
+            modelContext.stats.profileContextCharacterCount,
           memorySkippedByBudgetCount: memoryContextTrace.skippedByBudgetCount,
           memorySkippedByRelevanceCount: memoryContextTrace.skippedByRelevanceCount,
           memorySkippedByMaxCountCount: memoryContextTrace.skippedByMaxCountCount,

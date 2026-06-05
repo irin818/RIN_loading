@@ -25,6 +25,8 @@ export type ModelContextStats = {
   semanticCandidateIds: string[];
   semanticContextExpansionEnabled: boolean;
   memoryContextCharacterCount: number;
+  profileContextIncluded: boolean;
+  profileContextCharacterCount: number;
   memoryInjectionExplanations: MemoryInjectionExplanation[];
   memorySkippedByBudgetCount: number;
   memorySkippedByRelevanceCount: number;
@@ -43,6 +45,7 @@ export type MemoryInjectionOptions = {
   maxMemoryContextCharacters?: number;
   semanticCandidateIds?: readonly string[];
   semanticContextExpansionEnabled?: boolean;
+  profileContext?: ModelMessage | null;
 };
 
 export const DEFAULT_MAX_INJECTED_MEMORIES = 5;
@@ -91,11 +94,16 @@ export function buildModelContext(
     (memoryOptions.memories ?? []).slice(0, maxInjectedMemories),
     maxMemoryContextCharacters,
   );
+  const profileContext =
+    memoryOptions.profileContext?.role === "system"
+      ? memoryOptions.profileContext
+      : null;
 
   const bounded = trimByCharacterBudget(
     retained,
     latestOwnerIndex,
     systemMessage,
+    profileContext,
     memorySnippets,
     budget,
   );
@@ -120,6 +128,7 @@ export function buildModelContext(
   const skippedSummary = summarizeMemoryInjection(memoryInjectionExplanations);
   const messages = [
     systemMessage,
+    ...(profileContext ? [profileContext] : []),
     ...(memoryMessage ? [memoryMessage] : []),
     ...bounded.messages.map((item) => item.message),
   ];
@@ -144,6 +153,8 @@ export function buildModelContext(
       memoryContextCharacterCount: memoryMessage
         ? memoryMessage.content.length
         : 0,
+      profileContextIncluded: profileContext !== null,
+      profileContextCharacterCount: profileContext ? profileContext.content.length : 0,
       memoryInjectionExplanations,
       memorySkippedByBudgetCount: skippedSummary.skippedByBudgetCount,
       memorySkippedByRelevanceCount: skippedSummary.skippedByRelevanceCount,
@@ -190,6 +201,7 @@ function trimByCharacterBudget(
   messages: readonly IndexedMessage[],
   latestOwnerIndex: number | null,
   systemMessage: ModelMessage,
+  profileContext: ModelMessage | null,
   memorySnippets: readonly AcceptedMemorySnippet[],
   budget: ContextBudgetPolicy,
 ): { messages: IndexedMessage[]; memorySnippets: AcceptedMemorySnippet[] } {
@@ -201,6 +213,7 @@ function trimByCharacterBudget(
     const memoryMessage = composeMemoryMessage(snippets);
     return countCharacters([
       systemMessage,
+      ...(profileContext ? [profileContext] : []),
       ...(memoryMessage ? [memoryMessage] : []),
       ...retained.map((item) => item.message),
     ]);

@@ -200,6 +200,14 @@ After `npm run rin:init`, RIN creates `.rin-data`.
 - Provider-neutral model adapter selection. It must not contain API keys.
 - 服务商中立的模型 adapter 选择文件。它不得包含 API Key。
 
+- `.rin-data/config/rin_profile.json`
+- Manually editable local RIN profile used as compact model context.
+- 可手动编辑的本地 RIN profile，会以紧凑形式进入模型上下文。
+
+- `.rin-data/config/owner_profile.json`
+- Manually editable local owner profile used as compact model context.
+- 可手动编辑的本地 owner profile，会以紧凑形式进入模型上下文。
+
 - `.rin-data/logs/audit_log.jsonl`
 - Placeholder for future append-only audit logs.
 - 未来追加式审计日志的占位文件。

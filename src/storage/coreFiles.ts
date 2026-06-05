@@ -2,6 +2,10 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RinEnvironment } from "../config/environment";
 import { createDefaultModelRuntimeConfig } from "../model/config";
+import {
+  createDefaultOwnerProfile,
+  createDefaultRinProfile,
+} from "../profile/profiles";
 import type { RinDataLayout } from "./paths";
 
 type JsonValue =
@@ -122,6 +126,20 @@ export const CORE_STATE_FILE_DEFINITIONS: CoreStateFileDefinition[] = [
     english: "Provider-neutral model configuration and adapter selection.",
     chinese: "服务商中立的模型配置与 adapter 选择。",
     create: (_environment, now) => createDefaultModelRuntimeConfig(now),
+  },
+  {
+    key: "rin-profile",
+    relativePath: "config/rin_profile.json",
+    english: "Manually editable local RIN profile.",
+    chinese: "可手动编辑的本地 RIN profile。",
+    create: (_environment, now) => createDefaultRinProfile(now),
+  },
+  {
+    key: "owner-profile",
+    relativePath: "config/owner_profile.json",
+    english: "Manually editable local owner profile.",
+    chinese: "可手动编辑的本地 owner profile。",
+    create: (environment, now) => createDefaultOwnerProfile(environment.ownerId, now),
   },
 ];
 
