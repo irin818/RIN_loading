@@ -1,6 +1,6 @@
 # RIN v2.0 Progress
 
-Status: recovery baseline checks passed; PR pending.
+Status: recovery baseline checks passed; PR open.
 
 This file must be updated at every v2.0 checkpoint and before ending any Codex
 conversation.
@@ -10,7 +10,7 @@ conversation.
 ## Current State
 
 - Current package: Recovery / Package 0 planning baseline.
-- Package status: checks passed, ready for diff review and PR.
+- Package status: checks passed, PR open, merge gate review in progress.
 - Active branch: `codex/v2-0-recovery-and-persistent-plan`.
 - Latest verified main commit:
   `c9dfd3681010162a61d54fa246d13f24a5197c6f`.
@@ -24,11 +24,14 @@ conversation.
 
 ## Completed Commits
 
-- None yet in v2.0 recovery.
+- `0dec6a4 docs: add RIN v2 recovery plan`
+- This progress update is included in the active PR branch; use `git log` for
+  the exact final commit hash after push.
 
 ## Pull Request
 
-- PR URL/status: not created yet.
+- PR URL/status:
+  `https://github.com/irin818/RIN_loading/pull/50` open at checkpoint.
 
 ## Checks
 
