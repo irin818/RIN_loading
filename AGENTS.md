@@ -162,6 +162,30 @@ Keep `.env.example` versioned when it contains only safe placeholder values.
 - Run relevant checks from `package.json` when available.
 - Report clearly what changed, what was checked, and what remains risky.
 
+## RIN v2.0 Codex Continuation Protocol
+
+For any Codex conversation that continues RIN v2.0 work, start by reading:
+
+1. `docs/RIN_V2_MASTER_PLAN.md`
+2. `docs/RIN_V2_PROGRESS.md`
+3. `docs/RIN_V2_DECISIONS.md`
+
+Then inspect git status, current branch, recent commits, remote state, and open
+PRs before editing. Continue only the current package recorded in
+`docs/RIN_V2_PROGRESS.md` unless the owner explicitly changes scope.
+
+Before ending a v2.0 Codex conversation:
+
+- leave coherent commits when changes were made;
+- push the active branch when a remote is configured;
+- update `docs/RIN_V2_PROGRESS.md` with branch, commits, PR/check status,
+  unresolved risks, and the exact next task;
+- report blockers honestly and do not merge incomplete or uncertain work.
+
+RIN v2.0 相关的新 Codex 对话必须先读上述三个 v2 文档，再检查 git/PR 状态，并只继续
+`docs/RIN_V2_PROGRESS.md` 记录的当前 package。结束前必须更新进度文件，记录精确的
+下一步、检查结果、风险和 PR/commit 状态。
+
 ## Final Report Format
 
 End each task with:
