@@ -221,6 +221,16 @@ by browser code using public paths such as `/live2d/rin/...`.
 - `docs/LOCAL_PLANNER_POLICY.md`
 - `docs/CONSOLE_OPERATIONS_POLICY.md`
 - `docs/BACKUP_MIGRATION_POLICY.md`
+- `docs/RIN_V2_MASTER_PLAN.md`
+- `docs/RIN_V2_PROGRESS.md`
+- `docs/RIN_V2_DECISIONS.md`
+- `docs/RIN_V2_STABILIZATION_NOTES.md`
+- `docs/RIN_V2_REPOSITORY_CLEANUP_REPORT.md`
+- `docs/RIN_V2_RELEASE_NOTES.md`
+- `docs/RIN_V2_OPERATIONS_GUIDE.md`
+- `docs/RIN_V2_MEMORY_MODEL.md`
+- `docs/RIN_V2_CONTEXT_POLICY.md`
+- `docs/RIN_V2_KNOWN_LIMITATIONS.md`
 - `docs/RIN_V0_1_READINESS_CHECKLIST.md`
 - `docs/RIN_V0_1_PRIVACY_AUDIT.md`
 - `docs/RIN_V0_1_OPERATIONS_GUIDE.md`

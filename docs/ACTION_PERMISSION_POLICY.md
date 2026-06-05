@@ -1,6 +1,14 @@
 # Action Permission Policy
 
-Status: v0.2-B policy lock.
+Status: historical v0.2-B policy lock; superseded in active RIN v2.
+
+RIN v2 decommissioned active general-purpose actions, tools/MCP, planner/task
+execution, and the L0-L5 runtime permission hierarchy. This document is retained
+as historical v0.2-B design context only. The commands listed below are no
+longer active package scripts in v2; use `npm run rin:v2-check` for the current
+provider-free v2 release gate.
+
+Historical v0.2-B behavior:
 
 RIN actions must be explicit, audited, and permission-gated. Package 3 added a
 local permission model and dry-run action registry scaffold. v0.2-B adds a very
@@ -48,16 +56,18 @@ Action audit records should be safe and structured:
 Do not include secrets, full file contents, private paths, raw prompts, or tool
 outputs containing private data.
 
-## Commands
+## Historical Commands
 
 ```sh
 npm run rin:actions-smoke
 npm run rin:actions-audit-report
 ```
 
-`rin:actions-smoke` uses temporary local fixture data and verifies allowed
-low-risk actions, forbidden actions, and audit creation. `rin:actions-audit-report`
-reads local action audit counts only and prints no payload contents.
+These commands were removed from active RIN v2 package scripts. Historical
+v0.2-B `rin:actions-smoke` used temporary local fixture data and verified
+allowed low-risk actions, forbidden actions, and audit creation.
+`rin:actions-audit-report` read local action audit counts only and printed no
+payload contents.
 
 ## Chinese Summary
 

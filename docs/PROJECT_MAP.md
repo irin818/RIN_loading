@@ -143,13 +143,17 @@ Run the explicit external provider smoke after API environment is configured:
 RIN_EXTERNAL_MODEL_SMOKE=allow npm run rin:external-model-smoke
 ```
 
-Run the full v0.2 release gate:
+Run the current v2.0 release gate:
 
-运行完整 v0.2 发布检查：
+运行当前 v2.0 发布检查：
 
 ```sh
-npm run rin:v0-2-check
+npm run rin:v2-check
 ```
+
+`rin:v2-check` is provider-free and does not apply real local migrations.
+
+`rin:v2-check` 不调用 provider，也不会对真实本地数据执行迁移 apply。
 
 Import a local Agent State Bundle into a new data directory:
 
@@ -265,6 +269,22 @@ The most useful files for owner feedback right now are:
 - `docs/PROJECT_MAP.md`
 - Explains the current system in plain language.
 - 用直白语言解释当前系统。
+
+- `docs/RIN_V2_OPERATIONS_GUIDE.md`
+- Explains active v2 commands and safe local operation.
+- 解释 active v2 命令和安全本地运行方式。
+
+- `docs/RIN_V2_MEMORY_MODEL.md`
+- Explains raw records, short-term memory, Memory V2, and migration.
+- 解释原始记录、短期记忆、Memory V2 和迁移。
+
+- `docs/RIN_V2_CONTEXT_POLICY.md`
+- Explains current context ordering, budgets, deduplication, and privacy.
+- 解释当前上下文顺序、预算、去重和隐私边界。
+
+- `docs/RIN_V2_KNOWN_LIMITATIONS.md`
+- Lists explicit remaining v2 limitations.
+- 列出 v2 当前明确限制。
 
 - `.rin-data/config/ai_identity.json`
 - Shows the first local identity placeholder.

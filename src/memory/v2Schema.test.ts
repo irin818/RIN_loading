@@ -52,7 +52,7 @@ describe("Memory V2 shadow schema", () => {
     ]);
   });
 
-  it("reports schema status without changing production retrieval", async () => {
+  it("reports schema status with legacy cutover support", async () => {
     const cwd = await createTempRoot();
     const storage = await initializeRinStorage(defaultEnvironment, { cwd });
     const database = openRinDatabase(storage.layout);
@@ -62,12 +62,17 @@ describe("Memory V2 shadow schema", () => {
       const summary = formatMemoryV2SchemaReport(report);
 
       expect(report.status).toBe("ready");
-      expect(report.shadowOnly).toBe(true);
-      expect(report.productionRetrievalChanged).toBe(false);
+      expect(report.shadowOnly).toBe(false);
+      expect(report.productionRetrievalChanged).toBe(true);
+      expect(report.legacyMigrationSupported).toBe(true);
+      expect(report.productionRetrievalPath).toBe(
+        "memory-v2-legacy-traces-after-migration",
+      );
       expect(report.providerCallCount).toBe(0);
       expect(report.fullTextIncluded).toBe(false);
       expect(summary).toContain("memory_v2_trace_sources");
-      expect(summary).toContain("Production retrieval changed: no");
+      expect(summary).toContain("Production retrieval changed: yes");
+      expect(summary).toContain("Legacy migration supported: yes");
     } finally {
       database.close();
     }

@@ -86,6 +86,15 @@ Recommended aggregate check before final reports or PRs when practical:
 memory retrieval evaluation. It uses the default mock/local readiness path and
 does not require Ollama or external APIs.
 
+For RIN v2.0 release or stabilization work, also use the provider-free v2 gate:
+
+- `npm run rin:v2-check`
+
+`npm run rin:v2-check` extends the default check with conversation runtime,
+profile, Memory V2 migration dry-run/status, Context V2, and semantic
+evaluation reports. It intentionally does not run
+`rin:memory-v2-migration-apply`.
+
 Task-specific checks still apply. For example, Live2D, CLI, import/export,
 storage, or provider-specific changes may require additional targeted commands.
 

@@ -16,8 +16,10 @@ export type MemoryV2SchemaReport = {
   mode: "memory-v2-schema-report";
   status: "ready" | "missing_tables";
   migrationVersion: 6;
-  shadowOnly: true;
-  productionRetrievalChanged: false;
+  shadowOnly: false;
+  productionRetrievalChanged: true;
+  legacyMigrationSupported: true;
+  productionRetrievalPath: "memory-v2-legacy-traces-after-migration";
   providerCallCount: 0;
   fullTextIncluded: false;
   tables: MemoryV2TableStatus[];
@@ -43,8 +45,10 @@ export function buildMemoryV2SchemaReport(
     mode: "memory-v2-schema-report",
     status: tables.every((table) => table.exists) ? "ready" : "missing_tables",
     migrationVersion: 6,
-    shadowOnly: true,
-    productionRetrievalChanged: false,
+    shadowOnly: false,
+    productionRetrievalChanged: true,
+    legacyMigrationSupported: true,
+    productionRetrievalPath: "memory-v2-legacy-traces-after-migration",
     providerCallCount: 0,
     fullTextIncluded: false,
     tables,
@@ -63,6 +67,10 @@ export function formatMemoryV2SchemaReport(
     `Production retrieval changed: ${
       report.productionRetrievalChanged ? "yes" : "no"
     }`,
+    `Legacy migration supported: ${
+      report.legacyMigrationSupported ? "yes" : "no"
+    }`,
+    `Production retrieval path: ${report.productionRetrievalPath}`,
     `providerCallCount: ${report.providerCallCount}`,
     `Full text included: ${report.fullTextIncluded ? "yes" : "no"}`,
     "Tables:",

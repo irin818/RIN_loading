@@ -150,6 +150,8 @@ Keep `.env.example` versioned when it contains only safe placeholder values.
 - Prefer `npm run rin:check` as the default aggregate local check before final
   reports or PRs when practical. It runs typecheck, tests, lint, build, default
   readiness, and memory evaluation without requiring Ollama.
+- For RIN v2.0 release or stabilization work, also run `npm run rin:v2-check`.
+  It is provider-free and does not apply Memory V2 legacy migration.
 - If modifying memory retrieval, context injection, memoryContext
  trace/persistence, or conversation runtime paths that affect model context, run
  `npm run rin:memory-eval` in addition to standard checks. Do not bypass
