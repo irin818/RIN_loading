@@ -126,4 +126,29 @@ export const RIN_DATABASE_MIGRATIONS: RinDatabaseMigration[] = [
       );
     `,
   },
+  {
+    version: 5,
+    name: "add_conversation_turn_status",
+    sql: `
+      CREATE TABLE IF NOT EXISTS conversation_turns (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL,
+        owner_message_id TEXT NOT NULL UNIQUE,
+        rin_message_id TEXT,
+        status TEXT NOT NULL CHECK (status IN ('started', 'completed', 'failed')),
+        attempt_count INTEGER NOT NULL DEFAULT 1,
+        error_code TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        completed_at TEXT,
+        failed_at TEXT,
+        FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+          ON DELETE CASCADE,
+        FOREIGN KEY (owner_message_id) REFERENCES messages(id)
+          ON DELETE CASCADE,
+        FOREIGN KEY (rin_message_id) REFERENCES messages(id)
+          ON DELETE SET NULL
+      );
+    `,
+  },
 ];

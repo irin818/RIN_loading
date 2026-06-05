@@ -219,3 +219,31 @@ Implications:
 
 - Future memory/profile/runtime packages must preserve this boundary or replace
   it with a stricter data-integrity design.
+
+## Decision 0012: conversation turns persist before model calls
+
+Decision:
+
+- Owner messages and `conversation_turns` rows are committed before model adapter
+  calls.
+- Model adapter calls run outside long database transactions.
+- RIN replies are returned only after the reply message and completion metadata
+  are stored.
+- Failed turns preserve the owner message and turn metadata but never store a
+  fake RIN reply.
+
+Rationale:
+
+- Raw owner messages are local history and should not disappear because a model
+  provider fails.
+- Database transactions should stay short and should not wait on local or
+  external model generation.
+
+Implications:
+
+- `turnId` is the idempotency key for retry and duplicate-reply prevention.
+- Retrying a failed turn with the same content reuses the owner message and
+  increments the attempt count.
+- Reusing a completed `turnId` returns the stored reply without calling the
+  model adapter again.
+- See `docs/decisions/ADR-0003-conversation-turn-persistence.md`.

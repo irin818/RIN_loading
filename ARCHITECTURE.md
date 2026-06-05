@@ -50,9 +50,12 @@ Current known module boundaries include:
   memory, policy, continuity state, provider calls, or core cognition.
 - `src/runtime/`: local conversation/runtime boundary.
 - `src/conversation/`: conversation persistence, history retrieval, and runtime
-  turn handling. It also maps typed model failures into structured, user-visible
-  conversation errors (stable error codes, recovery guidance, HTTP status) and
-  records a `conversation.turn_failed` event without storing a fake RIN reply.
+  turn handling. Owner messages and `conversation_turns` records are persisted
+  before model adapter calls; model generation runs outside long database
+  transactions; RIN replies are returned only after storage. It maps typed model
+  failures into structured, user-visible conversation errors (stable error
+  codes, recovery guidance, HTTP status), preserves failed owner messages,
+  records `conversation.turn_failed`, and never stores fake RIN replies.
   Successful RIN turns may store safe memory context trace metadata for
   audit/reload visibility; this metadata excludes full memory text, model context
   snippets, and raw prompt text.

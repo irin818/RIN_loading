@@ -1,12 +1,30 @@
+import { randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import {
   appendMessageMemoryContext,
   appendConversationMessage,
+  createConversationTurn,
   createConversation,
+  findConversationTurn,
   getConversation,
+  getConversationMessage,
+  getConversationTurn,
   listConversationMessages,
+  markConversationTurnCompleted,
+  markConversationTurnFailed,
+  markConversationTurnStarted,
 } from "./repository";
-import { ConversationError, toConversationError } from "./errors";
-import type { ConversationTurnResult } from "./types";
+import {
+  ConversationError,
+  toConversationError,
+  withConversationTurnDetails,
+} from "./errors";
+import type {
+  ConversationMessageRecord,
+  ConversationRecord,
+  ConversationTurnRecord,
+  ConversationTurnResult,
+} from "./types";
 import {
   buildModelContext,
   DEFAULT_MAX_INJECTED_MEMORIES,
@@ -32,6 +50,7 @@ export type ProcessOwnerMessageInput = {
   content: string;
   ownerId: string;
   conversationId?: string;
+  turnId?: string;
   now?: Date;
 };
 
@@ -58,42 +77,35 @@ export async function processOwnerMessage(
   const retrieveAcceptedMemories =
     deps.retrieveAcceptedMemories ?? defaultRetrieveAcceptedMemories;
   const now = input.now ?? new Date();
+  const turnId = normalizeTurnId(input.turnId) ?? randomUUID();
+  const startedAtMs = performance.now();
+  const timing: TurnTiming = {};
   const database = openRinDatabase(layout);
 
   try {
-    database.exec("BEGIN;");
-
-    const conversation = input.conversationId
-      ? getConversation(database, input.conversationId)
-      : createConversation(database, titleFromContent(content), now);
-
-    const ownerMessage = appendConversationMessage(database, {
-      conversationId: conversation.id,
-      role: "owner",
-      content,
-      now,
-    });
-    appendRawEvent(database, {
-      eventType: "conversation.owner_message_received",
-      source: "owner",
-      payload: {
-        conversationId: conversation.id,
-        messageId: ownerMessage.id,
+    const preModelPersistenceStartedAtMs = performance.now();
+    const persistedTurn = persistTurnStart(
+      database,
+      {
+        ...input,
         content,
+        turnId,
       },
       now,
-    });
-    const memoryProposal = maybeCreateOwnerMemoryProposal(
-      database,
-      ownerMessage,
-      now,
     );
-    const conversationMessages = [
-      ...listConversationMessages(database, conversation.id).map((message) => ({
-        role: message.role,
-        content: message.content,
-      })),
-    ];
+    timing.preModelPersistenceMs = elapsedMs(preModelPersistenceStartedAtMs);
+
+    if (persistedTurn.turn.status === "completed") {
+      return loadCompletedTurnResult(database, persistedTurn.turn);
+    }
+
+    const conversationMessages = listConversationMessages(
+      database,
+      persistedTurn.conversation.id,
+    ).map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
     const memoryRetrieval = retrieveAcceptedMemories(database, content);
     const semanticCandidateIds = memoryRetrieval.explanations
       .filter((item) => item.contextSource === "semantic")
@@ -112,151 +124,425 @@ export async function processOwnerMessage(
       modelContext.stats.memoryContextCharacterCount,
     );
     const adapter = await resolveAdapter(layout);
-    const modelResponse = await adapter.generate({
-      ownerId: input.ownerId,
-      conversationId: conversation.id,
-      messages: modelContext.messages,
-    });
-    const policyDecision = evaluateModelResponse(modelResponse);
+    const modelCallStartedAtMs = performance.now();
+    let modelResponse: Awaited<ReturnType<ModelAdapter["generate"]>>;
 
-    appendRawEvent(database, {
-      eventType: "model.response_received",
-      source: modelResponse.adapterId,
-      payload: {
-        conversationId: conversation.id,
-        metadata: modelResponse.metadata,
-        policyDecision,
-        contextBudgetApplied: modelContext.stats.contextBudgetApplied,
-        modelContextMessageCount: modelContext.stats.messageCount,
-        modelContextCharacterCount: modelContext.stats.characterCount,
-        modelContextDroppedMessageCount: modelContext.stats.droppedMessageCount,
-        injectedMemoryCount: modelContext.stats.injectedMemoryCount,
-        injectedMemoryIds: modelContext.stats.injectedMemoryIds,
-        deterministicInjectedMemoryIds:
-          modelContext.stats.deterministicInjectedMemoryIds,
-        semanticInjectedMemoryIds: modelContext.stats.semanticInjectedMemoryIds,
-        semanticCandidateIds: modelContext.stats.semanticCandidateIds,
-        semanticContextExpansionEnabled:
-          modelContext.stats.semanticContextExpansionEnabled,
-        memoryContextCharacterCount: modelContext.stats.memoryContextCharacterCount,
-        memorySkippedByBudgetCount: memoryContextTrace.skippedByBudgetCount,
-        memorySkippedByRelevanceCount: memoryContextTrace.skippedByRelevanceCount,
-        memorySkippedByMaxCountCount: memoryContextTrace.skippedByMaxCountCount,
-        memoryInjectionItems: memoryContextTrace.items,
-      },
-      now,
-    });
-
-    if (!policyDecision.allowed) {
-      throw new Error(policyDecision.reasonEnglish);
+    try {
+      modelResponse = await adapter.generate({
+        ownerId: input.ownerId,
+        conversationId: persistedTurn.conversation.id,
+        messages: modelContext.messages,
+      });
+      timing.modelCallMs = elapsedMs(modelCallStartedAtMs);
+    } catch (error) {
+      timing.modelCallMs = elapsedMs(modelCallStartedAtMs);
+      const conversationError = toConversationError(error);
+      const failedTurn = persistTurnFailure(
+        database,
+        persistedTurn.turn,
+        conversationError,
+        now,
+        timing,
+        startedAtMs,
+      );
+      throw withConversationTurnDetails(conversationError, failedTurn);
     }
 
-    const rinMessage = appendConversationMessage(database, {
-      conversationId: conversation.id,
-      role: "rin",
-      content: modelResponse.content,
-      modelAdapter: modelResponse.adapterId,
-      now,
-    });
-    if (memoryContextTrace.items.length > 0) {
-      appendMessageMemoryContext(database, {
-        messageId: rinMessage.id,
-        memoryContext: memoryContextTrace,
+    const completionPersistenceStartedAtMs = performance.now();
+
+    try {
+      database.exec("BEGIN;");
+
+      const currentTurn = getConversationTurn(database, persistedTurn.turn.id);
+      if (currentTurn.status === "completed") {
+        database.exec("COMMIT;");
+        return loadCompletedTurnResult(database, currentTurn);
+      }
+
+      const policyDecision = evaluateModelResponse(modelResponse);
+
+      appendRawEvent(database, {
+        eventType: "model.response_received",
+        source: modelResponse.adapterId,
+        payload: {
+          turnId: persistedTurn.turn.id,
+          conversationId: persistedTurn.conversation.id,
+          metadata: modelResponse.metadata,
+          policyDecision,
+          contextBudgetApplied: modelContext.stats.contextBudgetApplied,
+          modelContextMessageCount: modelContext.stats.messageCount,
+          modelContextCharacterCount: modelContext.stats.characterCount,
+          modelContextDroppedMessageCount:
+            modelContext.stats.droppedMessageCount,
+          injectedMemoryCount: modelContext.stats.injectedMemoryCount,
+          injectedMemoryIds: modelContext.stats.injectedMemoryIds,
+          deterministicInjectedMemoryIds:
+            modelContext.stats.deterministicInjectedMemoryIds,
+          semanticInjectedMemoryIds: modelContext.stats.semanticInjectedMemoryIds,
+          semanticCandidateIds: modelContext.stats.semanticCandidateIds,
+          semanticContextExpansionEnabled:
+            modelContext.stats.semanticContextExpansionEnabled,
+          memoryContextCharacterCount:
+            modelContext.stats.memoryContextCharacterCount,
+          memorySkippedByBudgetCount: memoryContextTrace.skippedByBudgetCount,
+          memorySkippedByRelevanceCount: memoryContextTrace.skippedByRelevanceCount,
+          memorySkippedByMaxCountCount: memoryContextTrace.skippedByMaxCountCount,
+          memoryInjectionItems: memoryContextTrace.items,
+          timingMs: timingPayload(timing, startedAtMs),
+        },
         now,
       });
-    }
-    await updateStateAfterConversation(database, layout, now);
-    await snapshotSlowVariables(database, layout, "conversation.turn_completed", now);
 
-    appendAuditEvent(database, {
-      eventType: "conversation.turn_completed",
-      payload: {
-        conversationId: conversation.id,
-        ownerMessageId: ownerMessage.id,
-        rinMessageId: rinMessage.id,
+      if (!policyDecision.allowed) {
+        throw new Error(policyDecision.reasonEnglish);
+      }
+
+      const rinMessage = appendConversationMessage(database, {
+        conversationId: persistedTurn.conversation.id,
+        role: "rin",
+        content: modelResponse.content,
         modelAdapter: modelResponse.adapterId,
-        memoryProposalId: memoryProposal?.id ?? null,
-        contextBudgetApplied: modelContext.stats.contextBudgetApplied,
-        modelContextMessageCount: modelContext.stats.messageCount,
-        modelContextCharacterCount: modelContext.stats.characterCount,
-        modelContextDroppedMessageCount: modelContext.stats.droppedMessageCount,
-        injectedMemoryCount: modelContext.stats.injectedMemoryCount,
-        injectedMemoryIds: modelContext.stats.injectedMemoryIds,
-        deterministicInjectedMemoryIds:
-          modelContext.stats.deterministicInjectedMemoryIds,
-        semanticInjectedMemoryIds: modelContext.stats.semanticInjectedMemoryIds,
-        semanticCandidateIds: modelContext.stats.semanticCandidateIds,
-        semanticContextExpansionEnabled:
-          modelContext.stats.semanticContextExpansionEnabled,
-        memoryContextCharacterCount: modelContext.stats.memoryContextCharacterCount,
-        memorySkippedByBudgetCount: memoryContextTrace.skippedByBudgetCount,
-        memorySkippedByRelevanceCount: memoryContextTrace.skippedByRelevanceCount,
-        memorySkippedByMaxCountCount: memoryContextTrace.skippedByMaxCountCount,
-        memoryInjectionItems: memoryContextTrace.items,
-      },
-      now,
-    });
+        now,
+      });
+      if (memoryContextTrace.items.length > 0) {
+        appendMessageMemoryContext(database, {
+          messageId: rinMessage.id,
+          memoryContext: memoryContextTrace,
+          now,
+        });
+      }
+      await updateStateAfterConversation(database, layout, now);
+      await snapshotSlowVariables(
+        database,
+        layout,
+        "conversation.turn_completed",
+        now,
+      );
 
-    database.exec("COMMIT;");
+      timing.completionPersistenceMs = elapsedMs(completionPersistenceStartedAtMs);
+      const completedTurn = markConversationTurnCompleted(database, {
+        turnId: persistedTurn.turn.id,
+        rinMessageId: rinMessage.id,
+        now,
+      });
 
-    return {
-      conversation: {
-        ...conversation,
-        updatedAt: rinMessage.createdAt,
-      },
-      ownerMessage,
-      rinMessage: {
-        ...rinMessage,
+      appendAuditEvent(database, {
+        eventType: "conversation.turn_completed",
+        payload: {
+          turnId: completedTurn.id,
+          conversationId: persistedTurn.conversation.id,
+          ownerMessageId: persistedTurn.ownerMessage.id,
+          rinMessageId: rinMessage.id,
+          attemptCount: completedTurn.attemptCount,
+          modelAdapter: modelResponse.adapterId,
+          memoryProposalId: persistedTurn.memoryProposalId,
+          contextBudgetApplied: modelContext.stats.contextBudgetApplied,
+          modelContextMessageCount: modelContext.stats.messageCount,
+          modelContextCharacterCount: modelContext.stats.characterCount,
+          modelContextDroppedMessageCount:
+            modelContext.stats.droppedMessageCount,
+          injectedMemoryCount: modelContext.stats.injectedMemoryCount,
+          injectedMemoryIds: modelContext.stats.injectedMemoryIds,
+          deterministicInjectedMemoryIds:
+            modelContext.stats.deterministicInjectedMemoryIds,
+          semanticInjectedMemoryIds: modelContext.stats.semanticInjectedMemoryIds,
+          semanticCandidateIds: modelContext.stats.semanticCandidateIds,
+          semanticContextExpansionEnabled:
+            modelContext.stats.semanticContextExpansionEnabled,
+          memoryContextCharacterCount:
+            modelContext.stats.memoryContextCharacterCount,
+          memorySkippedByBudgetCount: memoryContextTrace.skippedByBudgetCount,
+          memorySkippedByRelevanceCount: memoryContextTrace.skippedByRelevanceCount,
+          memorySkippedByMaxCountCount: memoryContextTrace.skippedByMaxCountCount,
+          memoryInjectionItems: memoryContextTrace.items,
+          timingMs: timingPayload(timing, startedAtMs),
+        },
+        now,
+      });
+
+      database.exec("COMMIT;");
+
+      return {
+        turn: completedTurn,
+        conversation: {
+          ...persistedTurn.conversation,
+          updatedAt: rinMessage.createdAt,
+        },
+        ownerMessage: persistedTurn.ownerMessage,
+        rinMessage: {
+          ...rinMessage,
+          memoryContext:
+            memoryContextTrace.items.length > 0 ? memoryContextTrace : null,
+        },
         memoryContext:
           memoryContextTrace.items.length > 0 ? memoryContextTrace : null,
-      },
-      memoryContext:
-        memoryContextTrace.items.length > 0 ? memoryContextTrace : null,
-    };
-  } catch (error) {
-    database.exec("ROLLBACK;");
-    const conversationError = toConversationError(error);
-    logTurnFailure(database, conversationError, input, now);
-    throw conversationError;
+      };
+    } catch (error) {
+      safeRollback(database);
+      timing.completionPersistenceMs = elapsedMs(completionPersistenceStartedAtMs);
+      const conversationError = toConversationError(error);
+      const failedTurn = persistTurnFailure(
+        database,
+        persistedTurn.turn,
+        conversationError,
+        now,
+        timing,
+        startedAtMs,
+      );
+      throw withConversationTurnDetails(conversationError, failedTurn);
+    }
   } finally {
     database.close();
   }
 }
 
-/**
- * Record a failed turn after the transaction has been rolled back so the failure
- * is auditable without persisting a fake RIN reply. The owner message is not
- * stored on failure because the whole turn transaction was rolled back. Only
- * safe metadata is logged: no stack traces, secrets, or local paths.
- */
-function logTurnFailure(
+type PersistedTurnStart = {
+  turn: ConversationTurnRecord;
+  conversation: ConversationRecord;
+  ownerMessage: ConversationMessageRecord;
+  memoryProposalId: string | null;
+};
+
+type TurnTiming = {
+  preModelPersistenceMs?: number;
+  modelCallMs?: number;
+  completionPersistenceMs?: number;
+  failurePersistenceMs?: number;
+};
+
+function persistTurnStart(
   database: RinDatabase,
-  conversationError: ConversationError,
-  input: ProcessOwnerMessageInput,
+  input: ProcessOwnerMessageInput & { content: string; turnId: string },
   now: Date,
-): void {
+): PersistedTurnStart {
+  database.exec("BEGIN;");
+
+  try {
+    const existingTurn = findConversationTurn(database, input.turnId);
+
+    if (existingTurn) {
+      const ownerMessage = getConversationMessage(
+        database,
+        existingTurn.ownerMessageId,
+      );
+
+      if (ownerMessage.content !== input.content) {
+        throw new Error("Conversation turn retry content mismatch.");
+      }
+
+      const turn =
+        existingTurn.status === "completed"
+          ? existingTurn
+          : markConversationTurnStarted(database, {
+              turnId: existingTurn.id,
+              now,
+            });
+      const conversation = getConversation(database, turn.conversationId);
+
+      if (turn.status !== "completed") {
+        appendRawEvent(database, {
+          eventType: "conversation.turn_retry_started",
+          source: "conversation",
+          payload: {
+            turnId: turn.id,
+            conversationId: turn.conversationId,
+            ownerMessageId: turn.ownerMessageId,
+            attemptCount: turn.attemptCount,
+          },
+          now,
+        });
+      }
+
+      database.exec("COMMIT;");
+      return {
+        turn,
+        conversation,
+        ownerMessage,
+        memoryProposalId: null,
+      };
+    }
+
+    const conversation = input.conversationId
+      ? getConversation(database, input.conversationId)
+      : createConversation(database, titleFromContent(input.content), now);
+
+    const ownerMessage = appendConversationMessage(database, {
+      conversationId: conversation.id,
+      role: "owner",
+      content: input.content,
+      now,
+    });
+    appendRawEvent(database, {
+      eventType: "conversation.owner_message_received",
+      source: "owner",
+      payload: {
+        turnId: input.turnId,
+        conversationId: conversation.id,
+        messageId: ownerMessage.id,
+        content: input.content,
+      },
+      now,
+    });
+    const memoryProposal = maybeCreateOwnerMemoryProposal(
+      database,
+      ownerMessage,
+      now,
+    );
+    const turn = createConversationTurn(database, {
+      id: input.turnId,
+      conversationId: conversation.id,
+      ownerMessageId: ownerMessage.id,
+      now,
+    });
+    appendRawEvent(database, {
+      eventType: "conversation.turn_started",
+      source: "conversation",
+      payload: {
+        turnId: turn.id,
+        conversationId: conversation.id,
+        ownerMessageId: ownerMessage.id,
+        attemptCount: turn.attemptCount,
+      },
+      now,
+    });
+
+    database.exec("COMMIT;");
+    return {
+      turn,
+      conversation,
+      ownerMessage,
+      memoryProposalId: memoryProposal?.id ?? null,
+    };
+  } catch (error) {
+    safeRollback(database);
+    throw error;
+  }
+}
+
+function loadCompletedTurnResult(
+  database: RinDatabase,
+  turn: ConversationTurnRecord,
+): ConversationTurnResult {
+  if (!turn.rinMessageId) {
+    throw new Error(`Completed conversation turn has no RIN message: ${turn.id}`);
+  }
+
+  const conversation = getConversation(database, turn.conversationId);
+  const ownerMessage = getConversationMessage(database, turn.ownerMessageId);
+  const rinMessage = getConversationMessage(database, turn.rinMessageId);
+
+  return {
+    turn,
+    conversation,
+    ownerMessage,
+    rinMessage,
+    memoryContext: rinMessage.memoryContext,
+  };
+}
+
+/**
+ * Record a failed turn after the model call or completion transaction has ended
+ * so the failure is auditable while preserving the owner message and never
+ * storing a fake RIN reply. Only safe metadata is logged.
+ */
+function persistTurnFailure(
+  database: RinDatabase,
+  turn: ConversationTurnRecord,
+  conversationError: ConversationError,
+  now: Date,
+  timing: TurnTiming,
+  startedAtMs: number,
+): ConversationTurnRecord {
+  const failurePersistenceStartedAtMs = performance.now();
   const payload = {
-    conversationId: input.conversationId ?? null,
+    turnId: turn.id,
+    conversationId: turn.conversationId,
+    ownerMessageId: turn.ownerMessageId,
     errorCode: conversationError.payload.code,
     provider: conversationError.payload.provider,
     modelAdapter: conversationError.payload.modelAdapter,
     retryable: conversationError.payload.retryable,
+    timingMs: timingPayload(
+      {
+        ...timing,
+        failurePersistenceMs: elapsedMs(failurePersistenceStartedAtMs),
+      },
+      startedAtMs,
+    ),
   };
 
   try {
+    database.exec("BEGIN;");
+    const failedTurn = markConversationTurnFailed(database, {
+      turnId: turn.id,
+      errorCode: conversationError.payload.code,
+      now,
+    });
+    const failedPayload = {
+      ...payload,
+      attemptCount: failedTurn.attemptCount,
+      timingMs: timingPayload(
+        {
+          ...timing,
+          failurePersistenceMs: elapsedMs(failurePersistenceStartedAtMs),
+        },
+        startedAtMs,
+      ),
+    };
+
     appendRawEvent(database, {
       eventType: "conversation.turn_failed",
       source: conversationError.payload.modelAdapter ?? "conversation",
-      payload,
+      payload: failedPayload,
       now,
     });
     appendAuditEvent(database, {
       eventType: "conversation.turn_failed",
-      payload,
+      payload: failedPayload,
       now,
     });
+    database.exec("COMMIT;");
+    return failedTurn;
   } catch {
+    safeRollback(database);
     // Logging the failure must never mask the original conversation error.
+    return {
+      ...turn,
+      status: "failed",
+      errorCode: conversationError.payload.code,
+      failedAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    };
+  }
+}
+
+function normalizeTurnId(turnId: string | undefined): string | null {
+  const normalized = turnId?.trim();
+  return normalized && normalized.length > 0 ? normalized : null;
+}
+
+function elapsedMs(startedAtMs: number): number {
+  return Math.max(0, Math.round((performance.now() - startedAtMs) * 100) / 100);
+}
+
+function timingPayload(
+  timing: TurnTiming,
+  startedAtMs: number,
+): Record<string, number> {
+  return {
+    totalMs: elapsedMs(startedAtMs),
+    preModelPersistenceMs: timing.preModelPersistenceMs ?? 0,
+    modelCallMs: timing.modelCallMs ?? 0,
+    completionPersistenceMs: timing.completionPersistenceMs ?? 0,
+    failurePersistenceMs: timing.failurePersistenceMs ?? 0,
+  };
+}
+
+function safeRollback(database: RinDatabase): void {
+  try {
+    database.exec("ROLLBACK;");
+  } catch {
+    // Ignore rollback failures; the original error is more relevant.
   }
 }
 

@@ -183,6 +183,7 @@ npm run build
 npm run rin:readiness
 npm run rin:external-model-smoke
 npm run rin:local-chat-smoke
+npm run rin:conversation-runtime-report
 npm run rin:daily-chat-eval
 npm run rin:daily-chat-live-smoke
 npm run rin:project-report
@@ -1028,7 +1029,11 @@ Common local failures and fixes:
 - prompt 过长或生成过慢：保持上下文预算启用，优先降低输出长度，再考虑增加超时。
 
 Phase 25 turns these failures into structured conversation errors instead of a
-generic HTTP 500. When `adapter.generate()` fails, the conversation runtime
+generic HTTP 500. Package 2 updates the persistence boundary so the owner
+message and `conversation_turns` row are committed before the model call, the
+model adapter is called outside long database transactions, and a RIN reply is
+returned only after it is stored. When `adapter.generate()` fails, the
+conversation runtime
 returns a JSON payload with a stable `error.code`
 (`LOCAL_MODEL_TIMEOUT`, `LOCAL_MODEL_UNAVAILABLE`, `LOCAL_MODEL_MISSING`,
 `MODEL_RESPONSE_INVALID`, `MODEL_PROVIDER_ERROR`, or
@@ -1036,19 +1041,24 @@ returns a JSON payload with a stable `error.code`
 guidance, and the active `modelAdapter`, `provider`, and `retryable` flag. The
 local console route returns a matching HTTP status (for example 504 for
 timeout, 503 for unavailable or missing model, 502 for invalid/provider
-responses). Failed turns do not store a fake RIN reply; the whole turn is rolled
-back and a `conversation.turn_failed` event is recorded for audit. Structured
-errors never include stack traces, secrets, or local filesystem paths.
+responses). Failed turns preserve the owner message and failed turn metadata but
+do not store a fake RIN reply; a `conversation.turn_failed` event is recorded for
+audit. Structured errors never include stack traces, secrets, or local filesystem
+paths, and safe error details may include the `turnId` needed for an explicit
+retry.
 
-Phase 25 把这些故障变成结构化对话错误，而不是通用的 HTTP 500。当
+Phase 25 把这些故障变成结构化对话错误，而不是通用的 HTTP 500。Package 2
+更新了持久化边界：owner message 和 `conversation_turns` 记录会在模型调用前提交，
+模型 adapter 会在长事务之外调用，并且 RIN 回复只有在写入后才会返回。当
 `adapter.generate()` 失败时，对话 runtime 会返回一个 JSON 负载，包含稳定的
 `error.code`（`LOCAL_MODEL_TIMEOUT`、`LOCAL_MODEL_UNAVAILABLE`、
 `LOCAL_MODEL_MISSING`、`MODEL_RESPONSE_INVALID`、`MODEL_PROVIDER_ERROR` 或
 `CONVERSATION_RUNTIME_ERROR`）、简洁的 `error.message`、`error.recovery` 恢复建议，
 以及当前的 `modelAdapter`、`provider` 和 `retryable` 标记。本地 console 路由会返回
 对应的 HTTP 状态（例如超时 504、不可用或缺少模型 503、无效或服务商响应 502）。
-失败的对话不会存储虚假的 RIN 回复；整个对话回合会回滚，并记录一条
-`conversation.turn_failed` 审计事件。结构化错误绝不包含堆栈、密钥或本地文件路径。
+失败的对话会保留 owner message 和 failed turn metadata，但不会存储虚假的 RIN 回复；
+同时会记录一条 `conversation.turn_failed` 审计事件。结构化错误绝不包含堆栈、密钥
+或本地文件路径，并且安全 details 可以包含用于显式重试的 `turnId`。
 
 Phase 26 surfaces this existing information in the Console UI. The Model Runtime
 panel now shows the active adapter, provider, local model status, and, when the
@@ -1075,19 +1085,19 @@ panel, with a short loading state and a safe non-invasive message if the refresh
 fails. When a conversation turn fails with a structured error marked
 `retryable: true`, a "Retry" action resubmits the last failed message through the
 normal conversation endpoint; retry never runs automatically, never polls, and is
-not shown for non-retryable errors. Because failed turns roll back without storing
-the owner message, the Console keeps the last failed input only in local UI state
-for retry, never in long-term memory. Retry still goes through the RIN runtime and
-does not call providers directly, and model selection remains environment/config
-driven.
+not shown for non-retryable errors. Package 2 also allows explicit runtime retry
+with the same `turnId`, which reuses the persisted owner message and prevents a
+duplicate RIN reply if the turn already completed. Retry still goes through the
+RIN runtime and does not call providers directly, and model selection remains
+environment/config driven.
 
 Phase 27 让本地模型恢复在 Console 中变得可操作。手动的 “Refresh status” 操作会
 重新读取 `/api/local-state` 并更新模型运行时面板，带有短暂的加载状态；如果刷新
 失败，会显示安全且不打扰的提示。当对话回合因结构化错误（标记为
 `retryable: true`）失败时，“Retry” 操作会通过正常的对话端点重新提交上一条失败消息；
-重试绝不自动执行、不轮询，并且不会对不可重试的错误显示。由于失败回合会回滚且不
-存储所有者消息，Console 仅在本地 UI 状态中保留上一条失败输入用于重试，绝不写入
-长期记忆。重试仍会经过 RIN runtime，不会直接调用服务商；模型选择仍由环境/配置决定。
+重试绝不自动执行、不轮询，并且不会对不可重试的错误显示。Package 2 还允许 runtime
+使用同一个 `turnId` 显式重试：它会复用已持久化的 owner message，并在 turn 已完成时
+阻止重复 RIN 回复。重试仍会经过 RIN runtime，不会直接调用服务商；模型选择仍由环境/配置决定。
 
 The initializer creates readable JSON files for the owner model, AI identity,
 AI state, policy config, and model config. These are starter state files only;

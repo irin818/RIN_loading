@@ -4,6 +4,7 @@ import type { RinDataLayout } from "../storage";
 import type {
   ConversationMessageRecord,
   ConversationRecord,
+  ConversationTurnRecord,
 } from "./types";
 import type { MemoryInjectionTrace } from "../memory";
 
@@ -22,6 +23,20 @@ type MessageRow = {
   model_adapter: string | null;
   created_at: string;
   memory_context_json?: string | null;
+};
+
+type ConversationTurnRow = {
+  id: string;
+  conversation_id: string;
+  owner_message_id: string;
+  rin_message_id: string | null;
+  status: ConversationTurnRecord["status"];
+  attempt_count: number;
+  error_code: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  failed_at: string | null;
 };
 
 export function createConversation(
@@ -144,6 +159,183 @@ export function appendMessageMemoryContext(
     );
 }
 
+export function createConversationTurn(
+  database: RinDatabase,
+  input: {
+    id: string;
+    conversationId: string;
+    ownerMessageId: string;
+    now: Date;
+  },
+): ConversationTurnRecord {
+  const timestamp = input.now.toISOString();
+
+  database
+    .prepare(
+      `
+        INSERT INTO conversation_turns (
+          id,
+          conversation_id,
+          owner_message_id,
+          rin_message_id,
+          status,
+          attempt_count,
+          error_code,
+          created_at,
+          updated_at,
+          completed_at,
+          failed_at
+        )
+        VALUES (?, ?, ?, NULL, 'started', 1, NULL, ?, ?, NULL, NULL)
+      `,
+    )
+    .run(
+      input.id,
+      input.conversationId,
+      input.ownerMessageId,
+      timestamp,
+      timestamp,
+    );
+
+  appendAuditEvent(database, {
+    eventType: "conversation.turn_started",
+    payload: {
+      turnId: input.id,
+      conversationId: input.conversationId,
+      ownerMessageId: input.ownerMessageId,
+      attemptCount: 1,
+    },
+    now: input.now,
+  });
+
+  return getConversationTurn(database, input.id);
+}
+
+export function getConversationTurn(
+  database: RinDatabase,
+  turnId: string,
+): ConversationTurnRecord {
+  const row = database
+    .prepare("SELECT * FROM conversation_turns WHERE id = ?")
+    .get(turnId) as ConversationTurnRow | undefined;
+
+  if (!row) {
+    throw new Error(`Conversation turn not found: ${turnId}`);
+  }
+
+  return mapConversationTurn(row);
+}
+
+export function findConversationTurn(
+  database: RinDatabase,
+  turnId: string,
+): ConversationTurnRecord | null {
+  const row = database
+    .prepare("SELECT * FROM conversation_turns WHERE id = ?")
+    .get(turnId) as ConversationTurnRow | undefined;
+
+  return row ? mapConversationTurn(row) : null;
+}
+
+export function markConversationTurnStarted(
+  database: RinDatabase,
+  input: {
+    turnId: string;
+    now: Date;
+  },
+): ConversationTurnRecord {
+  const current = getConversationTurn(database, input.turnId);
+  const nextAttemptCount =
+    current.status === "completed" ? current.attemptCount : current.attemptCount + 1;
+
+  database
+    .prepare(
+      `
+        UPDATE conversation_turns
+        SET status = 'started',
+            attempt_count = ?,
+            error_code = NULL,
+            updated_at = ?,
+            failed_at = NULL
+        WHERE id = ?
+      `,
+    )
+    .run(nextAttemptCount, input.now.toISOString(), input.turnId);
+
+  appendAuditEvent(database, {
+    eventType: "conversation.turn_retry_started",
+    payload: {
+      turnId: input.turnId,
+      conversationId: current.conversationId,
+      ownerMessageId: current.ownerMessageId,
+      attemptCount: nextAttemptCount,
+    },
+    now: input.now,
+  });
+
+  return getConversationTurn(database, input.turnId);
+}
+
+export function markConversationTurnCompleted(
+  database: RinDatabase,
+  input: {
+    turnId: string;
+    rinMessageId: string;
+    now: Date;
+  },
+): ConversationTurnRecord {
+  database
+    .prepare(
+      `
+        UPDATE conversation_turns
+        SET status = 'completed',
+            rin_message_id = ?,
+            error_code = NULL,
+            updated_at = ?,
+            completed_at = ?,
+            failed_at = NULL
+        WHERE id = ?
+      `,
+    )
+    .run(
+      input.rinMessageId,
+      input.now.toISOString(),
+      input.now.toISOString(),
+      input.turnId,
+    );
+
+  return getConversationTurn(database, input.turnId);
+}
+
+export function markConversationTurnFailed(
+  database: RinDatabase,
+  input: {
+    turnId: string;
+    errorCode: string;
+    now: Date;
+  },
+): ConversationTurnRecord {
+  database
+    .prepare(
+      `
+        UPDATE conversation_turns
+        SET status = 'failed',
+            error_code = ?,
+            updated_at = ?,
+            failed_at = ?
+        WHERE id = ?
+      `,
+    )
+    .run(
+      input.errorCode,
+      input.now.toISOString(),
+      input.now.toISOString(),
+      input.turnId,
+    );
+
+  return getConversationTurn(database, input.turnId);
+}
+
 export function getConversation(
   database: RinDatabase,
   conversationId: string,
@@ -157,6 +349,31 @@ export function getConversation(
   }
 
   return mapConversation(row);
+}
+
+export function getConversationMessage(
+  database: RinDatabase,
+  messageId: string,
+): ConversationMessageRecord {
+  const row = database
+    .prepare(
+      `
+        SELECT
+          messages.*,
+          message_memory_contexts.trace_json AS memory_context_json
+        FROM messages
+        LEFT JOIN message_memory_contexts
+          ON message_memory_contexts.message_id = messages.id
+        WHERE messages.id = ?
+      `,
+    )
+    .get(messageId) as MessageRow | undefined;
+
+  if (!row) {
+    throw new Error(`Conversation message not found: ${messageId}`);
+  }
+
+  return mapMessage(row);
 }
 
 export function listConversationMessages(
@@ -208,6 +425,22 @@ function mapConversation(row: ConversationRow): ConversationRecord {
     title: row.title,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function mapConversationTurn(row: ConversationTurnRow): ConversationTurnRecord {
+  return {
+    id: row.id,
+    conversationId: row.conversation_id,
+    ownerMessageId: row.owner_message_id,
+    rinMessageId: row.rin_message_id,
+    status: row.status,
+    attemptCount: row.attempt_count,
+    errorCode: row.error_code,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    completedAt: row.completed_at,
+    failedAt: row.failed_at,
   };
 }
 
