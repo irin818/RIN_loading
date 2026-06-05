@@ -1,6 +1,6 @@
 # RIN v2.0 Progress
 
-Status: Package 7 verification passed; GitHub handoff pending.
+Status: Package 7 PR created; merge pending.
 
 This file must be updated at every v2.0 checkpoint and before ending any Codex
 conversation.
@@ -10,8 +10,8 @@ conversation.
 ## Current State
 
 - Current package: Package 7, Memory V2 production cutover and legacy migration.
-- Current checkpoint: verification complete; commit/PR handoff pending.
-- Package status: full local verification passed.
+- Current checkpoint: PR #57 created and mergeable; merge pending.
+- Package status: full local verification passed; PR #57 open.
 - Active branch: `codex/v2-7-memory-v2-cutover`.
 - Latest verified main commit:
   `ca7c52f8d4bf9a0fe5ecb7569961a4c563b5a6e7`.
@@ -27,6 +27,9 @@ conversation.
   `247b674 Merge pull request #55 from irin818/codex/v2-5-memory-v2-engine`.
 - PR #56 status: merged on `main` as
   `ca7c52f Merge pull request #56 from irin818/codex/v2-6-context-v2-shadow`.
+- PR #57 status: open for Package 7 at
+  `https://github.com/irin818/RIN_loading/pull/57`; `mergeStateStatus` reported
+  `CLEAN` and no status checks were configured at PR creation.
 - Open PRs at Package 7 start: none observed after Package 6 merge.
 - Uncommitted work found at Package 7 start: none.
 - Main/origin/main/HEAD match at Package 7 start: yes.
@@ -357,10 +360,8 @@ conversation.
 
 Finish Package 7 GitHub handoff:
 
-1. Commit the verified Package 7 diff.
-2. Push `codex/v2-7-memory-v2-cutover`.
-3. Open PR and merge only if repository gates pass.
-4. After merge, pull `main`, verify clean state, and start Package 8.
+1. Merge PR #57 only if repository gates still pass.
+2. After merge, pull `main`, verify clean state, and start Package 8.
 
 ## Package Status Ledger
 
@@ -373,5 +374,5 @@ Finish Package 7 GitHub handoff:
 | Package 4 | merged | `codex/v2-4-memory-v2-shadow` | #54 | Memory V2 data model and short-term memory. |
 | Package 5 | merged | `codex/v2-5-memory-v2-engine` | #55 | Automatic memory engine and forgetting curve. |
 | Package 6 | merged | `codex/v2-6-context-v2-shadow` | #56 | Context Assembler V2 shadow path. |
-| Package 7 | in progress | `codex/v2-7-memory-v2-cutover` | pending | Memory V2 cutover and legacy migration. |
+| Package 7 | PR open | `codex/v2-7-memory-v2-cutover` | #57 | Memory V2 cutover and legacy migration. |
 | Package 8 | not started | pending | pending | v2 CLI consolidation and stabilization. |
