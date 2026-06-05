@@ -73,7 +73,8 @@ describe("encrypted backup archive", () => {
     const archive = JSON.parse(await readFile(archivePath, "utf8")) as {
       ciphertextBase64: string;
     };
-    archive.ciphertextBase64 = `A${archive.ciphertextBase64.slice(1)}`;
+    const replacement = archive.ciphertextBase64[0] === "A" ? "B" : "A";
+    archive.ciphertextBase64 = `${replacement}${archive.ciphertextBase64.slice(1)}`;
     await writeFile(archivePath, `${JSON.stringify(archive, null, 2)}\n`, "utf8");
 
     await expect(
