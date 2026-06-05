@@ -32,7 +32,7 @@ import {
 } from "../context";
 import { appendAuditEvent, openRinDatabase, type RinDatabase } from "../database";
 import {
-  listMemoryItems,
+  getMemoryV2ProductionCandidateMemories,
   maybeCreateOwnerMemoryProposal,
   retrieveAcceptedMemoriesWithExplanation,
   selectSemanticContextExpansionCandidates,
@@ -188,6 +188,14 @@ export async function processOwnerMessage(
             modelContext.stats.semanticContextExpansionEnabled,
           memoryContextCharacterCount:
             modelContext.stats.memoryContextCharacterCount,
+          memoryRetrievalSource:
+            memoryRetrieval.retrievalSource ?? "legacy-memory-items",
+          legacyAcceptedMemoryCount:
+            memoryRetrieval.legacyAcceptedMemoryCount ?? null,
+          migratedLegacyMemoryCount:
+            memoryRetrieval.migratedLegacyMemoryCount ?? null,
+          pendingLegacyMemoryCount:
+            memoryRetrieval.pendingLegacyMemoryCount ?? null,
           profileContextIncluded: modelContext.stats.profileContextIncluded,
           profileContextCharacterCount:
             modelContext.stats.profileContextCharacterCount,
@@ -258,6 +266,14 @@ export async function processOwnerMessage(
             modelContext.stats.semanticContextExpansionEnabled,
           memoryContextCharacterCount:
             modelContext.stats.memoryContextCharacterCount,
+          memoryRetrievalSource:
+            memoryRetrieval.retrievalSource ?? "legacy-memory-items",
+          legacyAcceptedMemoryCount:
+            memoryRetrieval.legacyAcceptedMemoryCount ?? null,
+          migratedLegacyMemoryCount:
+            memoryRetrieval.migratedLegacyMemoryCount ?? null,
+          pendingLegacyMemoryCount:
+            memoryRetrieval.pendingLegacyMemoryCount ?? null,
           profileContextIncluded: modelContext.stats.profileContextIncluded,
           profileContextCharacterCount:
             modelContext.stats.profileContextCharacterCount,
@@ -566,10 +582,10 @@ function defaultRetrieveAcceptedMemories(
   database: RinDatabase,
   ownerMessage: string,
 ): AcceptedMemoryRetrievalResult {
-  const acceptedMemories = listMemoryItems(database, {
-    status: "accepted",
+  const productionCandidates = getMemoryV2ProductionCandidateMemories(database, {
     limit: 50,
   });
+  const acceptedMemories = productionCandidates.memories;
 
   const deterministic = retrieveAcceptedMemoriesWithExplanation(
     acceptedMemories,
@@ -587,6 +603,10 @@ function defaultRetrieveAcceptedMemories(
 
   return {
     snippets: [...deterministic.snippets, ...semanticExpansion.snippets],
+    retrievalSource: productionCandidates.retrievalSource,
+    legacyAcceptedMemoryCount: productionCandidates.legacyAcceptedMemoryCount,
+    migratedLegacyMemoryCount: productionCandidates.migratedLegacyMemoryCount,
+    pendingLegacyMemoryCount: productionCandidates.pendingLegacyMemoryCount,
     explanations: [
       ...deterministic.explanations.filter(
         (item) => !semanticCandidateIds.has(item.memoryId),

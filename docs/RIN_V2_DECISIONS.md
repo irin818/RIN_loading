@@ -348,5 +348,42 @@ Implications:
 
 - `rin:context-v2-report` and `rin:context-v2-eval` are provider-free.
 - Reports must not print full prompt, profile, message, or memory text.
-- Production `buildModelContext` and conversation runtime remain unchanged until
-  Package 7 or another explicit cutover task.
+- Production `buildModelContext` still owns provider-facing message construction
+  until a later explicit assembler cutover; Package 7 may use Memory V2 as the
+  production accepted-memory candidate source.
+
+## Decision 0017: legacy accepted-memory cutover is additive and parity-first
+
+Decision:
+
+- Legacy accepted `memory_items` are mapped into Memory V2
+  `legacy_memory_item` retrieval-candidate traces through explicit dry-run,
+  apply, and status commands.
+- The migration is idempotent and additive: it writes only `memory_v2_*` trace
+  rows and preserves legacy accepted memory records and raw messages.
+- Production accepted-memory retrieval uses Memory V2 migrated legacy traces
+  when every accepted legacy memory has a corresponding retrieval trace.
+- If the migration is incomplete, production retrieval falls back to legacy
+  accepted memory records rather than dropping owner-reviewed memory.
+- `/remember` remains a deprecated legacy proposal-only path; it does not
+  directly accept long-term memory and does not make memory model-editable.
+
+Rationale:
+
+- Owner-reviewed accepted memories are slow-variable data and must not lose
+  retrieval semantics during the Memory V2 cutover.
+- A fallback is safer than silently omitting accepted memories when a local data
+  directory has not yet run the Package 7 migration command.
+- Keeping legacy records makes the cutover reversible without destructive
+  schema changes.
+
+Implications:
+
+- `rin:memory-v2-migration-dry-run` and `rin:memory-v2-migration-status` print
+  IDs and counts only, not accepted memory text.
+- `rin:memory-v2-migration-apply` must not mutate `memory_items`, raw messages,
+  profiles, or provider configuration.
+- Runtime raw/audit payloads may record `memoryRetrievalSource` and migration
+  counts for traceability.
+- Context V2 remains report/evaluation-only for provider-facing message order
+  until a later explicit assembler cutover.

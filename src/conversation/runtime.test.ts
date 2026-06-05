@@ -4,7 +4,11 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { defaultEnvironment } from "../config/environment";
 import { inspectRinDatabase, openRinDatabase } from "../database";
-import { createMemoryProposal, reviewMemoryProposal } from "../memory";
+import {
+  applyMemoryV2LegacyMigration,
+  createMemoryProposal,
+  reviewMemoryProposal,
+} from "../memory";
 import { ModelError, type ModelAdapter } from "../model";
 import { initializeRinStorage } from "../storage";
 import type { RinDataLayout } from "../storage";
@@ -249,6 +253,43 @@ describe("processOwnerMessage", () => {
       "Owner prefers local Ollama reasoning models",
     );
     expect(items.every((item) => !("text" in item))).toBe(true);
+  });
+
+  it("uses Memory V2 migrated legacy traces as the production memory source", async () => {
+    const cwd = await createTempRoot();
+    const storage = await initializeRinStorage(defaultEnvironment, { cwd });
+    const memoryId = seedAcceptedMemory(
+      storage.layout,
+      "Owner prefers local Qwen memory v2 retrieval.",
+      new Date("2026-05-19T00:00:00.000Z"),
+    );
+    const database = openRinDatabase(storage.layout);
+
+    try {
+      applyMemoryV2LegacyMigration(
+        database,
+        new Date("2026-05-19T00:00:30.000Z"),
+      );
+    } finally {
+      database.close();
+    }
+
+    await processOwnerMessage(storage.layout, {
+      ownerId: defaultEnvironment.ownerId,
+      content: "How should RIN use local Qwen memory v2 retrieval?",
+      now: new Date("2026-05-19T00:01:00.000Z"),
+    });
+
+    const payload = latestModelResponsePayload(storage.layout);
+
+    expect(payload.memoryRetrievalSource).toBe("memory-v2-legacy-traces");
+    expect(payload.legacyAcceptedMemoryCount).toBe(1);
+    expect(payload.migratedLegacyMemoryCount).toBe(1);
+    expect(payload.pendingLegacyMemoryCount).toBe(0);
+    expect(payload.injectedMemoryIds).toEqual([memoryId]);
+    expect(JSON.stringify(payload)).not.toContain(
+      "Owner prefers local Qwen memory v2 retrieval",
+    );
   });
 
   it("persists and reloads safe memory context trace for successful RIN turns", async () => {

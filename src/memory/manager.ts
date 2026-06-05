@@ -82,7 +82,7 @@ export function maybeCreateOwnerMemoryProposal(
     return null;
   }
 
-  return createMemoryProposal(database, {
+  const proposal = createMemoryProposal(database, {
     memoryType: "semantic",
     content: {
       english: "Owner explicitly requested a memory proposal.",
@@ -92,6 +92,21 @@ export function maybeCreateOwnerMemoryProposal(
     sourceMessageId: ownerMessage.id,
     now,
   });
+
+  appendAuditEvent(database, {
+    eventType: "memory.remember_command_deprecated",
+    payload: {
+      memoryItemId: proposal.id,
+      sourceMessageId: ownerMessage.id,
+      route: "legacy_remember_command",
+      status: "legacy_proposal_only",
+      directAcceptance: false,
+      modelEditable: false,
+    },
+    now,
+  });
+
+  return proposal;
 }
 
 export function createMemoryProposal(
