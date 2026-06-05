@@ -1,5 +1,9 @@
 import type { OllamaGenerationOptions } from "./config";
 import { ModelError, type ModelErrorCode } from "./errors";
+import {
+  hasUnsafeThinkingLeak,
+  sanitizeAssistantContent,
+} from "./assistantResponseQuality";
 import type { ModelAdapter, ModelMessage, ModelRequest, ModelResponse } from "./types";
 
 export type OllamaAdapterOptions = {
@@ -142,7 +146,10 @@ type OllamaErrorContext = {
 
 type OllamaInvalidResponseDetails = {
   emptyContent?: boolean;
+  emptyAfterThinkingRemoval?: boolean;
   possibleReasoningOnlyOutput?: boolean;
+  thinkingArtifactRemoved?: boolean;
+  unsafeContentIssue?: string;
   responseFields?: string[];
 };
 
@@ -234,7 +241,46 @@ function readOllamaAssistantContent(
     );
   }
 
-  return content;
+  const sanitized = sanitizeAssistantContent(content);
+
+  if (sanitized.content.trim().length === 0) {
+    throw modelError(
+      context,
+      "MODEL_RESPONSE_INVALID",
+      [
+        "Ollama returned no final assistant content after removing thinking artifacts.",
+        "Increase RIN_OLLAMA_NUM_PREDICT, use a shorter prompt, check Qwen3 reasoning behavior, or try a non-reasoning local model if available.",
+      ].join(" "),
+      undefined,
+      {
+        emptyContent: true,
+        emptyAfterThinkingRemoval: true,
+        possibleReasoningOnlyOutput: true,
+        thinkingArtifactRemoved: sanitized.removedThinkingArtifacts,
+        responseFields: readResponseFields(value),
+      },
+    );
+  }
+
+  if (hasUnsafeThinkingLeak(sanitized.content)) {
+    throw modelError(
+      context,
+      "MODEL_RESPONSE_INVALID",
+      [
+        "Ollama response included internal analysis text instead of safe final assistant content.",
+        "Retry with a shorter prompt or adjust the local model/system prompt.",
+      ].join(" "),
+      undefined,
+      {
+        possibleReasoningOnlyOutput: true,
+        thinkingArtifactRemoved: sanitized.removedThinkingArtifacts,
+        unsafeContentIssue: "internal_analysis",
+        responseFields: readResponseFields(value),
+      },
+    );
+  }
+
+  return sanitized.content;
 }
 
 function readResponseFields(value: unknown): string[] {

@@ -10,7 +10,9 @@ describe("buildRinSystemPrompt", () => {
     expect(message.content).toContain("local-first");
     expect(message.content).toContain("not RIN's identity source");
     expect(message.content).toContain("Chinese-friendly");
+    expect(message.content).toContain("Never reveal hidden reasoning");
+    expect(message.content).toContain("harmless daily-life questions");
     expect(message.content).not.toContain("PROJECT_CHARTER");
+    expect(message.content).not.toContain("reasoning/chat model");
   });
 });
-

@@ -75,9 +75,11 @@ Current known module boundaries include:
   external provider smoke diagnostic for handoff; it is not part of default
   checks and requires a separate live-smoke confirmation before any external
   call. v1.1-A hardens the Ollama/Qwen3 local chat path by requesting final
-  content with `think: false`, classifying empty final content safely, and adding
-  an explicit local-only chat smoke command that skips unless the local adapter
-  is selected.
+  content with `think: false`, classifying empty final content safely, removing
+  recognized thinking-tag content from non-empty responses, rejecting remaining
+  internal-analysis-style output, and adding provider-free daily chat evaluation
+  plus an explicit local-only daily chat smoke command that skips unless the
+  local adapter is selected.
 - `src/memory/`: memory proposal, review, metadata, and manager boundary. It also
   provides deterministic retrieval of explicitly accepted memories for bounded
   injection into model context, plus safe injection explanation metadata (matched

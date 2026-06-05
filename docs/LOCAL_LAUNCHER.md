@@ -43,7 +43,10 @@ The local model launcher defaults to:
 These defaults give Qwen3 more room to produce final assistant content. The
 Ollama adapter also sends `think: false` for local chat so Qwen3 returns final
 assistant text instead of spending the response on `message.thinking`. You can
-override the numeric settings in your shell before launching if needed.
+override the numeric settings in your shell before launching if needed. If Qwen3
+still returns thinking tags or a reasoning preamble in `message.content`, the
+adapter removes recognized thinking-tag content and rejects remaining
+internal-analysis-style output instead of storing it as a RIN reply.
 
 ## Local Chat Smoke
 
@@ -62,12 +65,41 @@ npm run rin:local-chat-smoke
 Without `RIN_MODEL_ADAPTER=rin-ollama-local`, the command skips safely and does
 not call a model.
 
+## Daily Chat Quality Checks
+
+Run the default provider-free daily chat fixture gate:
+
+```sh
+npm run rin:daily-chat-eval
+```
+
+This command does not require Ollama, does not read real `.rin-data`, and does
+not print full chat text. It checks common daily prompts for thinking leaks,
+policy dumps, fake external access claims, empty output, and excessive length.
+
+Run the optional live local daily chat smoke only when local Ollama is selected:
+
+```sh
+RIN_MODEL_ADAPTER=rin-ollama-local \
+RIN_OLLAMA_BASE_URL=http://127.0.0.1:11434 \
+RIN_OLLAMA_MODEL=qwen3:4b \
+RIN_OLLAMA_NUM_PREDICT=1024 \
+RIN_OLLAMA_TIMEOUT_MS=180000 \
+npm run rin:daily-chat-live-smoke
+```
+
+The live smoke uses a temporary data directory, does not read the owner's real
+`.rin-data`, does not call external APIs, and reports only safe status, length,
+issue code, and call-count fields.
+
 ## Empty Content / MODEL_RESPONSE_INVALID
 
 If Qwen3 returns `MODEL_RESPONSE_INVALID`, it may have produced no final
 `message.content`. This can happen when the model spends its output budget on
 reasoning/thinking. RIN does not store thinking-only output as a fake assistant
-reply and does not print raw provider responses.
+reply and does not print raw provider responses. The same error can also mean
+the response still looked like internal analysis after thinking artifacts were
+removed.
 
 Try:
 

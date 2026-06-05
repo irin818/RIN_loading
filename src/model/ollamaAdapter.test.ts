@@ -237,6 +237,134 @@ describe("createOllamaAdapter", () => {
     expect(JSON.stringify(error.details)).not.toContain("long reasoning");
   });
 
+  it("strips paired thinking tags before returning assistant content", async () => {
+    const adapter = createOllamaAdapter({
+      id: "rin-ollama-local",
+      displayName: "Test Ollama adapter",
+      baseUrl: "http://127.0.0.1:11434",
+      model: "qwen3:4b",
+      timeoutMs: 1_000,
+      generationOptions,
+      fetchFn: async () =>
+        new Response(
+          JSON.stringify({
+            message: {
+              role: "assistant",
+              content:
+                "<think>private reasoning must not be stored</think>\n\n今晚可以吃番茄鸡蛋面。",
+            },
+          }),
+          { status: 200 },
+        ),
+    });
+    const response = await adapter.generate({
+      ownerId: "owner-a",
+      conversationId: "conversation-a",
+      messages: [{ role: "owner", content: "今天晚上吃什么好" }],
+    });
+
+    expect(response.content).toBe("今晚可以吃番茄鸡蛋面。");
+    expect(response.content).not.toContain("private reasoning");
+    expect(response.content).not.toContain("<think>");
+  });
+
+  it("keeps only final content after an unpaired closing thinking tag", async () => {
+    const adapter = createOllamaAdapter({
+      id: "rin-ollama-local",
+      displayName: "Test Ollama adapter",
+      baseUrl: "http://127.0.0.1:11434",
+      model: "qwen3:4b",
+      timeoutMs: 1_000,
+      generationOptions,
+      fetchFn: async () =>
+        new Response(
+          JSON.stringify({
+            message: {
+              role: "assistant",
+              content:
+                "首先，用户问晚饭建议，我需要分析偏好。\n</think>\n\n今晚可以吃番茄鸡蛋面。",
+            },
+          }),
+          { status: 200 },
+        ),
+    });
+    const response = await adapter.generate({
+      ownerId: "owner-a",
+      conversationId: "conversation-a",
+      messages: [{ role: "owner", content: "今天晚上吃什么好" }],
+    });
+
+    expect(response.content).toBe("今晚可以吃番茄鸡蛋面。");
+    expect(response.content).not.toContain("首先");
+    expect(response.content).not.toContain("</think>");
+  });
+
+  it("rejects thinking-only content after removing thinking artifacts", async () => {
+    const adapter = createOllamaAdapter({
+      id: "rin-ollama-local",
+      displayName: "Test Ollama adapter",
+      baseUrl: "http://127.0.0.1:11434",
+      model: "qwen3:4b",
+      timeoutMs: 1_000,
+      generationOptions,
+      fetchFn: async () =>
+        new Response(
+          JSON.stringify({
+            message: {
+              role: "assistant",
+              content: "<think>private reasoning must not be stored</think>",
+            },
+          }),
+          { status: 200 },
+        ),
+    });
+    const error = await captureModelError(
+      adapter.generate({
+        ownerId: "owner-a",
+        conversationId: "conversation-a",
+        messages: [{ role: "owner", content: "今天晚上吃什么好" }],
+      }),
+    );
+
+    expect(error.code).toBe("MODEL_RESPONSE_INVALID");
+    expect(error.details.emptyAfterThinkingRemoval).toBe(true);
+    expect(error.details.thinkingArtifactRemoved).toBe(true);
+    expect(JSON.stringify(error.details)).not.toContain("private reasoning");
+  });
+
+  it("rejects untagged internal analysis instead of storing it", async () => {
+    const adapter = createOllamaAdapter({
+      id: "rin-ollama-local",
+      displayName: "Test Ollama adapter",
+      baseUrl: "http://127.0.0.1:11434",
+      model: "qwen3:4b",
+      timeoutMs: 1_000,
+      generationOptions,
+      fetchFn: async () =>
+        new Response(
+          JSON.stringify({
+            message: {
+              role: "assistant",
+              content:
+                "首先，用户问今天晚上吃什么好。我需要考虑偏好后再回答。",
+            },
+          }),
+          { status: 200 },
+        ),
+    });
+    const error = await captureModelError(
+      adapter.generate({
+        ownerId: "owner-a",
+        conversationId: "conversation-a",
+        messages: [{ role: "owner", content: "今天晚上吃什么好" }],
+      }),
+    );
+
+    expect(error.code).toBe("MODEL_RESPONSE_INVALID");
+    expect(error.details.unsafeContentIssue).toBe("internal_analysis");
+    expect(JSON.stringify(error.details)).not.toContain("今天晚上吃什么好");
+  });
+
   it("throws a clear error when local model configuration is missing", () => {
     expect(() =>
       createOllamaAdapter({

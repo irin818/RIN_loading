@@ -6,7 +6,10 @@ export type ConversationErrorDetails = {
   baseUrl?: string;
   model?: string;
   emptyContent?: boolean;
+  emptyAfterThinkingRemoval?: boolean;
   possibleReasoningOnlyOutput?: boolean;
+  thinkingArtifactRemoved?: boolean;
+  unsafeContentIssue?: string;
   responseFields?: string[];
 };
 
@@ -120,9 +123,21 @@ function fromModelError(error: ModelError): ConversationError {
     details.emptyContent = error.details.emptyContent;
   }
 
+  if (error.details.emptyAfterThinkingRemoval !== undefined) {
+    details.emptyAfterThinkingRemoval = error.details.emptyAfterThinkingRemoval;
+  }
+
   if (error.details.possibleReasoningOnlyOutput !== undefined) {
     details.possibleReasoningOnlyOutput =
       error.details.possibleReasoningOnlyOutput;
+  }
+
+  if (error.details.thinkingArtifactRemoved !== undefined) {
+    details.thinkingArtifactRemoved = error.details.thinkingArtifactRemoved;
+  }
+
+  if (error.details.unsafeContentIssue) {
+    details.unsafeContentIssue = error.details.unsafeContentIssue;
   }
 
   if (error.details.responseFields) {

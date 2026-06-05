@@ -8,6 +8,11 @@ Status: v1.0 audit summary.
 - External providers remain optional fast variables.
 - Default checks do not require API keys.
 - Default external provider smoke reports `providerCallCount: 0`.
+- Daily chat evaluation is provider-free by default, does not read real
+  `.rin-data`, and does not print full chat text.
+- Daily chat live smoke is skipped unless the local Ollama adapter is explicitly
+  selected; when run, it uses temporary data and reports only safe status,
+  length, issue-code, and call-count fields.
 - Memory, identity, policy, audit logs, backups, migrations, and continuity
   remain local slow variables.
 - Tool/MCP execution is default-deny.
