@@ -131,12 +131,16 @@ Current known module boundaries include:
   suggestion-only health/conflict/archive/merge reports. These reports may read
   memory content internally for deterministic comparison but only print memory
   IDs, statuses, types, counts, and reason codes; they never mutate memory or
-  print full memory text.
+  print full memory text. Memory V2 shadow schema and five-hour short-term
+  memory reports live here in report-only mode. They reference raw conversation
+  message IDs, roles, timestamps, and character counts without duplicating full
+  raw message text into Memory V2 tables or changing production retrieval.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
 - `src/storage/`: controlled local storage layout and manifest logic.
 - `src/database/`: SQLite schema, migrations, and connection helpers, including
-  side-table storage for optional owner-reviewed memory metadata.
+  side-table storage for optional owner-reviewed memory metadata and additive
+  Memory V2 shadow tables.
 - Agent complexity decommissioned in v2: `src/tools/`, `src/actions/`,
   `src/planner/`, and `src/tasks/` are no longer active source modules. The
   L0-L5 runtime permission hierarchy, tool execution path, MCP boundary smoke,

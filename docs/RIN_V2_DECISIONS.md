@@ -271,3 +271,28 @@ Implications:
   invalid.
 - `rin:profile-validate` may fail on invalid local profile files.
 - `rin:profile-report` reports status/counts/issues only.
+
+## Decision 0014: Memory V2 starts as shadow schema and reports
+
+Decision:
+
+- Memory V2 begins with additive shadow tables for trace sources, traces,
+  trace signals, and retrieval events.
+- The five-hour short-term memory report references raw conversation messages
+  by ID, role, timestamp, and character count only.
+- Production accepted-memory retrieval remains unchanged.
+- Full raw conversation text is not duplicated into Memory V2 tables.
+
+Rationale:
+
+- Memory V2 needs schema and reporting foundations before automatic formation,
+  decay, or production retrieval cutover.
+- Raw conversations remain the source of raw history and must stay auditable.
+
+Implications:
+
+- `rin:memory-v2-schema-report` reports shadow schema readiness without provider
+  calls.
+- `rin:short-term-memory-report` is report-only and prints no full message text.
+- Future Memory V2 engines may write shadow traces, but production retrieval
+  cannot switch until an explicit cutover package.

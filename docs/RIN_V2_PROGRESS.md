@@ -1,6 +1,6 @@
 # RIN v2.0 Progress
 
-Status: Package 3 verification passed; PR pending.
+Status: Package 4 verification passed; PR pending.
 
 This file must be updated at every v2.0 checkpoint and before ending any Codex
 conversation.
@@ -9,18 +9,20 @@ conversation.
 
 ## Current State
 
-- Current package: Package 3, local RIN and owner profile configuration.
+- Current package: Package 4, Memory V2 data model and short-term memory.
 - Package status: verification passed, PR pending.
-- Active branch: `codex/v2-3-local-profiles`.
+- Active branch: `codex/v2-4-memory-v2-shadow`.
 - Latest verified main commit:
-  `cfb7b7b02787002164d1137f65c16032341503f3`.
+  `0f5d4536ede3a8c3179abd3e8ee4c76eec37cdea`.
 - PR #51 status: merged on `main` as
   `1b237c7 Merge pull request #51 from irin818/codex/v2-1-decommission-agent-complexity`.
 - PR #52 status: merged on `main` as
   `cfb7b7b Merge pull request #52 from irin818/codex/v2-2-conversation-persistence`.
-- Open PRs at Package 3 start: none observed after Package 2 merge.
-- Uncommitted work found at Package 3 start: none.
-- Main/origin/main/HEAD match at Package 3 start: yes.
+- PR #53 status: merged on `main` as
+  `0f5d453 Merge pull request #53 from irin818/codex/v2-3-local-profiles`.
+- Open PRs at Package 4 start: none observed after Package 3 merge.
+- Uncommitted work found at Package 4 start: none.
+- Main/origin/main/HEAD match at Package 4 start: yes.
 
 ## Completed Package 1 Work
 
@@ -65,6 +67,20 @@ conversation.
 - Added profile files to slow-variable snapshots for traceability.
 - Updated architecture, README, project map, and v2 decisions to document manual
   profile ownership and report redaction boundaries.
+
+## Package 4 Work In Progress
+
+- Added additive schema migration `6` with Memory V2 shadow tables for trace
+  sources, traces, trace signals, and retrieval events.
+- Added `npm run rin:memory-v2-schema-report`.
+- Added `npm run rin:short-term-memory-report`.
+- The short-term memory report uses a five-hour rolling window over raw
+  conversation messages and prints only IDs, roles, timestamps, and character
+  counts.
+- Production accepted-memory retrieval remains unchanged.
+- Full raw conversation text is not duplicated into Memory V2 tables.
+- Updated architecture, README, project map, and v2 decisions for Memory V2
+  shadow/report-only constraints.
 
 ## Checks
 
@@ -141,10 +157,36 @@ conversation.
   passed.
 - Package 3 `git diff --check`: passed.
 - Package 3 final verification: passed.
+- Package 3 PR #53: merged to `main`; local `main`, `origin/main`, and branch
+  start point matched before Package 4 started.
+- Package 4 focused `npm run typecheck`: passed before final aggregate checks.
+- Package 4 focused `npm test -- src/memory/v2Schema.test.ts src/database/initialize.test.ts src/storage/initialize.test.ts`:
+  passed, 8 tests.
+- Package 4 temporary test data directory:
+  `/tmp/rin-v2-package4.zhapOA`.
+- Package 4 `RIN_DATA_DIR=/tmp/rin-v2-package4.zhapOA npm run rin:init`:
+  passed; database schema version 6.
+- Package 4 `RIN_DATA_DIR=/tmp/rin-v2-package4.zhapOA npm run rin:memory-v2-schema-report`:
+  passed; status ready, providerCallCount 0, full text included no.
+- Package 4 `RIN_DATA_DIR=/tmp/rin-v2-package4.zhapOA npm run rin:short-term-memory-report`:
+  passed on sequential rerun; status ready, five-hour window, providerCallCount
+  0, production retrieval changed no, full text included no.
+- Package 4 `RIN_DATA_DIR=/tmp/rin-v2-package4.zhapOA npm run rin:check`:
+  passed; 56 test files and 279 tests passed, lint/build/readiness/memory eval
+  and daily chat eval passed.
+- Package 4 explicit `RIN_DATA_DIR=/tmp/rin-v2-package4.zhapOA npm run rin:memory-eval`:
+  passed; 29/29 cases, providerCallCount 0.
+- Package 4 explicit `RIN_DATA_DIR=/tmp/rin-v2-package4.zhapOA npm run rin:daily-chat-eval`:
+  passed; 8/8 cases, providerCallCount 0, external provider calls 0, real
+  `.rin-data` read no, full text included no.
+- Package 4 `RIN_DATA_DIR=/tmp/rin-v2-package4.zhapOA npm run rin:v1-check`:
+  passed; integrity report shows schema version 6.
+- Package 4 `git diff --check`: passed.
+- Package 4 final verification: passed.
 
 ## Unresolved Risks
 
-- Package 3 checks passed locally.
+- Package 4 checks passed locally.
 - Historical v0.x/v1 documents still describe old Agent scaffolds as historical
   behavior; current v2 docs mark those paths as decommissioned.
 - `Agent State Bundle` naming remains for portability compatibility and does not
@@ -153,13 +195,13 @@ conversation.
 
 ## Next Exact Task
 
-Finish Package 3 GitHub handoff:
+Finish Package 4 GitHub handoff:
 
-1. Commit the verified Package 3 diff.
-2. Push `codex/v2-3-local-profiles`.
+1. Commit the verified Package 4 diff.
+2. Push `codex/v2-4-memory-v2-shadow`.
 3. Open PR and merge only if repository gates pass.
 4. After merge, pull `main` and verify clean state.
-5. Start Package 4 only from updated `main`.
+5. Start Package 5 only from updated `main`.
 
 ## Package Status Ledger
 
@@ -168,8 +210,8 @@ Finish Package 3 GitHub handoff:
 | Package 0 | merged | `codex/v2-0-recovery-and-persistent-plan` | #50 | Recovery and persistent v2 plan merged to `main`. |
 | Package 1 | merged | `codex/v2-1-decommission-agent-complexity` | #51 | Decommission inventory and safe Agent complexity removal. |
 | Package 2 | merged | `codex/v2-2-conversation-persistence` | #52 | Conversation runtime persistence redesign. |
-| Package 3 | verified locally | `codex/v2-3-local-profiles` | pending | Local RIN/Owner profile configuration. |
-| Package 4 | not started | pending | pending | Memory V2 data model and short-term memory. |
+| Package 3 | merged | `codex/v2-3-local-profiles` | #53 | Local RIN/Owner profile configuration. |
+| Package 4 | verified locally | `codex/v2-4-memory-v2-shadow` | pending | Memory V2 data model and short-term memory. |
 | Package 5 | not started | pending | pending | Automatic memory engine and forgetting curve. |
 | Package 6 | not started | pending | pending | Context Assembler V2 shadow path. |
 | Package 7 | not started | pending | pending | Memory V2 cutover and legacy migration. |

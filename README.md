@@ -186,6 +186,8 @@ npm run rin:local-chat-smoke
 npm run rin:conversation-runtime-report
 npm run rin:profile-validate
 npm run rin:profile-report
+npm run rin:short-term-memory-report
+npm run rin:memory-v2-schema-report
 npm run rin:daily-chat-eval
 npm run rin:daily-chat-live-smoke
 npm run rin:project-report
@@ -1123,6 +1125,20 @@ does not print full private profile text.
 `npm run rin:profile-validate` 验证，由 `npm run rin:profile-report` 安全汇总，
 并且只通过 runtime 以紧凑形式进入模型上下文。报告只输出计数、状态和验证问题，
 不会输出完整私有 profile 正文。
+
+Memory V2 currently runs in shadow/report-only mode. `npm run
+rin:memory-v2-schema-report` checks the additive shadow tables for trace
+sources, traces, signals, and retrieval events. `npm run
+rin:short-term-memory-report` builds a five-hour rolling window from raw
+conversation messages using IDs, roles, timestamps, and character counts only.
+It does not copy full raw messages into Memory V2 tables, does not change
+production accepted-memory retrieval, and does not call providers.
+
+Memory V2 当前处于 shadow/report-only 模式。`npm run
+rin:memory-v2-schema-report` 会检查 trace source、trace、signal 和 retrieval
+event 的新增 shadow 表。`npm run rin:short-term-memory-report` 会从原始对话消息
+生成五小时滚动窗口，但只使用 ID、角色、时间戳和字符数。它不会把完整原始消息复制进
+Memory V2 表，不会改变生产 accepted-memory 检索，也不会调用 provider。
 
 ## Test
 
