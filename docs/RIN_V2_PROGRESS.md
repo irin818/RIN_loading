@@ -1,6 +1,6 @@
 # RIN v2.0 Progress
 
-Status: Package 8 local verification passed; GitHub handoff pending.
+Status: RIN v2.0 completed and tagged.
 
 This file must be updated at every v2.0 checkpoint and before ending any Codex
 conversation.
@@ -9,13 +9,12 @@ conversation.
 
 ## Current State
 
-- Current package: Package 8, CLI consolidation and v2.0 stabilization.
-- Current checkpoint: local verification complete; commit, PR, merge, final
-  main verification, and tag pending.
-- Package status: full local verification passed on the package branch.
-- Active branch: `codex/v2-8-stabilization`.
-- Latest verified main commit:
-  `2af75b460a5135f42b7f4dfbc45c5edf62894f3f`.
+- Current package: Package 8 completed.
+- Current checkpoint: v2.0 final main verification passed and `v2.0.0` pushed.
+- Package status: merged, verified on `main`, and tagged.
+- Active branch: `main`.
+- Latest verified release commit:
+  `bf7ba722ee3233a07e2bb8823f4fa450206f3a8a`.
 - PR #51 status: merged on `main` as
   `1b237c7 Merge pull request #51 from irin818/codex/v2-1-decommission-agent-complexity`.
 - PR #52 status: merged on `main` as
@@ -30,6 +29,12 @@ conversation.
   `ca7c52f Merge pull request #56 from irin818/codex/v2-6-context-v2-shadow`.
 - PR #57 status: merged on `main` as
   `2af75b4 Merge pull request #57 from irin818/codex/v2-7-memory-v2-cutover`.
+- PR #58 status: merged on `main` as
+  `d2b6c67 Merge pull request #58 from irin818/codex/v2-8-stabilization`.
+- PR #59 status: merged on `main` as
+  `bf7ba72 Merge pull request #59 from irin818/codex/v2-final-test-fix`.
+- Release tag: `v2.0.0` pushed at
+  `bf7ba722ee3233a07e2bb8823f4fa450206f3a8a`.
 - Open PRs at Package 8 start: none observed after Package 7 merge.
 - Uncommitted work found at Package 8 start: none.
 - Main/origin/main/HEAD match at Package 8 start: yes.
@@ -407,11 +412,39 @@ conversation.
   characters detected outside ignored generated/local-data directories.
 - Package 8 optional Ollama/Qwen3 live smoke: skipped; Ollama CLI exists but no
   local service responded on `127.0.0.1:11434`.
+- Final main verification temporary test data directory:
+  `/tmp/rin-v2-final-main2.ATsVD0`.
+- Final main `RIN_DATA_DIR=/tmp/rin-v2-final-main2.ATsVD0 npm run rin:init`:
+  passed; database schema version 6.
+- Final main `RIN_DATA_DIR=/tmp/rin-v2-final-main2.ATsVD0 npm run rin:v2-check`:
+  passed three consecutive times; each run passed 59 test files and 290 tests
+  inside `rin:check`, Context V2 eval 3/3, Memory V2 eval 5/5, semantic eval
+  11/11, and providerCallCount remained 0.
+- Final main `RIN_DATA_DIR=/tmp/rin-v2-final-main2.ATsVD0 npm run rin:check`:
+  passed; 59 test files and 290 tests passed.
+- Final main `RIN_DATA_DIR=/tmp/rin-v2-final-main2.ATsVD0 npm run rin:v1-check`:
+  passed after PR #59 stabilized the encrypted backup tamper test fixture.
+- Final main `RIN_DATA_DIR=/tmp/rin-v2-final-main2.ATsVD0 npm run rin:daily-chat-eval`:
+  passed; 8/8 cases, providerCallCount 0, external provider calls 0, real
+  `.rin-data` read no, full text included no.
+- Final main `RIN_DATA_DIR=/tmp/rin-v2-final-main2.ATsVD0 npm run rin:memory-v2-eval`:
+  passed; 5/5 cases, providerCallCount 0.
+- Final main `RIN_DATA_DIR=/tmp/rin-v2-final-main2.ATsVD0 npm run rin:context-v2-eval`:
+  passed; 3/3 cases, providerCallCount 0.
+- Final main `git diff --check`: passed.
+- Final main local-data scan: no tracked `.rin-data`, `node_modules`, `dist`,
+  `.env`, sqlite/db/log files.
+- Final main secret-like scan: matches were documentation examples, historical
+  task policy references, branch naming text, and CSS masks only.
+- Final main hidden control character scan: passed; no control or
+  bidi/zero-width characters detected outside ignored generated/local-data
+  directories.
+- Final main optional Ollama/Qwen3 live smoke: skipped; Ollama CLI exists but no
+  local service responded on `127.0.0.1:11434`.
+- Final tag `v2.0.0`: created and pushed.
 
 ## Unresolved Risks
 
-- Package 8 checks passed locally; final main verification and tag are pending
-  until after PR merge.
 - Historical v0.x/v1 documents still describe old Agent scaffolds as historical
   behavior; current v2 docs mark those paths as decommissioned.
 - `Agent State Bundle` naming remains for portability compatibility and does not
@@ -420,17 +453,19 @@ conversation.
 - Context V2 provider-facing message assembly remains report/evaluation-only;
   Package 7 cuts production accepted-memory candidate sourcing over to Memory V2
   migrated traces while preserving existing provider message construction.
+- Optional local Ollama/Qwen3 live smoke remains unverified because the local
+  Ollama service was not running during final checks.
 
 ## Next Exact Task
 
-Finish Package 8 GitHub handoff and final release verification:
+Post-v2 recommended next task:
 
-1. Commit the verified Package 8 branch.
-2. Push, open PR, and merge only if gates pass.
-3. After merge, pull `main` and verify clean state.
-4. Run final `npm run rin:v2-check`, `npm run rin:check`,
-   `npm run rin:v1-check`, and `git diff --check` on `main`.
-5. Create and push `v2.0.0` only after final verification passes.
+1. Start a separate governed post-v2 branch for local Ollama/Qwen3 live
+   conversation quality hardening and owner-approved real local data setup.
+2. Keep real `.rin-data` migration explicit; run Memory V2 legacy migration
+   apply only after owner intent and backup review.
+3. Keep Server/UI/body/sync feature expansion separate from this completed v2
+   core release.
 
 ## Package Status Ledger
 
@@ -444,4 +479,5 @@ Finish Package 8 GitHub handoff and final release verification:
 | Package 5 | merged | `codex/v2-5-memory-v2-engine` | #55 | Automatic memory engine and forgetting curve. |
 | Package 6 | merged | `codex/v2-6-context-v2-shadow` | #56 | Context Assembler V2 shadow path. |
 | Package 7 | merged | `codex/v2-7-memory-v2-cutover` | #57 | Memory V2 cutover and legacy migration. |
-| Package 8 | local verification passed | `codex/v2-8-stabilization` | pending | v2 CLI consolidation and stabilization. |
+| Package 8 | merged and tagged | `codex/v2-8-stabilization` | #58 | v2 CLI consolidation and stabilization. |
+| Final test fix | merged | `codex/v2-final-test-fix` | #59 | Stabilized encrypted backup tamper test before final tag. |
