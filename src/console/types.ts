@@ -49,11 +49,6 @@ export type LocalConsoleSnapshot = {
     expression: string | null;
     initiative: string | null;
   };
-  permissions: {
-    defaultRequiresConfirmationFrom: string | null;
-    forbiddenAutomaticActions: string[];
-    riskLevels: Record<string, string>;
-  };
   modelConfig: {
     activeAdapter: string | null;
     selectedProvider: string;
@@ -71,9 +66,6 @@ export type LocalConsoleSnapshot = {
       topP: number;
       invalidEnvironment: string[];
     };
-  };
-  toolRegistry: {
-    toolCount: number;
   };
   portability: {
     exportBundles: number;
@@ -95,16 +87,12 @@ export type LocalConsoleSnapshot = {
       mode: string;
       providerCallCount: 0;
     };
-    permissions: {
-      dryRunActionCount: number;
-      unknownActionsBlocked: true;
-      destructiveActionsBlocked: true;
-    };
-    planner: {
-      available: true;
-      status: "ready" | "blocked" | "completed";
-      executedActionCount: 0;
-      backgroundLoopStarted: false;
+    agentRuntime: {
+      actionExecutionActive: false;
+      toolExecutionActive: false;
+      plannerActive: false;
+      taskAutonomyActive: false;
+      legacyToolInvocationCount: number;
     };
     backup: {
       dryRunAvailable: true;

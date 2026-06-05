@@ -1,6 +1,6 @@
 # RIN v2.0 Progress
 
-Status: recovery baseline checks passed; PR open.
+Status: Package 1 verification passed; PR pending.
 
 This file must be updated at every v2.0 checkpoint and before ending any Codex
 conversation.
@@ -9,70 +9,93 @@ conversation.
 
 ## Current State
 
-- Current package: Recovery / Package 0 planning baseline.
-- Package status: checks passed, PR open, merge gate review in progress.
-- Active branch: `codex/v2-0-recovery-and-persistent-plan`.
+- Current package: Package 1, decommission Agent complexity and permission
+  hierarchy.
+- Package status: verification passed, PR pending.
+- Active branch: `codex/v2-1-decommission-agent-complexity`.
 - Latest verified main commit:
-  `c9dfd3681010162a61d54fa246d13f24a5197c6f`.
-- PR #49 status: merged on `main` as
-  `c9dfd36 Merge pull request #49 from irin818/codex/v1-1-a-daily-chat-quality`.
-- Open PRs at recovery inspection: none.
-- Interrupted v2 branch found: none.
-- Interrupted v2 documents found: none.
-- Uncommitted work found at recovery start: none.
-- Main/origin/main/HEAD match at recovery start: yes.
+  `4c12268fd9e37cd24bd460105ef7918c1aac4ee1`.
+- PR #50 status: merged on `main` as
+  `4c12268 Merge pull request #50 from irin818/codex/v2-0-recovery-and-persistent-plan`.
+- Open PRs at Package 1 start: none observed.
+- Uncommitted work found at Package 1 start: none.
+- Main/origin/main/HEAD match at Package 1 start: yes.
 
-## Completed Commits
+## Completed Package 1 Work
 
-- `0dec6a4 docs: add RIN v2 recovery plan`
-- This progress update is included in the active PR branch; use `git log` for
-  the exact final commit hash after push.
+- Created `docs/RIN_V2_DECOMMISSION_INVENTORY.md`.
+- Removed active `src/actions`, `src/planner`, `src/tasks`, and `src/tools`
+  implementation/test files.
+- Removed active Agent/action/planner/task/tool/MCP CLI surfaces and npm scripts.
+- Removed the `/api/tools/:id` local Console route.
+- Stopped generating new `config/tool_registry.json` and
+  `config/permissions.json` files.
+- Replaced active Console permissions/planner/tool status with a
+  decommissioned Agent runtime status and legacy tool invocation count.
+- Retained SQLite `tool_invocations` schema/counts for old data compatibility.
+- Updated governance/current-state docs to distinguish removed Agent permission
+  hierarchy from retained data-integrity protections.
 
 ## Pull Request
 
-- PR URL/status:
-  `https://github.com/irin818/RIN_loading/pull/50` open at checkpoint.
+- PR URL/status: pending.
 
 ## Checks
 
-- Temporary test data directory:
-  `/tmp/rin-v2-recovery-check.jXjLtW`.
-- `npm run rin:check`: passed.
-- `npm run rin:v1-check`: passed.
-- `npm run rin:daily-chat-eval`: passed.
-- `git diff --check`: passed.
-- External provider calls: `0`.
+- Baseline temporary test data directory:
+  `/tmp/rin-v2-initial-baseline.0W2COA`.
+- Baseline `npm run rin:init`: passed before Package 1 edits.
+- Baseline `npm run rin:check`: passed before Package 1 edits.
+- Baseline `npm run rin:v1-check`: passed before Package 1 edits.
+- Baseline `npm run rin:daily-chat-eval`: passed before Package 1 edits.
+- Baseline `npm run rin:memory-eval`: passed before Package 1 edits.
+- Baseline `npm run rin:semantic-eval`: passed before Package 1 edits.
+- Baseline `npm run rin:readiness`: passed before Package 1 edits with the
+  expected live-model warning.
+- Package 1 temporary test data directory:
+  `/tmp/rin-v2-package1.CESlHx`.
+- Package 1 `npm run typecheck`: passed.
+- Package 1 `npm test`: passed, 53 files and 268 tests.
+- Package 1 `RIN_DATA_DIR=/tmp/rin-v2-package1.CESlHx npm run rin:init`:
+  passed; new data directories no longer generate `tool_registry.json` or
+  `permissions.json`.
+- Package 1 `RIN_DATA_DIR=/tmp/rin-v2-package1.CESlHx npm run rin:check`:
+  passed.
+- Package 1 `RIN_DATA_DIR=/tmp/rin-v2-package1.CESlHx npm run rin:v1-check`:
+  passed.
+- Package 1 `RIN_DATA_DIR=/tmp/rin-v2-package1.CESlHx npm run rin:local-chat-smoke`:
+  passed as skipped-not-selected with `providerCallCount` 0.
+- Package 1 old import/script scan: passed; no active deleted-module imports or
+  old Agent script references in `src`/`package.json`.
+- Package 1 `git diff --check`: passed.
+- External provider calls: `0` in baseline.
 - Real `.rin-data` committed: no.
 
 ## Unresolved Risks
 
-- This recovery task is documentation/governance/process only; it does not
-  update source reality to v2.0.
-- Current `main` still contains v1/v1.1 Agent scaffolds such as actions,
-  planner, tasks, tools/MCP, and L0-L5 permission-level documentation and code.
-- Package 1 must distinguish deprecated Agent permission hierarchy from retained
-  data-integrity protections before removing anything.
-- Default checks may read local `.rin-data` through existing readiness/report
-  paths; recovery must not commit local data or generated artifacts.
+- Package 1 checks passed after removal.
+- Historical v0.x/v1 documents still describe old Agent scaffolds as historical
+  behavior; current v2 docs now mark those paths as decommissioned.
+- `Agent State Bundle` naming remains for portability compatibility and does not
+  imply active Agent execution.
+- Legacy `tool_invocations` records remain readable by design.
 
 ## Next Exact Task
 
-Finish Package 0 recovery:
+Finish Package 1 GitHub handoff:
 
-1. Run required provider-free checks.
-2. Review the diff and confirm it is documentation/governance/process only.
-3. Commit, push, open PR, and merge only if all gates pass.
+1. Commit the verified Package 1 diff.
+2. Push `codex/v2-1-decommission-agent-complexity`.
+3. Open a PR and merge only if repository gates pass.
 4. After merge, pull `main` and verify clean state.
-5. Start Package 1 only from updated `main`; first checkpoint is
-   `docs/RIN_V2_DECOMMISSION_INVENTORY.md` with a complete inventory before any
-   source removal.
+5. Start Package 2 only from updated `main`.
 
 ## Package Status Ledger
 
 | Package | Status | Branch | PR | Notes |
 | --- | --- | --- | --- | --- |
-| Package 0 | in progress | `codex/v2-0-recovery-and-persistent-plan` | pending | Recovery and persistent v2 plan only. |
-| Package 1 | not started | pending | pending | Decommission inventory and safe Agent complexity removal. |
+| Package 0 | merged | `codex/v2-0-recovery-and-persistent-plan` | #50 | Recovery and persistent v2 plan merged to `main`. |
+| Package 1 | verified locally | `codex/v2-1-decommission-agent-complexity` | pending | Decommission inventory and safe Agent complexity removal. |
 | Package 2 | not started | pending | pending | Conversation runtime persistence redesign. |
 | Package 3 | not started | pending | pending | Local RIN/Owner profile configuration. |
 | Package 4 | not started | pending | pending | Memory V2 data model and short-term memory. |

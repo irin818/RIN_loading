@@ -4,7 +4,6 @@ import {
   loadEnvironment,
   loadEnvironmentSource,
 } from "../config/loadEnvironment";
-import { listDryRunActions, registerBuiltinDryRunActions } from "../actions";
 import { buildBackupDryRunManifest } from "../backup";
 import { rinLive2dBodyAdapter } from "../body";
 import type { LocalConsoleSnapshot } from "../console/types";
@@ -19,8 +18,6 @@ import {
   loadModelRuntimeConfig,
   OLLAMA_ADAPTER_ID,
 } from "../model";
-import { runBuiltInPlannerSmoke } from "../planner";
-import { listTools, registerBuiltinTools } from "../tools";
 import {
   createDataLayout,
   inspectCoreStateFiles,
@@ -42,15 +39,10 @@ export async function readLocalConsoleSnapshot(
   const identity = await readJsonFile(join(layout.rootDir, "config/ai_identity.json"));
   const ownerModel = await readJsonFile(join(layout.rootDir, "config/user_model.json"));
   const aiState = await readJsonFile(join(layout.rootDir, "config/ai_state.json"));
-  const permissions = await readJsonFile(join(layout.rootDir, "config/permissions.json"));
   const modelConfig = await loadModelRuntimeConfig(layout);
   const modelStatus = getModelRuntimeStatus(modelConfig, environmentSource);
   const ollamaConfig = readOllamaSnapshotConfig(modelConfig, environmentSource);
-  const toolRegistry = await readJsonFile(join(layout.rootDir, "config/tool_registry.json"));
-  registerBuiltinTools();
-  registerBuiltinDryRunActions();
   const semanticContext = readSemanticContextConfig(environmentSource);
-  const plannerSmoke = runBuiltInPlannerSmoke();
   const backupManifest = await buildBackupDryRunManifest(layout);
 
   return {
@@ -93,17 +85,6 @@ export async function readLocalConsoleSnapshot(
       expression: readString(aiState, "expression"),
       initiative: readString(aiState, "initiative"),
     },
-    permissions: {
-      defaultRequiresConfirmationFrom: readString(
-        permissions,
-        "defaultRequiresConfirmationFrom",
-      ),
-      forbiddenAutomaticActions: readStringArray(
-        permissions,
-        "forbiddenAutomaticActions",
-      ),
-      riskLevels: readStringRecord(permissions, "riskLevels"),
-    },
     modelConfig: {
       activeAdapter: modelStatus.activeAdapter,
       selectedProvider: modelStatus.selectedProvider,
@@ -114,9 +95,6 @@ export async function readLocalConsoleSnapshot(
       missingEnvironment: modelStatus.missingEnvironment,
       ollama:
         modelStatus.activeAdapter === OLLAMA_ADAPTER_ID ? ollamaConfig : null,
-    },
-    toolRegistry: {
-      toolCount: listTools().length + readArrayLength(toolRegistry, "tools"),
     },
     portability: {
       exportBundles: databaseResult.database?.counts.exportBundles ?? 0,
@@ -138,16 +116,13 @@ export async function readLocalConsoleSnapshot(
         mode: semanticContext.mode,
         providerCallCount: 0,
       },
-      permissions: {
-        dryRunActionCount: listDryRunActions().length,
-        unknownActionsBlocked: true,
-        destructiveActionsBlocked: true,
-      },
-      planner: {
-        available: true,
-        status: plannerSmoke.status,
-        executedActionCount: plannerSmoke.executedActionCount,
-        backgroundLoopStarted: plannerSmoke.backgroundLoopStarted,
+      agentRuntime: {
+        actionExecutionActive: false,
+        toolExecutionActive: false,
+        plannerActive: false,
+        taskAutonomyActive: false,
+        legacyToolInvocationCount:
+          databaseResult.database?.counts.toolInvocations ?? 0,
       },
       backup: {
         dryRunAvailable: true,
@@ -183,10 +158,12 @@ export async function readLocalConsoleSnapshot(
         enabled: true,
       },
       {
-        key: "tool-execution",
-        english: "Only built-in L0 tools can auto-execute through the permission gate.",
-        chinese: "只有内置 L0 工具可通过权限网关自动执行。",
-        enabled: true,
+        key: "agent-complexity",
+        english:
+          "General Agent actions, planner, tasks, tools, MCP, and L0-L5 permissions are decommissioned in v2.",
+        chinese:
+          "通用 Agent 动作、planner、task、tool、MCP 与 L0-L5 权限体系已在 v2 中退役。",
+        enabled: false,
       },
       {
         key: "body-shell",
@@ -301,28 +278,6 @@ function readNestedString(
 
 function readArrayLength(record: JsonRecord, key: string): number {
   return Array.isArray(record[key]) ? record[key].length : 0;
-}
-
-function readStringArray(record: JsonRecord, key: string): string[] {
-  const value = record[key];
-
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
-}
-
-function readStringRecord(record: JsonRecord, key: string): Record<string, string> {
-  const value = record[key];
-
-  if (!isRecord(value)) {
-    return {};
-  }
-
-  return Object.fromEntries(
-    Object.entries(value).filter(
-      (entry): entry is [string, string] => typeof entry[1] === "string",
-    ),
-  );
 }
 
 function isRecord(value: unknown): value is JsonRecord {

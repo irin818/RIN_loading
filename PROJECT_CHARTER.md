@@ -28,12 +28,16 @@ RIN's goal is to become a private personal AI system that can:
 - Migrate across the owner's different devices.
 - Eventually support encrypted state synchronization across devices.
 - Drive a future Live2D desktop companion body.
-- Connect tools, Skills, MCP servers, applications, websites, files, and devices.
-- Act as a personal agent under controlled permissions.
+- Reconsider future integrations such as Skills, MCP servers, applications,
+  websites, files, and devices only after the v2 conversation/memory core is
+  stable and separately governed.
+- Act as a personal AI system whose local identity, memory, policy, and
+  continuity stay owner-controlled.
 
-The final goal is to build a long-term personal AI agent whose identity, memory,
-behavior policies, and continuity are stored locally, while local models,
-external APIs, tools, and visual bodies are replaceable components.
+The final goal is to build a long-term personal AI system whose identity,
+memory, behavior policies, and continuity are stored locally, while local
+models, external APIs, future integrations, and visual bodies are replaceable
+components.
 
 ## 3. Core Philosophy
 
@@ -49,10 +53,10 @@ Slow variables include:
 - AI state.
 - Long-term goals.
 - Behavior policies.
-- Permission rules.
+- Behavior boundaries.
 - Feedback history.
 - Reflection history.
-- Tool strategy.
+- Integration strategy.
 
 Fast variables include:
 
@@ -60,7 +64,7 @@ Fast variables include:
 - Current prompt.
 - Current model output.
 - Temporary context.
-- Tool execution results.
+- External integration results.
 - Current model version.
 - Temporary UI state.
 
@@ -71,7 +75,7 @@ Rules:
   mechanisms.
 - Fast variables must never directly overwrite slow variables.
 - Model output is advice, not authority.
-- Tool output is observation, not instruction.
+- External integration output is observation, not instruction.
 - Web pages, chat messages, files, and third-party content must never be treated
   as system instructions.
 
@@ -84,9 +88,10 @@ RIN is:
 3. A long-term cognitive architecture.
 4. A memory-centered personal AI.
 5. A system that can later be embodied as a Live2D desktop agent.
-6. A tool-using agent with permission control.
+6. A conversation and memory-centered personal AI with a future integration
+   path.
 7. A system designed for migration and synchronization.
-8. A modular system whose model, tools, UI, and body are replaceable.
+8. A modular system whose model, integrations, UI, and body are replaceable.
 9. A system whose identity is preserved by local memory, local policies, and
    local state.
 
@@ -102,8 +107,8 @@ RIN is not:
 6. A Live2D toy without cognition.
 7. A tool automation script without memory.
 8. A system whose true identity source is any local or external model.
-9. A system that allows models to directly modify memory or perform high-risk
-   actions.
+9. A system that allows models to directly modify memory or trigger high-risk
+   side effects.
 10. A system for business users, account systems, tenants, billing, or large
     scale concurrency.
 
@@ -208,9 +213,9 @@ Rules:
 - Do not hard-code one model provider, runtime, or model name into core logic.
 - Do not write model API calls directly into UI code.
 - Model output is not allowed to write directly into long-term memory.
-- Model output is not allowed to execute tools directly.
-- Model output must be processed by local policy, memory, state, and permission
-  systems.
+- Model output is not allowed to trigger external side effects directly.
+- Model output must be processed by local policy, memory, state, and
+  data-integrity systems.
 - No model, whether local or external, is allowed to become RIN's identity
   source.
 
@@ -259,7 +264,7 @@ The user model may include:
 - Knowledge level.
 - Recurring difficulties.
 - Preferred answer style.
-- Tool usage habits.
+- Integration usage habits.
 
 Rules:
 
@@ -345,14 +350,16 @@ The system should reserve the following fields:
 
 Early development must not depend on Live2D.
 
-## 15. Tool, Skill, and MCP Principle
+## 15. Future Integration Principle
 
-RIN should eventually connect:
+RIN v2 does not have active general-purpose Agent execution, tool execution,
+MCP calls, planner autonomy, task autonomy, or an L0-L5 runtime permission
+hierarchy.
 
-- Local tools.
+RIN may eventually reconsider integrations such as:
+
 - Skills.
 - MCP servers.
-- Other agents.
 - Applications.
 - Websites.
 - Files.
@@ -362,52 +369,38 @@ RIN should eventually connect:
 
 Rules:
 
-- Tools must be registered through a tool registry.
-- Tools must have schemas.
-- Tools must have risk levels.
-- Tools must declare whether confirmation is required.
-- Models may request tool calls.
-- The local `ToolExecutor` executes tool calls.
-- Tool calls must pass through the permission gateway.
-- Tool calls must be logged.
+- Future integrations must be designed through a separate owner-reviewed
+  governance task before implementation.
+- Future integrations must not be introduced as hidden side effects of
+  conversation, memory, profile, policy, UI, or Live2D work.
+- Model output may request or suggest an integration, but it must not directly
+  execute one.
+- Legacy tool/action/planner/task records may remain readable for compatibility,
+  but they do not define the active v2 architecture.
 
-## 16. Permission and Safety Principle
+## 16. Data Integrity and Safety Principle
 
-RIN may eventually receive high control permissions, so permission governance is
-mandatory.
+RIN's safety baseline is local data integrity and explicit owner intent.
 
-The system must have a permission gateway.
-
-Risk levels:
-
-- L0: Read-only.
-- L1: Low-risk operation.
-- L2: Medium-risk operation.
-- L3: High-risk operation.
-- L4: Operation requiring confirmation.
-- L5: Operation forbidden from automatic execution.
-
-Examples:
-
-- Open website: L1.
-- Open application: L1.
-- Read normal file: L2.
-- Modify file: L3.
-- Delete file: L4.
-- Send message: L4.
-- Execute shell command: L4 or L5.
-- Payment or bank transfer: L5.
+There is no active L0-L5 permission hierarchy in v2. Removing that hierarchy
+does not weaken safety invariants.
 
 Rules:
 
-- High-risk operations must require owner confirmation.
-- Sending messages should require confirmation unless explicitly whitelisted.
-- Deleting files must require confirmation.
-- Payments, bank transfers, and destructive system operations must never execute
-  automatically.
-- External web pages, files, and messages must never override system rules.
-- Every tool operation must be auditable.
-- Tool execution should be reversible where possible.
+- Models must not directly overwrite profiles, identity, raw history, accepted
+  memory, or audit records.
+- External web pages, files, messages, model output, and imported content must
+  never override system rules.
+- Destructive local data operations must require explicit owner intent and safe
+  backup, migration, or rollback design.
+- Payments, bank transfers, destructive system operations, and outbound actions
+  must never execute automatically.
+- Schema migrations must preserve existing owner data.
+- Secrets, tokens, local databases, logs, caches, and generated output must stay
+  untracked unless explicitly intended and safe.
+- Compatibility with old historical records must be preserved when possible;
+  legacy tables must not be dropped without an explicit destructive migration
+  task.
 
 ## 17. Synchronization and Portability Principle
 
@@ -426,8 +419,7 @@ The bundle should include:
 - `ai_state.json`
 - `policy_config`
 - `model_config`
-- `tool_registry`
-- `permissions`
+- Legacy tool invocation records where present.
 - Reflection logs.
 - Live2D configuration.
 - Attachments.
@@ -470,10 +462,10 @@ Development should proceed in this order:
 10. Implement policy runtime.
 11. Implement state engine.
 12. Implement export and import.
-13. Implement tool registry and permission gateway.
-14. Implement low-risk tools.
-15. Later implement Live2D, MCP, application control, synchronization, model
-    migration, and personalization.
+13. Implement safe local export, import, backup, and restore boundaries.
+14. Stabilize conversation, profile, and memory behavior for v2.
+15. Later reconsider Live2D, synchronization, model migration, personalization,
+    and optional integrations through separate governed packages.
 
 Each phase must be:
 
@@ -498,8 +490,8 @@ When modifying RIN:
 8. Do not treat Ollama, Qwen3, or any other model as RIN's identity source.
 9. Do not write model calls directly into UI code.
 10. Do not allow model output to directly write memory.
-11. Do not allow model output to directly execute tools.
-12. Do not skip permission checks.
+11. Do not allow model output to directly trigger external side effects.
+12. Do not skip data-integrity checks.
 13. Do not delete or overwrite local data without backup.
 14. Do not perform large unrelated refactors.
 15. Do not implement multiple major modules at once.
@@ -507,8 +499,8 @@ When modifying RIN:
 17. Always keep the project runnable.
 18. For new core behavior, always add or update tests.
 19. Prefer simple, clear, modular code over flashy abstractions.
-20. Preserve future extensibility for Live2D, tools, MCP, synchronization, and
-    model migration.
+20. Preserve future extensibility for Live2D, synchronization, model migration,
+    and separately governed integrations.
 21. When a development phase changes user-visible behavior, runtime capability,
     project scope, setup commands, or architecture, update the relevant
     human-readable documentation in the same change.
@@ -534,8 +526,8 @@ A runnable local application containing:
 - Clear separation between UI, runtime, model layer, memory layer, and storage
   layer.
 
-Only after this milestone is complete should development continue to tool
-control, Live2D, synchronization, and advanced agent behavior.
+Only after this milestone is complete should development continue to Live2D,
+synchronization, and any separately governed integration behavior.
 
 ## Current Scope: Through Phase 28
 
@@ -554,8 +546,10 @@ This repository currently covers:
 - Phase 9: Local policy runtime checks.
 - Phase 10: Local AI state engine updates and history.
 - Phase 11: Manual Agent State Bundle export.
-- Phase 12: Tool registry and permission-gated execution path.
-- Phase 13: Built-in L0 low-risk tools.
+- Phase 12: Historical tool registry and permission-gated execution scaffold,
+  now decommissioned from the active v2 runtime.
+- Phase 13: Historical built-in low-risk tool scaffold, now decommissioned from
+  the active v2 runtime.
 - Phase 14: Body adapter protocol with Live2D-compatible fields.
 - Phase 15: Clean placeholder desktop body view for future desktop shell use.
 - Phase 16: Local-only desktop body interaction shell with drag, click reaction,
@@ -584,10 +578,11 @@ This repository currently covers:
 - Phase 27: Manual Console refresh and retry flows for retryable failed turns.
 - Phase 28: Bounded accepted-memory context injection with safe trace metadata.
 
-Post-phase package work also adds encrypted local backup/restore, a
-permission-gated low-risk local action envelope, owner-confirmed planner
-execution smoke, v0.2 stabilization gates, and an explicit OpenAI-compatible
-external provider smoke command for API handoff.
+Post-phase package work also added encrypted local backup/restore, historical
+low-risk local action and planner smoke scaffolds, v0.2 stabilization gates, and
+an explicit OpenAI-compatible external provider smoke command for API handoff.
+RIN v2 Package 1 decommissions the Agent/action/planner/task/tool/MCP runtime
+scaffolds while preserving legacy records for compatibility.
 
 The current implementation still must not implement:
 
@@ -598,7 +593,8 @@ The current implementation still must not implement:
 - Live external provider calls without explicit owner configuration and
   live-smoke confirmation.
 - Automatic long-term memory writes without review.
-- Medium-risk or high-risk automatic tool execution.
+- Active general-purpose Agent execution, tools/MCP, planner, task autonomy, or
+  an L0-L5 runtime permission hierarchy.
 - Real Live2D model asset loading.
 - Complete Live2D behavior.
 - Native transparent desktop window behavior.
@@ -655,11 +651,12 @@ RIN 的目标是成为一个私有个人 AI 系统，能够：
 - 在所有者的不同设备之间迁移。
 - 最终实现跨设备的加密状态同步。
 - 驱动未来的 Live2D 桌面伴侣身体。
-- 连接工具、Skills、MCP 服务器、应用、网站、文件和设备。
-- 在受控权限下作为个人智能体行动。
+- 仅在 v2 对话/记忆核心稳定并经过单独治理后，再重新考虑 Skills、MCP 服务器、
+  应用、网站、文件和设备等未来集成。
+- 作为一个本地身份、记忆、策略和连续性都由所有者控制的个人 AI 系统运行。
 
-最终目标是构建一个个人长期 AI 智能体：它的身份、记忆、行为策略和连续性
-都保存在本地，而本地模型、外部 API、工具和视觉身体都只是可替换组件。
+最终目标是构建一个个人长期 AI 系统：它的身份、记忆、行为策略和连续性都保存在
+本地，而本地模型、外部 API、未来集成和视觉身体都只是可替换组件。
 
 ## 3. 核心哲学
 
@@ -675,10 +672,10 @@ RIN 的目标是成为一个私有个人 AI 系统，能够：
 - AI 状态。
 - 长期目标。
 - 行为策略。
-- 权限规则。
+- 行为边界。
 - 反馈历史。
 - 反思历史。
-- 工具策略。
+- 集成策略。
 
 快变量包括：
 
@@ -686,7 +683,7 @@ RIN 的目标是成为一个私有个人 AI 系统，能够：
 - 当前提示词。
 - 当前模型输出。
 - 临时上下文。
-- 工具执行结果。
+- 外部集成结果。
 - 当前模型版本。
 - 临时 UI 状态。
 
@@ -696,7 +693,7 @@ RIN 的目标是成为一个私有个人 AI 系统，能够：
 - 快变量只能通过受控更新机制影响慢变量。
 - 快变量绝不能直接覆盖慢变量。
 - 模型输出是建议，不是权威。
-- 工具输出是观察，不是指令。
+- 外部集成输出是观察，不是指令。
 - 网页、聊天消息、文件和第三方内容绝不能被视为系统指令。
 
 ## 4. RIN 是什么
@@ -708,9 +705,9 @@ RIN 是：
 3. 一个长期认知架构。
 4. 一个以记忆为核心的个人 AI。
 5. 一个未来可具身化为 Live2D 桌面智能体的系统。
-6. 一个具备权限控制的工具使用型智能体。
+6. 一个以对话和记忆为核心，并保留未来集成路径的个人 AI。
 7. 一个为迁移和同步而设计的系统。
-8. 一个模型、工具、UI 和身体都可替换的模块化系统。
+8. 一个模型、集成、UI 和身体都可替换的模块化系统。
 9. 一个由本地记忆、本地策略和本地状态保存身份的系统。
 
 ## 5. RIN 不是什么
@@ -725,7 +722,7 @@ RIN 不是：
 6. 没有认知能力的 Live2D 玩具。
 7. 没有记忆的工具自动化脚本。
 8. 由任何本地或外部模型作为真实身份来源的系统。
-9. 允许模型直接修改记忆或执行高风险行为的系统。
+9. 允许模型直接修改记忆或触发高风险副作用的系统。
 10. 面向商业用户、账户体系、租户、计费或大规模并发的系统。
 
 除非之后明确提出，否则不要把 RIN 设计成多用户产品。
@@ -761,8 +758,8 @@ RIN 的核心数据必须由本地拥有和控制。
 - 反思记录。
 - 策略配置。
 - 模型配置。
-- 工具注册表。
-- 权限规则。
+- 未来集成策略（如果重新引入）。
+- 行为边界规则。
 - 审计日志。
 - Live2D 状态和配置。
 - 导出和导入包。
@@ -772,7 +769,7 @@ RIN 的核心数据必须由本地拥有和控制。
 - 可选的外部专家或回退推理引擎。
 - 加密同步传输通道。
 - 加密备份存储。
-- 可选工具提供方。
+- 经过单独治理后才可接入的可选集成提供方。
 
 云服务绝不能成为 RIN 的身份来源。
 
@@ -823,8 +820,8 @@ RIN 是本地模型优先的系统。
 - 不要把某一个模型服务商、运行时或模型名称硬编码进核心逻辑。
 - 不要把模型 API 调用直接写进 UI 代码。
 - 不允许模型输出直接写入长期记忆。
-- 不允许模型输出直接执行工具。
-- 模型输出必须经过本地策略、记忆、状态和权限系统处理。
+- 不允许模型输出直接触发外部副作用。
+- 模型输出必须经过本地策略、记忆、状态和数据完整性系统处理。
 - 任何模型，无论本地还是外部，都不能成为 RIN 的身份来源。
 
 ## 10. 记忆原则
@@ -870,7 +867,7 @@ RIN 必须维护一个本地的所有者模型。
 - 知识水平。
 - 反复出现的困难。
 - 偏好的回答风格。
-- 工具使用习惯。
+- 集成使用习惯。
 
 规则：
 
@@ -956,14 +953,15 @@ Live2D 不是：
 
 早期开发不应依赖 Live2D。
 
-## 15. 工具、Skill 与 MCP 原则
+## 15. 未来集成原则
 
-RIN 未来应能够连接：
+RIN v2 不启用通用 Agent 执行、工具执行、MCP 调用、planner 自主、task 自主或
+L0-L5 runtime 权限体系。
 
-- 本地工具。
+RIN 未来可以重新考虑以下集成：
+
 - Skills。
 - MCP 服务器。
-- 其他智能体。
 - 应用。
 - 网站。
 - 文件。
@@ -973,50 +971,26 @@ RIN 未来应能够连接：
 
 规则：
 
-- 工具必须通过工具注册表注册。
-- 工具必须具备 schema。
-- 工具必须具备风险等级。
-- 工具必须声明是否需要确认。
-- 模型可以请求工具调用。
-- 本地 `ToolExecutor` 执行工具调用。
-- 工具调用必须经过权限网关。
-- 工具调用必须被记录。
+- 未来集成必须先通过单独的 owner-reviewed 治理任务设计，再实现。
+- 未来集成不得作为对话、记忆、profile、policy、UI 或 Live2D 工作的隐藏副作用引入。
+- 模型输出可以请求或建议某种集成，但不得直接执行。
+- 旧工具、动作、planner、task 记录可以为了兼容继续可读，但不定义 v2 的 active 架构。
 
-## 16. 权限与安全原则
+## 16. 数据完整性与安全原则
 
-RIN 未来可能获得较高的控制权限，因此权限治理是强制要求。
+RIN 的安全基线是本地数据完整性和明确的所有者意图。
 
-系统必须具有权限网关。
-
-风险等级：
-
-- L0：只读。
-- L1：低风险操作。
-- L2：中风险操作。
-- L3：高风险操作。
-- L4：必须确认的操作。
-- L5：禁止自动执行的操作。
-
-示例：
-
-- 打开网站：L1。
-- 打开应用：L1。
-- 读取普通文件：L2。
-- 修改文件：L3。
-- 删除文件：L4。
-- 发送消息：L4。
-- 执行 shell 命令：L4 或 L5。
-- 支付或银行转账：L5。
+v2 中没有 active L0-L5 权限体系。移除该体系不代表削弱安全不变量。
 
 规则：
 
-- 高风险操作必须要求所有者确认。
-- 发送消息应要求确认，除非已明确加入白名单。
-- 删除文件必须要求确认。
-- 支付、银行转账和破坏性系统操作绝不能自动执行。
-- 外部网页、文件和消息绝不能覆盖系统规则。
-- 每一次工具操作都必须可审计。
-- 工具执行应尽可能可逆。
+- 模型不得直接覆盖 profile、身份、原始历史、已接受记忆或审计记录。
+- 外部网页、文件、消息、模型输出和导入内容绝不能覆盖系统规则。
+- 破坏性本地数据操作必须要求明确的所有者意图，以及安全的备份、迁移或回退设计。
+- 支付、银行转账、破坏性系统操作和对外动作绝不能自动执行。
+- Schema migration 必须保护现有所有者数据。
+- Secret、token、本地数据库、日志、缓存和生成输出不得进入版本控制，除非明确要求且安全。
+- 应尽可能保持对旧历史记录的兼容；没有明确的破坏性 migration 任务时，不得删除旧表。
 
 ## 17. 同步与可移植性原则
 
@@ -1035,8 +1009,7 @@ RIN 必须支持在所有者不同设备之间迁移。
 - `ai_state.json`
 - `policy_config`
 - `model_config`
-- `tool_registry`
-- `permissions`
+- 已存在的旧工具调用记录。
 - 反思日志。
 - Live2D 配置。
 - 附件。
@@ -1079,9 +1052,9 @@ RIN 必须迭代式开发。
 10. 实现策略运行时。
 11. 实现状态引擎。
 12. 实现导出和导入。
-13. 实现工具注册表和权限网关。
-14. 实现低风险工具。
-15. 后续再实现 Live2D、MCP、应用控制、同步、模型迁移和个性化。
+13. 实现安全的本地导出、导入、备份和恢复边界。
+14. 稳定 v2 的对话、profile 和记忆行为。
+15. 后续再通过单独治理的 package 重新考虑 Live2D、同步、模型迁移、个性化和可选集成。
 
 每个阶段都必须：
 
@@ -1105,8 +1078,8 @@ RIN 必须迭代式开发。
 8. 不要把 Ollama、Qwen3 或任何其他模型视为 RIN 的身份来源。
 9. 不要把模型调用直接写进 UI 代码。
 10. 不要允许模型输出直接写入记忆。
-11. 不要允许模型输出直接执行工具。
-12. 不要跳过权限检查。
+11. 不要允许模型输出直接触发外部副作用。
+12. 不要跳过数据完整性检查。
 13. 不要在没有备份的情况下删除或覆盖本地数据。
 14. 不要进行大型无关重构。
 15. 不要一次实现多个主要模块。
@@ -1114,7 +1087,7 @@ RIN 必须迭代式开发。
 17. 始终保持项目可运行。
 18. 对新的核心行为，始终添加或更新测试。
 19. 优先使用简单、清晰、模块化的代码，而不是炫技式抽象。
-20. 为 Live2D、工具、MCP、同步和模型迁移保留未来扩展性。
+20. 为 Live2D、同步、模型迁移和单独治理的未来集成保留扩展性。
 21. 当某个开发阶段改变用户可见行为、运行时能力、项目范围、启动命令或架构时，
     必须在同一次修改中更新相关的人类可读文档。
 
@@ -1138,7 +1111,7 @@ RIN 必须迭代式开发。
 - AI 状态文件。
 - UI、运行时、模型层、记忆层和存储层之间的清晰分离。
 
-只有完成这个里程碑之后，才应继续开发工具控制、Live2D、同步和高级智能体行为。
+只有完成这个里程碑之后，才应继续开发 Live2D、同步和任何经过单独治理的集成行为。
 
 ## 当前范围：截至 Phase 28
 
@@ -1156,8 +1129,8 @@ RIN 必须迭代式开发。
 - Phase 9：本地策略运行时检查。
 - Phase 10：本地 AI 状态引擎更新和历史。
 - Phase 11：手动 Agent State Bundle 导出。
-- Phase 12：工具注册表和权限网关执行路径。
-- Phase 13：内置 L0 低风险工具。
+- Phase 12：历史工具注册表和权限网关执行 scaffold，现已从 active v2 runtime 退役。
+- Phase 13：历史内置低风险工具 scaffold，现已从 active v2 runtime 退役。
 - Phase 14：带 Live2D 兼容字段的身体 adapter 协议。
 - Phase 15：面向未来桌面壳的干净占位桌面身体视图。
 - Phase 16：仅本地的桌面身体交互壳，支持拖拽、点击反应和临时气泡行为。
@@ -1178,9 +1151,10 @@ RIN 必须迭代式开发。
 - Phase 27：Console 中针对可重试失败 turn 的手动 refresh 和 retry 流程。
 - Phase 28：有界 accepted-memory context 注入，以及安全 trace metadata。
 
-后续 package 工作还增加了本地加密备份/恢复、受权限约束的低风险本地动作层、
-owner-confirmed planner execution smoke、v0.2 稳定化 gate，以及用于 API 交接的
-显式 OpenAI-compatible 外部 provider smoke 命令。
+后续 package 工作还增加了本地加密备份/恢复、历史低风险本地动作和 planner smoke
+scaffold、v0.2 稳定化 gate，以及用于 API 交接的显式 OpenAI-compatible 外部 provider
+smoke 命令。RIN v2 Package 1 退役 Agent/action/planner/task/tool/MCP runtime scaffold，
+同时为了兼容保留旧记录。
 
 当前实现仍不得包含：
 
@@ -1190,7 +1164,7 @@ owner-confirmed planner execution smoke、v0.2 稳定化 gate，以及用于 API
 - 声称 Ollama、Qwen3 或任何外部 provider 默认处于启用状态。
 - 缺少明确 owner 配置和 live-smoke 确认时调用外部 provider。
 - 未经审查的自动长期记忆写入。
-- 中高风险工具自动执行。
+- 活跃的通用 Agent 执行、tools/MCP、planner、task 自主或 L0-L5 runtime 权限体系。
 - 真实 Live2D 模型资产加载。
 - 完整 Live2D 行为。
 - 原生透明桌面窗口行为。

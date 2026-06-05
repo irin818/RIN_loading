@@ -36,8 +36,6 @@ const localDataFiles = [
   "config/ai_state.json",
   "config/policy_config.json",
   "config/model_config.json",
-  "config/tool_registry.json",
-  "config/permissions.json",
   "logs/audit_log.jsonl",
 ];
 
@@ -370,7 +368,7 @@ export function App() {
     <main className="app-shell">
       <section className="intro" aria-labelledby="app-title">
         <p className="kicker">
-          Local-first personal agent system / 本地优先的个人智能体系统
+          Local-first personal AI system / 本地优先的个人 AI 系统
         </p>
         <h1 id="app-title">{RIN_PROJECT_NAME}</h1>
         <p className="scope">
@@ -1043,33 +1041,18 @@ export function App() {
             )}
           </section>
 
-          <section className="state-panel" aria-labelledby="tools-title">
-            <h2 id="tools-title">Tools & Portability / 工具与可移植性</h2>
+          <section className="state-panel" aria-labelledby="portability-title">
+            <h2 id="portability-title">Portability / 可移植性</h2>
             <dl className="status-grid compact">
               <div>
-                <dt>Registered tools</dt>
-                <dd>{snapshot.toolRegistry.toolCount}</dd>
-              </div>
-              <div>
-                <dt>Tool invocations</dt>
-                <dd>{snapshot.database?.counts.toolInvocations ?? 0}</dd>
+                <dt>Legacy tool records</dt>
+                <dd>
+                  {snapshot.operationalStatus.agentRuntime.legacyToolInvocationCount}
+                </dd>
               </div>
               <div>
                 <dt>Export bundles</dt>
                 <dd>{snapshot.portability.exportBundles}</dd>
-              </div>
-              <div>
-                <dt>Dry-run actions</dt>
-                <dd>{snapshot.operationalStatus.permissions.dryRunActionCount}</dd>
-              </div>
-              <div>
-                <dt>Planner smoke</dt>
-                <dd>
-                  {snapshot.operationalStatus.planner.status}
-                  {snapshot.operationalStatus.planner.executedActionCount === 0
-                    ? " · zero actions"
-                    : ""}
-                </dd>
               </div>
               <div>
                 <dt>Backup dry-run</dt>
@@ -1080,12 +1063,8 @@ export function App() {
                 </dd>
               </div>
               <div>
-                <dt>Auto-execution</dt>
-                <dd>
-                  {snapshot.operationalStatus.permissions.destructiveActionsBlocked
-                    ? "destructive blocked"
-                    : "review required"}
-                </dd>
+                <dt>Agent runtime</dt>
+                <dd>decommissioned</dd>
               </div>
             </dl>
           </section>

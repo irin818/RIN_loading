@@ -30,12 +30,14 @@ Implications:
 - Future automation can be reconsidered only after v2.0 memory and conversation
   foundations are stable.
 
-## Decision 0002: actions, planner, tasks, tools, and MCP are planned for removal
+## Decision 0002: actions, planner, tasks, tools, and MCP are removed from active v2
 
 Decision:
 
-- The current actions/planner/tasks/tools/MCP scaffolds are deprecated for v2.0
-  and must be inventoried before removal.
+- The actions/planner/tasks/tools/MCP scaffolds are removed from active RIN v2
+  source, CLI, npm script, server, and UI surfaces.
+- Historical records and old docs may remain for compatibility/history, but they
+  do not define active v2 behavior.
 
 Rationale:
 
@@ -44,16 +46,18 @@ Rationale:
 
 Implications:
 
-- Package 1 must classify every related module, script, test, and doc reference.
 - Removal must not break conversation, memory, model, storage, audit,
   backup/restore, sync, reliability, or body boundaries.
+- Future automation must be reconsidered through a separate governed package,
+  not by restoring the old scaffolds implicitly.
 
-## Decision 0003: L0-L5 runtime permission hierarchy is planned for removal
+## Decision 0003: L0-L5 runtime permission hierarchy is removed from active v2
 
 Decision:
 
-- The active Agent runtime permission hierarchy and L0-L5 model are deprecated
-  for v2.0.
+- The active Agent runtime permission hierarchy and L0-L5 model are removed from
+  RIN v2.
+- New v2 data directories no longer generate `config/permissions.json`.
 
 Rationale:
 
@@ -63,10 +67,10 @@ Rationale:
 
 Implications:
 
-- Package 1 may remove L0-L5 action permission checks only after confirming they
-  are not data-integrity protections.
-- Documentation must clearly distinguish removed Agent permissions from
-  retained safety invariants.
+- Documentation must distinguish removed Agent permissions from retained safety
+  invariants.
+- Future integrations must not introduce a replacement permission hierarchy
+  without explicit governance.
 
 ## Decision 0004: data-integrity protections remain mandatory
 
@@ -176,3 +180,42 @@ Implications:
 - RIN replies must not be returned/displayed before they are persisted.
 - Future streaming must be designed after server/UI thawing and must preserve
   persistence and audit guarantees.
+
+## Decision 0010: legacy tool invocation schema remains for compatibility
+
+Decision:
+
+- The SQLite `tool_invocations` table and `DatabaseStatus.counts.toolInvocations`
+  remain in v2.
+- Old historical tool/action/planner/task records are not deleted by Package 1.
+
+Rationale:
+
+- Owners may have v1 databases containing old records.
+- Package 1 is not a destructive migration task.
+
+Implications:
+
+- Legacy counts may be displayed as compatibility status, but they must not imply
+  active tool execution.
+- Future schema cleanup requires an explicit destructive migration design and
+  owner-reviewed backup/rollback plan.
+
+## Decision 0011: model-response policy is a data-integrity guard
+
+Decision:
+
+- `evaluateModelResponse` remains as a data-integrity guard for direct memory
+  writes and direct external side-effect requests.
+- It is not an Agent permission gateway and does not implement L0-L5 risk
+  levels.
+
+Rationale:
+
+- Removing Agent permissions must not allow model output to mutate memory or
+  trigger side effects directly.
+
+Implications:
+
+- Future memory/profile/runtime packages must preserve this boundary or replace
+  it with a stricter data-integrity design.

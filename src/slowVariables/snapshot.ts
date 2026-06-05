@@ -10,7 +10,6 @@ const SLOW_VARIABLE_FILES = [
   "config/ai_state.json",
   "config/policy_config.json",
   "config/model_config.json",
-  "config/permissions.json",
 ] as const;
 
 export async function snapshotSlowVariables(

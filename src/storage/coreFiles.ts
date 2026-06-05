@@ -123,43 +123,6 @@ export const CORE_STATE_FILE_DEFINITIONS: CoreStateFileDefinition[] = [
     chinese: "服务商中立的模型配置与 adapter 选择。",
     create: (_environment, now) => createDefaultModelRuntimeConfig(now),
   },
-  {
-    key: "tool-registry",
-    relativePath: "config/tool_registry.json",
-    english: "Custom tool registry placeholder. Built-in L0 tools are registered in code.",
-    chinese: "自定义工具注册表占位文件。内置 L0 工具在代码中注册。",
-    create: (_environment, now) => ({
-      schemaVersion: 1,
-      kind: "tool_registry",
-      updatedAt: now.toISOString(),
-      tools: [],
-      note: {
-        english: "Custom tools must declare schema, risk level, and confirmation policy.",
-        chinese: "自定义工具必须声明 schema、风险等级和确认策略。",
-      },
-    }),
-  },
-  {
-    key: "permissions",
-    relativePath: "config/permissions.json",
-    english: "Permission policy placeholder.",
-    chinese: "权限策略占位文件。",
-    create: (_environment, now) => ({
-      schemaVersion: 1,
-      kind: "permissions",
-      updatedAt: now.toISOString(),
-      riskLevels: {
-        L0: "read-only",
-        L1: "low-risk",
-        L2: "medium-risk",
-        L3: "high-risk",
-        L4: "requires-confirmation",
-        L5: "never-auto-execute",
-      },
-      defaultRequiresConfirmationFrom: "L4",
-      forbiddenAutomaticActions: ["payment", "bank-transfer", "destructive-system-operation"],
-    }),
-  },
 ];
 
 export async function ensureCoreStateFiles(

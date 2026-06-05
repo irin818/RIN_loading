@@ -1,7 +1,7 @@
 import type { RinDatabase } from "../database";
 
 export type RollbackNote = {
-  area: "actions" | "planner" | "backup" | "restore" | "external-provider";
+  area: "backup" | "restore" | "external-provider";
   eventCount: number;
   note: string;
 };
@@ -21,18 +21,6 @@ const ROLLBACK_AREAS: Array<{
   eventPrefixes: string[];
   note: string;
 }> = [
-  {
-    area: "actions",
-    eventPrefixes: ["action."],
-    note:
-      "Review action audit events, remove generated draft reports/notes if needed, and keep destructive or external actions blocked.",
-  },
-  {
-    area: "planner",
-    eventPrefixes: ["planner."],
-    note:
-      "Review planner execution audit events; planner runs should remain finite, owner-confirmed, and provider-free.",
-  },
   {
     area: "backup",
     eventPrefixes: ["backup."],

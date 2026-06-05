@@ -37,9 +37,9 @@ export const runtimeBoundaries: RuntimeBoundary[] = [
     chinese: "未来用于具身行为的本地状态控制。",
   },
   {
-    name: "tool-permission-gateway",
+    name: "data-integrity-guards",
     phase: "reserved",
-    english: "Future permission gate before any tool execution.",
-    chinese: "未来所有工具执行前必须经过的权限网关。",
+    english: "Retained local safeguards for memory, profiles, storage, and audit data.",
+    chinese: "保留用于记忆、profile、存储和审计数据的本地完整性保护。",
   },
 ];
