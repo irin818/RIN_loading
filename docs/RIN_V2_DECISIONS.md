@@ -296,3 +296,31 @@ Implications:
 - `rin:short-term-memory-report` is report-only and prints no full message text.
 - Future Memory V2 engines may write shadow traces, but production retrieval
   cannot switch until an explicit cutover package.
+
+## Decision 0015: Memory V2 automatic formation is deterministic and shadow-only
+
+Decision:
+
+- Memory V2 formation, reinforcement, weakening, and ignore decisions are
+  deterministic shadow behavior.
+- Retention scoring uses bounded visible inputs such as source type, role,
+  content length, pattern-based signals, age, stability, and
+  `baseScore * exp(-ageHours / stabilityHours)`.
+- The engine may write trace summaries and signals to `memory_v2_*` shadow
+  tables.
+- It cannot delete raw history, mutate profiles, mutate accepted memories,
+  extract hidden reasoning, call providers, or change production retrieval.
+
+Rationale:
+
+- Automatic memory behavior needs repeatable local evaluation before it can
+  influence model context.
+- Shadow traces allow audit and tuning without changing the owner-visible memory
+  contract.
+
+Implications:
+
+- `rin:memory-v2-eval` must remain fixture-based and provider-free.
+- `rin:memory-v2-shadow-report` may mutate only Memory V2 shadow tables.
+- Reports must not print raw message text, accepted memory text, prompt text, or
+  hidden reasoning.

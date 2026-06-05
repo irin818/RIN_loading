@@ -28,6 +28,8 @@
     "rin:profile-report": "tsx src/cli/profileReport.ts",
     "rin:short-term-memory-report": "tsx src/cli/shortTermMemoryReport.ts",
     "rin:memory-v2-schema-report": "tsx src/cli/memoryV2SchemaReport.ts",
+    "rin:memory-v2-eval": "tsx src/cli/memoryV2Eval.ts",
+    "rin:memory-v2-shadow-report": "tsx src/cli/memoryV2ShadowReport.ts",
     "rin:daily-chat-eval": "tsx src/cli/dailyChatEval.ts",
     "rin:daily-chat-live-smoke": "tsx src/cli/dailyChatLiveSmoke.ts",
     "rin:full-check": "npm run rin:check && npm run rin:semantic-eval && npm run rin:semantic-readiness && npm run rin:semantic-index-report && npm run rin:semantic-live-index-report && npm run rin:hybrid-retrieval-report && npm run rin:semantic-trace-list && npm run rin:semantic-trace-read && npm run rin:memory-maintenance-report && npm run rin:backup-dry-run && npm run rin:backup-encrypted-smoke && npm run rin:restore-dry-run",

@@ -1,6 +1,6 @@
 # RIN v2.0 Progress
 
-Status: Package 4 verification passed; PR pending.
+Status: Package 5 verification passed; PR pending.
 
 This file must be updated at every v2.0 checkpoint and before ending any Codex
 conversation.
@@ -9,20 +9,23 @@ conversation.
 
 ## Current State
 
-- Current package: Package 4, Memory V2 data model and short-term memory.
+- Current package: Package 5, automatic memory formation and forgetting-curve
+  engine.
 - Package status: verification passed, PR pending.
-- Active branch: `codex/v2-4-memory-v2-shadow`.
+- Active branch: `codex/v2-5-memory-v2-engine`.
 - Latest verified main commit:
-  `0f5d4536ede3a8c3179abd3e8ee4c76eec37cdea`.
+  `609557f3f07cb1f3e0f77ee7ecb61a166796bcc2`.
 - PR #51 status: merged on `main` as
   `1b237c7 Merge pull request #51 from irin818/codex/v2-1-decommission-agent-complexity`.
 - PR #52 status: merged on `main` as
   `cfb7b7b Merge pull request #52 from irin818/codex/v2-2-conversation-persistence`.
 - PR #53 status: merged on `main` as
   `0f5d453 Merge pull request #53 from irin818/codex/v2-3-local-profiles`.
-- Open PRs at Package 4 start: none observed after Package 3 merge.
-- Uncommitted work found at Package 4 start: none.
-- Main/origin/main/HEAD match at Package 4 start: yes.
+- PR #54 status: merged on `main` as
+  `609557f Merge pull request #54 from irin818/codex/v2-4-memory-v2-shadow`.
+- Open PRs at Package 5 start: none observed after Package 4 merge.
+- Uncommitted work found at Package 5 start: none.
+- Main/origin/main/HEAD match at Package 5 start: yes.
 
 ## Completed Package 1 Work
 
@@ -68,7 +71,7 @@ conversation.
 - Updated architecture, README, project map, and v2 decisions to document manual
   profile ownership and report redaction boundaries.
 
-## Package 4 Work In Progress
+## Completed Package 4 Work
 
 - Added additive schema migration `6` with Memory V2 shadow tables for trace
   sources, traces, trace signals, and retrieval events.
@@ -81,6 +84,19 @@ conversation.
 - Full raw conversation text is not duplicated into Memory V2 tables.
 - Updated architecture, README, project map, and v2 decisions for Memory V2
   shadow/report-only constraints.
+
+## Package 5 Work In Progress
+
+- Added deterministic Memory V2 shadow engine for promotion, reinforcement,
+  weakening, and ignore decisions.
+- Added bounded retention scoring with
+  `baseScore * exp(-ageHours / stabilityHours)`.
+- Added `npm run rin:memory-v2-eval`.
+- Added `npm run rin:memory-v2-shadow-report`.
+- Shadow writes are limited to `memory_v2_*` trace/source/signal tables.
+- Production accepted-memory retrieval remains unchanged.
+- The engine does not delete raw history, mutate profiles, mutate accepted
+  memory, call providers, extract hidden reasoning, or print full text.
 
 ## Checks
 
@@ -183,10 +199,33 @@ conversation.
   passed; integrity report shows schema version 6.
 - Package 4 `git diff --check`: passed.
 - Package 4 final verification: passed.
+- Package 4 PR #54: merged to `main`; local `main`, `origin/main`, and branch
+  start point matched before Package 5 started.
+- Package 5 focused `npm run typecheck`: passed after initial helper typing fix.
+- Package 5 focused `npm test -- src/memory/v2Engine.test.ts src/memory/v2Schema.test.ts`:
+  passed, 6 tests.
+- Package 5 temporary test data directory:
+  `/tmp/rin-v2-package5.AUv9AF`.
+- Package 5 `RIN_DATA_DIR=/tmp/rin-v2-package5.AUv9AF npm run rin:init`:
+  passed; database schema version 6.
+- Package 5 `npm run rin:memory-v2-eval`: passed; 5/5 cases,
+  providerCallCount 0, full text included no.
+- Package 5 `RIN_DATA_DIR=/tmp/rin-v2-package5.AUv9AF npm run rin:memory-v2-shadow-report`:
+  passed on an empty temporary data directory; status ready, providerCallCount
+  0, production retrieval changed no, full text included no.
+- Package 5 `RIN_DATA_DIR=/tmp/rin-v2-package5.AUv9AF npm run rin:check`:
+  passed; 57 test files and 282 tests passed, lint/build/readiness/memory eval
+  and daily chat eval passed.
+- Package 5 explicit `RIN_DATA_DIR=/tmp/rin-v2-package5.AUv9AF npm run rin:memory-eval`:
+  passed; 29/29 cases, providerCallCount 0.
+- Package 5 `RIN_DATA_DIR=/tmp/rin-v2-package5.AUv9AF npm run rin:v1-check`:
+  passed; integrity report shows schema version 6.
+- Package 5 `git diff --check`: passed.
+- Package 5 final verification: passed.
 
 ## Unresolved Risks
 
-- Package 4 checks passed locally.
+- Package 5 checks passed locally.
 - Historical v0.x/v1 documents still describe old Agent scaffolds as historical
   behavior; current v2 docs mark those paths as decommissioned.
 - `Agent State Bundle` naming remains for portability compatibility and does not
@@ -195,13 +234,13 @@ conversation.
 
 ## Next Exact Task
 
-Finish Package 4 GitHub handoff:
+Finish Package 5 GitHub handoff:
 
-1. Commit the verified Package 4 diff.
-2. Push `codex/v2-4-memory-v2-shadow`.
+1. Commit the verified Package 5 diff.
+2. Push `codex/v2-5-memory-v2-engine`.
 3. Open PR and merge only if repository gates pass.
 4. After merge, pull `main` and verify clean state.
-5. Start Package 5 only from updated `main`.
+5. Start Package 6 only from updated `main`.
 
 ## Package Status Ledger
 
@@ -211,8 +250,8 @@ Finish Package 4 GitHub handoff:
 | Package 1 | merged | `codex/v2-1-decommission-agent-complexity` | #51 | Decommission inventory and safe Agent complexity removal. |
 | Package 2 | merged | `codex/v2-2-conversation-persistence` | #52 | Conversation runtime persistence redesign. |
 | Package 3 | merged | `codex/v2-3-local-profiles` | #53 | Local RIN/Owner profile configuration. |
-| Package 4 | verified locally | `codex/v2-4-memory-v2-shadow` | pending | Memory V2 data model and short-term memory. |
-| Package 5 | not started | pending | pending | Automatic memory engine and forgetting curve. |
+| Package 4 | merged | `codex/v2-4-memory-v2-shadow` | #54 | Memory V2 data model and short-term memory. |
+| Package 5 | verified locally | `codex/v2-5-memory-v2-engine` | pending | Automatic memory engine and forgetting curve. |
 | Package 6 | not started | pending | pending | Context Assembler V2 shadow path. |
 | Package 7 | not started | pending | pending | Memory V2 cutover and legacy migration. |
 | Package 8 | not started | pending | pending | v2 CLI consolidation and stabilization. |

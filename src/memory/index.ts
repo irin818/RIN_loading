@@ -88,6 +88,14 @@ export {
   formatMemoryV2SchemaReport,
 } from "./v2Schema";
 export {
+  analyzeMemoryV2Source,
+  formatMemoryV2EvaluationSummary,
+  formatMemoryV2ShadowReport,
+  runBuiltInMemoryV2Evaluation,
+  runMemoryV2EvaluationCases,
+  runMemoryV2ShadowEngine,
+} from "./v2Engine";
+export {
   buildShortTermMemoryReport,
   formatShortTermMemoryReport,
 } from "./shortTermMemory";
@@ -175,6 +183,19 @@ export type {
   MemoryV2TableName,
   MemoryV2TableStatus,
 } from "./v2Schema";
+export type {
+  MemoryV2EvaluationCase,
+  MemoryV2EvaluationCaseResult,
+  MemoryV2EvaluationRunResult,
+  MemoryV2ShadowReport,
+  MemoryV2ShadowReportItem,
+  MemoryV2Signal,
+  MemoryV2SignalType,
+  MemoryV2SourceMessage,
+  MemoryV2TraceAnalysis,
+  MemoryV2TraceDecision,
+  MemoryV2TraceReason,
+} from "./v2Engine";
 export type {
   ShortTermMemoryMessageRef,
   ShortTermMemoryReport,
