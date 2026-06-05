@@ -11,7 +11,10 @@ export type ModelErrorDetails = {
   baseUrl?: string;
   model?: string;
   emptyContent?: boolean;
+  emptyAfterThinkingRemoval?: boolean;
   possibleReasoningOnlyOutput?: boolean;
+  thinkingArtifactRemoved?: boolean;
+  unsafeContentIssue?: string;
   responseFields?: string[];
 };
 

@@ -34,7 +34,9 @@ export type LocalChatSmokeReport = {
 };
 
 const LOCAL_CHAT_SMOKE_PROMPT =
-  "请用三句话解释 RIN 为什么坚持本地优先、记忆需要主人审查，以及外部 API 为什么只能作为可选后备。不要展开推理，只给最终回答。";
+  "请直接用两句话给一个简单晚饭建议。不要展开推理，只给最终回答。";
+const LOCAL_CHAT_SMOKE_SYSTEM_PROMPT =
+  "Return only final assistant content. Never reveal hidden reasoning, analysis notes, or thinking tags. Answer in concise Chinese.";
 
 export async function runLocalChatSmoke(options: {
   cwd?: string;
@@ -94,7 +96,10 @@ export async function runLocalChatSmoke(options: {
     const response = await adapter.generate({
       ownerId: environment.ownerId,
       conversationId: "local-chat-smoke",
-      messages: [{ role: "owner", content: LOCAL_CHAT_SMOKE_PROMPT }],
+      messages: [
+        { role: "system", content: LOCAL_CHAT_SMOKE_SYSTEM_PROMPT },
+        { role: "owner", content: LOCAL_CHAT_SMOKE_PROMPT },
+      ],
     });
 
     return {

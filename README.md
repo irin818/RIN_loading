@@ -129,14 +129,17 @@ Optional local model mode: double-click `Start_RIN_Local_Model.command` only whe
 you explicitly want local Ollama with `qwen3:4b`. It checks Ollama locally and
 starts with a larger Qwen3 generation budget (`RIN_OLLAMA_NUM_PREDICT=1024`,
 `RIN_OLLAMA_TIMEOUT_MS=180000`) and the adapter asks Ollama for final content
-with `think: false` to reduce empty final responses. It does not call external
+with `think: false` to reduce empty final responses. The adapter also removes
+Qwen3 thinking tags from final content and rejects remaining internal-analysis
+style output instead of storing it as a RIN reply. It does not call external
 APIs. See `docs/LOCAL_LAUNCHER.md`.
 
 可选本地模型模式：只有在明确想使用本地 Ollama 和 `qwen3:4b` 时，才双击
 `Start_RIN_Local_Model.command`。它只检查本地 Ollama，并使用更大的 Qwen3 生成预算
 （`RIN_OLLAMA_NUM_PREDICT=1024`、`RIN_OLLAMA_TIMEOUT_MS=180000`）；adapter 也会用
-`think: false` 要求 Ollama 返回最终内容，以减少空最终回复。它不调用外部 API。详见
-`docs/LOCAL_LAUNCHER.md`。
+`think: false` 要求 Ollama 返回最终内容，以减少空最终回复。adapter 还会从最终内容中移除
+Qwen3 thinking tag，并拒绝仍然像内部分析的输出，避免把它存成 RIN 回复。它不调用外部 API。
+详见 `docs/LOCAL_LAUNCHER.md`。
 
 ## Run Empty Project
 
@@ -179,6 +182,8 @@ npm run build
 npm run rin:readiness
 npm run rin:external-model-smoke
 npm run rin:local-chat-smoke
+npm run rin:daily-chat-eval
+npm run rin:daily-chat-live-smoke
 npm run rin:project-report
 npm run rin:rollback-notes
 npm run rin:memory-eval
@@ -302,6 +307,27 @@ behavior is in scope:
 
 ```sh
 RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_BASE_URL=http://127.0.0.1:11434 RIN_OLLAMA_MODEL=qwen3:4b npm run rin:readiness
+```
+
+Daily chat quality has a default provider-free fixture gate:
+
+日常聊天质量有一个默认不调用 provider 的 fixture gate：
+
+```sh
+npm run rin:daily-chat-eval
+```
+
+It checks that harmless daily prompts stay concise and useful, do not leak
+thinking tags or internal analysis, do not dump RIN policy/architecture, and do
+not claim fake web, location, file, memory, or tool access. For an explicit
+local Ollama live check, select the local adapter and run:
+
+它会检查无害日常问题是否保持简洁实用、不泄漏 thinking tag 或内部分析、不倾倒 RIN
+policy/architecture，也不声称虚假的网页、位置、文件、记忆或工具访问。若要显式测试本地
+Ollama live 路径，请选择本地 adapter 后运行：
+
+```sh
+RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_BASE_URL=http://127.0.0.1:11434 RIN_OLLAMA_MODEL=qwen3:4b npm run rin:daily-chat-live-smoke
 ```
 
 ## Local Data Foundation

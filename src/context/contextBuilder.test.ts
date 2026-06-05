@@ -17,7 +17,7 @@ describe("buildModelContext", () => {
       "owner",
     ]);
     expect(context.messages.map((message) => message.content)).toEqual([
-      expect.stringContaining("reasoning/chat model"),
+      expect.stringContaining("conversational model used by RIN"),
       "first",
       "second",
       "third",
@@ -41,7 +41,7 @@ describe("buildModelContext", () => {
     );
 
     expect(context.messages.map((message) => message.content)).toEqual([
-      expect.stringContaining("reasoning/chat model"),
+      expect.stringContaining("conversational model used by RIN"),
       "owner-2",
       "rin-2",
       "owner-3",
@@ -295,4 +295,3 @@ function owner(content: string): ModelMessage {
 function rin(content: string): ModelMessage {
   return { role: "rin", content };
 }
-

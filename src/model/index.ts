@@ -23,6 +23,22 @@ export {
 export { isModelError, ModelError } from "./errors";
 export type { ModelErrorCode, ModelErrorDetails, ModelErrorInit } from "./errors";
 export {
+  evaluateDailyChatResponse,
+  formatDailyChatEvaluationReport,
+  hasInternalAnalysisLeak,
+  hasUnsafeThinkingLeak,
+  runDailyChatEvaluation,
+  sanitizeAssistantContent,
+} from "./assistantResponseQuality";
+export type {
+  AssistantContentSanitization,
+  AssistantResponseIssueCode,
+  DailyChatEvaluationCase,
+  DailyChatEvaluationCaseResult,
+  DailyChatEvaluationReport,
+  DailyChatQualityResult,
+} from "./assistantResponseQuality";
+export {
   EXTERNAL_MODEL_SMOKE_CONFIRMATION_ENV,
   EXTERNAL_MODEL_SMOKE_CONFIRMATION_VALUE,
   formatExternalModelSmokeReport,
