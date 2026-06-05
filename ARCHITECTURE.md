@@ -62,9 +62,14 @@ Current known module boundaries include:
 - `src/context/`: fast-variable context assembly between conversation runtime
   and model adapters. It builds bounded model input, adds the compact RIN system
   prompt, and does not own identity, memory storage, policy, or provider calls.
-  It may now receive accepted memory snippets from the memory layer and inject a
-  compact, budgeted memory context block; context assembly remains budgeted and
-  memory storage/review stays separate from context assembly.
+  It may now receive compact local profile context from `src/profile` and
+  accepted memory snippets from the memory layer. Profile context is placed after
+  the system prompt and before memory/conversation context; context assembly
+  remains budgeted and storage/review stays separate from context assembly.
+- `src/profile/`: local RIN and Owner profile loading, validation, compact
+  context formatting, and safe report output. Profiles are manually editable
+  local files under `.rin-data/config/`; model output cannot write them, and
+  reports do not print full profile text.
 - `src/model/`: provider-neutral model abstraction, local mock adapter,
   configurable adapter selection, and adapter boundaries for local-model-first
   reasoning plus optional external expert or fallback providers. The first real

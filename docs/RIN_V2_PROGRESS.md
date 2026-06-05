@@ -1,6 +1,6 @@
 # RIN v2.0 Progress
 
-Status: Package 2 verification passed; PR pending.
+Status: Package 3 verification passed; PR pending.
 
 This file must be updated at every v2.0 checkpoint and before ending any Codex
 conversation.
@@ -9,16 +9,18 @@ conversation.
 
 ## Current State
 
-- Current package: Package 2, conversation runtime persistence redesign.
+- Current package: Package 3, local RIN and owner profile configuration.
 - Package status: verification passed, PR pending.
-- Active branch: `codex/v2-2-conversation-persistence`.
+- Active branch: `codex/v2-3-local-profiles`.
 - Latest verified main commit:
-  `1b237c76bc7462e9ece15123f4e2b3680a81ec64`.
+  `cfb7b7b02787002164d1137f65c16032341503f3`.
 - PR #51 status: merged on `main` as
   `1b237c7 Merge pull request #51 from irin818/codex/v2-1-decommission-agent-complexity`.
-- Open PRs at Package 2 start: none observed after Package 1 merge.
-- Uncommitted work found at Package 2 start: none.
-- Main/origin/main/HEAD match at Package 2 start: yes.
+- PR #52 status: merged on `main` as
+  `cfb7b7b Merge pull request #52 from irin818/codex/v2-2-conversation-persistence`.
+- Open PRs at Package 3 start: none observed after Package 2 merge.
+- Uncommitted work found at Package 3 start: none.
+- Main/origin/main/HEAD match at Package 3 start: yes.
 
 ## Completed Package 1 Work
 
@@ -35,10 +37,6 @@ conversation.
 - Updated governance/current-state docs to distinguish removed Agent permission
   hierarchy from retained data-integrity protections.
 
-## Pull Request
-
-- PR URL/status: pending.
-
 ## Completed Package 2 Work
 
 - Added additive schema migration `5` with `conversation_turns`.
@@ -52,6 +50,21 @@ conversation.
 - Added safe turn/timing metadata to failure details.
 - Added `npm run rin:conversation-runtime-report`.
 - Added `docs/decisions/ADR-0003-conversation-turn-persistence.md`.
+
+## Completed Package 3 Work
+
+- Added manually editable local profile templates for RIN and owner state under
+  `.rin-data/config/rin_profile.json` and
+  `.rin-data/config/owner_profile.json`.
+- Added profile schema validation, safe reporting, and compact profile context
+  formatting without model-driven profile mutation.
+- Added `npm run rin:profile-validate` and `npm run rin:profile-report`.
+- Injected valid compact profile context into model context after the RIN system
+  prompt and before accepted memory context.
+- Added profile context counts to raw/audit conversation turn metadata.
+- Added profile files to slow-variable snapshots for traceability.
+- Updated architecture, README, project map, and v2 decisions to document manual
+  profile ownership and report redaction boundaries.
 
 ## Checks
 
@@ -100,10 +113,38 @@ conversation.
 - Package 2 `RIN_DATA_DIR=/tmp/rin-v2-package2.8RI20g npm run rin:v1-check`:
   passed.
 - Package 2 final verification: passed.
+- Package 2 PR #52: merged to `main`; local `main`, `origin/main`, and branch
+  start point matched before Package 3 started.
+- Package 3 focused `npm run typecheck`: passed before final aggregate checks.
+- Package 3 focused `npm test -- src/profile/profiles.test.ts src/context/contextBuilder.test.ts src/conversation/runtime.test.ts src/storage/initialize.test.ts`:
+  passed, 34 tests.
+- Package 3 temporary test data directory:
+  `/tmp/rin-v2-package3.ZSjcSo`.
+- Package 3 `RIN_DATA_DIR=/tmp/rin-v2-package3.ZSjcSo npm run rin:init`:
+  passed; generated `config/rin_profile.json` and
+  `config/owner_profile.json`.
+- Package 3 `RIN_DATA_DIR=/tmp/rin-v2-package3.ZSjcSo npm run rin:profile-validate`:
+  passed; report status valid, issue count 0, providerCallCount 0, full text
+  included no.
+- Package 3 `RIN_DATA_DIR=/tmp/rin-v2-package3.ZSjcSo npm run rin:profile-report`:
+  passed; report status valid, issue count 0, providerCallCount 0, full text
+  included no.
+- Package 3 `RIN_DATA_DIR=/tmp/rin-v2-package3.ZSjcSo npm run rin:check`:
+  passed; 55 test files and 276 tests passed, lint/build/readiness/memory eval
+  and daily chat eval passed.
+- Package 3 explicit `RIN_DATA_DIR=/tmp/rin-v2-package3.ZSjcSo npm run rin:memory-eval`:
+  passed; 29/29 cases, providerCallCount 0.
+- Package 3 explicit `RIN_DATA_DIR=/tmp/rin-v2-package3.ZSjcSo npm run rin:daily-chat-eval`:
+  passed; 8/8 cases, providerCallCount 0, external provider calls 0, real
+  `.rin-data` read no, full text included no.
+- Package 3 `RIN_DATA_DIR=/tmp/rin-v2-package3.ZSjcSo npm run rin:v1-check`:
+  passed.
+- Package 3 `git diff --check`: passed.
+- Package 3 final verification: passed.
 
 ## Unresolved Risks
 
-- Package 2 checks passed locally.
+- Package 3 checks passed locally.
 - Historical v0.x/v1 documents still describe old Agent scaffolds as historical
   behavior; current v2 docs mark those paths as decommissioned.
 - `Agent State Bundle` naming remains for portability compatibility and does not
@@ -112,13 +153,13 @@ conversation.
 
 ## Next Exact Task
 
-Finish Package 2 GitHub handoff:
+Finish Package 3 GitHub handoff:
 
-1. Commit the verified Package 2 diff.
-2. Push `codex/v2-2-conversation-persistence`.
+1. Commit the verified Package 3 diff.
+2. Push `codex/v2-3-local-profiles`.
 3. Open PR and merge only if repository gates pass.
 4. After merge, pull `main` and verify clean state.
-5. Start Package 3 only from updated `main`.
+5. Start Package 4 only from updated `main`.
 
 ## Package Status Ledger
 
@@ -126,8 +167,8 @@ Finish Package 2 GitHub handoff:
 | --- | --- | --- | --- | --- |
 | Package 0 | merged | `codex/v2-0-recovery-and-persistent-plan` | #50 | Recovery and persistent v2 plan merged to `main`. |
 | Package 1 | merged | `codex/v2-1-decommission-agent-complexity` | #51 | Decommission inventory and safe Agent complexity removal. |
-| Package 2 | verified locally | `codex/v2-2-conversation-persistence` | pending | Conversation runtime persistence redesign. |
-| Package 3 | not started | pending | pending | Local RIN/Owner profile configuration. |
+| Package 2 | merged | `codex/v2-2-conversation-persistence` | #52 | Conversation runtime persistence redesign. |
+| Package 3 | verified locally | `codex/v2-3-local-profiles` | pending | Local RIN/Owner profile configuration. |
 | Package 4 | not started | pending | pending | Memory V2 data model and short-term memory. |
 | Package 5 | not started | pending | pending | Automatic memory engine and forgetting curve. |
 | Package 6 | not started | pending | pending | Context Assembler V2 shadow path. |
