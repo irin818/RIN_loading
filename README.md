@@ -180,6 +180,7 @@ npm run typecheck
 npm test
 npm run lint
 npm run build
+npm run rin:v2-check
 npm run rin:readiness
 npm run rin:external-model-smoke
 npm run rin:local-chat-smoke
@@ -237,6 +238,9 @@ npm run rin:v0-9-check
 npm run rin:v1-check
 ```
 
+The v0.x and v1 aggregate check names remain as compatibility gates for older
+milestones. For active v2.0 stabilization, prefer `npm run rin:v2-check`.
+
 For changes that affect memory retrieval, bounded context assembly,
 memoryContext traceability/persistence, or conversation runtime paths that shape
 model context, `npm run rin:memory-eval` remains especially important and should
@@ -262,6 +266,40 @@ type/test/lint/build/readiness checks.
 fixture：不会调用模型服务商，不需要 Ollama，也不会使用真实所有者数据。它与常规
 type/test/lint/build/readiness 检查一起保护 accepted-only 检索、预算限制、隐私、
 可追溯性、type-aware ranking、metadata-aware ranking、token-dominance 和 near-miss 行为。
+
+For v2.0 stabilization and release readiness, use:
+
+```sh
+npm run rin:v2-check
+```
+
+`rin:v2-check` is provider-free and external-call-free. It runs the default
+local check plus conversation runtime reporting, profile validation/reporting,
+Memory V2 schema/evaluation/migration dry-run/status checks, Context V2
+evaluation/reporting, and semantic retrieval evaluation. It does not run
+`rin:memory-v2-migration-apply`; applying a real local legacy-memory migration
+remains an explicit owner action.
+
+如需做 v2.0 稳定化和发布就绪检查，运行：
+
+```sh
+npm run rin:v2-check
+```
+
+`rin:v2-check` 不调用 provider，也不调用外部 API。它会运行默认本地检查，并额外运行
+conversation runtime report、profile validate/report、Memory V2 schema/eval/
+migration dry-run/status、Context V2 eval/report 和 semantic retrieval eval。它不会
+运行 `rin:memory-v2-migration-apply`；对真实本地 legacy memory 执行迁移仍然是显式
+所有者动作。
+
+Final v2 reference documents:
+
+- `docs/RIN_V2_OPERATIONS_GUIDE.md`
+- `docs/RIN_V2_MEMORY_MODEL.md`
+- `docs/RIN_V2_CONTEXT_POLICY.md`
+- `docs/RIN_V2_KNOWN_LIMITATIONS.md`
+- `docs/RIN_V2_RELEASE_NOTES.md`
+- `docs/RIN_V2_REPOSITORY_CLEANUP_REPORT.md`
 
 Semantic retrieval comparison is a separate fixture-only report command:
 
@@ -942,6 +980,17 @@ The v0.6 check name remains as a compatibility alias, but RIN v2 no longer has
 active task autonomy or planner/executor/checker scripts. Historical v0.6 notes
 remain in `docs/RIN_V0_6_TASK_AUTONOMY_POLICY.md` and
 `docs/RIN_V0_6_RELEASE_NOTES.md`.
+
+For v2.0 stabilization and release readiness, use:
+
+```sh
+npm run rin:v2-check
+```
+
+The v2 check is the current provider-free release gate for the
+conversation-centered core. It does not revive old actions, planner, tasks,
+tools/MCP, or L0-L5 runtime permission scaffolds, and it does not apply
+Memory V2 legacy migration automatically.
 
 For v0.7 device continuity and sync dry-run checks, use:
 

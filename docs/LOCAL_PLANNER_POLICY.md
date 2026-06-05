@@ -1,6 +1,14 @@
 # Local Planner Policy
 
-Status: v0.2-C policy lock.
+Status: historical v0.2-C policy lock; superseded in active RIN v2.
+
+RIN v2 decommissioned the active planner, task autonomy, tool/MCP execution
+path, and L0-L5 runtime permission hierarchy. This document is retained as
+historical v0.2-C design context only. The commands listed below are no longer
+active package scripts in v2; use `npm run rin:v2-check` for the current
+provider-free v2 release gate.
+
+Historical v0.2-C behavior:
 
 The local planner is a finite planning, self-check, and owner-confirmed
 execution scaffold. It is not an autonomous background agent and it must not
@@ -47,7 +55,7 @@ v0.2-C adds a separate planner execution smoke command that uses temporary
 fixture data and explicit confirmation to exercise low-risk local action
 execution.
 
-## Commands
+## Historical Commands
 
 ```sh
 npm run rin:planner-smoke
@@ -55,9 +63,10 @@ npm run rin:planner-execution-smoke
 npm run rin:planner-audit-report
 ```
 
-`rin:planner-execution-smoke` uses a temporary workspace, supplies the explicit
-test confirmation token, executes only allowed low-risk fixture actions, and
-confirms destructive actions remain blocked.
+These commands were removed from active RIN v2 package scripts. Historical
+v0.2-C `rin:planner-execution-smoke` used a temporary workspace, supplied the
+explicit test confirmation token, executed only allowed low-risk fixture
+actions, and confirmed destructive actions remained blocked.
 
 ## Chinese Summary
 

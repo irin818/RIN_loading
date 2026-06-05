@@ -1156,6 +1156,12 @@ scaffold、v0.2 稳定化 gate，以及用于 API 交接的显式 OpenAI-compati
 smoke 命令。RIN v2 Package 1 退役 Agent/action/planner/task/tool/MCP runtime scaffold，
 同时为了兼容保留旧记录。
 
+RIN v2.0 进一步完成了会话持久化重构、手动本地 RIN/Owner profile、Memory V2
+schema/report/evaluation、旧 accepted memory 到 Memory V2 trace 的显式迁移路径、
+Context V2 report/evaluation，以及 provider-free 的 `npm run rin:v2-check` release
+gate。active v2 仍然以对话和记忆核心为主，不重新启用通用 Agent、tools/MCP、
+planner、task autonomy 或 L0-L5 runtime 权限体系。
+
 当前实现仍不得包含：
 
 - 硬编码的特定服务商模型调用，或 UI 直接调用模型服务商。

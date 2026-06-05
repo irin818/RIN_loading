@@ -1,6 +1,6 @@
 # RIN v2.0 Progress
 
-Status: Package 7 PR created; merge pending.
+Status: Package 8 local verification passed; GitHub handoff pending.
 
 This file must be updated at every v2.0 checkpoint and before ending any Codex
 conversation.
@@ -9,12 +9,13 @@ conversation.
 
 ## Current State
 
-- Current package: Package 7, Memory V2 production cutover and legacy migration.
-- Current checkpoint: PR #57 created and mergeable; merge pending.
-- Package status: full local verification passed; PR #57 open.
-- Active branch: `codex/v2-7-memory-v2-cutover`.
+- Current package: Package 8, CLI consolidation and v2.0 stabilization.
+- Current checkpoint: local verification complete; commit, PR, merge, final
+  main verification, and tag pending.
+- Package status: full local verification passed on the package branch.
+- Active branch: `codex/v2-8-stabilization`.
 - Latest verified main commit:
-  `ca7c52f8d4bf9a0fe5ecb7569961a4c563b5a6e7`.
+  `2af75b460a5135f42b7f4dfbc45c5edf62894f3f`.
 - PR #51 status: merged on `main` as
   `1b237c7 Merge pull request #51 from irin818/codex/v2-1-decommission-agent-complexity`.
 - PR #52 status: merged on `main` as
@@ -27,12 +28,11 @@ conversation.
   `247b674 Merge pull request #55 from irin818/codex/v2-5-memory-v2-engine`.
 - PR #56 status: merged on `main` as
   `ca7c52f Merge pull request #56 from irin818/codex/v2-6-context-v2-shadow`.
-- PR #57 status: open for Package 7 at
-  `https://github.com/irin818/RIN_loading/pull/57`; `mergeStateStatus` reported
-  `CLEAN` and no status checks were configured at PR creation.
-- Open PRs at Package 7 start: none observed after Package 6 merge.
-- Uncommitted work found at Package 7 start: none.
-- Main/origin/main/HEAD match at Package 7 start: yes.
+- PR #57 status: merged on `main` as
+  `2af75b4 Merge pull request #57 from irin818/codex/v2-7-memory-v2-cutover`.
+- Open PRs at Package 8 start: none observed after Package 7 merge.
+- Uncommitted work found at Package 8 start: none.
+- Main/origin/main/HEAD match at Package 8 start: yes.
 
 ## Completed Package 1 Work
 
@@ -117,7 +117,7 @@ conversation.
 - Production `buildModelContext` and conversation runtime remain unchanged.
 - Reports do not print full prompt, profile, message, or memory text.
 
-## Package 7 Work In Progress
+## Completed Package 7 Work
 
 - Added Memory V2 legacy accepted-memory migration dry-run/apply/status module.
 - Added `npm run rin:memory-v2-migration-dry-run`.
@@ -135,6 +135,26 @@ conversation.
   counts for traceability.
 - `/remember` remains a deprecated legacy proposal-only path and now emits a
   safe deprecation audit event without direct acceptance.
+
+## Package 8 Work Verified Locally
+
+- Added `npm run rin:v2-check` as the provider-free v2.0 release gate.
+- `rin:v2-check` runs the default check plus conversation/profile reports,
+  Memory V2 schema/eval/migration dry-run/status, Context V2 eval/report, and
+  semantic retrieval evaluation.
+- `rin:v2-check` does not run `rin:memory-v2-migration-apply`; applying real
+  legacy-memory migration remains explicit.
+- Marked non-versioned stale planner/action/Console policy docs as historical or
+  superseded in active v2.
+- Added `docs/RIN_V2_STABILIZATION_NOTES.md`.
+- Added final v2 reference docs:
+  `docs/RIN_V2_REPOSITORY_CLEANUP_REPORT.md`,
+  `docs/RIN_V2_RELEASE_NOTES.md`,
+  `docs/RIN_V2_OPERATIONS_GUIDE.md`, `docs/RIN_V2_MEMORY_MODEL.md`,
+  `docs/RIN_V2_CONTEXT_POLICY.md`, and
+  `docs/RIN_V2_KNOWN_LIMITATIONS.md`.
+- Updated Memory V2 schema report semantics so it no longer claims Memory V2 is
+  shadow-only after Package 7 legacy retrieval cutover.
 
 ## Checks
 
@@ -343,10 +363,55 @@ conversation.
   passed, 18 tests.
 - Package 7 final quick `npm run lint`: passed.
 - Package 7 final quick `git diff --check`: passed.
+- Package 7 PR #57: merged to `main`; local `main`, `origin/main`, and branch
+  start point matched before Package 8 started.
+- Package 7 post-merge temporary test data directory:
+  `/tmp/rin-v2-package7-postmerge.SNBwp0`.
+- Package 7 post-merge `RIN_DATA_DIR=/tmp/rin-v2-package7-postmerge.SNBwp0 npm run rin:init`:
+  passed; database schema version 6.
+- Package 7 post-merge `RIN_DATA_DIR=/tmp/rin-v2-package7-postmerge.SNBwp0 npm run rin:check`:
+  passed; 59 test files and 290 tests passed.
+- Package 7 post-merge `git diff --check`: passed.
+- Package 8 focused `npm test -- src/memory/v2Schema.test.ts`: passed, 3 tests.
+- Package 8 temporary test data directory:
+  `/tmp/rin-v2-package8-final.Rc6TDQ`.
+- Package 8 `RIN_DATA_DIR=/tmp/rin-v2-package8-final.Rc6TDQ npm run rin:init`:
+  passed; database schema version 6.
+- Package 8 `RIN_DATA_DIR=/tmp/rin-v2-package8-final.Rc6TDQ npm run rin:v2-check`:
+  passed; default `rin:check` inside the gate passed with 59 test files and 290
+  tests, Memory V2 schema report shows legacy migration support and production
+  retrieval path, Context V2 eval passed 3/3, semantic eval passed 11/11, and
+  providerCallCount remained 0.
+- Package 8 `RIN_DATA_DIR=/tmp/rin-v2-package8-final.Rc6TDQ npm run rin:check`:
+  passed; 59 test files and 290 tests passed.
+- Package 8 `RIN_DATA_DIR=/tmp/rin-v2-package8-final.Rc6TDQ npm run rin:v1-check`:
+  passed; project report lists 74 scripts and integrity report shows schema
+  version 6.
+- Package 8 `RIN_DATA_DIR=/tmp/rin-v2-package8-final.Rc6TDQ npm run rin:daily-chat-eval`:
+  passed; 8/8 cases, providerCallCount 0, external provider calls 0, real
+  `.rin-data` read no, full text included no.
+- Package 8 `git diff --check`: passed.
+- Package 8 pre-PR temporary test data directory:
+  `/tmp/rin-v2-package8-prepr.OLqIUb`.
+- Package 8 pre-PR `RIN_DATA_DIR=/tmp/rin-v2-package8-prepr.OLqIUb npm run rin:init`:
+  passed; database schema version 6.
+- Package 8 pre-PR `RIN_DATA_DIR=/tmp/rin-v2-package8-prepr.OLqIUb npm run rin:v2-check`:
+  passed; 59 test files and 290 tests passed inside `rin:check`, Memory V2
+  schema report shows production retrieval changed yes, Context V2 eval passed
+  3/3, semantic eval passed 11/11, and providerCallCount remained 0.
+- Package 8 secret/local-data scan: no tracked `.rin-data`, `node_modules`,
+  `dist`, `.env`, sqlite/db/log files; secret-like matches were documentation
+  examples, historical task policy references, branch naming text, and CSS masks
+  only.
+- Package 8 hidden control character scan: passed; no control or bidi/zero-width
+  characters detected outside ignored generated/local-data directories.
+- Package 8 optional Ollama/Qwen3 live smoke: skipped; Ollama CLI exists but no
+  local service responded on `127.0.0.1:11434`.
 
 ## Unresolved Risks
 
-- Package 7 checks passed locally.
+- Package 8 checks passed locally; final main verification and tag are pending
+  until after PR merge.
 - Historical v0.x/v1 documents still describe old Agent scaffolds as historical
   behavior; current v2 docs mark those paths as decommissioned.
 - `Agent State Bundle` naming remains for portability compatibility and does not
@@ -358,10 +423,14 @@ conversation.
 
 ## Next Exact Task
 
-Finish Package 7 GitHub handoff:
+Finish Package 8 GitHub handoff and final release verification:
 
-1. Merge PR #57 only if repository gates still pass.
-2. After merge, pull `main`, verify clean state, and start Package 8.
+1. Commit the verified Package 8 branch.
+2. Push, open PR, and merge only if gates pass.
+3. After merge, pull `main` and verify clean state.
+4. Run final `npm run rin:v2-check`, `npm run rin:check`,
+   `npm run rin:v1-check`, and `git diff --check` on `main`.
+5. Create and push `v2.0.0` only after final verification passes.
 
 ## Package Status Ledger
 
@@ -374,5 +443,5 @@ Finish Package 7 GitHub handoff:
 | Package 4 | merged | `codex/v2-4-memory-v2-shadow` | #54 | Memory V2 data model and short-term memory. |
 | Package 5 | merged | `codex/v2-5-memory-v2-engine` | #55 | Automatic memory engine and forgetting curve. |
 | Package 6 | merged | `codex/v2-6-context-v2-shadow` | #56 | Context Assembler V2 shadow path. |
-| Package 7 | PR open | `codex/v2-7-memory-v2-cutover` | #57 | Memory V2 cutover and legacy migration. |
-| Package 8 | not started | pending | pending | v2 CLI consolidation and stabilization. |
+| Package 7 | merged | `codex/v2-7-memory-v2-cutover` | #57 | Memory V2 cutover and legacy migration. |
+| Package 8 | local verification passed | `codex/v2-8-stabilization` | pending | v2 CLI consolidation and stabilization. |

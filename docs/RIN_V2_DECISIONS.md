@@ -387,3 +387,30 @@ Implications:
   counts for traceability.
 - Context V2 remains report/evaluation-only for provider-facing message order
   until a later explicit assembler cutover.
+
+## Decision 0018: v2 release gate is provider-free and non-applying
+
+Decision:
+
+- `npm run rin:v2-check` is the v2.0 stabilization and release-readiness gate.
+- It is provider-free and external-call-free by default.
+- It runs v2-specific report and evaluation commands but does not run
+  `rin:memory-v2-migration-apply`.
+- Historical v0.x/v1 policy documents may remain for audit context, but active
+  v2 behavior is defined by the v2 governance, architecture, progress,
+  decisions, README, and stabilization notes.
+
+Rationale:
+
+- Release checks should be safe to run against local data without silently
+  applying migrations or calling external providers.
+- Real legacy-memory migration should remain an explicit owner action.
+- Historical documents are useful for traceability, but they should not be
+  mistaken for current active Agent/tool/planner behavior.
+
+Implications:
+
+- Package 8 must keep `rin:v2-check` non-destructive and provider-free.
+- Tagging `v2.0.0` requires a clean, verified `main`, not a package branch.
+- Non-versioned stale policy docs must be marked historical or superseded when
+  they mention decommissioned Agent behavior.
