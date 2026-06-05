@@ -113,10 +113,12 @@ async function routeRequest(
     const content = typeof body.content === "string" ? body.content : "";
     const conversationId =
       typeof body.conversationId === "string" ? body.conversationId : undefined;
+    const turnId = typeof body.turnId === "string" ? body.turnId : undefined;
     const turn = await processOwnerMessage(storage.layout, {
       ownerId: environment.ownerId,
       content,
       conversationId,
+      turnId,
     });
 
     writeJson(response, 200, {

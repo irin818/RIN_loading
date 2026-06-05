@@ -76,6 +76,34 @@ function failingLocalAdapter(): ModelAdapter {
   };
 }
 
+function successfulCountingAdapter(content = "RIN persisted reply."): {
+  adapter: ModelAdapter;
+  calls: () => number;
+} {
+  let callCount = 0;
+
+  return {
+    adapter: {
+      id: "rin-test-adapter",
+      displayName: "Test adapter",
+      provider: "mock",
+      generate: async () => {
+        callCount += 1;
+        return {
+          content,
+          adapterId: "rin-test-adapter",
+          metadata: {
+            externalProvider: false,
+            memoryWriteRequested: false,
+            toolCallRequested: false,
+          },
+        };
+      },
+    },
+    calls: () => callCount,
+  };
+}
+
 const tempRoots: string[] = [];
 
 afterEach(async () => {
@@ -430,9 +458,10 @@ describe("processOwnerMessage", () => {
     expect(captured.payload.recovery.length).toBeGreaterThan(0);
   });
 
-  it("does not persist any turn message when model generation fails", async () => {
+  it("preserves the owner message and failed turn when model generation fails", async () => {
     const cwd = await createTempRoot();
     const storage = await initializeRinStorage(defaultEnvironment, { cwd });
+    const turnId = "turn-failure-preserves-owner";
 
     await expect(
       processOwnerMessage(
@@ -440,6 +469,7 @@ describe("processOwnerMessage", () => {
         {
           ownerId: defaultEnvironment.ownerId,
           content: "this turn should not persist a reply",
+          turnId,
           now: new Date("2026-05-19T00:00:00.000Z"),
         },
         { resolveAdapter: async () => failingLocalAdapter() },
@@ -447,28 +477,150 @@ describe("processOwnerMessage", () => {
     ).rejects.toMatchObject({ name: "ConversationError" });
 
     const inspected = inspectRinDatabase(storage.layout);
-    expect(inspected.counts.conversations).toBe(0);
-    expect(inspected.counts.messages).toBe(0);
+    expect(inspected.counts.conversations).toBe(1);
+    expect(inspected.counts.conversationTurns).toBe(1);
+    expect(inspected.counts.messages).toBe(1);
     expect(inspected.counts.messageMemoryContexts).toBe(0);
 
     const database = openRinDatabase(storage.layout);
 
     try {
+      const turn = database
+        .prepare(
+          `
+            SELECT *
+            FROM conversation_turns
+            WHERE id = ?
+          `,
+        )
+        .get(turnId) as {
+        conversation_id: string;
+        owner_message_id: string;
+        rin_message_id: string | null;
+        status: string;
+        attempt_count: number;
+        error_code: string | null;
+      };
+      const messages = listConversationMessages(database, turn.conversation_id);
       const failureEvent = database
         .prepare(
           `
-            SELECT event_type
+            SELECT event_type, payload_json
             FROM raw_events
             WHERE event_type = 'conversation.turn_failed'
             LIMIT 1
           `,
         )
-        .get() as { event_type: string } | undefined;
+        .get() as { event_type: string; payload_json: string } | undefined;
 
+      expect(turn.status).toBe("failed");
+      expect(turn.attempt_count).toBe(1);
+      expect(turn.error_code).toBe("LOCAL_MODEL_TIMEOUT");
+      expect(turn.rin_message_id).toBeNull();
+      expect(messages).toHaveLength(1);
+      expect(messages[0]?.id).toBe(turn.owner_message_id);
+      expect(messages[0]?.role).toBe("owner");
+      expect(messages[0]?.content).toBe("this turn should not persist a reply");
       expect(failureEvent?.event_type).toBe("conversation.turn_failed");
+      expect(JSON.parse(failureEvent?.payload_json ?? "{}")).toMatchObject({
+        turnId,
+        errorCode: "LOCAL_MODEL_TIMEOUT",
+        ownerMessageId: turn.owner_message_id,
+      });
     } finally {
       database.close();
     }
+  });
+
+  it("retries a failed turn by reusing the owner message without duplicating it", async () => {
+    const cwd = await createTempRoot();
+    const storage = await initializeRinStorage(defaultEnvironment, { cwd });
+    const turnId = "turn-retry-after-failure";
+    const content = "retry this failed turn";
+
+    await expect(
+      processOwnerMessage(
+        storage.layout,
+        {
+          ownerId: defaultEnvironment.ownerId,
+          content,
+          turnId,
+          now: new Date("2026-05-19T00:00:00.000Z"),
+        },
+        { resolveAdapter: async () => failingLocalAdapter() },
+      ),
+    ).rejects.toMatchObject({ name: "ConversationError" });
+
+    const successful = successfulCountingAdapter("retry succeeded");
+    const turn = await processOwnerMessage(
+      storage.layout,
+      {
+        ownerId: defaultEnvironment.ownerId,
+        content,
+        turnId,
+        now: new Date("2026-05-19T00:01:00.000Z"),
+      },
+      { resolveAdapter: async () => successful.adapter },
+    );
+    const inspected = inspectRinDatabase(storage.layout);
+
+    expect(successful.calls()).toBe(1);
+    expect(turn.turn.status).toBe("completed");
+    expect(turn.turn.attemptCount).toBe(2);
+    expect(inspected.counts.conversationTurns).toBe(1);
+    expect(inspected.counts.messages).toBe(2);
+
+    const database = openRinDatabase(storage.layout);
+
+    try {
+      const messages = listConversationMessages(database, turn.conversation.id);
+
+      expect(messages.map((message) => message.role)).toEqual(["owner", "rin"]);
+      expect(messages[0]?.content).toBe(content);
+      expect(messages[1]?.content).toBe("retry succeeded");
+    } finally {
+      database.close();
+    }
+  });
+
+  it("returns an existing completed turn without appending a duplicate reply", async () => {
+    const cwd = await createTempRoot();
+    const storage = await initializeRinStorage(defaultEnvironment, { cwd });
+    const turnId = "turn-idempotent-completed";
+    const successful = successfulCountingAdapter("first persisted reply");
+
+    const first = await processOwnerMessage(
+      storage.layout,
+      {
+        ownerId: defaultEnvironment.ownerId,
+        content: "dedupe this completed turn",
+        turnId,
+        now: new Date("2026-05-19T00:00:00.000Z"),
+      },
+      { resolveAdapter: async () => successful.adapter },
+    );
+    const second = await processOwnerMessage(
+      storage.layout,
+      {
+        ownerId: defaultEnvironment.ownerId,
+        content: "dedupe this completed turn",
+        turnId,
+        now: new Date("2026-05-19T00:01:00.000Z"),
+      },
+      {
+        resolveAdapter: async () => {
+          throw new Error("Adapter should not be called for completed turn.");
+        },
+      },
+    );
+    const inspected = inspectRinDatabase(storage.layout);
+
+    expect(successful.calls()).toBe(1);
+    expect(second.turn.id).toBe(first.turn.id);
+    expect(second.rinMessage.id).toBe(first.rinMessage.id);
+    expect(second.rinMessage.content).toBe("first persisted reply");
+    expect(inspected.counts.conversationTurns).toBe(1);
+    expect(inspected.counts.messages).toBe(2);
   });
 });
 

@@ -40,7 +40,7 @@ if (databaseStatus) {
   console.log(`Database path / 数据库路径: ${databaseStatus.path}`);
   console.log(`Database schema / 数据库 schema: ${databaseStatus.schemaVersion}`);
   console.log(
-    `Counts / 计数: conversations=${databaseStatus.counts.conversations}, messages=${databaseStatus.counts.messages}, memoryItems=${databaseStatus.counts.memoryItems}, auditEvents=${databaseStatus.counts.auditEvents}`,
+    `Counts / 计数: conversations=${databaseStatus.counts.conversations}, conversationTurns=${databaseStatus.counts.conversationTurns}, messages=${databaseStatus.counts.messages}, memoryItems=${databaseStatus.counts.memoryItems}, auditEvents=${databaseStatus.counts.auditEvents}`,
   );
 }
 console.log("");

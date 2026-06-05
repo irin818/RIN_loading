@@ -1,4 +1,5 @@
 import { isModelError, type ModelError, type ModelErrorCode } from "../model";
+import type { ConversationTurnRecord } from "./types";
 
 export type ConversationErrorCode = ModelErrorCode | "CONVERSATION_RUNTIME_ERROR";
 
@@ -11,6 +12,10 @@ export type ConversationErrorDetails = {
   thinkingArtifactRemoved?: boolean;
   unsafeContentIssue?: string;
   responseFields?: string[];
+  turnId?: string;
+  conversationId?: string;
+  ownerMessageId?: string;
+  turnStatus?: ConversationTurnRecord["status"];
 };
 
 export type ConversationErrorPayload = {
@@ -106,6 +111,26 @@ export function conversationErrorResponse(error: unknown): {
     status: conversationError.httpStatus,
     body: { ok: false, error: conversationError.payload },
   };
+}
+
+export function withConversationTurnDetails(
+  error: ConversationError,
+  turn: ConversationTurnRecord,
+): ConversationError {
+  return new ConversationError(
+    {
+      ...error.payload,
+      details: {
+        ...error.payload.details,
+        turnId: turn.id,
+        conversationId: turn.conversationId,
+        ownerMessageId: turn.ownerMessageId,
+        turnStatus: turn.status,
+      },
+    },
+    error.httpStatus,
+    error,
+  );
 }
 
 function fromModelError(error: ModelError): ConversationError {

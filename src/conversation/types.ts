@@ -17,7 +17,24 @@ export type ConversationMessageRecord = {
   memoryContext: MemoryInjectionTrace | null;
 };
 
+export type ConversationTurnStatus = "started" | "completed" | "failed";
+
+export type ConversationTurnRecord = {
+  id: string;
+  conversationId: string;
+  ownerMessageId: string;
+  rinMessageId: string | null;
+  status: ConversationTurnStatus;
+  attemptCount: number;
+  errorCode: string | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+  failedAt: string | null;
+};
+
 export type ConversationTurnResult = {
+  turn: ConversationTurnRecord;
   conversation: ConversationRecord;
   ownerMessage: ConversationMessageRecord;
   rinMessage: ConversationMessageRecord;

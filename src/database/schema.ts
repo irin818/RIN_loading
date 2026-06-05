@@ -1,12 +1,13 @@
 export const RIN_DATABASE_FILENAME = "rin.sqlite";
 
-export const RIN_DATABASE_SCHEMA_VERSION = 4;
+export const RIN_DATABASE_SCHEMA_VERSION = 5;
 
 export const RIN_DATABASE_TABLES = [
   "schema_migrations",
   "audit_events",
   "raw_events",
   "conversations",
+  "conversation_turns",
   "messages",
   "message_memory_contexts",
   "memory_metadata",

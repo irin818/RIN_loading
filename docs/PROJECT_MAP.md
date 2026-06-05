@@ -174,11 +174,11 @@ After `npm run rin:init`, RIN creates `.rin-data`.
 - 记录 schema 版本、owner id、device id 和目录布局。
 
 - `.rin-data/databases/rin.sqlite`
-- Stores schema migrations, raw conversation messages, memory placeholders,
-  audit events, raw runtime events, state history, legacy tool invocation
-  records, and export bundle records.
-- 保存 schema migration、原始对话消息、记忆占位、审计事件、原始 runtime 事件、
-  状态历史、旧工具调用记录和导出包记录。
+- Stores schema migrations, raw conversation messages, conversation turn status,
+  memory placeholders, audit events, raw runtime events, state history, legacy
+  tool invocation records, and export bundle records.
+- 保存 schema migration、原始对话消息、conversation turn 状态、记忆占位、审计事件、
+  原始 runtime 事件、状态历史、旧工具调用记录和导出包记录。
 
 - `.rin-data/config/user_model.json`
 - Placeholder for the owner's long-term model.

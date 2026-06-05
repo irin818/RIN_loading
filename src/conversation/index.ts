@@ -23,5 +23,7 @@ export {
 export type {
   ConversationMessageRecord,
   ConversationRecord,
+  ConversationTurnRecord,
   ConversationTurnResult,
+  ConversationTurnStatus,
 } from "./types";

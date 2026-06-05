@@ -24,9 +24,10 @@ export type DatabaseStatus = {
     auditEvents: number;
     rawEvents: number;
     conversations: number;
+    conversationTurns: number;
     messages: number;
     memoryItems: number;
-      memoryMetadata: number;
+    memoryMetadata: number;
     messageMemoryContexts: number;
     slowVariableVersions: number;
     stateHistory: number;
@@ -113,6 +114,7 @@ export function inspectRinDatabase(
         auditEvents: countRowsIfExists(database, "audit_events"),
         rawEvents: countRowsIfExists(database, "raw_events"),
         conversations: countRowsIfExists(database, "conversations"),
+        conversationTurns: countRowsIfExists(database, "conversation_turns"),
         messages: countRowsIfExists(database, "messages"),
         messageMemoryContexts: countRowsIfExists(
           database,

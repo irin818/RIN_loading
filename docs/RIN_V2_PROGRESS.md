@@ -1,6 +1,6 @@
 # RIN v2.0 Progress
 
-Status: Package 1 verification passed; PR pending.
+Status: Package 2 verification passed; PR pending.
 
 This file must be updated at every v2.0 checkpoint and before ending any Codex
 conversation.
@@ -9,17 +9,16 @@ conversation.
 
 ## Current State
 
-- Current package: Package 1, decommission Agent complexity and permission
-  hierarchy.
+- Current package: Package 2, conversation runtime persistence redesign.
 - Package status: verification passed, PR pending.
-- Active branch: `codex/v2-1-decommission-agent-complexity`.
+- Active branch: `codex/v2-2-conversation-persistence`.
 - Latest verified main commit:
-  `4c12268fd9e37cd24bd460105ef7918c1aac4ee1`.
-- PR #50 status: merged on `main` as
-  `4c12268 Merge pull request #50 from irin818/codex/v2-0-recovery-and-persistent-plan`.
-- Open PRs at Package 1 start: none observed.
-- Uncommitted work found at Package 1 start: none.
-- Main/origin/main/HEAD match at Package 1 start: yes.
+  `1b237c76bc7462e9ece15123f4e2b3680a81ec64`.
+- PR #51 status: merged on `main` as
+  `1b237c7 Merge pull request #51 from irin818/codex/v2-1-decommission-agent-complexity`.
+- Open PRs at Package 2 start: none observed after Package 1 merge.
+- Uncommitted work found at Package 2 start: none.
+- Main/origin/main/HEAD match at Package 2 start: yes.
 
 ## Completed Package 1 Work
 
@@ -39,6 +38,20 @@ conversation.
 ## Pull Request
 
 - PR URL/status: pending.
+
+## Completed Package 2 Work
+
+- Added additive schema migration `5` with `conversation_turns`.
+- Persisted owner messages and turn-start metadata before model adapter calls.
+- Moved model adapter generation outside long database transactions.
+- Added explicit `turnId` idempotency semantics:
+  - failed turns can retry with the same owner content
+  - completed turns return the already stored reply without another model call
+  - content mismatch on a reused `turnId` is rejected
+- Preserved owner messages on model failure without writing fake RIN replies.
+- Added safe turn/timing metadata to failure details.
+- Added `npm run rin:conversation-runtime-report`.
+- Added `docs/decisions/ADR-0003-conversation-turn-persistence.md`.
 
 ## Checks
 
@@ -70,33 +83,50 @@ conversation.
 - Package 1 `git diff --check`: passed.
 - External provider calls: `0` in baseline.
 - Real `.rin-data` committed: no.
+- Package 2 focused `npm test -- src/conversation/runtime.test.ts src/database/initialize.test.ts`:
+  passed before docs/report additions.
+- Package 2 `npm test`: passed, 54 files and 271 tests.
+- Package 2 temporary test data directory:
+  `/tmp/rin-v2-package2.8RI20g`.
+- Package 2 `RIN_DATA_DIR=/tmp/rin-v2-package2.8RI20g npm run rin:init`:
+  passed; schema version 5.
+- Package 2 `RIN_DATA_DIR=/tmp/rin-v2-package2.8RI20g npm run rin:conversation-runtime-report`:
+  passed; no full text included.
+- Package 2 `RIN_DATA_DIR=/tmp/rin-v2-package2.8RI20g npm run rin:check`:
+  passed.
+- Package 2 focused `npm test -- src/conversation/runtime.test.ts src/conversation/runtimeReport.test.ts src/database/initialize.test.ts`:
+  passed, 17 tests.
+- Package 2 `git diff --check`: passed.
+- Package 2 `RIN_DATA_DIR=/tmp/rin-v2-package2.8RI20g npm run rin:v1-check`:
+  passed.
+- Package 2 final verification: passed.
 
 ## Unresolved Risks
 
-- Package 1 checks passed after removal.
+- Package 2 checks passed locally.
 - Historical v0.x/v1 documents still describe old Agent scaffolds as historical
-  behavior; current v2 docs now mark those paths as decommissioned.
+  behavior; current v2 docs mark those paths as decommissioned.
 - `Agent State Bundle` naming remains for portability compatibility and does not
   imply active Agent execution.
 - Legacy `tool_invocations` records remain readable by design.
 
 ## Next Exact Task
 
-Finish Package 1 GitHub handoff:
+Finish Package 2 GitHub handoff:
 
-1. Commit the verified Package 1 diff.
-2. Push `codex/v2-1-decommission-agent-complexity`.
-3. Open a PR and merge only if repository gates pass.
+1. Commit the verified Package 2 diff.
+2. Push `codex/v2-2-conversation-persistence`.
+3. Open PR and merge only if repository gates pass.
 4. After merge, pull `main` and verify clean state.
-5. Start Package 2 only from updated `main`.
+5. Start Package 3 only from updated `main`.
 
 ## Package Status Ledger
 
 | Package | Status | Branch | PR | Notes |
 | --- | --- | --- | --- | --- |
 | Package 0 | merged | `codex/v2-0-recovery-and-persistent-plan` | #50 | Recovery and persistent v2 plan merged to `main`. |
-| Package 1 | verified locally | `codex/v2-1-decommission-agent-complexity` | pending | Decommission inventory and safe Agent complexity removal. |
-| Package 2 | not started | pending | pending | Conversation runtime persistence redesign. |
+| Package 1 | merged | `codex/v2-1-decommission-agent-complexity` | #51 | Decommission inventory and safe Agent complexity removal. |
+| Package 2 | verified locally | `codex/v2-2-conversation-persistence` | pending | Conversation runtime persistence redesign. |
 | Package 3 | not started | pending | pending | Local RIN/Owner profile configuration. |
 | Package 4 | not started | pending | pending | Memory V2 data model and short-term memory. |
 | Package 5 | not started | pending | pending | Automatic memory engine and forgetting curve. |
