@@ -190,6 +190,9 @@ npm run rin:short-term-memory-report
 npm run rin:memory-v2-schema-report
 npm run rin:memory-v2-eval
 npm run rin:memory-v2-shadow-report
+npm run rin:memory-v2-migration-dry-run
+npm run rin:memory-v2-migration-apply
+npm run rin:memory-v2-migration-status
 npm run rin:context-v2-report
 npm run rin:context-v2-eval
 npm run rin:daily-chat-eval
@@ -1130,37 +1133,47 @@ does not print full private profile text.
 并且只通过 runtime 以紧凑形式进入模型上下文。报告只输出计数、状态和验证问题，
 不会输出完整私有 profile 正文。
 
-Memory V2 currently runs in shadow/report-only mode. `npm run
-rin:memory-v2-schema-report` checks the additive shadow tables for trace
-sources, traces, signals, and retrieval events. `npm run
-rin:short-term-memory-report` builds a five-hour rolling window from raw
-conversation messages using IDs, roles, timestamps, and character counts only.
-`npm run rin:memory-v2-eval` runs deterministic fixture cases for promotion,
-reinforcement, weakening, and ignore decisions. `npm run
-rin:memory-v2-shadow-report` writes deterministic shadow traces and signals
-without changing production retrieval. Memory V2 does not copy full raw messages
-into Memory V2 tables, does not mutate profiles or accepted memories, and does
-not call providers.
+Memory V2 provides additive schema/reporting, deterministic shadow formation,
+and a safe legacy accepted-memory migration path. `npm run
+rin:memory-v2-schema-report` checks the additive trace source, trace, signal,
+and retrieval event tables. `npm run rin:short-term-memory-report` builds a
+five-hour rolling window from raw conversation messages using IDs, roles,
+timestamps, and character counts only. `npm run rin:memory-v2-eval` runs
+deterministic fixture cases for promotion, reinforcement, weakening, and ignore
+decisions. `npm run rin:memory-v2-shadow-report` writes deterministic shadow
+traces and signals for raw conversation messages. `npm run
+rin:memory-v2-migration-dry-run`, `npm run rin:memory-v2-migration-apply`, and
+`npm run rin:memory-v2-migration-status` map legacy accepted memories into
+Memory V2 retrieval-candidate traces idempotently. Production memory retrieval
+uses those Memory V2 traces once migration is complete; until then it falls back
+to legacy accepted memories to avoid dropping owner-reviewed records. Memory V2
+does not copy full raw messages into Memory V2 tables, does not mutate profiles
+or accepted memory records, and does not call providers.
 
-Memory V2 当前处于 shadow/report-only 模式。`npm run
-rin:memory-v2-schema-report` 会检查 trace source、trace、signal 和 retrieval
-event 的新增 shadow 表。`npm run rin:short-term-memory-report` 会从原始对话消息
-生成五小时滚动窗口，但只使用 ID、角色、时间戳和字符数。`npm run
-rin:memory-v2-eval` 会运行确定性的 fixture，检查 promoted、reinforced、weakened
-和 ignored 决策。`npm run rin:memory-v2-shadow-report` 会写入确定性的 shadow trace
-和 signal，但不改变生产检索。Memory V2 不会把完整原始消息复制进 Memory V2 表，
-不会修改 profile 或 accepted memory，也不会调用 provider。
+Memory V2 提供新增 schema/report、确定性的 shadow formation，以及安全的旧
+accepted memory 迁移路径。`npm run rin:memory-v2-schema-report` 会检查 trace
+source、trace、signal 和 retrieval event 表。`npm run
+rin:short-term-memory-report` 会从原始对话消息生成五小时滚动窗口，但只使用
+ID、角色、时间戳和字符数。`npm run rin:memory-v2-eval` 会运行确定性 fixture，
+检查 promoted、reinforced、weakened 和 ignored 决策。`npm run
+rin:memory-v2-shadow-report` 会为原始对话消息写入确定性的 shadow trace 和
+signal。`npm run rin:memory-v2-migration-dry-run`、`npm run
+rin:memory-v2-migration-apply` 和 `npm run rin:memory-v2-migration-status` 会把旧
+accepted memory 幂等映射到 Memory V2 retrieval-candidate trace。迁移完成后，
+生产记忆检索使用这些 Memory V2 trace；迁移未完整时会降级使用旧 accepted memory，
+避免丢失所有者已审查的记录。Memory V2 不会把完整原始消息复制进 Memory V2 表，
+不会修改 profile 或 accepted memory 记录，也不会调用 provider。
 
-Context V2 is also shadow-only. `npm run rin:context-v2-report` reports the
-candidate context order, budget accounting, provenance, deduplication, and
-latest-owner-message preservation without changing the production runtime.
-`npm run rin:context-v2-eval` runs deterministic fixtures for ordering, budget,
-deduplication, and provenance. Reports do not print full prompt, profile,
-message, or memory text and do not call providers.
+Context V2 remains report/evaluation-only. `npm run rin:context-v2-report`
+reports the candidate context order, budget accounting, provenance,
+deduplication, and latest-owner-message preservation without changing the
+production runtime. `npm run rin:context-v2-eval` runs deterministic fixtures
+for ordering, budget, deduplication, and provenance. Reports do not print full
+prompt, profile, message, or memory text and do not call providers.
 
-Context V2 也仍是 shadow-only。`npm run rin:context-v2-report` 会报告候选上下文
-顺序、预算、provenance、去重和 latest owner message 保护情况，但不会改变生产
-runtime。`npm run rin:context-v2-eval` 会运行确定性 fixture，覆盖顺序、预算、
+Context V2 仍是 report/evaluation-only。`npm run rin:context-v2-report` 会报告
+候选上下文顺序、预算、provenance、去重和 latest owner message 保护情况，但不会改变
+生产 runtime。`npm run rin:context-v2-eval` 会运行确定性 fixture，覆盖顺序、预算、
 去重和 provenance。报告不会输出完整 prompt、profile、消息或记忆文本，也不会调用
 provider。
 

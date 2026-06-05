@@ -58,7 +58,9 @@ Current known module boundaries include:
   records `conversation.turn_failed`, and never stores fake RIN replies.
   Successful RIN turns may store safe memory context trace metadata for
   audit/reload visibility; this metadata excludes full memory text, model context
-  snippets, and raw prompt text.
+  snippets, and raw prompt text. Production memory retrieval now records whether
+  accepted-memory candidates came from Memory V2 migrated legacy traces or from
+  the safety fallback used before legacy migration is complete.
 - `src/context/`: fast-variable context assembly between conversation runtime
   and model adapters. It builds bounded model input, adds the compact RIN system
   prompt, and does not own identity, memory storage, policy, or provider calls.
@@ -134,15 +136,19 @@ Current known module boundaries include:
   suggestion-only health/conflict/archive/merge reports. These reports may read
   memory content internally for deterministic comparison but only print memory
   IDs, statuses, types, counts, and reason codes; they never mutate memory or
-  print full memory text. Memory V2 shadow schema and five-hour short-term
-  memory reports live here in report-only mode. They reference raw conversation
-  message IDs, roles, timestamps, and character counts without duplicating full
-  raw message text into Memory V2 tables or changing production retrieval.
-  The deterministic Memory V2 shadow engine may write trace summaries and signal
-  rows into `memory_v2_*` tables using bounded pattern-based scoring and
-  `baseScore * exp(-ageHours / stabilityHours)` retention. It does not delete
-  raw history, mutate profiles or accepted memories, call providers, extract
-  hidden reasoning, or feed Memory V2 traces into production retrieval.
+  print full memory text. Memory V2 schema and five-hour short-term memory
+  reports reference raw conversation message IDs, roles, timestamps, and
+  character counts without duplicating full raw message text into Memory V2
+  tables. The deterministic Memory V2 shadow engine may write trace summaries
+  and signal rows into `memory_v2_*` tables using bounded pattern-based scoring
+  and `baseScore * exp(-ageHours / stabilityHours)` retention. The legacy
+  migration path maps owner-reviewed accepted `memory_items` into Memory V2
+  `legacy_memory_item` retrieval-candidate traces with dry-run/apply/status
+  commands. Production accepted-memory retrieval uses those Memory V2 traces
+  once migration is complete, with a legacy accepted-memory fallback until all
+  accepted records are mapped. Memory V2 does not delete raw history, mutate
+  profiles or accepted memory records, call providers, extract hidden reasoning,
+  or print full memory text in reports.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
 - `src/storage/`: controlled local storage layout and manifest logic.

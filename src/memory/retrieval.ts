@@ -1,4 +1,5 @@
 import type { MemoryMetadata, MemoryRecord, MemoryType } from "./manager";
+import type { MemoryV2ProductionRetrievalSource } from "./v2LegacyMigration";
 import {
   buildRetrievalTokenProfile,
   scoreRetrievalOverlap,
@@ -54,6 +55,13 @@ export type MemoryRetrievalOptions = {
 export type AcceptedMemoryRetrievalResult = {
   snippets: AcceptedMemorySnippet[];
   explanations: MemoryInjectionExplanation[];
+  retrievalSource?:
+    | MemoryV2ProductionRetrievalSource
+    | "legacy-memory-items"
+    | "test-override";
+  legacyAcceptedMemoryCount?: number;
+  migratedLegacyMemoryCount?: number;
+  pendingLegacyMemoryCount?: number;
 };
 
 export const DEFAULT_MAX_INJECTED_MEMORIES = 5;

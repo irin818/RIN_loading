@@ -96,6 +96,15 @@ export {
   runMemoryV2ShadowEngine,
 } from "./v2Engine";
 export {
+  applyMemoryV2LegacyMigration,
+  buildMemoryV2LegacyMigrationDryRunReport,
+  buildMemoryV2LegacyMigrationStatusReport,
+  formatMemoryV2LegacyMigrationReport,
+  getMemoryV2LegacyMigrationStatus,
+  getMemoryV2ProductionCandidateMemories,
+  retrieveAcceptedMemoriesViaMemoryV2,
+} from "./v2LegacyMigration";
+export {
   buildShortTermMemoryReport,
   formatShortTermMemoryReport,
 } from "./shortTermMemory";
@@ -196,6 +205,13 @@ export type {
   MemoryV2TraceDecision,
   MemoryV2TraceReason,
 } from "./v2Engine";
+export type {
+  MemoryV2LegacyMigrationMode,
+  MemoryV2LegacyMigrationReport,
+  MemoryV2LegacyMigrationStatus,
+  MemoryV2ProductionCandidateSet,
+  MemoryV2ProductionRetrievalSource,
+} from "./v2LegacyMigration";
 export type {
   ShortTermMemoryMessageRef,
   ShortTermMemoryReport,
