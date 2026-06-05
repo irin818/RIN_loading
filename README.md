@@ -36,10 +36,9 @@ templates:
 - Basic local conversation path through the runtime.
 - 通过 runtime 的基础本地对话路径。
 - Raw logs, memory proposals, policy checks, state history, export bundles,
-  permission-gated low-risk tools, an original chibi SVG body rig, and a
-  local-only body interaction shell.
-- 原始日志、记忆提案、策略检查、状态历史、导出包、受权限控制的低风险工具，
-  原创 Q 版 SVG 身体 rig，以及仅本地运行的身体交互壳。
+  an original chibi SVG body rig, and a local-only body interaction shell.
+- 原始日志、记忆提案、策略检查、状态历史、导出包、原创 Q 版 SVG 身体 rig，
+  以及仅本地运行的身体交互壳。
 - Configurable model adapter selection with local mock defaults and an
   OpenAI-compatible adapter that is active only when explicitly configured as an
   optional external provider.
@@ -78,16 +77,16 @@ templates:
 
 It intentionally does not store API keys in tracked files or local core config,
 does not allow UI-direct model calls, and does not implement automatic
-long-term memory writes without review, medium-risk or high-risk automatic
-tools, real Live2D asset loading, synchronization, multi-user systems, SaaS
-backends, API-first core architecture, hard-coded provider-specific model calls,
-or UI-direct Ollama/API calls. It also does not yet implement a native
+long-term memory writes without review, active general-purpose Agent execution,
+tools/MCP, planner/task autonomy, real Live2D asset loading, synchronization,
+multi-user systems, SaaS backends, API-first core architecture, hard-coded
+provider-specific model calls, or UI-direct Ollama/API calls. It also does not yet implement a native
 transparent desktop window.
 
 当前阶段有意不在已跟踪文件或本地核心配置中存储 API Key，不允许 UI 直接调用
-模型服务商，也不实现未经审查的自动长期记忆写入、中高风险工具自动执行、
-真实 Live2D 模型资产加载、同步、多用户系统、SaaS 后台、API 优先的核心架构、
-硬编码的特定模型服务商调用，以及 UI 直接调用 Ollama/API。当前也尚未实现
+模型服务商，也不实现未经审查的自动长期记忆写入、通用 Agent 执行、tools/MCP、
+planner/task 自主、真实 Live2D 模型资产加载、同步、多用户系统、SaaS 后台、
+API 优先的核心架构、硬编码的特定模型服务商调用，以及 UI 直接调用 Ollama/API。当前也尚未实现
 原生透明桌面窗口。
 
 ## Install
@@ -200,22 +199,12 @@ npm run rin:memory-maintenance-report
 npm run rin:memory-health-report
 npm run rin:memory-conflict-report
 npm run rin:memory-governance-smoke
-npm run rin:planner-smoke
-npm run rin:planner-execution-smoke
-npm run rin:planner-audit-report
-npm run rin:actions-smoke
-npm run rin:actions-audit-report
 npm run rin:backup-dry-run
 npm run rin:backup-encrypted-smoke
 npm run rin:backup-create
 npm run rin:backup-verify
 npm run rin:restore-dry-run
 npm run rin:restore-apply
-npm run rin:tool-registry-smoke
-npm run rin:mcp-boundary-smoke
-npm run rin:tool-audit-report
-npm run rin:task-smoke
-npm run rin:task-audit-report
 npm run rin:device-report
 npm run rin:sync-dry-run
 npm run rin:migration-check
@@ -341,19 +330,22 @@ local data directory and writes a `manifest.json` with the storage schema
 version. Phase 3 added SQLite persistence. Phase 4 added model abstraction.
 Phase 5 added a basic local conversation path through the runtime. Phase 6-24
 added raw logs, memory proposals, policy checks, state history, export bundles,
-permission-gated L0 tools, an original chibi SVG body rig, a local-only body
-interaction shell, configurable model adapter selection, and controlled memory
-review, local conversation history browsing, safe bundle import, readiness
-reporting, the first Ollama local chat adapter, and bounded model context
-assembly plus local runtime controls before adapter calls.
+an original chibi SVG body rig, a local-only body interaction shell,
+configurable model adapter selection, and controlled memory review, local
+conversation history browsing, safe bundle import, readiness reporting, the
+first Ollama local chat adapter, and bounded model context assembly plus local
+runtime controls before adapter calls. RIN v2 decommissions the earlier
+Actions/Planner/Tasks/Tools/MCP scaffolds and L0-L5 runtime permission
+hierarchy.
 
 Phase 2 引入 Node 侧存储基础，可以初始化受控本地数据目录，并写入带有存储
 schema 版本的 `manifest.json`。Phase 3 增加 SQLite 持久化。Phase 4 增加模型
 抽象层。Phase 5 增加通过 runtime 的基础本地对话路径。Phase 6-24 增加原始
-日志、记忆提案、策略检查、状态历史、导出包、受权限控制的 L0 工具、原创 Q 版
-SVG 身体 rig、仅本地运行的身体交互壳、可配置的模型 adapter 选择，以及受控记忆
-审查、本地对话历史浏览、安全 bundle 导入、就绪检查报告、第一个 Ollama 本地聊天
-adapter，以及 adapter 调用前的有界模型上下文组装和本地 runtime 控制项。
+日志、记忆提案、策略检查、状态历史、导出包、原创 Q 版 SVG 身体 rig、仅本地运行的身体
+交互壳、可配置的模型 adapter 选择，以及受控记忆审查、本地对话历史浏览、安全 bundle
+导入、就绪检查报告、第一个 Ollama 本地聊天 adapter，以及 adapter 调用前的有界模型上下文
+组装和本地 runtime 控制项。RIN v2 已退役早期 Actions/Planner/Tasks/Tools/MCP scaffold
+与 L0-L5 runtime 权限体系。
 
 Initialize local RIN data:
 
@@ -420,14 +412,6 @@ npm run rin:import
 Import refuses to overwrite a non-empty data directory.
 
 导入流程会拒绝覆盖非空数据目录。
-
-Run a built-in L0 low-risk tool:
-
-运行内置 L0 低风险工具：
-
-```sh
-npm run rin:tool
-```
 
 Check local readiness before live model use:
 
@@ -818,66 +802,25 @@ deterministic memory IDs. The generated system prompt and latest owner message
 remain preserved. Default checks and default report commands remain
 provider-free and do not call Ollama.
 
-Package 3 adds suggestion-only memory maintenance, a dry-run action permission
-foundation, and a finite local planner smoke loop:
+Package 3 originally added suggestion-only memory maintenance and early
+Agent/action/planner scaffolds. In RIN v2, only the memory maintenance report
+remains active; the Agent/action/planner scaffolds and their scripts are
+decommissioned.
 
 ```sh
 npm run rin:memory-maintenance-report
-npm run rin:planner-smoke
 ```
 
 The maintenance report reads local memory records and prints IDs, statuses,
 types, counts, and safe reason codes only; it does not mutate, archive, delete,
-or rewrite memory. The action permission scaffold is deny-by-default for unknown,
-destructive, and external actions, and all Package 3 registry actions are
-dry-run-only. The planner smoke command runs a deterministic fixture plan,
-dry-runs actions through the permission layer, starts no background loop, calls no
-providers, and executes no real actions.
+or rewrite memory. RIN v2 no longer has active general tool execution, MCP,
+planner, task autonomy, or L0-L5 runtime permission scripts.
 
-v0.2-B adds a small permission-gated local action envelope:
-
-```sh
-npm run rin:actions-smoke
-npm run rin:actions-audit-report
-```
-
-The first real actions are limited to safe project status reads, safe relative
-file listing, package/docs metadata reads without full file text, and creating
-local `.md`/`.txt` draft note/report files in an explicit safe output directory.
-Every action must pass a permission decision and records a safe audit event.
-Unknown, destructive, external, secret-path, overwrite, and out-of-workspace
-actions are blocked. The smoke command uses temporary fixture data; it does not
-touch real project files or call network providers.
-
-v0.2-B 增加一个小范围的 permission-gated 本地动作执行层。第一批真实动作只允许读取项目
-状态、列出安全相对文件、读取 package/docs 元数据（不输出完整文件正文），以及在明确的安全
-输出目录创建本地 `.md`/`.txt` 草稿笔记或报告。每个动作都必须先经过 permission
-decision，并记录安全 audit event。未知、删除、外部网络、secret 路径、覆盖已有文件和越界
-路径都会被拒绝。smoke 命令使用临时 fixture 数据，不触碰真实项目文件，也不调用网络服务。
-
-v0.2-C adds owner-confirmed planner execution for low-risk local actions:
-
-```sh
-npm run rin:planner-execution-smoke
-npm run rin:planner-audit-report
-```
-
-The original `rin:planner-smoke` remains dry-run-only. The execution smoke flow
-uses temporary fixture data, performs permission/dry-run preview before
-execution, requires the explicit `RIN_PLANNER_EXECUTE_LOW_RISK_ACTIONS`
-confirmation token, executes only allowed low-risk local actions through the
-action envelope, audits the run, and confirms destructive actions remain blocked.
-It starts no background loop, calls no providers, and performs no memory
-mutation.
-
-v0.2-C 增加 owner-confirmed planner execution。原有 `rin:planner-smoke` 仍保持
-dry-run-only。新的 execution smoke 使用临时 fixture 数据，执行前先做 permission/dry-run
-preview，必须提供 `RIN_PLANNER_EXECUTE_LOW_RISK_ACTIONS` 确认 token，且只能通过
-action envelope 执行允许的低风险本地动作；删除等高风险动作仍会被阻断并记录 audit。它不会
-启动后台循环，不调用 provider，也不会自动修改记忆。
+RIN v2 保留 memory maintenance report，但退役早期 Agent/action/planner scaffold
+及其脚本。当前核心不执行通用工具、MCP、planner 或 task 自主流程。
 
 Package 4 adds read-only operational status to the Console snapshot for model,
-memory, semantic context, permissions, planner, and backup readiness. It also
+memory, semantic context, decommissioned Agent runtime status, and backup readiness. It also
 adds local continuity dry-runs:
 
 ```sh
@@ -932,9 +875,9 @@ For v0.2 stabilization and release readiness, use:
 npm run rin:v0-2-check
 ```
 
-`rin:v0-2-check` currently runs the full local gate, including encrypted backup
-smoke, permission-gated local action smoke, owner-confirmed planner execution
-smoke, audit reports, dry-runs, typecheck, tests, lint, build, readiness, memory
+`rin:v0-2-check` currently runs the provider-free local gate without the
+decommissioned Agent/action/planner scripts. It includes encrypted backup smoke,
+audit/report dry-runs, typecheck, tests, lint, build, readiness, memory
 evaluation, and semantic report-only checks.
 
 See `docs/RIN_V0_2_READINESS_CHECKLIST.md`,
@@ -950,7 +893,7 @@ npm run rin:v0-3-check
 
 `rin:v0-3-check` keeps external provider smoke in default skipped/no-call mode
 unless explicitly selected, configured, and confirmed. It also runs safe local
-project inspection, action audit reporting, and rollback notes reporting. See
+project inspection and rollback notes reporting. See
 `docs/RIN_V0_3_SCOPE_GOVERNANCE_AUDIT.md` and
 `docs/RIN_V0_3_RELEASE_NOTES.md`.
 
@@ -967,27 +910,26 @@ delete, archive, merge, downgrade, overwrite, or mutate memories. See
 `docs/RIN_V0_4_MEMORY_GOVERNANCE_POLICY.md` and
 `docs/RIN_V0_4_RELEASE_NOTES.md`.
 
-For v0.5 tool/MCP boundary checks, use:
+For v0.5 historical compatibility checks, use:
 
 ```sh
 npm run rin:v0-5-check
 ```
 
-v0.5 adds tool capability and audit reports plus an MCP boundary smoke report.
-MCP remains disabled by default, external/network tools remain default-deny, and
-the reports do not execute MCP tools or call providers. See
+The v0.5 check name remains as a compatibility alias, but RIN v2 no longer has
+active tool/MCP runtime scripts. Historical v0.5 policy notes remain in
 `docs/RIN_V0_5_TOOL_MCP_POLICY.md` and `docs/RIN_V0_5_RELEASE_NOTES.md`.
 
-For v0.6 bounded task checks, use:
+For v0.6 historical compatibility checks, use:
 
 ```sh
 npm run rin:v0-6-check
 ```
 
-v0.6 adds a finite task scaffold with planner/executor/checker separation and
-owner checkpoint reporting. The task smoke path does not execute real actions,
-start background loops, mutate memory, or call providers. See
-`docs/RIN_V0_6_TASK_AUTONOMY_POLICY.md` and `docs/RIN_V0_6_RELEASE_NOTES.md`.
+The v0.6 check name remains as a compatibility alias, but RIN v2 no longer has
+active task autonomy or planner/executor/checker scripts. Historical v0.6 notes
+remain in `docs/RIN_V0_6_TASK_AUTONOMY_POLICY.md` and
+`docs/RIN_V0_6_RELEASE_NOTES.md`.
 
 For v0.7 device continuity and sync dry-run checks, use:
 
@@ -1148,16 +1090,15 @@ Phase 27 让本地模型恢复在 Console 中变得可操作。手动的 “Refr
 长期记忆。重试仍会经过 RIN runtime，不会直接调用服务商；模型选择仍由环境/配置决定。
 
 The initializer creates readable JSON files for the owner model, AI identity,
-AI state, policy config, model config, tool registry, and permissions. These are
-starter state files only; they do not implement memory behavior, tool execution,
-external model configuration by themselves, or Live2D. Memory behavior is
+AI state, policy config, and model config. These are starter state files only;
+they do not implement memory behavior, external model configuration by
+themselves, or Live2D. Memory behavior is
 implemented by the runtime and SQLite memory tables, not by blindly editing
 these starter files.
 
 初始化器会创建可读的 JSON 文件，包括所有者模型、AI 身份、AI 状态、策略配置、
-模型配置、工具注册表和权限配置。这些只是起步状态文件；它们本身不实现记忆行为、
-工具执行、外部模型配置或 Live2D。记忆行为由 runtime 和 SQLite 记忆表实现，
-不是通过盲目编辑这些起步文件实现。
+模型配置。这些只是起步状态文件；它们本身不实现记忆行为、外部模型配置或
+Live2D。记忆行为由 runtime 和 SQLite 记忆表实现，不是通过盲目编辑这些起步文件实现。
 
 ## Test
 

@@ -71,8 +71,8 @@ Python sidecar 或其他本地服务。
 - RIN 核心运行时必须独立于 UI 组件。
 - UI must call core runtime through explicit interfaces.
 - UI 必须通过明确接口调用核心运行时。
-- UI components must not contain model, memory, storage, tool, or policy logic.
-- UI 组件不得包含模型、记忆、存储、工具或策略逻辑。
+- UI components must not contain model, memory, storage, or policy logic.
+- UI 组件不得包含模型、记忆、存储或策略逻辑。
 - UI code must not call local or external model providers directly.
 - UI 代码不得直接调用本地或外部模型服务商。
 - Model providers, including Ollama and any external APIs, must enter through
@@ -80,11 +80,11 @@ model adapters.
 - 包括 Ollama 和任何外部 API 在内的模型服务商，都必须通过模型适配器接入。
 - Memory writes must go through a future local memory manager.
 - 记忆写入必须通过未来的本地记忆管理器。
-- Tool execution must go through a future permission gateway.
-- 工具执行必须通过未来的权限网关。
-- Tool execution and device or application control must never be implemented
-directly inside React components.
-- 工具执行以及设备或应用控制绝不能直接实现在 React 组件中。
+- General-purpose Agent tool execution, device control, and application control
+  are not active in RIN v2. If they are reconsidered later, they need a separate
+  owner-reviewed governance design before implementation.
+- RIN v2 不启用通用 Agent 工具执行、设备控制或应用控制。如果未来重新考虑，
+  必须先有单独的 owner-reviewed 治理设计，再实现。
 - Slow variables must be local, versioned where appropriate, and protected from
 direct overwrite by fast variables.
 - 慢变量必须保存在本地，在适当位置进行版本化，并防止被快变量直接覆盖。
@@ -97,9 +97,9 @@ runtime.
 ## 本地运行时与状态
 
 - Browser `localStorage` must not be used for core RIN state such as memory,
-identity, user model, permissions, or audit logs.
+identity, user model, policy, or audit logs.
 - 浏览器 `localStorage` 不得用于保存 RIN 核心状态，例如记忆、身份、
-用户模型、权限或审计日志。
+用户模型、策略或审计日志。
 - Core state must live in local files or databases under controlled data
 directories.
 - 核心状态必须保存在受控数据目录下的本地文件或数据库中。
@@ -153,8 +153,9 @@ The following are intentionally still not implemented after Phase 22:
 - 在已跟踪文件或本地核心配置中存储 API Key。
 - Automatic long-term memory writes without review.
 - 未经审查的自动长期记忆写入。
-- Medium-risk or high-risk automatic tool execution.
-- 中高风险工具自动执行。
+- Active general-purpose Agent execution, tools/MCP, planner, task autonomy, or
+  an L0-L5 runtime permission hierarchy.
+- 活跃的通用 Agent 执行、tools/MCP、planner、task 自主或 L0-L5 runtime 权限体系。
 - Real Live2D asset loading.
 - 真实 Live2D 资产加载。
 - Native transparent desktop window.
@@ -181,10 +182,10 @@ The following are intentionally still not implemented after Phase 22:
   raw messages to SQLite and uses the mock adapter only.
 - Phase 5 增加通过 runtime 的基础本地对话路径。它会把原始消息写入 SQLite，
   并且只使用 mock adapter。
-- Phase 5 did not call external models, write long-term memory, execute tools,
-  or integrate Live2D. Later phases add auditable boundaries before broadening
-  any of those capabilities.
-- Phase 5 未调用外部模型、写入长期记忆、执行工具或集成 Live2D。后续阶段会先添加
+- Phase 5 did not call external models, write long-term memory, execute
+  side-effecting integrations, or integrate Live2D. Later phases add auditable
+  boundaries before broadening any of those capabilities.
+- Phase 5 未调用外部模型、写入长期记忆、执行有副作用的集成或集成 Live2D。后续阶段会先添加
   可审计边界，再逐步扩大这些能力。
 - Phase 6 records raw runtime events for traceability.
 - Phase 6 记录原始 runtime 事件，用于可追踪性。
@@ -200,9 +201,11 @@ The following are intentionally still not implemented after Phase 22:
 - Phase 10 通过本地状态引擎更新 AI 状态。
 - Phase 11 exports manual local Agent State Bundles.
 - Phase 11 导出手动本地 Agent State Bundle。
-- Phase 12-13 register tools and allow only built-in L0 tools to auto-execute
-  through the permission gate.
-- Phase 12-13 注册工具，并且只允许内置 L0 工具通过权限网关自动执行。
+- Phase 12-13 originally introduced tools and L0 execution scaffolds. RIN v2
+  Package 1 decommissions that active runtime path while preserving legacy
+  database compatibility.
+- Phase 12-13 曾引入工具和 L0 执行 scaffold。RIN v2 Package 1 退役这条 active runtime
+  路径，同时保留旧数据库兼容性。
 - Phase 14-15 define a body adapter and provide an original chibi SVG rig at
   `/body`. This is Live2D-compatible in state fields, but it is not a Cubism
   `.moc3` asset.
@@ -210,9 +213,9 @@ The following are intentionally still not implemented after Phase 22:
   字段上兼容 Live2D，但不是 Cubism `.moc3` 资产。
 - Phase 16 adds a local-only desktop body interaction shell for `/body`. Drag
   position, click reaction, and bubble visibility are UI fast variables; they do
-  not write memory, execute tools, or become RIN identity.
+  not write memory, trigger external side effects, or become RIN identity.
 - Phase 16 增加 `/body` 的仅本地桌面身体交互壳。拖拽位置、点击反应和气泡可见性
-  都是 UI 快变量；它们不会写入记忆、执行工具或成为 RIN 身份。
+  都是 UI 快变量；它们不会写入记忆、触发外部副作用或成为 RIN 身份。
 - Phase 17 adds configurable model adapter selection. The default remains
   `rin-mock-local`; OpenAI-compatible providers require explicit environment
   configuration and are optional expert or fallback providers. Future Ollama and

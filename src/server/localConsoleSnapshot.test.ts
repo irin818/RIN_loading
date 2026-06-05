@@ -29,15 +29,17 @@ describe("readLocalConsoleSnapshot", () => {
     expect(snapshot.manifestStatus).toBe("ok");
     expect(snapshot.identity.name).toBe("RIN");
     expect(snapshot.ownerModel.status).toBe("placeholder");
-    expect(snapshot.toolRegistry.toolCount).toBe(2);
     expect(snapshot.operationalStatus.model.localCallsConfigured).toBe(false);
     expect(snapshot.operationalStatus.memory.accepted).toBe(0);
     expect(snapshot.operationalStatus.semantic.contextExpansionEnabled).toBe(false);
     expect(snapshot.operationalStatus.semantic.providerCallCount).toBe(0);
-    expect(snapshot.operationalStatus.permissions.dryRunActionCount).toBe(3);
-    expect(snapshot.operationalStatus.permissions.unknownActionsBlocked).toBe(true);
-    expect(snapshot.operationalStatus.planner.executedActionCount).toBe(0);
-    expect(snapshot.operationalStatus.planner.backgroundLoopStarted).toBe(false);
+    expect(snapshot.operationalStatus.agentRuntime).toMatchObject({
+      actionExecutionActive: false,
+      toolExecutionActive: false,
+      plannerActive: false,
+      taskAutonomyActive: false,
+      legacyToolInvocationCount: 0,
+    });
     expect(snapshot.operationalStatus.backup.dryRunAvailable).toBe(true);
     expect(snapshot.operationalStatus.backup.restoreDryRunAvailable).toBe(true);
     expect(snapshot.operationalStatus.backup.archiveCreated).toBe(false);
@@ -52,8 +54,8 @@ describe("readLocalConsoleSnapshot", () => {
       snapshot.featureGates.find((gate) => gate.key === "memory-writes")?.enabled,
     ).toBe(true);
     expect(
-      snapshot.featureGates.find((gate) => gate.key === "tool-execution")?.enabled,
-    ).toBe(true);
+      snapshot.featureGates.find((gate) => gate.key === "agent-complexity")?.enabled,
+    ).toBe(false);
     expect(
       snapshot.featureGates.find((gate) => gate.key === "body-shell")?.enabled,
     ).toBe(true);
@@ -64,7 +66,6 @@ describe("readLocalConsoleSnapshot", () => {
             ![
               "chat-runtime",
               "memory-writes",
-              "tool-execution",
               "body-shell",
             ].includes(gate.key),
         )

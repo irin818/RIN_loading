@@ -18,8 +18,8 @@ export function evaluateModelResponse(response: ModelResponse): PolicyDecision {
   if (response.metadata.toolCallRequested) {
     return {
       allowed: false,
-      reasonEnglish: "Model output requested direct tool execution.",
-      reasonChinese: "模型输出请求直接执行工具。",
+      reasonEnglish: "Model output requested a direct external side effect.",
+      reasonChinese: "模型输出请求直接触发外部副作用。",
     };
   }
 
@@ -28,12 +28,4 @@ export function evaluateModelResponse(response: ModelResponse): PolicyDecision {
     reasonEnglish: "Model response is advisory and contains no direct side effects.",
     reasonChinese: "模型回复仅作为建议，未包含直接副作用。",
   };
-}
-
-export function requiresOwnerConfirmation(riskLevel: string): boolean {
-  return ["L3", "L4", "L5"].includes(riskLevel);
-}
-
-export function canAutoExecuteRisk(riskLevel: string): boolean {
-  return riskLevel === "L0" || riskLevel === "L1";
 }

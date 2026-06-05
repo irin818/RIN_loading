@@ -35,11 +35,6 @@ function makeSnapshot(
       expression: "listening",
       initiative: "low",
     },
-    permissions: {
-      defaultRequiresConfirmationFrom: null,
-      forbiddenAutomaticActions: [],
-      riskLevels: {},
-    },
     modelConfig: {
       activeAdapter: "rin-mock-local",
       selectedProvider: "mock",
@@ -50,7 +45,6 @@ function makeSnapshot(
       missingEnvironment: [],
       ollama: null,
     },
-    toolRegistry: { toolCount: 2 },
     portability: { exportBundles: 0 },
     operationalStatus: {
       model: {
@@ -64,16 +58,12 @@ function makeSnapshot(
         mode: "off",
         providerCallCount: 0,
       },
-      permissions: {
-        dryRunActionCount: 3,
-        unknownActionsBlocked: true,
-        destructiveActionsBlocked: true,
-      },
-      planner: {
-        available: true,
-        status: "blocked",
-        executedActionCount: 0,
-        backgroundLoopStarted: false,
+      agentRuntime: {
+        actionExecutionActive: false,
+        toolExecutionActive: false,
+        plannerActive: false,
+        taskAutonomyActive: false,
+        legacyToolInvocationCount: 0,
       },
       backup: {
         dryRunAvailable: true,
@@ -299,10 +289,9 @@ describe("App", () => {
     expect(screen.getByText("120000 ms")).toBeInTheDocument();
     expect(screen.getByText("512")).toBeInTheDocument();
     expect(screen.getByText("0.9")).toBeInTheDocument();
-    expect(screen.getAllByText("3").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText("blocked · zero actions")).toBeInTheDocument();
+    expect(screen.getAllByText("3").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("0 files")).toBeInTheDocument();
-    expect(screen.getByText("destructive blocked")).toBeInTheDocument();
+    expect(screen.getByText("decommissioned")).toBeInTheDocument();
   });
 
   it("renders gracefully when optional local model settings are absent", async () => {

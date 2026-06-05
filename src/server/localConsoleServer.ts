@@ -24,7 +24,6 @@ import {
 import { initializeRinStorage } from "../storage";
 import { loadEnvironment } from "../config/loadEnvironment";
 import { readLocalConsoleSnapshot } from "./localConsoleSnapshot";
-import { executeRegisteredTool, registerBuiltinTools } from "../tools";
 
 const host = "127.0.0.1";
 const port = Number(process.env.RIN_CONSOLE_PORT ?? 4173);
@@ -295,31 +294,6 @@ async function routeRequest(
       item,
       snapshot: await readLocalConsoleSnapshot(),
     });
-    return;
-  }
-
-  if (url.pathname.startsWith("/api/tools/")) {
-    if (request.method !== "POST") {
-      writeMethodNotAllowed(response);
-      return;
-    }
-
-    registerBuiltinTools();
-    const toolId = decodeURIComponent(url.pathname.slice("/api/tools/".length));
-    const storage = await initializeRinStorage(loadEnvironment());
-    const body = await readJsonBody(request);
-    const database = openRinDatabase(storage.layout);
-
-    try {
-      const result = await executeRegisteredTool(database, toolId, body.input ?? {});
-      writeJson(response, 200, {
-        ok: true,
-        result,
-        snapshot: await readLocalConsoleSnapshot(),
-      });
-    } finally {
-      database.close();
-    }
     return;
   }
 

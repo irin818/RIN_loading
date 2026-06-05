@@ -129,27 +129,12 @@ Current known module boundaries include:
 - `src/storage/`: controlled local storage layout and manifest logic.
 - `src/database/`: SQLite schema, migrations, and connection helpers, including
   side-table storage for optional owner-reviewed memory metadata.
-- `src/tools/`: built-in low-risk tool registry and execution path. v0.5 also
-  adds report-only tool capability, MCP boundary, and tool audit summaries. MCP
-  remains disabled by default, external/network tools are default-deny, and the
-  reports make no MCP calls or provider calls.
-- `src/actions/`: action permission and local action envelope. It defines
-  permission levels, permission decisions, safe audit envelopes, dry-run action
-  fixtures, input/path-level local action previews, and v0.2-B low-risk real
-  local actions. Real local actions are limited to safe project status reads,
-  safe file listing, package/docs metadata reads, and draft note/report creation
-  in explicit safe output directories. Unknown, destructive, external,
-  secret-path, overwrite, and out-of-workspace actions are blocked.
-- `src/planner/`: finite local planner/self-check and owner-confirmed execution
-  scaffold. The original smoke path remains dry-run-only. v0.2-C adds a
-  bounded execution smoke flow that previews permission/dry-run decisions,
-  requires an explicit confirmation token, executes only allowed low-risk local
-  actions through `src/actions/`, audits the run, blocks destructive actions,
-  starts no background loop, and calls no providers.
-- `src/tasks/`: v0.6 bounded task scaffold. It defines task objects and step
-  results, separates planner/executor/checker reporting, dry-runs action
-  permissions, reports owner checkpoint requirements, starts no background loop,
-  executes no real actions, mutates no memory, and calls no providers.
+- Agent complexity decommissioned in v2: `src/tools/`, `src/actions/`,
+  `src/planner/`, and `src/tasks/` are no longer active source modules. The
+  L0-L5 runtime permission hierarchy, tool execution path, MCP boundary smoke,
+  planner scaffold, and task autonomy scaffold were removed from the active
+  architecture. Legacy database tables and historical records remain readable
+  for compatibility; no destructive migration drops old records.
 - `src/backup/`: local backup and restore continuity. Dry-run reports still
   build safe manifest-style reports with relative file names, sizes, and hashes,
   exclude logs/secrets/generated folders, create no archive, and mutate no data.
@@ -309,11 +294,10 @@ passing checks.
   archived status.
 - Memory maintenance remains suggestion-only: reports do not delete, archive, or
   rewrite memories automatically.
-- Planner scaffolds remain finite and owner-confirmed. The default
-  `rin:planner-smoke` path is dry-run-only; the v0.2-C execution smoke path
-  requires explicit confirmation and routes all real low-risk action execution
-  through `src/actions/`. Unknown, destructive, external, secret-path,
-  overwrite, and out-of-workspace actions are blocked and audited.
+- General-purpose Agent scaffolds are decommissioned in v2. There is no active
+  L0-L5 permission hierarchy, tool/MCP execution path, planner scaffold, or task
+  autonomy runtime. Data-integrity protections remain in storage, migration,
+  profile, memory, audit, backup, restore, and model-response policy paths.
 - Console operational status remains a read-only local snapshot. Backup/restore
   dry-run commands remain non-mutating defaults. Encrypted backup archive
   creation is explicit and local-only; restore apply requires a confirmation

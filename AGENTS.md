@@ -11,7 +11,9 @@ state, policy, and continuity must remain locally governed.
 This project currently appears to be a Vite + TypeScript project with React UI
 surfaces and Live2D-related front-end / visual interaction work. It also
 contains local RIN MVP runtime foundations such as storage, model abstraction,
-policy, memory proposal, state, tools, and export boundaries.
+policy, memory proposal, state, and export boundaries. Earlier Agent
+actions/planner/tasks/tools/MCP scaffolds are decommissioned in the active v2
+architecture.
 
 Treat this repository as a stable long-term RIN component, not as a temporary
 demo or disposable prototype.
@@ -21,7 +23,7 @@ demo or disposable prototype.
 - Preserve correctness and local-first behavior.
 - Prefer maintainability over quick rewrites.
 - Keep clear module boundaries between UI, runtime, storage, model, memory,
-  policy, tools, and body/Live2D concerns.
+  policy, and body/Live2D concerns.
 - Make minimal coherent changes.
 - Keep build, lint, and test behavior reproducible.
 - Synchronize work through Git and GitHub when possible.
