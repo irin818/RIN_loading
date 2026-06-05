@@ -190,6 +190,8 @@ npm run rin:short-term-memory-report
 npm run rin:memory-v2-schema-report
 npm run rin:memory-v2-eval
 npm run rin:memory-v2-shadow-report
+npm run rin:context-v2-report
+npm run rin:context-v2-eval
 npm run rin:daily-chat-eval
 npm run rin:daily-chat-live-smoke
 npm run rin:project-report
@@ -1148,6 +1150,19 @@ rin:memory-v2-eval` 会运行确定性的 fixture，检查 promoted、reinforced
 和 ignored 决策。`npm run rin:memory-v2-shadow-report` 会写入确定性的 shadow trace
 和 signal，但不改变生产检索。Memory V2 不会把完整原始消息复制进 Memory V2 表，
 不会修改 profile 或 accepted memory，也不会调用 provider。
+
+Context V2 is also shadow-only. `npm run rin:context-v2-report` reports the
+candidate context order, budget accounting, provenance, deduplication, and
+latest-owner-message preservation without changing the production runtime.
+`npm run rin:context-v2-eval` runs deterministic fixtures for ordering, budget,
+deduplication, and provenance. Reports do not print full prompt, profile,
+message, or memory text and do not call providers.
+
+Context V2 也仍是 shadow-only。`npm run rin:context-v2-report` 会报告候选上下文
+顺序、预算、provenance、去重和 latest owner message 保护情况，但不会改变生产
+runtime。`npm run rin:context-v2-eval` 会运行确定性 fixture，覆盖顺序、预算、
+去重和 provenance。报告不会输出完整 prompt、profile、消息或记忆文本，也不会调用
+provider。
 
 ## Test
 

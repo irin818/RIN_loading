@@ -324,3 +324,29 @@ Implications:
 - `rin:memory-v2-shadow-report` may mutate only Memory V2 shadow tables.
 - Reports must not print raw message text, accepted memory text, prompt text, or
   hidden reasoning.
+
+## Decision 0016: Context V2 is shadow-only until explicit cutover
+
+Decision:
+
+- Context V2 assembles candidate context in a report/evaluation path only.
+- Its intended order is system, RIN profile, Owner profile, current Owner
+  message, recent short-term window, relevant Memory V2 traces, then older
+  references if budget remains.
+- It reports provenance, deduplication, budget accounting, and whether the
+  latest Owner message is preserved.
+- It does not feed production model calls before an explicit cutover package.
+
+Rationale:
+
+- Context ordering can change model behavior, so it must be observable and
+  tested before production use.
+- Provenance and privacy reporting are needed before Memory V2 retrieval is
+  allowed to influence runtime context.
+
+Implications:
+
+- `rin:context-v2-report` and `rin:context-v2-eval` are provider-free.
+- Reports must not print full prompt, profile, message, or memory text.
+- Production `buildModelContext` and conversation runtime remain unchanged until
+  Package 7 or another explicit cutover task.

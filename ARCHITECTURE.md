@@ -66,6 +66,9 @@ Current known module boundaries include:
   accepted memory snippets from the memory layer. Profile context is placed after
   the system prompt and before memory/conversation context; context assembly
   remains budgeted and storage/review stays separate from context assembly.
+  Context V2 lives here as a shadow report/evaluation path with explicit order,
+  provenance, deduplication, and budget accounting. It is not used by production
+  conversation runtime unless a later cutover package explicitly changes that.
 - `src/profile/`: local RIN and Owner profile loading, validation, compact
   context formatting, and safe report output. Profiles are manually editable
   local files under `.rin-data/config/`; model output cannot write them, and
