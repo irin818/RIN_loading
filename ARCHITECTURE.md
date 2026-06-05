@@ -135,6 +135,11 @@ Current known module boundaries include:
   memory reports live here in report-only mode. They reference raw conversation
   message IDs, roles, timestamps, and character counts without duplicating full
   raw message text into Memory V2 tables or changing production retrieval.
+  The deterministic Memory V2 shadow engine may write trace summaries and signal
+  rows into `memory_v2_*` tables using bounded pattern-based scoring and
+  `baseScore * exp(-ageHours / stabilityHours)` retention. It does not delete
+  raw history, mutate profiles or accepted memories, call providers, extract
+  hidden reasoning, or feed Memory V2 traces into production retrieval.
 - `src/policy/`: local policy runtime checks.
 - `src/state/`: local AI state update logic.
 - `src/storage/`: controlled local storage layout and manifest logic.
