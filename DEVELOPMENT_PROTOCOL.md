@@ -51,6 +51,29 @@ Multiple Codex conversations may work in this repository. Each task must:
 If unexpected user or agent changes are present, work with them and do not
 revert them unless explicitly instructed.
 
+### RIN v2.0 Continuation Policy
+
+Every Codex conversation that continues v2.0 work must begin by reading:
+
+1. `docs/RIN_V2_MASTER_PLAN.md`
+2. `docs/RIN_V2_PROGRESS.md`
+3. `docs/RIN_V2_DECISIONS.md`
+
+After reading those files, inspect local git status, current branch, recent log,
+remote branch state, and open PRs. Continue only the current package recorded in
+`docs/RIN_V2_PROGRESS.md` unless the owner explicitly changes scope.
+
+Before stopping a v2.0 conversation:
+
+1. leave coherent commits for completed work;
+2. push the active branch when a remote exists;
+3. update `docs/RIN_V2_PROGRESS.md`;
+4. record the exact next task;
+5. report blockers, failed checks, and merge status honestly.
+
+Do not depend on chat context alone for v2.0 continuity. Repository-persisted
+plan, progress, and decision files are the handoff source of truth.
+
 ## Testing and Check Policy
 
 Use scripts defined in `package.json`.
