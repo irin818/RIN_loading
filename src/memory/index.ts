@@ -84,6 +84,14 @@ export {
   getSemanticReadinessReport,
 } from "./semanticReadiness";
 export {
+  buildMemoryV2SchemaReport,
+  formatMemoryV2SchemaReport,
+} from "./v2Schema";
+export {
+  buildShortTermMemoryReport,
+  formatShortTermMemoryReport,
+} from "./shortTermMemory";
+export {
   formatSemanticLiveReadinessReport,
   getSemanticLiveReadinessReport,
   readSemanticLiveEmbeddingConfig,
@@ -162,6 +170,17 @@ export type {
   SemanticLiveReadinessEnvironment,
   SemanticLiveReadinessReport,
 } from "./semanticLiveReadiness";
+export type {
+  MemoryV2SchemaReport,
+  MemoryV2TableName,
+  MemoryV2TableStatus,
+} from "./v2Schema";
+export type {
+  ShortTermMemoryMessageRef,
+  ShortTermMemoryReport,
+  ShortTermMemoryReportOptions,
+  ShortTermMemoryRoleCounts,
+} from "./shortTermMemory";
 export {
   DEFAULT_MAX_INJECTED_MEMORIES,
   DEFAULT_MAX_SNIPPET_CHARACTERS,

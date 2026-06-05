@@ -28,6 +28,10 @@ export type DatabaseStatus = {
     messages: number;
     memoryItems: number;
     memoryMetadata: number;
+    memoryV2TraceSources: number;
+    memoryV2Traces: number;
+    memoryV2TraceSignals: number;
+    memoryV2RetrievalEvents: number;
     messageMemoryContexts: number;
     slowVariableVersions: number;
     stateHistory: number;
@@ -122,6 +126,19 @@ export function inspectRinDatabase(
         ),
         memoryItems: countRowsIfExists(database, "memory_items"),
         memoryMetadata: countRowsIfExists(database, "memory_metadata"),
+        memoryV2TraceSources: countRowsIfExists(
+          database,
+          "memory_v2_trace_sources",
+        ),
+        memoryV2Traces: countRowsIfExists(database, "memory_v2_traces"),
+        memoryV2TraceSignals: countRowsIfExists(
+          database,
+          "memory_v2_trace_signals",
+        ),
+        memoryV2RetrievalEvents: countRowsIfExists(
+          database,
+          "memory_v2_retrieval_events",
+        ),
         slowVariableVersions: countRowsIfExists(database, "slow_variable_versions"),
         stateHistory: countRowsIfExists(database, "state_history"),
         toolInvocations: countRowsIfExists(database, "tool_invocations"),
