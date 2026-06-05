@@ -10,7 +10,7 @@
     "test": "vitest run",
     "lint": "eslint .",
     "typecheck": "tsc -b",
-    "rin:check": "npm run typecheck && npm test && npm run lint && npm run build && npm run rin:readiness && npm run rin:memory-eval",
+    "rin:check": "npm run typecheck && npm test && npm run lint && npm run build && npm run rin:readiness && npm run rin:memory-eval && npm run rin:daily-chat-eval",
     "live2d:assets": "tsx scripts/live2d/generate-rin-assets.ts",
     "live2d:verify-runtime": "tsx scripts/live2d/verify-rin-runtime-package.ts",
     "live2d:source": "npm run live2d:assets && npm run live2d:verify-runtime && npm run live2d:source-psd && npm run live2d:verify-source-psd",

@@ -18,9 +18,10 @@ npm run rin:v1-check
 ```
 
 `rin:v1-check` runs the full package chain through v0.9, including typecheck,
-tests, lint, build, readiness, memory evaluation, semantic reports, planner and
-action reports, backup/restore dry-runs, tool/MCP reports, task reports,
-continuity reports, body reports, and reliability reports.
+tests, lint, build, readiness, memory evaluation, daily chat evaluation,
+semantic reports, planner and action reports, backup/restore dry-runs, tool/MCP
+reports, task reports, continuity reports, body reports, and reliability
+reports.
 
 ## Recovery Workflow
 

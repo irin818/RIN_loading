@@ -162,13 +162,15 @@ npm run rin:check
 ```
 
 `npm run rin:check` runs typecheck, tests, lint, build, default mock readiness,
-and `npm run rin:memory-eval` in order. It exits non-zero on the first failing
-step, does not require Ollama, does not call external APIs, and does not use real
-owner memory beyond normal test fixture behavior.
+`npm run rin:memory-eval`, and `npm run rin:daily-chat-eval` in order. It exits
+non-zero on the first failing step, does not require Ollama, does not call
+external APIs, and does not use real owner memory beyond normal test fixture
+behavior.
 
 `npm run rin:check` 会依次运行 typecheck、tests、lint、build、默认 mock readiness
-以及 `npm run rin:memory-eval`。任一步失败都会以非零状态退出。它不需要 Ollama，
-不调用外部 API，也不会使用真实所有者记忆（正常测试 fixture 行为除外）。
+以及 `npm run rin:memory-eval`、`npm run rin:daily-chat-eval`。任一步失败都会以
+非零状态退出。它不需要 Ollama，不调用外部 API，也不会使用真实所有者记忆（正常测试
+fixture 行为除外）。
 
 If the aggregate check fails, run the individual commands to diagnose:
 
