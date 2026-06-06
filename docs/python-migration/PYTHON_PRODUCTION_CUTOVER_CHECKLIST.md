@@ -12,6 +12,10 @@ cutover.
 - Create an owner-approved backup of `.rin-data`.
 - Verify copied-data read inspection keeps original DB hash unchanged.
 - Verify copied-data write simulation succeeds on a temporary copy only.
+- Run `rin-python-production-migration-dry-run` and verify production apply is
+  unavailable.
+- Run `rin-python-rollback-rehearsal` and verify TypeScript rollback remains
+  compatible.
 - Run full Python checks repeatedly.
 - Run full TypeScript v2 checks repeatedly.
 - Run optional live Ollama/Qwen3 smoke only if local Ollama is intentionally
@@ -28,3 +32,9 @@ cutover.
 - Deleting TypeScript Core.
 - Removing rollback capability.
 - Adding cloud/provider dependencies to the local-first runtime.
+
+## Current Dry-Run Status
+
+- Production migration apply command: not implemented.
+- Rollback rehearsal: copy/temp-data only.
+- TypeScript rollback backend: still required.
