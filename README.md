@@ -140,6 +140,37 @@ APIs. See `docs/LOCAL_LAUNCHER.md`.
 Qwen3 thinking tag，并拒绝仍然像内部分析的输出，避免把它存成 RIN 回复。它不调用外部 API。
 详见 `docs/LOCAL_LAUNCHER.md`。
 
+## Python Core Preview / Python Core 预览
+
+The Python Core is included as a preview/candidate implementation only. The
+default production runtime remains the TypeScript RIN Console launched by
+`Start_RIN.command`; `Start_RIN_Local_Model.command` remains the TypeScript local
+Ollama launcher. No real `.rin-data` migration or production cutover has
+occurred.
+
+Python Preview uses temporary data under `/tmp/rin-python-preview-*` by default
+and refuses the production data path
+`/Users/irin/Documents/RIN_loading/.rin-data`. To run the provider-free preview
+smoke:
+
+```sh
+npm run rin-python-preview-smoke
+```
+
+To start the preview server manually:
+
+```sh
+scripts/python-preview/Start_RIN_Python_Preview.command
+```
+
+See `docs/python-migration/PYTHON_PREVIEW_GUIDE.md` for details.
+
+Python Core 目前只是预览/候选实现。默认正式运行路径仍然是
+`Start_RIN.command` 启动的 TypeScript RIN Console；
+`Start_RIN_Local_Model.command` 仍然是 TypeScript 本地 Ollama 启动器。当前没有进行真实
+`.rin-data` 迁移，也没有进行生产切换。Python Preview 默认使用
+`/tmp/rin-python-preview-*` 临时数据，并会拒绝真实生产数据路径。
+
 ## Run Empty Project
 
 ## 启动空项目
