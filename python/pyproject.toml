@@ -28,6 +28,9 @@ rin-python-check = "rin.cli.check:main"
 rin-python-parity-check = "rin.cli.parity_check:main"
 rin-python-readiness = "rin.cli.readiness:main"
 rin-python-candidate-check = "rin.cli.candidate_check:main"
+rin-python-storage-report = "rin.cli.storage_report:main"
+rin-python-profile-validate = "rin.cli.profile_validate:main"
+rin-python-profile-report = "rin.cli.profile_report:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rin"]

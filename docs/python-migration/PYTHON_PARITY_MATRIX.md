@@ -4,9 +4,9 @@ Status: initialized for Package 0.
 
 | Capability | TypeScript Reference | Python Status | Parity Test | Result | Production Ready |
 |---|---|---|---|---|---|
-| manifest | `src/storage` | contract model added | Package 1 synthetic round-trip | passed | no |
-| core config files | `src/storage` | model config contract added | Package 1 synthetic round-trip | passed | no |
-| profile loading | `src/profile` | profile contracts added | Package 1 synthetic round-trip | passed | no |
+| manifest | `src/storage` | read-only parser added | Package 1 synthetic round-trip; Package 2 synthetic read-only fixture | passed | no |
+| core config files | `src/storage` | read-only inspection added | Package 1 synthetic round-trip; Package 2 synthetic read-only fixture | passed | no |
+| profile loading | `src/profile` | read-only loader/report added | Package 1 synthetic round-trip; Package 2 synthetic read-only fixture | passed | no |
 | database inspection | `src/database` | not started | pending Package 3 | pending | no |
 | conversations | `src/conversation` | record contracts added | Package 1 synthetic round-trip | passed | no |
 | messages | `src/conversation` | record contracts added | Package 1 synthetic round-trip | passed | no |
@@ -30,3 +30,7 @@ parity placeholder and provider-free Python readiness checks pass on Python
 Package 1 adds Pydantic contracts and synthetic fixture validation only. It does
 not claim behavioral parity for loaders, repositories, algorithms, providers, or
 runtime execution.
+
+Package 2 adds read-only storage/profile compatibility over synthetic
+`/tmp/rin-python-*` fixtures. It does not write production data and does not
+claim database repository parity.

@@ -4,10 +4,10 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package 1 — Data Contracts and Pydantic Models.
-- Current checkpoint: Package 1 implementation and Python checks passed; TypeScript
-  reference check and PR creation pending.
-- Active branch: `python-rewrite/01-data-contracts`.
+- Current package: Package 2 — Storage and Profile Read-Only Compatibility.
+- Current checkpoint: Package 2 implementation and checks passed; PR creation
+  pending.
+- Active branch: `python-rewrite/02-storage-profiles-readonly`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -15,8 +15,8 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `731eac1 Merge pull request #61 from irin818/python-rewrite/00-foundation`.
-- Open PR: none for Package 1 yet.
+  `dd17807 Merge pull request #62 from irin818/python-rewrite/01-data-contracts`.
+- Open PR: none for Package 2 yet.
 
 ## Completed Work
 
@@ -47,6 +47,17 @@ Status: active handoff document.
 - Added synthetic round-trip and invalid-input contract tests in
   `python/tests/unit/test_contracts.py`.
 - Added `docs/python-migration/PYTHON_DATA_CONTRACTS.md`.
+- Merged Package 1 PR #62 into `python-rewrite/main`.
+- Started Package 2 branch `python-rewrite/02-storage-profiles-readonly`.
+- Implemented read-only Python storage layout, manifest parsing, and core-file
+  inspection.
+- Implemented read-only Python profile loaders, validators, compact safe profile
+  reports, and profile formatting.
+- Added Python CLI entry points and root npm wrappers:
+  `rin-python-storage-report`, `rin-python-profile-validate`, and
+  `rin-python-profile-report`.
+- Updated root npm Python wrappers to use `python/.venv/bin/python` explicitly
+  instead of plain `python`.
 
 ## Tests Run
 
@@ -77,6 +88,21 @@ Status: active handoff document.
   - `.venv/bin/rin-python-parity-check`
   - `.venv/bin/rin-python-readiness`
   - `.venv/bin/rin-python-candidate-check`
+- Package 2 focused Python gates passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+- Package 2 aggregate Python gates passed:
+  - `.venv/bin/rin-python-check`
+  - `.venv/bin/rin-python-parity-check`
+  - `.venv/bin/rin-python-readiness`
+  - `.venv/bin/rin-python-candidate-check`
+  - `.venv/bin/rin-python-storage-report`
+- Package 2 synthetic CLI smoke passed:
+  - `RIN_DATA_DIR=/tmp/rin-python-* .venv/bin/rin-python-storage-report`
+  - `RIN_DATA_DIR=/tmp/rin-python-* .venv/bin/rin-python-profile-validate`
+  - `RIN_DATA_DIR=/tmp/rin-python-* .venv/bin/rin-python-profile-report`
 - Initial TypeScript `npm run rin:check`: failed at readiness because the new
   migration worktree had no initialized local data directory.
 - TypeScript temp-data setup:
@@ -93,6 +119,13 @@ Status: active handoff document.
 - Stable TypeScript Package 1 reference check:
   - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg1.0yVYOl npm run rin:init` passed.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg1.0yVYOl npm run rin:check` passed.
+- Stable TypeScript Package 2 reference checks:
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg2.LdQzRL npm run rin:init` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg2.LdQzRL npm run rin:check` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg2.LdQzRL npm run rin:profile-validate`
+    passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg2.LdQzRL npm run rin:profile-report`
+    passed.
 - `git diff --check`: passed.
 
 ## Parity Status
@@ -104,6 +137,10 @@ Status: active handoff document.
   profiles, conversation/message/turn records, Memory V2 report/analysis shapes,
   memory injection traces, Context V2 reports, model request/response,
   structured errors, and readiness reports.
+- Package 2 parity target: read-only synthetic storage/profile fixture
+  interpretation.
+- Package 2 validates manifest parsing, core file presence, valid/invalid
+  profile summaries, missing manifest handling, and temp-only fixture paths.
 - Parity matrix initialized in `PYTHON_PARITY_MATRIX.md`.
 - Behavioral parity begins in Package 1 with data contracts and synthetic
   fixtures.
@@ -118,10 +155,11 @@ Status: active handoff document.
 - TypeScript optional fields serialize differently by default in Pydantic; use
   `exclude_none=True` for API responses that need JavaScript `undefined`
   omission semantics.
+- Package 2 storage reports include local paths in CLI output because they are
+  local diagnostic commands, but they do not include private profile text.
 
 ## Exact Next Task
 
-Run the TypeScript reference check with a fresh `/tmp/rin-python-*` data
-directory, commit Package 1, push `python-rewrite/01-data-contracts`, open a PR
+Commit Package 2, push `python-rewrite/02-storage-profiles-readonly`, open a PR
 targeting `python-rewrite/main`, review and merge only if gates pass, then
-continue to Package 2.
+continue to Package 3.
