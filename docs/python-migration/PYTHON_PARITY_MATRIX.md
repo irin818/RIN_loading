@@ -14,8 +14,8 @@ Status: initialized for Package 0.
 | Memory V2 scoring | `src/memory/v2Engine.ts` | pure analyzer added | Package 4 built-in fixture parity and repeated deterministic run | passed | no |
 | short-term memory | `src/memory` short-term report | trace contract/token helpers added | Package 1 synthetic round-trip; Package 4 token fixtures | passed | no |
 | Context V2 | `src/context/contextV2.ts` | pure report builder added | Package 1 synthetic round-trip; Package 5 built-in fixture parity and repeated deterministic run | passed | no |
-| Ollama request | `src/model/ollamaAdapter.ts` | not started | pending Package 6 | pending | no |
-| response sanitizer | `src/model` daily chat quality | not started | pending Package 6 | pending | no |
+| Ollama request | `src/model/ollamaAdapter.ts` | mocked adapter added | Package 6 mocked request/response tests | passed | no |
+| response sanitizer | `src/model` daily chat quality | thinking strip/empty-content handling added | Package 6 mocked error/sanitizer tests | passed | no |
 | structured errors | `src/model`, `src/conversation/errors.ts` | error contracts added | Package 1 synthetic round-trip | passed | no |
 | conversation runtime | `src/conversation/runtime.ts` | not started | pending Package 8 | pending | no |
 | audit events | `src/database`, `src/conversation` | not started | pending Package 3/7/8 | pending | no |
@@ -44,3 +44,6 @@ does not write Memory V2 traces or mutate accepted memory records.
 
 Package 5 adds pure Context V2 report assembly. It does not change production
 context injection or read/write runtime data.
+
+Package 6 adds a Python Ollama adapter over mocked tests only by default. Live
+Ollama smoke remains explicit and skipped unless selected by environment.

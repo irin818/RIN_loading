@@ -45,6 +45,7 @@
     "rin-python-storage-report": "cd python && .venv/bin/python -m rin.cli.storage_report",
     "rin-python-profile-validate": "cd python && .venv/bin/python -m rin.cli.profile_validate",
     "rin-python-profile-report": "cd python && .venv/bin/python -m rin.cli.profile_report",
+    "rin-python-local-chat-smoke": "cd python && .venv/bin/python -m rin.cli.local_chat_smoke",
     "rin:full-check": "npm run rin:check && npm run rin:semantic-eval && npm run rin:semantic-readiness && npm run rin:semantic-index-report && npm run rin:semantic-live-index-report && npm run rin:hybrid-retrieval-report && npm run rin:semantic-trace-list && npm run rin:semantic-trace-read && npm run rin:memory-maintenance-report && npm run rin:backup-dry-run && npm run rin:backup-encrypted-smoke && npm run rin:restore-dry-run",
     "rin:v0-2-check": "npm run rin:full-check",
     "rin:v0-3-check": "npm run rin:v0-2-check && npm run rin:external-model-smoke && npm run rin:project-report && npm run rin:rollback-notes",
