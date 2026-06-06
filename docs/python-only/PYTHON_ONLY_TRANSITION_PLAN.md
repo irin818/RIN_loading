@@ -83,6 +83,9 @@ Blocker status:
 - D1 Python Console coverage: completed.
 - D2 body/Live2D decision: completed; current active TypeScript body runtime is
   retired and a minimal Python body report exists.
+- D3 operational/reporting decision: completed; remaining TypeScript reports are
+  Python-replaced, explicitly retired, or fallback-only through the final
+  TypeScript tag.
 
 ### Package E: Repository Restructure
 
