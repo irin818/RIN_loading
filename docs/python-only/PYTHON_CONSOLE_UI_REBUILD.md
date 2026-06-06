@@ -29,12 +29,12 @@ python/src/rin/server/
 
 The console has:
 
-- a local runtime header with adapter/model status;
-- recent conversations in the left rail;
-- owner/RIN chat bubbles in the center;
-- readiness, model, profile, memory/trace, and body status cards on the right;
+- a compact command bar with adapter/model status chips;
+- a slim recent-conversation rail;
+- a dominant central chat cockpit with owner/RIN message bubbles;
+- a composer dock attached inside the central chat cockpit;
+- compact readiness, model, profile, memory/trace, and body status modules on the right;
 - a local RIN avatar/presence panel using `public/live2d/rin/rin-bust-front.png`;
-- a fixed composer with Enter-to-send and Shift+Enter newline behavior;
 - visible notice and structured error states.
 
 ## Preserved Routes

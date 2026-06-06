@@ -28,9 +28,10 @@ The active local console uses FastAPI, Jinja2 templates, static CSS, and minimal
 vanilla JavaScript. It has no TypeScript, React, Vite, Node, npm, or frontend
 build chain.
 
-The console shows recent conversations, owner/RIN message bubbles, readiness,
-local model status, profile summary, memory/context trace summary, a local RIN
-avatar/presence panel, body status, and visible notice/error states.
+The console uses a compact black-green cockpit layout with a slim conversation
+rail, a dominant chat cockpit with an attached composer dock, compact local
+model/profile/memory status chips, a local RIN avatar/presence panel, and visible
+notice/error states.
 
 ## Install
 
