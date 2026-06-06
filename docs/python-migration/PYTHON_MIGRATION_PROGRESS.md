@@ -4,10 +4,10 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package 3 — SQLite Read-Only Repository.
-- Current checkpoint: Package 3 implementation and checks passed; PR creation
+- Current package: Package 4 — Memory V2 Pure Algorithms.
+- Current checkpoint: Package 4 implementation and checks passed; PR creation
   pending.
-- Active branch: `python-rewrite/03-database-readonly`.
+- Active branch: `python-rewrite/04-memory-v2-algorithms`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -15,8 +15,8 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `b7b1cd2 Merge pull request #63 from irin818/python-rewrite/02-storage-profiles-readonly`.
-- Open PR: none for Package 3 yet.
+  `7bba4e2 Merge pull request #64 from irin818/python-rewrite/03-database-readonly`.
+- Open PR: none for Package 4 yet.
 
 ## Completed Work
 
@@ -65,6 +65,13 @@ Status: active handoff document.
   Memory V2 trace reads, and safe audit summaries.
 - Added synthetic `/tmp/rin-python-*` SQLite fixture tests, including database
   hash stability after inspection and read-only write rejection.
+- Merged Package 3 PR #64 into `python-rewrite/main`.
+- Started Package 4 branch `python-rewrite/04-memory-v2-algorithms`.
+- Implemented pure deterministic Memory V2 source-message analysis in Python,
+  including signal extraction, decay/retention scoring, reinforcement, CJK/Latin
+  token normalization, and deterministic decision output.
+- Added Python Memory V2 tests matching TypeScript built-in fixtures, repeated
+  deterministic checks, and CJK/token normalization checks.
 
 ## Tests Run
 
@@ -120,6 +127,18 @@ Status: active handoff document.
   - `.venv/bin/rin-python-parity-check`
   - `.venv/bin/rin-python-readiness`
   - `.venv/bin/rin-python-candidate-check`
+- Package 4 focused Python gates passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+- Package 4 aggregate Python gates passed:
+  - `.venv/bin/rin-python-check`
+  - `.venv/bin/rin-python-parity-check`
+  - `.venv/bin/rin-python-readiness`
+  - `.venv/bin/rin-python-candidate-check`
+- Package 4 repeated deterministic Python check passed:
+  - `.venv/bin/python -m pytest tests/unit/test_memory_v2_algorithms.py tests/unit/test_memory_v2_algorithms.py`
 - Initial TypeScript `npm run rin:check`: failed at readiness because the new
   migration worktree had no initialized local data directory.
 - TypeScript temp-data setup:
@@ -150,6 +169,13 @@ Status: active handoff document.
     passed.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg3.XwglNK npm run rin:memory-v2-schema-report`
     passed.
+- Stable TypeScript Package 4 reference checks:
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg4.eDlsKT npm run rin:init` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg4.eDlsKT npm run rin:check` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg4.eDlsKT npm run rin:memory-v2-eval`
+    passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg4.eDlsKT npm run rin:memory-eval`
+    passed.
 - `git diff --check`: passed.
 
 ## Parity Status
@@ -169,6 +195,9 @@ Status: active handoff document.
 - Package 3 validates schema version/table counts, deterministic conversation
   and message ordering, legacy memory row mapping, Memory V2 trace row mapping,
   audit summary privacy, and read-only DB behavior.
+- Package 4 parity target: pure deterministic Memory V2 fixture decisions.
+- Package 4 matches the TypeScript built-in evaluation decisions/reasons and
+  token normalization behavior on synthetic fixtures.
 - Parity matrix initialized in `PYTHON_PARITY_MATRIX.md`.
 - Behavioral parity begins in Package 1 with data contracts and synthetic
   fixtures.
@@ -187,9 +216,11 @@ Status: active handoff document.
   local diagnostic commands, but they do not include private profile text.
 - Package 3 does not run migrations or create missing tables; all access is
   read-only and expects an existing SQLite file.
+- Package 4 only implements pure algorithms. It does not write traces, delete
+  records, mutate accepted memories, or call providers.
 
 ## Exact Next Task
 
-Commit Package 3, push `python-rewrite/03-database-readonly`, open a PR
+Commit Package 4, push `python-rewrite/04-memory-v2-algorithms`, open a PR
 targeting `python-rewrite/main`, review and merge only if gates pass, then
-continue to Package 4.
+continue to Package 5.

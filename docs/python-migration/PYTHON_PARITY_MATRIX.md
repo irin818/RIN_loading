@@ -11,8 +11,8 @@ Status: initialized for Package 0.
 | conversations | `src/conversation` | read-only listing/lookup added | Package 1 synthetic round-trip; Package 3 SQLite fixture | passed | no |
 | messages | `src/conversation` | read-only listing added | Package 1 synthetic round-trip; Package 3 SQLite fixture | passed | no |
 | Memory V2 schema | `src/memory/v2Schema.ts` | schema report contract + trace reads added | Package 1 synthetic round-trip; Package 3 SQLite fixture | passed | no |
-| Memory V2 scoring | `src/memory/v2Engine.ts` | not started | pending Package 4 | pending | no |
-| short-term memory | `src/memory` short-term report | trace contract added | Package 1 synthetic round-trip | passed | no |
+| Memory V2 scoring | `src/memory/v2Engine.ts` | pure analyzer added | Package 4 built-in fixture parity and repeated deterministic run | passed | no |
+| short-term memory | `src/memory` short-term report | trace contract/token helpers added | Package 1 synthetic round-trip; Package 4 token fixtures | passed | no |
 | Context V2 | `src/context/contextV2.ts` | report contract added | Package 1 synthetic round-trip | passed | no |
 | Ollama request | `src/model/ollamaAdapter.ts` | not started | pending Package 6 | pending | no |
 | response sanitizer | `src/model` daily chat quality | not started | pending Package 6 | pending | no |
@@ -38,3 +38,6 @@ claim database repository parity.
 Package 3 adds read-only SQLite repository compatibility over synthetic
 `/tmp/rin-python-*` fixtures. It verifies that inspection leaves the database
 file hash unchanged.
+
+Package 4 adds pure Memory V2 algorithms and deterministic token helpers. It
+does not write Memory V2 traces or mutate accepted memory records.
