@@ -98,6 +98,11 @@ Status: merged to `main` as preview/candidate only.
   `13ed047 Merge pull request #72 from irin818/python-rewrite/main`.
 - Post-merge checks on `main` passed for TypeScript production defaults and
   Python preview smoke/candidate/API/shadow validation.
+- Cutover Package A added a persistent Python sandbox at
+  `.rin-python-preview-data`; production `.rin-data` remains protected.
+- Cutover Package B real-data preflight, backup, and migration dry-run passed.
+  A verified local backup exists under `.rin-python-backups/`, and the original
+  production DB hash remained unchanged during dry-run.
 
 ## Unresolved Risks
 

@@ -43,4 +43,8 @@ cutover.
 - Preview-only main integration: PR #72 merged; no production cutover performed.
 - Persistent Python sandbox: Package A checks passed; production `.rin-data`
   remains unmigrated.
+- Real-data preflight: passed.
+- Real-data backup: passed; verified backup exists under `.rin-python-backups/`.
+- Real-data migration dry-run: passed; original DB hash unchanged.
+- Production migration apply command: still not implemented.
 - Cutover approval: still required from owner.
