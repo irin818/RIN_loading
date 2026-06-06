@@ -4,16 +4,19 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package 0 — Migration Governance and Python Foundation.
-- Current checkpoint: Package 0 verification passed; PR #61 ready for merge.
-- Active branch: `python-rewrite/00-foundation`.
+- Current package: Package 1 — Data Contracts and Pydantic Models.
+- Current checkpoint: Package 1 implementation and Python checks passed; TypeScript
+  reference check and PR creation pending.
+- Active branch: `python-rewrite/01-data-contracts`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
 - TypeScript reference tag: `v2.0.0`.
-- Latest verified migration integration commit:
+- Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
-- Open PR: #61 targeting `python-rewrite/main`.
+- Latest verified migration integration commit:
+  `731eac1 Merge pull request #61 from irin818/python-rewrite/00-foundation`.
+- Open PR: none for Package 1 yet.
 
 ## Completed Work
 
@@ -35,6 +38,15 @@ Status: active handoff document.
 - Created isolated Python virtual environment at `python/.venv`.
 - Fixed Package 0 temp-data guard test to account for macOS `/tmp` resolving to
   `/private/tmp`.
+- Merged Package 0 PR #61 into `python-rewrite/main`.
+- Started Package 1 branch `python-rewrite/01-data-contracts`.
+- Inspected TypeScript data contracts in storage, profiles, conversation,
+  memory retrieval/Memory V2, Context V2, model config/types/errors, and
+  readiness.
+- Added `python/src/rin/contracts.py` with Pydantic data contracts.
+- Added synthetic round-trip and invalid-input contract tests in
+  `python/tests/unit/test_contracts.py`.
+- Added `docs/python-migration/PYTHON_DATA_CONTRACTS.md`.
 
 ## Tests Run
 
@@ -55,6 +67,16 @@ Status: active handoff document.
   - `.venv/bin/rin-python-parity-check`
   - `.venv/bin/rin-python-readiness`
   - `.venv/bin/rin-python-candidate-check`
+- Package 1 focused Python gates passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+- Package 1 aggregate Python gates passed:
+  - `.venv/bin/rin-python-check`
+  - `.venv/bin/rin-python-parity-check`
+  - `.venv/bin/rin-python-readiness`
+  - `.venv/bin/rin-python-candidate-check`
 - Initial TypeScript `npm run rin:check`: failed at readiness because the new
   migration worktree had no initialized local data directory.
 - TypeScript temp-data setup:
@@ -68,12 +90,20 @@ Status: active handoff document.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-ref.Ad3SA4 npm run rin:check` passed.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-v2.bucssv npm run rin:init` passed.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-v2.bucssv npm run rin:v2-check` passed.
+- Stable TypeScript Package 1 reference check:
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg1.0yVYOl npm run rin:init` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg1.0yVYOl npm run rin:check` passed.
 - `git diff --check`: passed.
 
 ## Parity Status
 
 - Package 0 parity target: no runtime behavior migrated yet.
 - Package 0 foundation parity placeholder passed.
+- Package 1 parity target: synthetic data-contract fixtures only.
+- Package 1 validates round-trip JSON shapes and invalid inputs for manifest,
+  profiles, conversation/message/turn records, Memory V2 report/analysis shapes,
+  memory injection traces, Context V2 reports, model request/response,
+  structured errors, and readiness reports.
 - Parity matrix initialized in `PYTHON_PARITY_MATRIX.md`.
 - Behavioral parity begins in Package 1 with data contracts and synthetic
   fixtures.
@@ -83,9 +113,15 @@ Status: active handoff document.
 - `npm install` in the migration worktree previously reported one critical npm
   audit advisory; no automated npm audit repair was run.
 - Package 0 intentionally has no production runtime parity.
+- Package 1 intentionally does not implement storage/database/provider/runtime
+  behavior.
+- TypeScript optional fields serialize differently by default in Pydantic; use
+  `exclude_none=True` for API responses that need JavaScript `undefined`
+  omission semantics.
 
 ## Exact Next Task
 
-Commit the Package 0 verification update, push `python-rewrite/00-foundation`,
-merge PR #61 into `python-rewrite/main`, pull the integration branch, verify it,
-and continue to Package 1.
+Run the TypeScript reference check with a fresh `/tmp/rin-python-*` data
+directory, commit Package 1, push `python-rewrite/01-data-contracts`, open a PR
+targeting `python-rewrite/main`, review and merge only if gates pass, then
+continue to Package 2.
