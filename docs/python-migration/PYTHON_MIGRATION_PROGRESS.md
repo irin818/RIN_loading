@@ -4,10 +4,10 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package 8 — Python Conversation Runtime Candidate.
-- Current checkpoint: Package 8 implementation and checks passed; PR creation
+- Current package: Package 9 — FastAPI Compatibility Layer.
+- Current checkpoint: Package 9 implementation and checks passed; PR creation
   pending.
-- Active branch: `python-rewrite/08-conversation-runtime`.
+- Active branch: `python-rewrite/09-fastapi-compatibility`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -15,8 +15,8 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `961f922 Merge pull request #68 from irin818/python-rewrite/07-database-writes-temp-only`.
-- Open PR: none for Package 8 yet.
+  `478a56c Merge pull request #69 from irin818/python-rewrite/08-conversation-runtime`.
+- Open PR: none for Package 9 yet.
 
 ## Completed Work
 
@@ -102,6 +102,12 @@ Status: active handoff document.
   V2 trace write.
 - Added deterministic mock runtime tests for success, model failure, thinking
   stripping, and empty-after-thinking rejection.
+- Merged Package 8 PR #69 into `python-rewrite/main`.
+- Started Package 9 branch `python-rewrite/09-fastapi-compatibility`.
+- Added local-only FastAPI app factory with readiness, state, profile status,
+  conversation create/list/history/send, and memory/context trace status.
+- Added API contract tests for provider-free readiness/state, temp
+  create/send/history, trace status, and production-path write rejection.
 
 ## Tests Run
 
@@ -214,6 +220,18 @@ Status: active handoff document.
   - `.venv/bin/rin-python-parity-check`
   - `.venv/bin/rin-python-readiness`
   - `.venv/bin/rin-python-candidate-check`
+- Package 9 focused Python gates passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+- Package 9 aggregate Python gates passed:
+  - `.venv/bin/rin-python-check`
+  - `.venv/bin/rin-python-parity-check`
+  - `.venv/bin/rin-python-readiness`
+  - `.venv/bin/rin-python-candidate-check`
+  - Note: pytest reports a Starlette `TestClient` deprecation warning from
+    installed FastAPI/Starlette dependencies.
 - Initial TypeScript `npm run rin:check`: failed at readiness because the new
   migration worktree had no initialized local data directory.
 - TypeScript temp-data setup:
@@ -273,6 +291,10 @@ Status: active handoff document.
     passed.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg8.eDr1Dl npm run rin:v2-check`
     passed.
+- Stable TypeScript Package 9 reference checks:
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg9.wSzGId npm run rin:init` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg9.wSzGId npm run rin:v2-check`
+    passed.
 - `git diff --check`: passed.
 
 ## Parity Status
@@ -311,6 +333,9 @@ Status: active handoff document.
 - Package 8 validates owner-message preservation on model failure, no fake RIN
   reply, no duplicate retry, no thinking persistence, and Memory V2 trace
   creation on success.
+- Package 9 parity target: local Console-compatible API surface where practical.
+- Package 9 validates local/provider-free readiness, local state, profile
+  status, conversation create/send/history, and safe trace status.
 - Parity matrix initialized in `PYTHON_PARITY_MATRIX.md`.
 - Behavioral parity begins in Package 1 with data contracts and synthetic
   fixtures.
@@ -340,9 +365,11 @@ Status: active handoff document.
 - Package 8 calls the same production-data guard before runtime writes and uses
   deterministic mock tests by default. It does not replace the TypeScript
   runtime or production launcher.
+- Package 9 app factory is not wired to production launchers. Write routes
+  reject non-temp layouts and default to a mock local adapter.
 
 ## Exact Next Task
 
-Commit Package 8, push `python-rewrite/08-conversation-runtime`, open a PR
+Commit Package 9, push `python-rewrite/09-fastapi-compatibility`, open a PR
 targeting `python-rewrite/main`, review and merge only if gates pass, then
-continue to Package 9.
+continue to Package 10.
