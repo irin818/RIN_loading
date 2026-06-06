@@ -142,3 +142,35 @@ def test_real_data_migration_apply_writes_marker_and_is_idempotent(
     assert second.status == "already_applied"
     assert second.idempotent is True
     assert safety.assert_safe_python_write_data_dir(fake_real_data) == fake_real_data
+
+
+def test_python_production_check_passes_after_marker(
+    fake_real_data: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cutover.run_real_data_backup()
+    cutover.run_real_data_migration_dry_run()
+    monkeypatch.setenv(cutover.ALLOW_MIGRATION_ENV, "allow")
+    cutover.run_real_data_migration_apply()
+    for name in (
+        "Start_RIN_Python.command",
+        "Start_RIN_Python_Local_Model.command",
+        "Start_RIN.command",
+        "Start_RIN_Local_Model.command",
+    ):
+        (tmp_path / name).write_text("#!/bin/zsh\n", encoding="utf-8")
+    monkeypatch.setattr(cutover, "REPO_ROOT", tmp_path)
+
+    report = cutover.run_python_production_check()
+
+    assert report.status == "passed"
+    assert report.markerPresent is True
+    assert report.realDataReadable is True
+    assert report.backupExists is True
+    assert report.pythonLauncherExists is True
+    assert report.pythonLocalModelLauncherExists is True
+    assert report.typescriptFallbackLauncherExists is True
+    assert report.typescriptLocalModelFallbackLauncherExists is True
+    assert report.externalApiDisabled is True
+    assert report.fullTextIncluded is False

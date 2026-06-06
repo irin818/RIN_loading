@@ -23,11 +23,12 @@ Current root-level configuration includes:
 - `eslint.config.js` for linting.
 - `index.html` for Vite entry.
 - `.gitignore` for generated, dependency, local-data, and secret exclusions.
-- `Start_RIN.command` and `Start_RIN_Local_Model.command` for macOS
-  double-click local Console launch.
-- `python/` and `scripts/python-preview/` for the Python Core preview candidate.
-  These are preview-only: they do not replace the TypeScript default runtime,
-  do not switch production launchers, and must use temporary/copied data.
+- `Start_RIN_Python.command` and `Start_RIN_Python_Local_Model.command` for
+  Python primary macOS double-click launch after migration marker cutover.
+- `Start_RIN.command` and `Start_RIN_Local_Model.command` remain TypeScript
+  fallback macOS double-click launchers.
+- `python/` and `scripts/python-preview/` for the Python Core, preview, and
+  sandbox workflows.
 
 Governance and project documentation lives at the root and in `docs/`.
 
@@ -35,10 +36,11 @@ Governance and project documentation lives at the root and in `docs/`.
 
 `src/` contains the application source and local RIN runtime code.
 
-The Python Core preview intentionally does not live under `src/`; it is isolated
-under `python/` with explicit `rin-python-*` commands and a separate preview
-launcher. Production TypeScript runtime, server routing, and launcher behavior
-remain the default until a separate owner-approved cutover.
+The Python Core intentionally does not live under `src/`; it is isolated under
+`python/` with explicit `rin-python-*` commands. After the owner-approved
+cutover, Python is the recommended primary runtime. Production Python launchers
+require the real-data migration marker before using `.rin-data`. The TypeScript
+runtime, source, and launchers remain available as fallback.
 
 Current known module boundaries include:
 

@@ -119,6 +119,28 @@ class RealDataMigrationApplyReport:
     fullTextIncluded: bool
 
 
+@dataclass(frozen=True)
+class PythonProductionCheckReport:
+    mode: str
+    status: str
+    dataDir: str
+    markerPresent: bool
+    realDataReadable: bool
+    backupExists: bool
+    pythonLauncherExists: bool
+    pythonLocalModelLauncherExists: bool
+    typescriptFallbackLauncherExists: bool
+    typescriptLocalModelFallbackLauncherExists: bool
+    externalApiDisabled: bool
+    localModelChecked: bool
+    localModelReady: bool | None
+    schemaVersion: int
+    conversations: int
+    messages: int
+    currentDatabaseHash: str
+    fullTextIncluded: bool
+
+
 def run_real_data_preflight() -> RealDataPreflightReport:
     layout = production_layout()
     manifest_valid = True
@@ -460,6 +482,90 @@ def format_migration_apply_report(report: RealDataMigrationApplyReport) -> str:
     )
 
 
+def run_python_production_check(
+    *,
+    check_local_model: bool = False,
+) -> PythonProductionCheckReport:
+    layout = production_layout()
+    marker_present = is_python_production_cutover_marked(layout.rootDir)
+    status = inspect_database(layout)
+    backup_exists = latest_backup_exists()
+    python_launcher = REPO_ROOT / "Start_RIN_Python.command"
+    python_local_launcher = REPO_ROOT / "Start_RIN_Python_Local_Model.command"
+    ts_launcher = REPO_ROOT / "Start_RIN.command"
+    ts_local_launcher = REPO_ROOT / "Start_RIN_Local_Model.command"
+    local_model_ready = check_local_ollama_model() if check_local_model else None
+    passed = all(
+        [
+            marker_present,
+            status.schemaVersion >= 6,
+            backup_exists,
+            python_launcher.is_file(),
+            python_local_launcher.is_file(),
+            ts_launcher.is_file(),
+            ts_local_launcher.is_file(),
+            local_model_ready is not False,
+        ]
+    )
+    return PythonProductionCheckReport(
+        mode="python-production-check",
+        status="passed" if passed else "failed",
+        dataDir=str(layout.rootDir),
+        markerPresent=marker_present,
+        realDataReadable=status.schemaVersion >= 6,
+        backupExists=backup_exists,
+        pythonLauncherExists=python_launcher.is_file(),
+        pythonLocalModelLauncherExists=python_local_launcher.is_file(),
+        typescriptFallbackLauncherExists=ts_launcher.is_file(),
+        typescriptLocalModelFallbackLauncherExists=ts_local_launcher.is_file(),
+        externalApiDisabled=True,
+        localModelChecked=check_local_model,
+        localModelReady=local_model_ready,
+        schemaVersion=status.schemaVersion,
+        conversations=status.counts.conversations,
+        messages=status.counts.messages,
+        currentDatabaseHash=database_hash_for(layout),
+        fullTextIncluded=False,
+    )
+
+
+def format_python_production_check_report(
+    report: PythonProductionCheckReport,
+) -> str:
+    local_model = (
+        "not checked"
+        if not report.localModelChecked
+        else "ready"
+        if report.localModelReady
+        else "not ready"
+    )
+    return "\n".join(
+        [
+            "RIN Python production check report.",
+            f"Mode: {report.mode}",
+            f"Status: {report.status}",
+            f"Data dir: {report.dataDir}",
+            f"Marker present: {'yes' if report.markerPresent else 'no'}",
+            f"Real data readable: {'yes' if report.realDataReadable else 'no'}",
+            f"Backup exists: {'yes' if report.backupExists else 'no'}",
+            f"Python launcher exists: {'yes' if report.pythonLauncherExists else 'no'}",
+            "Python local model launcher exists: "
+            f"{'yes' if report.pythonLocalModelLauncherExists else 'no'}",
+            "TypeScript fallback launcher exists: "
+            f"{'yes' if report.typescriptFallbackLauncherExists else 'no'}",
+            "TypeScript local model fallback launcher exists: "
+            f"{'yes' if report.typescriptLocalModelFallbackLauncherExists else 'no'}",
+            f"External API disabled: {'yes' if report.externalApiDisabled else 'no'}",
+            f"Local model: {local_model}",
+            f"Schema version: {report.schemaVersion}",
+            f"Conversations: {report.conversations}",
+            f"Messages: {report.messages}",
+            f"Current DB hash: {report.currentDatabaseHash}",
+            f"Full text included: {'yes' if report.fullTextIncluded else 'no'}",
+        ]
+    )
+
+
 def production_layout() -> RinDataLayout:
     return create_data_layout(str(PRODUCTION_RIN_DATA_DIR), cwd="/")
 
@@ -596,6 +702,33 @@ def write_production_marker(path: Path, payload: dict[str, object]) -> None:
         encoding="utf-8",
     )
     temp.replace(path)
+
+
+def latest_backup_exists() -> bool:
+    if BACKUP_ARTIFACT.is_file():
+        try:
+            payload = json.loads(BACKUP_ARTIFACT.read_text(encoding="utf-8"))
+            backup_dir = Path(str(payload.get("backupDir", "")))
+            if backup_dir.is_dir():
+                return True
+        except (OSError, json.JSONDecodeError):
+            pass
+    return BACKUP_ROOT.is_dir() and any(BACKUP_ROOT.glob("rin-data-backup-*"))
+
+
+def check_local_ollama_model() -> bool:
+    import os
+    import urllib.error
+    import urllib.request
+
+    base_url = os.environ.get("RIN_OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+    model = os.environ.get("RIN_OLLAMA_MODEL", "qwen3:4b")
+    try:
+        with urllib.request.urlopen(f"{base_url}/api/tags", timeout=3) as response:
+            payload = response.read().decode("utf-8")
+    except (OSError, urllib.error.URLError):
+        return False
+    return f'"name":"{model}"' in payload or f'"name": "{model}"' in payload
 
 
 def typescript_readable_schema(schema_version: int) -> bool:
