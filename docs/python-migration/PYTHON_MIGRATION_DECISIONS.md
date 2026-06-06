@@ -121,3 +121,19 @@ Implications:
 
 - Memory V2 trace writes remain deferred to Package 7/8.
 - Any future differences from TypeScript scoring must be documented before merge.
+
+## Decision P0009: Context V2 remains pure until runtime packages
+
+Decision:
+
+- Package 5 implements pure deterministic context report assembly only.
+- It does not read database state, call model providers, or alter TypeScript
+  production context injection.
+- Protected system/profile/current-owner segments are allowed to exceed the soft
+  budget, matching the TypeScript reference behavior.
+
+Implications:
+
+- Storage-backed Context V2 assembly is deferred to later runtime/API packages.
+- Any future difference in budget or deduplication behavior must be documented
+  before merge.

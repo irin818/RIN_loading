@@ -4,10 +4,10 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package 4 — Memory V2 Pure Algorithms.
-- Current checkpoint: Package 4 implementation and checks passed; PR creation
+- Current package: Package 5 — Context V2 Pure Algorithms.
+- Current checkpoint: Package 5 implementation and checks passed; PR creation
   pending.
-- Active branch: `python-rewrite/04-memory-v2-algorithms`.
+- Active branch: `python-rewrite/05-context-v2-algorithms`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -15,8 +15,8 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `7bba4e2 Merge pull request #64 from irin818/python-rewrite/03-database-readonly`.
-- Open PR: none for Package 4 yet.
+  `6eedd1e Merge pull request #65 from irin818/python-rewrite/04-memory-v2-algorithms`.
+- Open PR: none for Package 5 yet.
 
 ## Completed Work
 
@@ -72,6 +72,13 @@ Status: active handoff document.
   token normalization, and deterministic decision output.
 - Added Python Memory V2 tests matching TypeScript built-in fixtures, repeated
   deterministic checks, and CJK/token normalization checks.
+- Merged Package 4 PR #65 into `python-rewrite/main`.
+- Started Package 5 branch `python-rewrite/05-context-v2-algorithms`.
+- Implemented pure deterministic Context V2 ordering, deduplication, budget
+  handling, protected segment preservation, provenance, and dropped-item
+  reporting.
+- Added Python Context V2 tests matching TypeScript built-in fixtures and
+  repeated deterministic checks.
 
 ## Tests Run
 
@@ -139,6 +146,18 @@ Status: active handoff document.
   - `.venv/bin/rin-python-candidate-check`
 - Package 4 repeated deterministic Python check passed:
   - `.venv/bin/python -m pytest tests/unit/test_memory_v2_algorithms.py tests/unit/test_memory_v2_algorithms.py`
+- Package 5 focused Python gates passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+- Package 5 aggregate Python gates passed:
+  - `.venv/bin/rin-python-check`
+  - `.venv/bin/rin-python-parity-check`
+  - `.venv/bin/rin-python-readiness`
+  - `.venv/bin/rin-python-candidate-check`
+- Package 5 repeated deterministic Python check passed:
+  - `.venv/bin/python -m pytest tests/unit/test_context_v2_algorithms.py tests/unit/test_context_v2_algorithms.py`
 - Initial TypeScript `npm run rin:check`: failed at readiness because the new
   migration worktree had no initialized local data directory.
 - TypeScript temp-data setup:
@@ -176,6 +195,13 @@ Status: active handoff document.
     passed.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg4.eDlsKT npm run rin:memory-eval`
     passed.
+- Stable TypeScript Package 5 reference checks:
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg5.mtmIuS npm run rin:init` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg5.mtmIuS npm run rin:check` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg5.mtmIuS npm run rin:context-v2-eval`
+    passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg5.mtmIuS npm run rin:context-v2-report`
+    passed.
 - `git diff --check`: passed.
 
 ## Parity Status
@@ -198,6 +224,9 @@ Status: active handoff document.
 - Package 4 parity target: pure deterministic Memory V2 fixture decisions.
 - Package 4 matches the TypeScript built-in evaluation decisions/reasons and
   token normalization behavior on synthetic fixtures.
+- Package 5 parity target: pure deterministic Context V2 fixture ordering,
+  budget, deduplication, and latest-owner preservation.
+- Package 5 matches TypeScript built-in Context V2 fixture results.
 - Parity matrix initialized in `PYTHON_PARITY_MATRIX.md`.
 - Behavioral parity begins in Package 1 with data contracts and synthetic
   fixtures.
@@ -218,9 +247,11 @@ Status: active handoff document.
   read-only and expects an existing SQLite file.
 - Package 4 only implements pure algorithms. It does not write traces, delete
   records, mutate accepted memories, or call providers.
+- Package 5 only implements pure context report assembly. It does not read/write
+  databases, call providers, or change production context injection.
 
 ## Exact Next Task
 
-Commit Package 4, push `python-rewrite/04-memory-v2-algorithms`, open a PR
+Commit Package 5, push `python-rewrite/05-context-v2-algorithms`, open a PR
 targeting `python-rewrite/main`, review and merge only if gates pass, then
-continue to Package 5.
+continue to Package 6.
