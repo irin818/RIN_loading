@@ -11,13 +11,15 @@ APIs are not required for active operation.
 
 ## Active Runtime
 
-Active launchers:
+Active launcher:
 
-- `Start_RIN_Python.command`
-- `Start_RIN_Python_Local_Model.command`
+- `Start_RIN.command`
 
-Both run the Python FastAPI application on `127.0.0.1:8765` and serve the local
-Python web UI.
+It runs the Python FastAPI application on `127.0.0.1:8765`, defaults to local
+Ollama `qwen3:4b`, disables external API use, and serves the local Python web
+UI. The old `Start_RIN_Python.command` and
+`Start_RIN_Python_Local_Model.command` launchers were removed intentionally to
+leave one owner-facing root launcher.
 
 The active UI is rendered with Jinja2 templates plus static CSS and minimal
 vanilla JavaScript from `python/src/rin/server/`. There is no frontend build

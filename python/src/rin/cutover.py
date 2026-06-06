@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import sqlite3
 import tempfile
@@ -128,8 +129,9 @@ class PythonProductionCheckReport:
     markerPresent: bool
     realDataReadable: bool
     backupExists: bool
-    pythonLauncherExists: bool
-    pythonLocalModelLauncherExists: bool
+    defaultLauncherExists: bool
+    defaultLauncherExecutable: bool
+    defaultLauncherLocalModel: bool
     typescriptRollbackDocumented: bool
     typescriptFallbackTag: str
     externalApiDisabled: bool
@@ -491,8 +493,23 @@ def run_python_production_check(
     marker_present = is_python_production_cutover_marked(layout.rootDir)
     status = inspect_database(layout)
     backup_exists = latest_backup_exists()
-    python_launcher = REPO_ROOT / "Start_RIN_Python.command"
-    python_local_launcher = REPO_ROOT / "Start_RIN_Python_Local_Model.command"
+    default_launcher = REPO_ROOT / "Start_RIN.command"
+    launcher_text = (
+        default_launcher.read_text(encoding="utf-8")
+        if default_launcher.is_file()
+        else ""
+    )
+    default_launcher_local_model = all(
+        item in launcher_text
+        for item in (
+            'RIN_MODEL_ADAPTER="rin-ollama-local"',
+            "http://127.0.0.1:11434",
+            "qwen3:4b",
+            "RIN_OLLAMA_TIMEOUT_MS",
+            "RIN_OLLAMA_NUM_PREDICT",
+            'open "$LOCAL_URL"',
+        )
+    )
     ts_rollback_doc = (
         REPO_ROOT / "docs" / "python-only" / "TYPESCRIPT_FALLBACK_GUIDE.md"
     )
@@ -502,8 +519,8 @@ def run_python_production_check(
             marker_present,
             status.schemaVersion >= 6,
             backup_exists,
-            python_launcher.is_file(),
-            python_local_launcher.is_file(),
+            default_launcher.is_file(),
+            default_launcher_local_model,
             ts_rollback_doc.is_file(),
             local_model_ready is not False,
         ]
@@ -515,8 +532,10 @@ def run_python_production_check(
         markerPresent=marker_present,
         realDataReadable=status.schemaVersion >= 6,
         backupExists=backup_exists,
-        pythonLauncherExists=python_launcher.is_file(),
-        pythonLocalModelLauncherExists=python_local_launcher.is_file(),
+        defaultLauncherExists=default_launcher.is_file(),
+        defaultLauncherExecutable=default_launcher.is_file()
+        and os.access(default_launcher, os.X_OK),
+        defaultLauncherLocalModel=default_launcher_local_model,
         typescriptRollbackDocumented=ts_rollback_doc.is_file(),
         typescriptFallbackTag=TYPESCRIPT_FALLBACK_TAG,
         externalApiDisabled=True,
@@ -549,9 +568,12 @@ def format_python_production_check_report(
             f"Marker present: {'yes' if report.markerPresent else 'no'}",
             f"Real data readable: {'yes' if report.realDataReadable else 'no'}",
             f"Backup exists: {'yes' if report.backupExists else 'no'}",
-            f"Python launcher exists: {'yes' if report.pythonLauncherExists else 'no'}",
-            "Python local model launcher exists: "
-            f"{'yes' if report.pythonLocalModelLauncherExists else 'no'}",
+            "Default launcher exists: "
+            f"{'yes' if report.defaultLauncherExists else 'no'}",
+            "Default launcher executable: "
+            f"{'yes' if report.defaultLauncherExecutable else 'no'}",
+            "Default launcher local model: "
+            f"{'yes' if report.defaultLauncherLocalModel else 'no'}",
             "TypeScript rollback documented: "
             f"{'yes' if report.typescriptRollbackDocumented else 'no'}",
             f"TypeScript fallback tag: {report.typescriptFallbackTag}",
@@ -664,8 +686,6 @@ def artifact_int(payload: dict[str, object], key: str) -> int:
 
 
 def migration_env_allows_apply() -> bool:
-    import os
-
     return os.environ.get(ALLOW_MIGRATION_ENV) == "allow"
 
 

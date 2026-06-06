@@ -17,10 +17,11 @@ It starts local Ollama/Qwen3 mode and opens the local FastAPI web UI at:
 http://127.0.0.1:8765/
 ```
 
-`Start_RIN.command` checks the Python venv, verifies Ollama and `qwen3:4b`,
-starts the server, opens the browser once, and keeps the terminal open so
-Ctrl-C stops the server. `Start_RIN_Python.command` remains a non-default
-provider-free developer launcher.
+`Start_RIN.command` is the only normal owner-facing root launcher. It checks the
+Python venv, verifies Ollama and `qwen3:4b`, starts the server, opens the
+browser once, and keeps the terminal open so Ctrl-C stops the server. The old
+`Start_RIN_Python.command` and `Start_RIN_Python_Local_Model.command` names were
+removed intentionally to reduce launcher confusion.
 
 ## Python Console UI
 

@@ -36,8 +36,6 @@ starts:
 - `RIN_OLLAMA_MODEL=qwen3:4b`
 - `RIN_OLLAMA_TIMEOUT_MS=180000`
 - `RIN_OLLAMA_NUM_PREDICT=1024`
-- `RIN_OLLAMA_TEMPERATURE=0.5`
-- `RIN_OLLAMA_TOP_P=0.9`
 
 These defaults give Qwen3 more room to produce final assistant content. The
 Ollama adapter also sends `think: false` for local chat so Qwen3 returns final
@@ -48,11 +46,12 @@ adapter removes recognized thinking-tag content and rejects remaining
 internal-analysis-style output instead of storing it as a RIN reply. Remaining
 thinking leaks are tracked in `docs/python-only/THINKING_LEAK_FIX_PLAN.md`.
 
-## Compatibility Launchers
+## Removed Compatibility Launchers
 
-- `Start_RIN_Python_Local_Model.command` delegates to `Start_RIN.command`.
-- `Start_RIN_Python.command` remains a non-default provider-free developer
-  launcher.
+The only normal owner-facing root launcher is now `Start_RIN.command`.
+`Start_RIN_Python.command` and `Start_RIN_Python_Local_Model.command` were
+removed intentionally to reduce launcher confusion. Do not recreate replacement
+root launchers for normal operation.
 
 ## Local Chat Smoke
 
@@ -118,13 +117,13 @@ Try:
 If double-clicking says the file cannot be opened, run this from the repository:
 
 ```sh
-chmod +x Start_RIN.command Start_RIN_Python.command Start_RIN_Python_Local_Model.command 打开RIN项目.command
+chmod +x Start_RIN.command
 ```
 
 If macOS quarantine blocks the file after download or transfer, run:
 
 ```sh
-xattr -d com.apple.quarantine Start_RIN.command Start_RIN_Python.command Start_RIN_Python_Local_Model.command 打开RIN项目.command
+xattr -d com.apple.quarantine Start_RIN.command
 ```
 
 ## If Python Dependencies Are Missing

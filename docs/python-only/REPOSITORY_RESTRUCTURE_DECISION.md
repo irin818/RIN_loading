@@ -35,8 +35,7 @@ RIN_loading/
 ├── docs/
 ├── public/
 ├── live2d-development/
-├── Start_RIN_Python.command
-├── Start_RIN_Python_Local_Model.command
+├── Start_RIN.command
 ├── AGENTS.md
 ├── ARCHITECTURE.md
 ├── DEVELOPMENT_PROTOCOL.md

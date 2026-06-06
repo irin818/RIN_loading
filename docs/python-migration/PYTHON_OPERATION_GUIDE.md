@@ -4,20 +4,17 @@ Status: Python primary operation.
 
 ## Recommended Start
 
-Use the local-model Python launcher:
+Use the single owner-facing Python launcher:
 
 ```sh
-./Start_RIN_Python_Local_Model.command
+./Start_RIN.command
 ```
 
-Use provider-free mock mode when testing without Ollama:
-
-```sh
-./Start_RIN_Python.command
-```
-
-Both launchers bind to `127.0.0.1:8765` and require the production migration
-marker at `.rin-data/config/python_cutover_marker.json`.
+It binds to `127.0.0.1:8765`, uses local Ollama `qwen3:4b` by default, keeps
+external APIs disabled, and requires the production migration marker at
+`.rin-data/config/python_cutover_marker.json`. The old
+`Start_RIN_Python.command` and `Start_RIN_Python_Local_Model.command` names were
+removed later and are historical only.
 
 ## Checks
 
