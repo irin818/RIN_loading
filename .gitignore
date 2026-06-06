@@ -22,11 +22,20 @@ pnpm-debug.log*
 .cache/
 .vite/
 coverage/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
 
 # OS / editor
 .DS_Store
 .idea/
 .vscode/
+
+# python
+.venv/
+python/.venv/
 
 # local data
 .rin-data/
