@@ -4,10 +4,9 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package 10 — Candidate Integration and Validation.
-- Current checkpoint: Package 10 implementation and checks passed; PR creation
-  pending.
-- Active branch: `python-rewrite/10-candidate-validation`.
+- Current package: Package A — Candidate Audit and Gap Closure.
+- Current checkpoint: Package A implementation in progress.
+- Active branch: `python-rewrite/11-candidate-audit-gap-closure`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -15,8 +14,8 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `fd88109 Merge pull request #70 from irin818/python-rewrite/09-fastapi-compatibility`.
-- Open PR: none for Package 10 yet.
+  `c10cbac Merge pull request #71 from irin818/python-rewrite/10-candidate-validation`.
+- Draft candidate PR: #72, review-only, open, draft, unmerged to `main`.
 
 ## Completed Work
 
@@ -116,6 +115,12 @@ Status: active handoff document.
   - `PYTHON_CANDIDATE_REPORT.md`
   - `PYTHON_PRODUCTION_CUTOVER_CHECKLIST.md`
   - `TYPESCRIPT_CORE_REMOVAL_PLAN.md`
+- Merged Package 10 PR #71 into `python-rewrite/main`.
+- Created draft review-only candidate PR #72 from `python-rewrite/main` to
+  `main`; it remains unmerged.
+- Started Package A branch `python-rewrite/11-candidate-audit-gap-closure`.
+- Added `PYTHON_CANDIDATE_AUDIT.md`.
+- Added safe `elapsedMs` timing to Python runtime/API results.
 
 ## Tests Run
 
@@ -414,9 +419,11 @@ Status: active handoff document.
   reject non-temp layouts and default to a mock local adapter.
 - Package 10 did not write to real `.rin-data`, did not change launchers, did
   not merge to `main`, and did not remove TypeScript Core.
+- Package A remains candidate-only and does not alter production launchers,
+  TypeScript source, or real data paths.
 
 ## Exact Next Task
 
-Commit Package 10, push `python-rewrite/10-candidate-validation`, open a PR
-targeting `python-rewrite/main`, review and merge only if gates pass, then
-stop for high-quality final review before any production cutover.
+Finish Package A checks, push `python-rewrite/11-candidate-audit-gap-closure`,
+open a PR targeting `python-rewrite/main`, review and merge only if gates pass,
+then continue to Package B.

@@ -73,6 +73,7 @@ async def test_runtime_persists_owner_and_rin_reply_on_success() -> None:
         assert [message.role for message in messages] == ["owner", "rin"]
         assert messages[1].content == "Final answer."
         assert result.fakeReplyWritten is False
+        assert result.elapsedMs >= 0
         assert result.memoryTraceWritten is True
         assert status.counts.conversationTurns == 1
         assert status.counts.memoryV2Traces == 1
@@ -99,6 +100,7 @@ async def test_runtime_preserves_owner_without_fake_reply_on_model_failure() -> 
         assert result.ownerMessagePreserved is True
         assert result.rinMessageId is None
         assert result.fakeReplyWritten is False
+        assert result.elapsedMs >= 0
         assert [message.role for message in messages] == ["owner"]
         assert status.counts.conversationTurns == 1
         assert status.counts.messages == 1

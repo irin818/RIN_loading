@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from time import perf_counter
 from typing import Protocol
 from uuid import uuid4
 
@@ -50,6 +51,7 @@ class ConversationRuntimeResult(BaseModel):
     adapterId: str | None
     contextIncludedSegments: int
     contextCharacterCount: int
+    elapsedMs: int
     memoryTraceWritten: bool
     ownerMessagePreserved: bool
     fakeReplyWritten: bool
@@ -83,6 +85,7 @@ async def run_conversation_turn(
     conversation_id: str | None = None,
     clock: RuntimeClock | None = None,
 ) -> ConversationRuntimeResult:
+    started_at = perf_counter()
     assert_safe_temp_data_dir(layout.rootDir)
     runtime_clock = clock or RuntimeClock()
     now = runtime_clock.now()
@@ -140,6 +143,7 @@ async def run_conversation_turn(
             error.adapterId,
             context_report.includedSegments,
             context_report.characterCount,
+            elapsed_ms(started_at),
             error.code,
             error.retryable,
         )
@@ -159,6 +163,7 @@ async def run_conversation_turn(
             adapter.id,
             context_report.includedSegments,
             context_report.characterCount,
+            elapsed_ms(started_at),
             error.code,
             error.retryable,
         )
@@ -200,6 +205,7 @@ async def run_conversation_turn(
         adapterId=model_response.adapterId,
         contextIncludedSegments=context_report.includedSegments,
         contextCharacterCount=context_report.characterCount,
+        elapsedMs=elapsed_ms(started_at),
         memoryTraceWritten=True,
         ownerMessagePreserved=True,
         fakeReplyWritten=False,
@@ -277,6 +283,7 @@ def failed_result(
     adapter_id: str | None,
     included_segments: int,
     character_count: int,
+    elapsed_ms_value: int,
     error_code: str,
     retryable: bool,
 ) -> ConversationRuntimeResult:
@@ -289,6 +296,7 @@ def failed_result(
         adapterId=adapter_id,
         contextIncludedSegments=included_segments,
         contextCharacterCount=character_count,
+        elapsedMs=elapsed_ms_value,
         memoryTraceWritten=False,
         ownerMessagePreserved=True,
         fakeReplyWritten=False,
@@ -297,3 +305,7 @@ def failed_result(
         errorCode=error_code,
         retryable=retryable,
     )
+
+
+def elapsed_ms(started_at: float) -> int:
+    return max(0, round((perf_counter() - started_at) * 1000))
