@@ -27,3 +27,10 @@ delete TypeScript code.
 - Any launcher rollback uncertainty.
 - Any unresolved Python parity or API compatibility gap.
 - Any owner request to keep TypeScript fallback.
+
+## Current Status
+
+- Final Python candidate validation passed for review only.
+- Production cutover has not been approved.
+- TypeScript Core removal remains not approved.
+- TypeScript remains the rollback backend.

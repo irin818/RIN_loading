@@ -1,10 +1,10 @@
 # Python RIN Core Candidate Report
 
-Status: Package 10 candidate validation completed for review.
+Status: Packages A-F final candidate validation completed for review.
 
 ## Candidate Scope
 
-- Branch: `python-rewrite/10-candidate-validation`
+- Branch: `python-rewrite/main`
 - Integration target: `python-rewrite/main`
 - Production target: not approved
 - Launcher switch: not approved
@@ -70,6 +70,7 @@ Status: Package 10 candidate validation completed for review.
   machine: 60s timed out, 180s succeeded.
 - Package B optional preview local-model smoke succeeded with local `qwen3:4b`
   and 180s timeout.
+- Package F optional local Ollama/Qwen3 smoke also succeeded with 180s timeout.
 
 ## Rollback
 
@@ -81,6 +82,10 @@ Status: Package 10 candidate validation completed for review.
   copied/temp data and expose no production apply path.
 - Package E adds preview-compatible Console API aliases for `/api/local-state`,
   `/api/conversations`, and `/api/conversations/{id}` on synthetic/temp data.
+- Package F final validation passed the full Python gate, repeated candidate
+  checks, TypeScript v2 checks, copied-data shadow validation, migration
+  dry-run, rollback rehearsal, API contract check, and optional local Ollama
+  smoke.
 
 ## Unresolved Risks
 
@@ -94,3 +99,5 @@ Status: Package 10 candidate validation completed for review.
 - Preview server is local/manual and not integrated with the React Console
   launcher.
 - Python does not yet implement the full TypeScript Console memory review API.
+- Production cutover, launcher switching, real-data migration, and TypeScript
+  Core removal remain blocked pending explicit owner approval.
