@@ -202,3 +202,20 @@ Implications:
   touching real data.
 - Binding, deployment, launcher replacement, and production routing remain
   explicit cutover tasks.
+
+## Decision P0014: Python preview is temp-data only
+
+Decision:
+
+- Package B introduces a manual Python preview server and launcher under
+  `scripts/python-preview/`.
+- Preview data must resolve under `/tmp/rin-python-preview-*`.
+- Existing TypeScript production launchers are not modified.
+- Default preview smoke uses the mock adapter and performs no provider calls.
+
+Implications:
+
+- The Python candidate can be manually previewed without touching real
+  `.rin-data`.
+- Preview mode is not production cutover and must not be treated as the default
+  backend.

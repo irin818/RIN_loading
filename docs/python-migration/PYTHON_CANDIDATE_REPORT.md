@@ -31,6 +31,8 @@ Status: Package 10 candidate validation completed for review.
 
 - Python API is an app factory only and is not wired into launchers.
 - Python runtime writes only to guarded temp layouts.
+- Python preview mode uses `/tmp/rin-python-preview-*` and is not production
+  launch.
 - Python local chat smoke is skipped by default unless explicitly selected with
   environment variables.
 - Python Memory V2 writes currently record candidate-safe trace summaries, not a
@@ -48,6 +50,8 @@ Status: Package 10 candidate validation completed for review.
 ## Data Compatibility
 
 - Synthetic temp data validates against Python read/write/runtime/API checks.
+- Preview smoke validates temp preview data, API readiness/state, mock
+  conversation writes, history, trace status, and production write rejection.
 - Read-only copied-data inspection is permitted only after copying to
   `/tmp/rin-python-*`; original data must remain hash-stable.
 - Write simulation is limited to safe temp/copy fixtures.
@@ -61,6 +65,8 @@ Status: Package 10 candidate validation completed for review.
 - Current tests validate correctness and deterministic behavior, not throughput.
 - Optional live Ollama/Qwen3 smoke required a longer cold-start timeout on this
   machine: 60s timed out, 180s succeeded.
+- Package B optional preview local-model smoke succeeded with local `qwen3:4b`
+  and 180s timeout.
 
 ## Rollback
 
@@ -78,3 +84,5 @@ Status: Package 10 candidate validation completed for review.
 - Production owner-data migration semantics require separate review.
 - API compatibility is practical and local-only, not a full Console replacement.
 - Durable TypeScript-style timing event tables are not implemented in Python.
+- Preview server is local/manual and not integrated with the React Console
+  launcher.

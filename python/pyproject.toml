@@ -32,6 +32,9 @@ rin-python-storage-report = "rin.cli.storage_report:main"
 rin-python-profile-validate = "rin.cli.profile_validate:main"
 rin-python-profile-report = "rin.cli.profile_report:main"
 rin-python-local-chat-smoke = "rin.cli.local_chat_smoke:main"
+rin-python-preview-server = "rin.cli.preview_server:main"
+rin-python-preview-smoke = "rin.cli.preview_smoke:main"
+rin-python-preview-local-model-smoke = "rin.cli.preview_local_model_smoke:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rin"]

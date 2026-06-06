@@ -4,9 +4,9 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package A — Candidate Audit and Gap Closure.
-- Current checkpoint: Package A implementation in progress.
-- Active branch: `python-rewrite/11-candidate-audit-gap-closure`.
+- Current package: Package B — Python Preview Launcher and Safe Shadow Run.
+- Current checkpoint: Package B implementation in progress.
+- Active branch: `python-rewrite/12-python-preview-launcher`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -14,7 +14,7 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `c10cbac Merge pull request #71 from irin818/python-rewrite/10-candidate-validation`.
+  `2139b8b Merge pull request #73 from irin818/python-rewrite/11-candidate-audit-gap-closure`.
 - Draft candidate PR: #72, review-only, open, draft, unmerged to `main`.
 
 ## Completed Work
@@ -121,6 +121,12 @@ Status: active handoff document.
 - Started Package A branch `python-rewrite/11-candidate-audit-gap-closure`.
 - Added `PYTHON_CANDIDATE_AUDIT.md`.
 - Added safe `elapsedMs` timing to Python runtime/API results.
+- Merged Package A PR #73 into `python-rewrite/main`.
+- Started Package B branch `python-rewrite/12-python-preview-launcher`.
+- Added safe Python preview helpers, server command, provider-free preview smoke,
+  optional local-model preview smoke, and manual preview launcher under
+  `scripts/python-preview/`.
+- Added `PYTHON_PREVIEW_GUIDE.md`.
 
 ## Tests Run
 
@@ -256,6 +262,20 @@ Status: active handoff document.
   - `.venv/bin/rin-python-readiness`
   - `.venv/bin/rin-python-candidate-check`
   - repeated `.venv/bin/rin-python-candidate-check`
+- Package A Python and TypeScript gates passed; PR #73 merged.
+- Package B focused Python gates passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+  - `.venv/bin/rin-python-preview-smoke` passed with temp preview data,
+    production write rejection, cleanup, provider calls 0, and external provider
+    calls 0.
+  - `.venv/bin/rin-python-preview-local-model-smoke` default skipped with zero
+    calls when local adapter was not selected.
+  - `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_TIMEOUT_MS=180000 .venv/bin/rin-python-preview-local-model-smoke`
+    passed locally against `qwen3:4b`; external provider calls 0 and no raw
+    provider response/thinking/full text included.
 - Optional Python local Ollama smoke:
   - default `rin-python-local-chat-smoke` skipped with zero model calls.
   - `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_TIMEOUT_MS=60000`
@@ -333,6 +353,9 @@ Status: active handoff document.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg10a.DtPkpl npm run rin:local-chat-smoke`
     passed with default skipped behavior.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg10b.* npm run rin:v2-check` passed.
+- Stable TypeScript Package B reference checks:
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-ref.pULKhq npm run rin:check` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-v2.TIxFFz npm run rin:v2-check` passed.
 - Copied owner-data read verification:
   - temporary copy under `/tmp/rin-python-owner-copy.*`.
   - original DB hash unchanged: yes.
@@ -421,9 +444,11 @@ Status: active handoff document.
   not merge to `main`, and did not remove TypeScript Core.
 - Package A remains candidate-only and does not alter production launchers,
   TypeScript source, or real data paths.
+- Package B preview mode remains temp-only, binds to `127.0.0.1`, and does not
+  alter `Start_RIN.command` or `Start_RIN_Local_Model.command`.
 
 ## Exact Next Task
 
-Finish Package A checks, push `python-rewrite/11-candidate-audit-gap-closure`,
+Finish Package B checks, push `python-rewrite/12-python-preview-launcher`,
 open a PR targeting `python-rewrite/main`, review and merge only if gates pass,
-then continue to Package B.
+then continue to Package C.
