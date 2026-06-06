@@ -38,3 +38,5 @@ cutover.
 - Production migration apply command: not implemented.
 - Rollback rehearsal: copy/temp-data only.
 - TypeScript rollback backend: still required.
+- Final candidate validation: passed for review only.
+- Cutover approval: still required from owner.

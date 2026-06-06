@@ -29,6 +29,7 @@ Status: initialized for Package 0.
 | migration dry-run | TypeScript remains production reference | copy-only dry-run added, no apply path | Package D synthetic dry-run tests | passed | no |
 | rollback rehearsal | TypeScript rollback path | copy-only rehearsal added | Package D rollback tests | passed | no |
 | Console API contract | `src/server/localConsoleServer.ts` | preview-compatible `/api` aliases added | Package E API contract check | passed | no |
+| final candidate validation | full RIN v2 + Python post-candidate gates | A-F complete for review | Package F repeated Python/TS checks | passed | no |
 
 Package 0 creates only foundation checks and safety scaffolding. It does not
 claim behavioral parity for migrated TypeScript core capabilities. The Package 0
@@ -83,3 +84,7 @@ production migration apply path.
 
 Package E adds enough Console-shaped API aliases for preview contract checks on
 synthetic temp data. It does not modify the React Console or production server.
+
+Package F completes final candidate revalidation for review only. Production
+readiness remains `no` until owner approval for cutover, launcher switch,
+real-data migration, and TypeScript Core removal.

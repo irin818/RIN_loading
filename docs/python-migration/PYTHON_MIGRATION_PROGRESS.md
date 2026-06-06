@@ -4,9 +4,9 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package E — Console/API Compatibility Verification.
-- Current checkpoint: Package E implementation in progress.
-- Active branch: `python-rewrite/15-console-api-compatibility`.
+- Current package: Package F — Final Candidate Re-Validation and PR #72 Update.
+- Current checkpoint: Package F final validation in progress.
+- Active branch: `python-rewrite/16-final-candidate-revalidation`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -14,7 +14,7 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `71ecf55 Merge pull request #76 from irin818/python-rewrite/14-migration-dry-run-rollback`.
+  `04b69ff Merge pull request #77 from irin818/python-rewrite/15-console-api-compatibility`.
 - Draft candidate PR: #72, review-only, open, draft, unmerged to `main`.
 
 ## Completed Work
@@ -142,6 +142,8 @@ Status: active handoff document.
 - Started Package E branch `python-rewrite/15-console-api-compatibility`.
 - Added preview-compatible Console API aliases and `rin-python-api-contract-check`.
 - Added `PYTHON_CONSOLE_COMPATIBILITY_REPORT.md`.
+- Merged Package E PR #77 into `python-rewrite/main`.
+- Started Package F branch `python-rewrite/16-final-candidate-revalidation`.
 
 ## Tests Run
 
@@ -355,6 +357,26 @@ Status: active handoff document.
   - provider calls: 0.
   - external provider calls: 0.
   - UI changes required: no.
+- Package F final Python gates passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+  - `.venv/bin/rin-python-check`
+  - `.venv/bin/rin-python-parity-check`
+  - `.venv/bin/rin-python-readiness`
+  - `.venv/bin/rin-python-candidate-check`
+  - `.venv/bin/rin-python-preview-smoke`
+  - `.venv/bin/rin-python-copy-data-shadow-report`
+  - `.venv/bin/rin-python-production-migration-dry-run`
+  - `.venv/bin/rin-python-rollback-rehearsal`
+  - `.venv/bin/rin-python-api-contract-check`
+  - repeated `.venv/bin/rin-python-candidate-check` three additional times.
+- Package F optional local Ollama smoke passed:
+  - `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_TIMEOUT_MS=180000 .venv/bin/rin-python-preview-local-model-smoke`
+  - local model calls: 1.
+  - external provider calls: 0.
+  - full text/raw provider response/thinking included: no.
 - Optional Python local Ollama smoke:
   - default `rin-python-local-chat-smoke` skipped with zero model calls.
   - `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_TIMEOUT_MS=60000`
@@ -444,6 +466,11 @@ Status: active handoff document.
 - Stable TypeScript Package E reference checks:
   - `RIN_DATA_DIR=/tmp/rin-python-ts-ref.RXhMdO npm run rin:check` passed.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-v2.dmdvXI npm run rin:v2-check` passed.
+- Stable TypeScript Package F final reference checks:
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-final1.ToshF8 npm run rin:v2-check` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-final2.* npm run rin:v2-check` passed.
+  - `npm run rin:daily-chat-eval` passed.
+  - `git diff --check` passed.
 - Copied owner-data read verification:
   - temporary copy under `/tmp/rin-python-owner-copy.*`.
   - original DB hash unchanged: yes.
@@ -541,9 +568,11 @@ Status: active handoff document.
   mutate copied/temp data only.
 - Package E verifies Console API compatibility on synthetic temp data and does
   not modify the React Console or production server routing.
+- Package F final validation keeps PR #72 draft/unmerged and does not approve
+  production cutover.
 
 ## Exact Next Task
 
-Finish Package E checks, push `python-rewrite/15-console-api-compatibility`,
+Finish Package F documentation, push `python-rewrite/16-final-candidate-revalidation`,
 open a PR targeting `python-rewrite/main`, review and merge only if gates pass,
-then continue to Package F.
+then update draft PR #72 and stop before production cutover.
