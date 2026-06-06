@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 import httpx
 import pytest
@@ -22,7 +23,7 @@ def request(messages: list[ModelMessage] | None = None) -> ModelRequest:
 
 @pytest.mark.asyncio
 async def test_ollama_request_shape_uses_think_false() -> None:
-    captured: dict = {}
+    captured: dict[str, Any] = {}
 
     def handler(http_request: httpx.Request) -> httpx.Response:
         captured["url"] = str(http_request.url)

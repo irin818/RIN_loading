@@ -1,7 +1,8 @@
 import json
+from typing import Any, cast
 
 import pytest
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from rin.contracts import (
     ContextV2Report,
@@ -22,9 +23,12 @@ from rin.contracts import (
 )
 
 
-def round_trip(model_type: type, payload: dict) -> dict:
+def round_trip(
+    model_type: type[BaseModel],
+    payload: dict[str, Any],
+) -> dict[str, Any]:
     parsed = model_type.model_validate(payload)
-    return json.loads(parsed.model_dump_json())
+    return cast(dict[str, Any], json.loads(parsed.model_dump_json()))
 
 
 def test_manifest_contract_round_trips() -> None:

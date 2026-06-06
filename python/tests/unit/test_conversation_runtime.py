@@ -11,6 +11,7 @@ from rin.database import (
 )
 from rin.diagnostics.safety import create_temp_data_dir
 from rin.model.ollama import ModelError, ModelErrorDetails
+from rin.storage import RinDataLayout
 
 NOW = "2026-06-05T00:00:00.000Z"
 
@@ -48,7 +49,7 @@ class FailingAdapter:
         )
 
 
-def create_layout():
+def create_layout() -> RinDataLayout:
     temp = create_temp_data_dir()
     return create_temp_layout_database(temp.path)
 

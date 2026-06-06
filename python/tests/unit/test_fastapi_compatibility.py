@@ -5,13 +5,16 @@ import pytest
 from fastapi.testclient import TestClient
 
 from rin.contracts import ModelRequest, ModelResponse, ModelResponseMetadata
+from rin.conversation import ModelAdapterProtocol
 from rin.database import create_temp_layout_database
 from rin.diagnostics.safety import create_temp_data_dir
 from rin.server import create_app
-from rin.storage import create_data_layout
+from rin.storage import RinDataLayout, create_data_layout
 
 
-def create_client(adapter=None):
+def create_client(
+    adapter: ModelAdapterProtocol | None = None,
+) -> tuple[TestClient, RinDataLayout]:
     temp = create_temp_data_dir()
     layout = create_temp_layout_database(temp.path)
     return TestClient(create_app(layout, adapter=adapter)), layout

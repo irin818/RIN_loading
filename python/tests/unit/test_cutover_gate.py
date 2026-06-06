@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -15,7 +16,10 @@ from rin.storage import create_data_layout
 
 
 @pytest.fixture()
-def fake_real_data(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+def fake_real_data(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[Path]:
     temp = create_temp_data_dir("rin-python-cutover-test-")
     root = temp.path
     layout = create_data_layout(str(root), cwd="/")

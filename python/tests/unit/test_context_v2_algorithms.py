@@ -1,15 +1,17 @@
+from typing import Any
+
 from rin.context import build_context_v2_report, segment
 
 
-def included_ids(report) -> list[str]:
+def included_ids(report: Any) -> list[str]:
     return [item.id for item in report.segments if item.included]
 
 
-def skipped_ids(report) -> list[str]:
+def skipped_ids(report: Any) -> list[str]:
     return [item.id for item in report.segments if not item.included]
 
 
-def fixture_segments():
+def fixture_segments() -> list[Any]:
     return [
         segment("memory_v2_trace", "trace-1", "trace:1", "trace", False),
         segment(

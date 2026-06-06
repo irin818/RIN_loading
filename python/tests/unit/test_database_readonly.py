@@ -3,6 +3,7 @@ import json
 import shutil
 import sqlite3
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -18,10 +19,10 @@ from rin.database import (
     open_readonly_database,
 )
 from rin.diagnostics.safety import create_temp_data_dir
-from rin.storage import create_data_layout
+from rin.storage import RinDataLayout, create_data_layout
 
 
-def create_database_fixture():
+def create_database_fixture() -> RinDataLayout:
     temp_dir = create_temp_data_dir()
     layout = create_data_layout(str(temp_dir.path), cwd="/")
     layout.directories["databases"].mkdir(parents=True, exist_ok=True)
@@ -216,7 +217,7 @@ def seed_rows(connection: sqlite3.Connection) -> None:
     )
 
 
-def memory_trace() -> dict:
+def memory_trace() -> dict[str, Any]:
     return {
         "injectedMemoryCount": 1,
         "injectedMemoryIds": ["mem-1"],
