@@ -4,11 +4,9 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Cutover Acceleration Package E — Default Recommendation and
-  Production Check.
-- Current checkpoint: Python is recommended primary path; production check
-  passed.
-- Active branch: `python-cutover/05-default-recommendation-switch`.
+- Current package: Cutover Acceleration Package F — Post-Cutover Verification.
+- Current checkpoint: post-cutover verification passed; tag pending.
+- Active branch: `python-cutover/06-post-cutover-verification`.
 - Target integration branch: `main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -230,6 +228,13 @@ Status: active handoff document.
 - Added `PYTHON_CUTOVER_COMPLETE.md`.
 - Updated `ARCHITECTURE.md` to describe Python as primary and TypeScript as
   fallback.
+- Merged Package E PR #88 into `main`.
+- Started cutover acceleration Package F branch
+  `python-cutover/06-post-cutover-verification`.
+- Added final operation and fallback docs:
+  - `PYTHON_POST_CUTOVER_VERIFICATION.md`
+  - `PYTHON_OPERATION_GUIDE.md`
+  - `TYPESCRIPT_FALLBACK_GUIDE.md`
 
 ## Tests Run
 
@@ -891,6 +896,24 @@ Status: active handoff document.
   - temp-data `npm run rin:v2-check`
   - `git diff --check`
   - safety scans.
+- Cutover Package F verification passed:
+  - `.venv/bin/rin-python-production-check`
+  - `RIN_PYTHON_CHECK_LOCAL_MODEL=1 .venv/bin/rin-python-production-check`
+  - `.venv/bin/rin-python-candidate-check`
+  - `.venv/bin/rin-python-rollback-rehearsal`
+  - Python conversation smoke on real data
+  - restart/reload production check
+  - temp-data `npm run rin:v2-check`
+  - `git diff --check`
+  - safety scan
+- Cutover Package F real-data conversation smoke:
+  - conversation delta: 1.
+  - message delta: 2.
+  - full text included: no.
+  - current conversations: 14.
+  - current messages: 36.
+  - current composite DB hash:
+    `690db14d9ca07ceb8e2ddcf2528541fbf69461621476fcd25de4a55cb23c58f1`.
 
 ## Exact Next Task
 
@@ -900,6 +923,5 @@ Owner can manually test Python Preview from `main` using
 real `.rin-data` migration, or TypeScript Core removal still requires a separate
 owner-approved PR.
 
-Push `python-cutover/05-default-recommendation-switch`, open a PR to `main`, and
-merge only if review remains clean. Then continue to Package F post-cutover
-verification and tag.
+Push `python-cutover/06-post-cutover-verification`, open a PR to `main`, merge
+only if review remains clean, then create tag `python-core-v1.0.0`.
