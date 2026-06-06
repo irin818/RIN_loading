@@ -95,11 +95,13 @@ Blocker status:
 
 ### Package E: Repository Restructure
 
-After TypeScript removal:
+Status: completed with no move.
 
-- decide whether to keep `python/src/rin` or move to top-level `rin/`;
-- move tests/config only if imports and package metadata remain stable;
-- do not move `.rin-data` or backup bundles.
+- kept `python/src/rin`, `python/tests`, and `python/pyproject.toml`;
+- avoided a broad path/venv/launcher rewrite immediately after TypeScript
+  deletion;
+- documented future move criteria in
+  `docs/python-only/REPOSITORY_RESTRUCTURE_DECISION.md`.
 
 ### Package F: Worktree Cleanup
 
