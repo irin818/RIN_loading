@@ -90,6 +90,10 @@ Status: Packages A-F final candidate validation completed for review.
   integration after final documentation and verification gates.
 - Package B adds top-level README and architecture preview notes so main users
   can distinguish TypeScript production launch from Python preview launch.
+- Package D final pre-merge verification passed repeated Python candidate
+  checks, full Python gates, repeated/temp-data TypeScript checks, safety scans,
+  copied-data shadow validation, migration dry-run, rollback rehearsal, API
+  contract check, and optional local Ollama/Qwen3 smoke.
 
 ## Unresolved Risks
 

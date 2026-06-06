@@ -4,9 +4,9 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package C — Update Draft PR #72 for Preview-Only Main Merge.
-- Current checkpoint: PR #72 metadata updated; diff reviewed.
-- Active branch: `python-rewrite/19-update-pr72-preview`.
+- Current package: Package D — Final Pre-Merge Verification for PR #72.
+- Current checkpoint: final verification passed; documentation update in progress.
+- Active branch: `python-rewrite/20-pr72-final-verification`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -14,7 +14,7 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `9cc1b44 Merge pull request #80 from irin818/python-rewrite/18-preview-main-prep`.
+  `22520df Merge pull request #81 from irin818/python-rewrite/19-update-pr72-preview`.
 - Draft candidate PR: #72, review-only, open, draft, unmerged to `main`.
 
 ## Completed Work
@@ -157,6 +157,9 @@ Status: active handoff document.
   preview-only, list non-goals, and require separate owner-approved cutover.
 - Reviewed PR #72 diff scope: no production launcher changes, no TypeScript
   `src/` changes, no package-lock churn, and no obvious data/env/log files.
+- Merged Package C PR #81 into `python-rewrite/main`.
+- Started Package D branch `python-rewrite/20-pr72-final-verification`.
+- Ran final pre-merge verification for PR #72.
 
 ## Tests Run
 
@@ -426,6 +429,25 @@ Status: active handoff document.
   - `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_TIMEOUT_MS=180000 .venv/bin/rin-python-preview-local-model-smoke`
   - external provider calls: 0.
   - full text/raw provider response/thinking included: no.
+- Main integration Package D repeated candidate checks passed:
+  - `.venv/bin/rin-python-candidate-check` passed three times.
+- Main integration Package D full Python gates passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+  - `.venv/bin/rin-python-check`
+  - `.venv/bin/rin-python-parity-check`
+  - `.venv/bin/rin-python-readiness`
+  - `.venv/bin/rin-python-preview-smoke`
+  - `.venv/bin/rin-python-copy-data-shadow-report`
+  - `.venv/bin/rin-python-production-migration-dry-run`
+  - `.venv/bin/rin-python-rollback-rehearsal`
+  - `.venv/bin/rin-python-api-contract-check`
+- Main integration Package D optional local Ollama smoke passed:
+  - `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_TIMEOUT_MS=180000 .venv/bin/rin-python-preview-local-model-smoke`
+  - external provider calls: 0.
+  - full text/raw provider response/thinking included: no.
 - Optional Python local Ollama smoke:
   - default `rin-python-local-chat-smoke` skipped with zero model calls.
   - `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_TIMEOUT_MS=60000`
@@ -530,6 +552,19 @@ Status: active handoff document.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-audit2.Kb104W npm run rin:check` passed.
   - `npm run rin:daily-chat-eval` passed.
   - `git diff --check` passed.
+- Main integration Package D TypeScript checks passed:
+  - temp-data `npm run rin:v2-check` passed twice.
+  - temp-data `npm run rin:check` passed once.
+  - `npm run rin:daily-chat-eval` passed.
+  - `git diff --check` passed.
+- Main integration Package D safety scans passed:
+  - no production launcher, TypeScript `src/`, package-lock, data/env/log files
+    in PR #72 diff.
+  - no tracked forbidden data/secret file paths, excluding allowed
+    `.env.example`.
+  - no hidden control or bidi characters.
+  - secret-like assignment scan found existing placeholders/config validation
+    examples only, including README `your-api-key`; no real secret values.
 - Copied owner-data read verification:
   - temporary copy under `/tmp/rin-python-owner-copy.*`.
   - original DB hash unchanged: yes.
@@ -634,9 +669,12 @@ Status: active handoff document.
 - Package B documents Python preview at the top level and does not change
   production launchers, TypeScript `src/`, production routing, or real data.
 - Package C keeps PR #72 draft, clean, mergeable, and preview-only.
+- Package D final verification passed and found no blocker to marking PR #72
+  ready for review.
 
 ## Exact Next Task
 
-Finish Package C docs, push `python-rewrite/19-update-pr72-preview`,
+Finish Package D docs, push `python-rewrite/20-pr72-final-verification`,
 open a PR targeting `python-rewrite/main`, review and merge only if gates pass,
-then continue to Package D final verification.
+then mark PR #72 ready and continue to Package E merge if preconditions remain
+safe.

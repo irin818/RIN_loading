@@ -55,11 +55,12 @@ Status: Package A final audit for preview-only main integration.
 
 ## Required Before Merge
 
-- Re-run Python candidate, preview, shadow, dry-run, rollback, and API contract
-  checks.
-- Re-run TypeScript temp-data checks.
-- Recheck PR #72 diff for no production launcher changes, no TypeScript Core
-  deletion, no private data, and no real-data artifacts.
+- Package D final verification passed Python candidate, preview, shadow,
+  dry-run, rollback, API contract, TypeScript temp-data, and safety-scan checks.
+- PR #72 diff was rechecked for no production launcher changes, no TypeScript
+  Core deletion, no private data, and no real-data artifacts.
+- PR #72 may be marked ready for review and merged as preview-only if mergeable
+  state remains clean.
 
 ## Explicit Non-Goals
 
