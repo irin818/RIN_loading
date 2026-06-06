@@ -22,6 +22,7 @@ from rin.database.writes import (
     create_memory_trace,
     create_temp_layout_database,
     initialize_temp_database,
+    record_completed_turn,
     record_failed_turn,
 )
 
@@ -47,6 +48,7 @@ __all__ = [
     "create_memory_trace",
     "create_temp_layout_database",
     "initialize_temp_database",
+    "record_completed_turn",
     "record_failed_turn",
 ]
 """SQLite database helpers for the Python RIN candidate."""

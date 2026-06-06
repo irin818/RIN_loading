@@ -156,6 +156,49 @@ def record_failed_turn(
             raise
 
 
+def record_completed_turn(
+    layout: RinDataLayout,
+    turn_id: str,
+    conversation_id: str,
+    owner_message_id: str,
+    rin_message_id: str,
+    now: str,
+) -> None:
+    assert_safe_write_layout(layout)
+    with sqlite3.connect(database_path_for(layout)) as connection:
+        try:
+            connection.execute("BEGIN")
+            connection.execute(
+                """
+                INSERT INTO conversation_turns (
+                  id, conversation_id, owner_message_id, rin_message_id, status,
+                  attempt_count, error_code, created_at, updated_at, completed_at,
+                  failed_at
+                )
+                VALUES (?, ?, ?, ?, 'completed', 1, NULL, ?, ?, ?, NULL)
+                """,
+                (
+                    turn_id,
+                    conversation_id,
+                    owner_message_id,
+                    rin_message_id,
+                    now,
+                    now,
+                    now,
+                ),
+            )
+            append_audit_event_in_transaction(
+                connection,
+                "conversation.turn_completed",
+                {"turnId": turn_id, "rinMessageId": rin_message_id},
+                now,
+            )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+
+
 def create_memory_trace(
     layout: RinDataLayout,
     trace_id: str,

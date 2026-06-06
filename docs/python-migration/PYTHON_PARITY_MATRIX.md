@@ -18,7 +18,7 @@ Status: initialized for Package 0.
 | response sanitizer | `src/model` daily chat quality | thinking strip/empty-content handling added | Package 6 mocked error/sanitizer tests | passed | no |
 | temp write repository | `src/database`, runtime persistence | guarded temp-only writes added | Package 7 synthetic write tests + readonly summaries | passed | no |
 | structured errors | `src/model`, `src/conversation/errors.ts` | error contracts added | Package 1 synthetic round-trip | passed | no |
-| conversation runtime | `src/conversation/runtime.ts` | not started | pending Package 8 | pending | no |
+| conversation runtime | `src/conversation/runtime.ts` | temp-only candidate added | Package 8 mock runtime tests + TS runtime report | passed | no |
 | audit events | `src/database`, `src/conversation` | not started | pending Package 3/7/8 | pending | no |
 | readiness | `src/readiness` | foundation + TS readiness contract | Package 0 provider-free readiness; Package 1 synthetic round-trip | passed | no |
 | local API | `src/server` | not started | pending Package 9 | pending | no |
@@ -51,3 +51,7 @@ Ollama smoke remains explicit and skipped unless selected by environment.
 
 Package 7 adds write support only for guarded synthetic/temp layouts. Production
 `.rin-data` is rejected by every write entry point and there is no override.
+
+Package 8 adds a candidate runtime path for synthetic/temp layouts. It preserves
+owner messages on model failure, writes no fake reply, and does not replace the
+TypeScript production runtime.
