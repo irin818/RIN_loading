@@ -7,7 +7,8 @@ Status: Package C apply implemented and run once.
 Real-data migration apply was executed with:
 
 ```sh
-RIN_PYTHON_REAL_DATA_MIGRATION=allow npm run rin-python-real-data-migration-apply
+cd python
+RIN_PYTHON_REAL_DATA_MIGRATION=allow .venv/bin/rin-python-real-data-migration-apply
 ```
 
 Result:

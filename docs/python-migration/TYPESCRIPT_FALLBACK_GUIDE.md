@@ -1,15 +1,14 @@
 # TypeScript Fallback Guide
 
-Status: fallback retained after Python cutover.
+Status: historical fallback guide, superseded by Python-only D4.
 
 ## Launchers
 
-TypeScript fallback remains available as an explicit rollback path, not as an
-active root launcher:
+TypeScript fallback is now available through the final rollback tag, not through
+active-tree launchers:
 
 ```sh
-./scripts/typescript-fallback/Start_RIN_TypeScript_Fallback.command
-./scripts/typescript-fallback/Start_RIN_TypeScript_Local_Model_Fallback.command
+git checkout typescript-final-fallback
 ```
 
 The final fallback source tag is `typescript-final-fallback`.
@@ -25,8 +24,8 @@ Use TypeScript fallback if:
 
 ## Verification
 
-Fallback checks should use temporary data unless deliberately validating a
-restore:
+After checking out the fallback tag, fallback checks should use temporary data
+unless deliberately validating a restore:
 
 ```sh
 TS_FALLBACK="$(mktemp -d /tmp/rin-ts-fallback.XXXXXX)"
@@ -36,7 +35,6 @@ RIN_DATA_DIR="$TS_FALLBACK" npm run rin:v2-check
 
 ## Safety
 
-- TypeScript Core has not been deleted.
-- TypeScript tests have not been removed.
-- TypeScript fallback launchers have moved under `scripts/typescript-fallback/`.
+- TypeScript Core has been removed from the active Python-only tree.
+- TypeScript fallback remains available from `typescript-final-fallback`.
 - Production backup bundles must remain preserved.

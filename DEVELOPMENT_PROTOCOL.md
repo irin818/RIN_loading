@@ -76,24 +76,24 @@ plan, progress, and decision files are the handoff source of truth.
 
 ## Testing and Check Policy
 
-Use scripts defined in `package.json`.
+Use the Python package under `python/`.
 
 Recommended aggregate check before final reports or PRs when practical:
 
-- `npm run rin:check`
+- `python -m pytest`
+- `python -m ruff check .`
+- `python -m ruff format --check .`
+- `python -m mypy src`
+- `rin-python-candidate-check`
+- `rin-python-production-check`
 
-`npm run rin:check` runs typecheck, tests, lint, build, default readiness, and
-memory retrieval evaluation. It uses the default mock/local readiness path and
-does not require Ollama or external APIs.
+Run these from `python/` after activating `.venv`.
 
-For RIN v2.0 release or stabilization work, also use the provider-free v2 gate:
+For local-model work, also use the optional local model checks when Ollama is
+available:
 
-- `npm run rin:v2-check`
-
-`npm run rin:v2-check` extends the default check with conversation runtime,
-profile, Memory V2 migration dry-run/status, Context V2, and semantic
-evaluation reports. It intentionally does not run
-`rin:memory-v2-migration-apply`.
+- `RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check`
+- `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke`
 
 Task-specific checks still apply. For example, Live2D, CLI, import/export,
 storage, or provider-specific changes may require additional targeted commands.

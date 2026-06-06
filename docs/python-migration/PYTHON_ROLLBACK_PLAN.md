@@ -27,7 +27,8 @@ No production launcher is switched to Python in the current candidate.
 
 ```sh
 cd /Users/irin/Documents/RIN_loading_python
-npm run rin-python-rollback-rehearsal
+cd python
+.venv/bin/rin-python-rollback-rehearsal
 ```
 
 Required result:

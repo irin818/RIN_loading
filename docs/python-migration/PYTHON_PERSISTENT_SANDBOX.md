@@ -25,19 +25,22 @@ docs, or treated as owner production state.
 Initialize or repair the sandbox layout:
 
 ```sh
-npm run rin-python-sandbox-init
+cd python
+.venv/bin/rin-python-sandbox-init
 ```
 
 Run a provider-free sandbox smoke:
 
 ```sh
-npm run rin-python-sandbox-smoke
+cd python
+.venv/bin/rin-python-sandbox-smoke
 ```
 
 Preview what a reset would remove:
 
 ```sh
-npm run rin-python-sandbox-reset-dry-run
+cd python
+.venv/bin/rin-python-sandbox-reset-dry-run
 ```
 
 There is intentionally no destructive reset apply command.

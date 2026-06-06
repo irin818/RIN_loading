@@ -2,6 +2,10 @@
 
 Status: Package D0 inventory. No code deletion is approved by this document.
 
+D4 update: TypeScript Core, React/Vite UI, Node configuration, and TypeScript
+fallback scripts have since been removed from the active tree. Rollback is now
+through the `typescript-final-fallback` tag.
+
 ## Baseline
 
 - Branch: `python-only/04a-deletion-blocker-inventory`

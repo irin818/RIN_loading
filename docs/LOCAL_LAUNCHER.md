@@ -64,19 +64,18 @@ cd python && .venv/bin/rin-python-local-chat-smoke
 Without `RIN_MODEL_ADAPTER=rin-ollama-local`, the command skips safely and does
 not call a model.
 
-## Daily Chat Quality Checks
+## Python Checks
 
-Run the default provider-free daily chat fixture gate:
+Run the active Python checks:
 
 ```sh
-npm run rin:daily-chat-eval
+cd python
+. .venv/bin/activate
+python -m pytest
+rin-python-production-check
 ```
 
-This command does not require Ollama, does not read real `.rin-data`, and does
-not print full chat text. It checks common daily prompts for thinking leaks,
-policy dumps, fake external access claims, empty output, and excessive length.
-
-Run the optional live local daily chat smoke only when local Ollama is selected:
+Run the optional live local chat smoke only when local Ollama is selected:
 
 ```sh
 RIN_MODEL_ADAPTER=rin-ollama-local \
@@ -84,7 +83,7 @@ RIN_OLLAMA_BASE_URL=http://127.0.0.1:11434 \
 RIN_OLLAMA_MODEL=qwen3:4b \
 RIN_OLLAMA_NUM_PREDICT=1024 \
 RIN_OLLAMA_TIMEOUT_MS=180000 \
-npm run rin:daily-chat-live-smoke
+rin-python-local-chat-smoke
 ```
 
 The live smoke uses a temporary data directory, does not read the owner's real
@@ -112,13 +111,13 @@ Try:
 If double-clicking says the file cannot be opened, run this from the repository:
 
 ```sh
-chmod +x Start_RIN_Python.command Start_RIN_Python_Local_Model.command scripts/typescript-fallback/*.command scripts/typescript-fallback/*.sh
+chmod +x Start_RIN_Python.command Start_RIN_Python_Local_Model.command 打开RIN项目.command
 ```
 
 If macOS quarantine blocks the file after download or transfer, run:
 
 ```sh
-xattr -d com.apple.quarantine Start_RIN_Python.command Start_RIN_Python_Local_Model.command scripts/typescript-fallback/*.command
+xattr -d com.apple.quarantine Start_RIN_Python.command Start_RIN_Python_Local_Model.command 打开RIN项目.command
 ```
 
 ## If Python Dependencies Are Missing
@@ -135,8 +134,9 @@ Then double-click the launcher again.
 
 ## TypeScript Fallback
 
-TypeScript fallback is rollback-only under `scripts/typescript-fallback/`.
-Use it only when validating or performing rollback from the Python primary path.
+TypeScript fallback is rollback-only through the `typescript-final-fallback` Git
+tag. Use it only when validating or performing rollback from the Python primary
+path.
 
 ## Secrets Policy
 

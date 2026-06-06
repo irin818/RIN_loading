@@ -1,391 +1,95 @@
 # RIN Project Map
 
-# RIN 项目地图
-
-This document explains the current project in plain language. It is meant to
-help the owner understand what exists now and decide what should change next.
-
-本文档用直白语言解释当前项目，帮助所有者理解现在已经有什么，以及下一步应该
-怎么改。
+This document explains the current active project shape after the Python-only
+transition.
 
 ## Current State
 
-## 当前状态
+RIN is a local-first Python runtime for a single-owner personal agent system.
 
-RIN is not a full agent yet. It is currently a local-first foundation with a
-basic local conversation template:
+Current active pieces:
 
-RIN 现在还不是完整智能体。当前它是一个本地优先基础系统，并带有基础本地
-对话模板：
+- Python runtime package under `python/src/rin`.
+- Python tests under `python/tests`.
+- FastAPI local web UI at `http://127.0.0.1:8765/`.
+- Local SQLite-backed `.rin-data/`.
+- Production cutover marker under `.rin-data/config/python_cutover_marker.json`.
+- Preserved backup bundles under `.rin-python-backups/`.
+- Local-model support through Ollama/Qwen3 when explicitly selected.
+- TypeScript rollback through the `typescript-final-fallback` Git tag.
 
-- A project charter that defines the long-term rules.
-- 一份定义长期规则的项目宪章。
-- A React + Vite UI shell for visibility and future interaction.
-- 一个 React + Vite UI 外壳，用于可视化和未来交互。
-- A read-only local RIN Console served by the local runtime.
-- 一个由本地 runtime 提供的只读 RIN Console。
-- A basic local conversation template using the configured model adapter.
-- 一个使用已配置模型 adapter 的基础本地对话模板。
-- Configurable model adapter selection that defaults to the local mock adapter
-  and can use an OpenAI-compatible adapter only when explicitly configured.
-- 可配置的模型 adapter 选择；默认使用本地 mock adapter，只有显式配置后才会使用
-  OpenAI-compatible adapter。
-- Controlled memory proposal review for accepting, rejecting, or archiving
-  long-term memory candidates.
-- 受控的记忆提案审查流程，可接受、拒绝或归档长期记忆候选项。
-- Recent conversation browsing and continuation through stable conversation ids.
-- 通过稳定 conversation id 浏览最近对话并继续对话。
-- Manual export and safe import for Agent State Bundles.
-- Agent State Bundle 的手动导出和安全导入。
-- Guarded encrypted local backup and restore workflows.
-- 受保护的本地加密备份与恢复流程。
-- Decommissioned Agent runtime status for the earlier actions, planner, tasks,
-  tools/MCP, and L0-L5 permission scaffolds.
-- 早期 actions、planner、tasks、tools/MCP 和 L0-L5 权限 scaffold 的退役状态。
-- Local readiness reporting for API handoff.
-- 面向 API 交接的本地就绪检查报告。
-- A Node-side local data initializer.
-- 一个 Node 侧本地数据初始化器。
-- A controlled `.rin-data` directory.
-- 一个受控的 `.rin-data` 数据目录。
-- Readable JSON files for slow variables and safety boundaries.
-- 用于慢变量和安全边界的可读 JSON 文件。
-- SQLite raw logs, memory proposals, state history, audit events, tool
-  invocations, and export records.
-- SQLite 原始日志、记忆提案、状态历史、审计事件、工具调用和导出记录。
-- An original chibi SVG body rig at `/body`.
-- 位于 `/body` 的原创 Q 版 SVG 身体 rig。
-- A local-only body interaction shell with dragging, click reactions, and
-  temporary bubbles.
-- 一个仅本地运行的身体交互壳，支持拖拽、点击反应和临时气泡。
+Retired from active tree:
+
+- TypeScript Core.
+- React/Vite UI.
+- Node package configuration.
+- TypeScript fallback scripts.
 
 ## Useful Commands
 
-## 常用命令
-
-Install dependencies:
-
-安装依赖：
+Install Python dependencies:
 
 ```sh
-npm install
+cd python
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
 ```
 
-Start the UI shell:
-
-启动 UI 外壳：
+Start Python mock mode:
 
 ```sh
-npm run dev
+./Start_RIN_Python.command
 ```
 
-Initialize local RIN data:
-
-初始化本地 RIN 数据：
+Start Python local-model mode:
 
 ```sh
-npm run rin:init
+./Start_RIN_Python_Local_Model.command
 ```
 
-Inspect local RIN data:
-
-检查本地 RIN 数据：
+Run checks:
 
 ```sh
-npm run rin:inspect
+cd python
+. .venv/bin/activate
+python -m pytest
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy src
+rin-python-candidate-check
+rin-python-production-check
 ```
 
-Start the read-only local RIN Console:
-
-启动只读本地 RIN Console：
+Run optional local-model checks:
 
 ```sh
-npm run rin:console
+cd python
+. .venv/bin/activate
+RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check
+RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke
 ```
 
-Open:
-
-打开：
-
-```text
-http://127.0.0.1:4173
-```
-
-Run tests:
-
-运行测试：
+Rollback to TypeScript:
 
 ```sh
-npm test
+git checkout typescript-final-fallback
 ```
 
-Export local state:
-
-导出本地状态：
-
-```sh
-npm run rin:export
-```
-
-Check readiness:
-
-检查就绪状态：
-
-```sh
-npm run rin:readiness
-```
-
-Run the explicit external provider smoke after API environment is configured:
-
-配置 API 环境变量后，运行显式外部 provider smoke：
-
-```sh
-RIN_EXTERNAL_MODEL_SMOKE=allow npm run rin:external-model-smoke
-```
-
-Run the current v2.0 release gate:
-
-运行当前 v2.0 发布检查：
-
-```sh
-npm run rin:v2-check
-```
-
-`rin:v2-check` is provider-free and does not apply real local migrations.
-
-`rin:v2-check` 不调用 provider，也不会对真实本地数据执行迁移 apply。
-
-Import a local Agent State Bundle into a new data directory:
-
-导入本地 Agent State Bundle 到新的数据目录：
-
-```sh
-RIN_BUNDLE_PATH=/absolute/path/to/agent-state-bundle \
-RIN_IMPORT_DATA_DIR=.rin-imported-data \
-npm run rin:import
-```
-
-## Local Data Files
-
-## 本地数据文件
-
-After `npm run rin:init`, RIN creates `.rin-data`.
-
-运行 `npm run rin:init` 后，RIN 会创建 `.rin-data`。
-
-- `.rin-data/manifest.json`
-- Records schema version, owner id, device id, and directory layout.
-- 记录 schema 版本、owner id、device id 和目录布局。
-
-- `.rin-data/databases/rin.sqlite`
-- Stores schema migrations, raw conversation messages, conversation turn status,
-  memory placeholders, Memory V2 trace/source/signal tables including migrated
-  legacy accepted-memory retrieval candidates, audit events, raw runtime events,
-  state history, legacy tool invocation records, and export bundle records.
-- 保存 schema migration、原始对话消息、conversation turn 状态、记忆占位、Memory V2
-  trace/source/signal 表（包括迁移后的旧 accepted memory 检索候选）、审计事件、原始
-  runtime 事件、状态历史、旧工具调用记录和导出包记录。
-
-- `.rin-data/config/user_model.json`
-- Placeholder for the owner's long-term model.
-- 所有者长期模型的占位文件。
-
-- `.rin-data/config/ai_identity.json`
-- Placeholder for RIN's local identity model.
-- RIN 本地身份模型的占位文件。
-
-- `.rin-data/config/ai_state.json`
-- Placeholder for future embodied state such as mood, attention, and expression.
-- 未来具身化状态的占位文件，例如 mood、attention 和 expression。
-
-- `.rin-data/config/policy_config.json`
-- Placeholder for local policy rules.
-- 本地策略规则的占位文件。
-
-- `.rin-data/config/model_config.json`
-- Provider-neutral model adapter selection. It must not contain API keys.
-- 服务商中立的模型 adapter 选择文件。它不得包含 API Key。
-
-- `.rin-data/config/rin_profile.json`
-- Manually editable local RIN profile used as compact model context.
-- 可手动编辑的本地 RIN profile，会以紧凑形式进入模型上下文。
-
-- `.rin-data/config/owner_profile.json`
-- Manually editable local owner profile used as compact model context.
-- 可手动编辑的本地 owner profile，会以紧凑形式进入模型上下文。
-
-- `.rin-data/logs/audit_log.jsonl`
-- Placeholder for future append-only audit logs.
-- 未来追加式审计日志的占位文件。
-
-- `.rin-data/bundles/`
-- Stores local Agent State Bundle exports.
-- 保存本地 Agent State Bundle 导出包。
-
-## What Is Intentionally Missing
-
-## 当前有意缺失的内容
-
-The following are not implemented yet:
-
-以下内容尚未实现：
-
-- UI-direct model provider calls or hard-coded provider-specific calls.
-- UI 直接调用模型服务商，或硬编码的特定服务商调用。
-- API keys in tracked files or local core config.
-- 已跟踪文件或本地核心配置中的 API Key。
-- Automatic long-term memory writes without review.
-- 未经审查的自动长期记忆写入。
-- Active general-purpose Agent execution, tools/MCP, planner, task autonomy, or
-  L0-L5 runtime permission hierarchy.
-- 活跃的通用 Agent 执行、tools/MCP、planner、task 自主或 L0-L5 runtime 权限体系。
-- Real Live2D model assets.
-- 真实 Live2D 模型资产。
-- Native transparent desktop window.
-- 原生透明桌面窗口。
-- Sync.
-- 同步。
-- Multi-user accounts.
-- 多用户账户。
-- SaaS backend.
-- SaaS 后台。
-
-## How To Guide The Next Step
-
-## 如何指导下一步
-
-The most useful files for owner feedback right now are:
-
-当前最适合所有者反馈的文件是：
-
-- `PROJECT_CHARTER.md`
-- Defines what RIN must and must not become.
-- 定义 RIN 必须成为什么，以及不能变成什么。
-
-- `docs/TECHNICAL_DIRECTION.md`
-- Defines the runtime and architecture boundaries.
-- 定义运行时和架构边界。
-
-- `docs/PROJECT_MAP.md`
-- Explains the current system in plain language.
-- 用直白语言解释当前系统。
-
-- `docs/RIN_V2_OPERATIONS_GUIDE.md`
-- Explains active v2 commands and safe local operation.
-- 解释 active v2 命令和安全本地运行方式。
-
-- `docs/RIN_V2_MEMORY_MODEL.md`
-- Explains raw records, short-term memory, Memory V2, and migration.
-- 解释原始记录、短期记忆、Memory V2 和迁移。
-
-- `docs/RIN_V2_CONTEXT_POLICY.md`
-- Explains current context ordering, budgets, deduplication, and privacy.
-- 解释当前上下文顺序、预算、去重和隐私边界。
-
-- `docs/RIN_V2_KNOWN_LIMITATIONS.md`
-- Lists explicit remaining v2 limitations.
-- 列出 v2 当前明确限制。
-
-- `.rin-data/config/ai_identity.json`
-- Shows the first local identity placeholder.
-- 展示第一版本地身份占位文件。
-
-- `.rin-data/config/user_model.json`
-- Shows the first owner model placeholder.
-- 展示第一版所有者模型占位文件。
-
-If any wording feels wrong, the next development step should adjust these local
-state files, schemas, and model adapter settings before broadening agent
-behavior.
-
-如果这些文字有任何不对，下一步应先调整这些本地状态文件、schema 和模型
-adapter 设置，再扩大智能体行为。
-
-## Local Console Template
-
-## 本地 Console 模板
-
-The current Console reads local runtime state and can submit a basic local test
-message. Conversation messages are stored in SQLite through the runtime.
-
-当前 Console 会读取本地 runtime 状态，也可以提交一条基础本地测试消息。对话
-消息会通过 runtime 存入 SQLite。
-
-It displays:
-
-它会展示：
-
-- Runtime connection status.
-- Runtime 连接状态。
-- Manifest status.
-- Manifest 状态。
-- Core local files.
-- 核心本地文件。
-- RIN identity summary.
-- RIN 身份摘要。
-- AI state summary.
-- AI 状态摘要。
-- Feature gates for explicit external model configuration, memory writes, and
-  decommissioned Agent runtime status.
-- 显式外部模型配置、记忆写入和 Agent runtime 退役状态这些功能开关。
-- Recent memory proposals and review actions.
-- 最近的记忆提案和审查操作。
-- Recent conversation list and selected conversation messages.
-- 最近对话列表和已选择对话的消息。
-- Enabled local feature gates for the mock conversation runtime, controlled
-  memory review path, and body interaction shell. Agent execution gates are
-  reported as decommissioned.
-- 已启用的本地功能开关包括 mock 对话 runtime、受控记忆审查路径和身体交互壳；
-  Agent 执行相关 gate 会显示为已退役。
-
-The conversation template is intentionally limited:
-
-对话模板被有意限制：
-
-- It defaults to `rin-mock-local`.
-- 它默认使用 `rin-mock-local`。
-- It calls external models only when the model adapter is explicitly configured.
-- 只有在模型 adapter 被显式配置后，它才会调用外部模型。
-- It does not automatically accept long-term memory.
-- 它不会自动接受长期记忆。
-- Owner-reviewed proposals can be accepted or rejected locally.
-- 经所有者审查的提案可以在本地接受或拒绝。
-- Existing conversations can be reopened and continued locally.
-- 已存在的对话可以在本地重新打开并继续。
-- It does not execute general Agent tools, planner steps, MCP calls, or task
-  autonomy flows in v2.
-- v2 中它不执行通用 Agent 工具、planner 步骤、MCP 调用或 task 自主流程。
-
-## Body MVP
-
-## 身体 MVP
-
-The current body layer is an original chibi SVG rig and a body adapter. It maps
-local AI state into Live2D-compatible fields:
-
-当前身体层是原创 Q 版 SVG rig 和身体 adapter。它会把本地 AI 状态映射为 Live2D
-兼容字段：
-
-- `emotion`
-- `expression`
-- `motion`
-- `voiceStyle`
-- `mouthSync`
-- `idleBehavior`
-
-It is not a Cubism `.moc3` model yet. It is a replaceable adapter boundary for
-the future desktop body. It already has layered face, hair, body, accessory,
-blink, breathing, and hair-sway motion. The `/body` view now adds a clean
-local-only interaction shell: the body can be dragged, clicked, and can show a
-temporary bilingual bubble without writing memory or calling tools.
-
-它还不是 Cubism `.moc3` 模型。它是未来桌面身体的可替换 adapter 边界。它已经
-具备分层脸部、头发、身体、配饰、眨眼、呼吸和头发轻摆动作。`/body` 视图现在
-增加了干净的仅本地交互壳：身体可以被拖拽、点击，也可以显示临时双语气泡，
-但不会写入记忆或调用工具。
-
-The Console must remain separate from the future desktop body. It is an owner
-control and inspection surface, not the final pet body.
-
-Console 必须与未来桌面身体保持分离。它是所有者控制和检查界面，不是最终宠物
-身体。
+## Key Directories
+
+- `python/`: active Python package, tests, and tooling.
+- `docs/python-only/`: Python-only transition records.
+- `docs/python-migration/`: historical and safety migration records.
+- `public/live2d/`: retained static Live2D assets.
+- `live2d-development/`: retained Live2D development materials.
+
+## Safety
+
+Do not commit or delete:
+
+- `.rin-data/`
+- `.rin-python-backups/`
+- `.env`
+- local databases
+- logs
+- secrets

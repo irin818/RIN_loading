@@ -29,7 +29,7 @@ def main() -> None:
     if os.environ.get("RIN_MODEL_ADAPTER") == OLLAMA_ADAPTER_ID:
         adapter = cast(ModelAdapterProtocol, create_ollama_adapter_from_env())
     print("RIN Python Primary Launcher")
-    print("TypeScript fallback: scripts/typescript-fallback/")
+    print("TypeScript rollback tag: typescript-final-fallback")
     print(f"Data directory: {layout.rootDir}")
     print(f"Migration marker: {python_cutover_marker_path(layout.rootDir)}")
     print(f"URL: {preview_url()}")
