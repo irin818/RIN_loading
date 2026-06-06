@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from html import escape
+import os
+from pathlib import Path
 from typing import cast
 
-from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, Response
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict
 
+from rin.body import build_body_report
 from rin.contracts import ModelRequest, ModelResponse, ModelResponseMetadata
 from rin.conversation import ModelAdapterProtocol, RuntimeClock, run_conversation_turn
 from rin.database import (
@@ -19,6 +23,10 @@ from rin.diagnostics.readiness import build_python_readiness_report
 from rin.diagnostics.safety import assert_safe_python_write_data_dir
 from rin.profiles import build_profile_report
 from rin.storage import RinDataLayout
+
+SERVER_DIR = Path(__file__).parent
+TEMPLATES = Jinja2Templates(directory=SERVER_DIR / "templates")
+STATIC_DIR = SERVER_DIR / "static"
 
 
 class ConversationCreateBody(BaseModel):
@@ -67,6 +75,7 @@ def create_app(
     clock: RuntimeClock | None = None,
 ) -> FastAPI:
     app = FastAPI(title="RIN Python Compatibility API", version="0.0.0")
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     selected_adapter = adapter or MockApiAdapter()
     selected_clock = clock or RuntimeClock()
 
@@ -85,17 +94,35 @@ def create_app(
 
     @app.get("/", response_class=HTMLResponse)
     def ui_root(
+        request: Request,
+        conversationId: str | None = None,
+        new: bool = False,
         current_layout: RinDataLayout = layout_dependency,
         current_adapter: ModelAdapterProtocol = adapter_dependency,
-    ) -> HTMLResponse:
-        return render_console_page(current_layout, current_adapter)
+    ) -> Response:
+        return render_console_page(
+            request,
+            current_layout,
+            current_adapter,
+            selected_conversation_id=conversationId,
+            force_new_chat=new,
+        )
 
     @app.get("/ui", response_class=HTMLResponse)
     def ui(
+        request: Request,
+        conversationId: str | None = None,
+        new: bool = False,
         current_layout: RinDataLayout = layout_dependency,
         current_adapter: ModelAdapterProtocol = adapter_dependency,
-    ) -> HTMLResponse:
-        return render_console_page(current_layout, current_adapter)
+    ) -> Response:
+        return render_console_page(
+            request,
+            current_layout,
+            current_adapter,
+            selected_conversation_id=conversationId,
+            force_new_chat=new,
+        )
 
     @app.get("/readiness")
     def readiness() -> dict[str, object]:
@@ -190,11 +217,12 @@ def create_app(
 
     @app.post("/ui/chat", response_class=HTMLResponse)
     async def ui_chat(
+        request: Request,
         body: ConversationSendBody,
         current_layout: RinDataLayout = layout_dependency,
         current_adapter: ModelAdapterProtocol = adapter_dependency,
         current_clock: RuntimeClock = clock_dependency,
-    ) -> HTMLResponse:
+    ) -> Response:
         try:
             target_conversation_id = body.conversationId
             if target_conversation_id is None:
@@ -213,6 +241,7 @@ def create_app(
                 current_clock,
             )
             return render_console_page(
+                request,
                 current_layout,
                 current_adapter,
                 selected_conversation_id=target_conversation_id,
@@ -220,6 +249,7 @@ def create_app(
             )
         except Exception as error:
             return render_console_page(
+                request,
                 current_layout,
                 current_adapter,
                 selected_conversation_id=body.conversationId,
@@ -311,20 +341,50 @@ def create_app(
 
 
 def render_console_page(
+    request: Request,
     layout: RinDataLayout,
     adapter: ModelAdapterProtocol,
     *,
     selected_conversation_id: str | None = None,
+    force_new_chat: bool = False,
     notice: str | None = None,
     error: str | None = None,
-) -> HTMLResponse:
+) -> Response:
+    return TEMPLATES.TemplateResponse(
+        request,
+        "console.html",
+        build_console_view_model(
+            layout,
+            adapter,
+            selected_conversation_id=selected_conversation_id,
+            force_new_chat=force_new_chat,
+            notice=notice,
+            error=error,
+        ),
+    )
+
+
+def build_console_view_model(
+    layout: RinDataLayout,
+    adapter: ModelAdapterProtocol,
+    *,
+    selected_conversation_id: str | None = None,
+    force_new_chat: bool = False,
+    notice: str | None = None,
+    error: str | None = None,
+) -> dict[str, object]:
     snapshot = local_console_snapshot(layout)
     database = cast(dict[str, object], snapshot["database"])
     memory_context = cast(dict[str, object], snapshot["memoryContext"])
     readiness = build_python_readiness_report().to_dict()
+    body_report = build_body_report().to_dict()
     conversations = list_conversations(layout, limit=20)
-    selected = selected_conversation_id or (
-        conversations[0].id if conversations else None
+    selected = (
+        None
+        if force_new_chat
+        else (
+            selected_conversation_id or (conversations[0].id if conversations else None)
+        )
     )
     messages = list_messages(layout, selected) if selected else []
     profile = snapshot["profile"]
@@ -334,121 +394,34 @@ def render_console_page(
     profile_files = profile.get("files", []) if isinstance(profile, dict) else []
     profile_file_count = len(profile_files) if isinstance(profile_files, list) else 0
     adapter_id = adapter.id
+    model_name = (
+        os.environ.get("RIN_OLLAMA_MODEL", "qwen3:4b")
+        if adapter_id == "rin-ollama-local"
+        else "provider-free mock"
+    )
     local_model_status = (
         "selected" if adapter_id == "rin-ollama-local" else "not selected"
     )
-    conversation_options = "\n".join(
-        [
-            '<option value="'
-            + escape(item.id)
-            + ('" selected>' if item.id == selected else '">')
-            + escape(item.title)
-            + "</option>"
-            for item in conversations
-        ]
-    )
-    messages_html = "\n".join(
-        [
-            f"<article class='message {escape(item.role)}'>"
-            f"<strong>{escape(item.role)}</strong>"
-            f"<p>{escape(item.content)}</p>"
-            "</article>"
-            for item in messages
-        ]
-    )
-    notice_html = f"<p class='notice'>{escape(notice)}</p>" if notice else ""
-    error_html = f"<p class='error'>{escape(error)}</p>" if error else ""
-    body = f"""<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>RIN Python Console</title>
-    <style>
-      body {{ font-family: system-ui, sans-serif; margin: 2rem; line-height: 1.4; }}
-      main {{ max-width: 900px; margin: auto; }}
-      textarea {{ box-sizing: border-box; min-height: 7rem; width: 100%; }}
-      select, button {{ font: inherit; margin-top: 0.5rem; }}
-      .status, .message {{ border: 1px solid #ddd; border-radius: 8px; padding: 1rem; }}
-      .message {{ margin: 0.75rem 0; }}
-      .owner {{ background: #f7fbff; }}
-      .rin {{ background: #f8fff7; }}
-      .notice {{ color: #0a5; }}
-      .error {{ color: #b00020; white-space: pre-wrap; }}
-    </style>
-  </head>
-  <body>
-    <main>
-      <h1>RIN Python Console</h1>
-      <p><strong>Identity:</strong> Python-primary local RIN runtime.</p>
-      <section class="status">
-        <p><strong>Runtime:</strong> Python FastAPI local-only</p>
-        <p><strong>Ready:</strong> {readiness["ok"]}</p>
-        <p><strong>Adapter:</strong> {escape(adapter_id)}</p>
-        <p><strong>Local model:</strong> {escape(local_model_status)}</p>
-        <p><strong>Schema:</strong> {database["schemaVersion"]}</p>
-        <p><strong>Conversations:</strong> {database["conversations"]}</p>
-        <p><strong>Messages:</strong> {database["messages"]}</p>
-        <p><strong>Profile status:</strong> {escape(str(profile_status))}</p>
-        <p><strong>Profile files:</strong> {profile_file_count}</p>
-        <p><strong>Memory V2 traces:</strong> {memory_context["memoryV2Traces"]}</p>
-        <p>
-          <strong>Trace full text included:</strong>
-          {memory_context["fullTextIncluded"]}
-        </p>
-        <p>
-          <strong>External API calls:</strong>
-          {snapshot["externalProviderCallCount"]}
-        </p>
-        <p><strong>Reload behavior:</strong> safe read-only refresh.</p>
-      </section>
-      {notice_html}
-      {error_html}
-      <section>
-        <h2>Chat</h2>
-        <form id="chat-form">
-          <label>
-            Conversation
-            <select name="conversationId">
-              <option value="">New conversation</option>
-              {conversation_options}
-            </select>
-          </label>
-          <label>
-            Message
-            <textarea name="content" required></textarea>
-          </label>
-          <button type="submit">Send</button>
-        </form>
-      </section>
-      <section>
-        <h2>Conversation History</h2>
-        {messages_html or "<p>No messages yet.</p>"}
-      </section>
-    </main>
-    <script>
-      const formElement = document.getElementById("chat-form");
-      formElement.addEventListener("submit", async (event) => {{
-        event.preventDefault();
-        const form = new FormData(event.currentTarget);
-        const payload = {{
-          content: String(form.get("content") || ""),
-          conversationId: String(form.get("conversationId") || "") || null,
-        }};
-        const response = await fetch("/ui/chat", {{
-          method: "POST",
-          headers: {{ "Content-Type": "application/json" }},
-          body: JSON.stringify(payload),
-        }});
-        document.open();
-        document.write(await response.text());
-        document.close();
-      }});
-    </script>
-  </body>
-</html>
-"""
-    return HTMLResponse(body)
+    return {
+        "title": "RIN Python Local Console",
+        "identity": "Python-primary local RIN runtime.",
+        "snapshot": snapshot,
+        "database": database,
+        "readiness": readiness,
+        "conversations": conversations,
+        "selected_conversation_id": selected,
+        "messages": messages,
+        "message_count": len(messages),
+        "profile_status": profile_status,
+        "profile_file_count": profile_file_count,
+        "memory_context": memory_context,
+        "body_report": body_report,
+        "adapter_id": adapter_id,
+        "model_name": model_name,
+        "local_model_status": local_model_status,
+        "notice": notice,
+        "error": error,
+    }
 
 
 def local_console_snapshot(layout: RinDataLayout) -> dict[str, object]:

@@ -110,20 +110,37 @@ def test_python_ui_renders_local_status_and_profile_summary() -> None:
         response = client.get("/")
 
         assert response.status_code == 200
-        assert "RIN Python Console" in response.text
+        assert "RIN Local Console" in response.text
+        assert "console.css" in response.text
+        assert "console.js" in response.text
         assert "Python-primary local RIN runtime." in response.text
-        assert "Python FastAPI local-only" in response.text
-        assert "Ready:" in response.text
-        assert "Adapter:" in response.text
-        assert "Local model:" in response.text
-        assert "Profile status:" in response.text
-        assert "Profile files:" in response.text
-        assert "Memory V2 traces:" in response.text
-        assert "Trace full text included:" in response.text
-        assert "safe read-only refresh" in response.text
-        assert "External API calls:" in response.text
+        assert "Local AI operating console" in response.text
+        assert "Readiness" in response.text
+        assert "Ready" in response.text
+        assert "Adapter rin-mock-local" in response.text
+        assert "Local model" in response.text
+        assert "Profile" in response.text
+        assert "Files" in response.text
+        assert "Memory V2 traces" in response.text
+        assert "Full text" in response.text
+        assert "Body / Live2D" in response.text
+        assert "External calls" in response.text
         assert "0" in response.text
-        assert "No messages yet." in response.text
+        assert "Start a local conversation." in response.text
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_python_ui_static_assets_are_served() -> None:
+    client, layout = create_client()
+    try:
+        css = client.get("/static/console.css")
+        js = client.get("/static/console.js")
+
+        assert css.status_code == 200
+        assert "near-black" not in css.text
+        assert "RIN console submit failed" in js.text
+        assert "requestSubmit" in js.text
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
@@ -138,7 +155,9 @@ def test_python_ui_chat_submit_renders_conversation_history() -> None:
         assert "Reply stored with turn" in response.text
         assert "hello from UI" in response.text
         assert "Python API mock reply." in response.text
-        assert "Conversation History" in response.text
+        assert 'class="message-bubble owner"' in response.text
+        assert 'class="message-bubble rin"' in response.text
+        assert "Chat" in response.text
         assert state["externalProviderCallCount"] == 0
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
@@ -156,6 +175,7 @@ def test_python_ui_reload_preserves_history_without_new_write() -> None:
         assert reloaded.status_code == 200
         assert "reload-safe message" in reloaded.text
         assert "Python API mock reply." in reloaded.text
+        assert 'name="conversationId"' in reloaded.text
         assert state_after_reload["database"] == state_after_submit["database"]
         assert state_after_reload["externalProviderCallCount"] == 0
     finally:
@@ -169,7 +189,8 @@ def test_python_ui_renders_local_model_status() -> None:
 
         assert response.status_code == 200
         assert "rin-ollama-local" in response.text
-        assert "Local model:" in response.text
+        assert "Local model" in response.text
+        assert "qwen3:4b" in response.text
         assert "selected" in response.text
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
@@ -181,8 +202,52 @@ def test_python_ui_error_rendering_is_visible() -> None:
         response = client.post("/ui/chat", json={"content": "fail visibly"})
 
         assert response.status_code == 200
-        assert "error" in response.text
+        assert "Structured error" in response.text
+        assert "error-box" in response.text
         assert "test adapter failure" in response.text
-        assert "RIN Python Console" in response.text
+        assert "RIN Local Console" in response.text
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_python_ui_new_chat_view_does_not_create_writes() -> None:
+    client, layout = create_client()
+    try:
+        submitted = client.post("/ui/chat", json={"content": "existing chat"})
+        state_after_submit = client.get("/api/local-state").json()
+        response = client.get("/ui?new=1")
+        state_after_new_view = client.get("/api/local-state").json()
+
+        assert submitted.status_code == 200
+        assert response.status_code == 200
+        assert "Start a local conversation." in response.text
+        assert 'value=""' in response.text
+        assert state_after_new_view["database"] == state_after_submit["database"]
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_no_typescript_or_node_artifacts_reintroduced() -> None:
+    root = Path(__file__).resolve().parents[3]
+    patterns = [
+        "*.ts",
+        "*.tsx",
+        "package.json",
+        "package-lock.json",
+        "tsconfig*.json",
+        "vite.config.*",
+        "eslint.config.*",
+    ]
+    residue: list[Path] = []
+    for pattern in patterns:
+        residue.extend(root.glob(f"**/{pattern}"))
+
+    filtered = [
+        path
+        for path in residue
+        if "dist" not in path.parts
+        and "node_modules" not in path.parts
+        and ".venv" not in path.parts
+    ]
+
+    assert filtered == []

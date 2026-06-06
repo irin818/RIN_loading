@@ -8,7 +8,7 @@ The active runtime is Python under `python/src/rin`.
 
 Primary surfaces:
 
-- FastAPI server and HTML UI: `rin.server`
+- FastAPI server, Jinja2 templates, static CSS/JS, and HTML UI: `rin.server`
 - Conversation runtime: `rin.conversation`
 - SQLite/local data layout: `rin.database`, `rin.storage`
 - Profiles and slow variables: `rin.profiles`
@@ -25,6 +25,8 @@ Active launchers:
 - `打开RIN项目.command`
 
 The UI binds locally at `http://127.0.0.1:8765/`.
+
+The UI has no TypeScript, React, Vite, Node, npm, or frontend build chain.
 
 ## Rollback
 

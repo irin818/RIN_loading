@@ -19,9 +19,13 @@ Active launchers:
 Both run the Python FastAPI application on `127.0.0.1:8765` and serve the local
 Python web UI.
 
+The active UI is rendered with Jinja2 templates plus static CSS and minimal
+vanilla JavaScript from `python/src/rin/server/`. There is no frontend build
+chain.
+
 ## Runtime Boundaries
 
-- `rin.server`: FastAPI API and local web UI.
+- `rin.server`: FastAPI API, Jinja2 templates, static CSS/JS, and local web UI.
 - `rin.conversation`: conversation runtime and model adapter boundary.
 - `rin.database`: SQLite schema inspection and writes.
 - `rin.storage`: local data layout and manifest handling.
