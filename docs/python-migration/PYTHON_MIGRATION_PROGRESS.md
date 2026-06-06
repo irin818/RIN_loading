@@ -4,9 +4,9 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package B — Preview-Only Main Integration Preparation.
-- Current checkpoint: preview-only main prep in progress.
-- Active branch: `python-rewrite/18-preview-main-prep`.
+- Current package: Package C — Update Draft PR #72 for Preview-Only Main Merge.
+- Current checkpoint: PR #72 metadata updated; diff reviewed.
+- Active branch: `python-rewrite/19-update-pr72-preview`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -14,7 +14,7 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `dafb9e9 Merge pull request #79 from irin818/python-rewrite/17-final-main-integration-audit`.
+  `9cc1b44 Merge pull request #80 from irin818/python-rewrite/18-preview-main-prep`.
 - Draft candidate PR: #72, review-only, open, draft, unmerged to `main`.
 
 ## Completed Work
@@ -151,6 +151,12 @@ Status: active handoff document.
 - Started Package B branch `python-rewrite/18-preview-main-prep`.
 - Added top-level README and architecture notes for Python preview/candidate
   mode while preserving TypeScript default launch behavior.
+- Merged Package B PR #80 into `python-rewrite/main`.
+- Started Package C branch `python-rewrite/19-update-pr72-preview`.
+- Updated PR #72 title and description to clearly mark the merge as
+  preview-only, list non-goals, and require separate owner-approved cutover.
+- Reviewed PR #72 diff scope: no production launcher changes, no TypeScript
+  `src/` changes, no package-lock churn, and no obvious data/env/log files.
 
 ## Tests Run
 
@@ -627,9 +633,10 @@ Status: active handoff document.
   pending top-level preview wording and final verification before merge.
 - Package B documents Python preview at the top level and does not change
   production launchers, TypeScript `src/`, production routing, or real data.
+- Package C keeps PR #72 draft, clean, mergeable, and preview-only.
 
 ## Exact Next Task
 
-Finish Package B checks, push `python-rewrite/18-preview-main-prep`,
+Finish Package C docs, push `python-rewrite/19-update-pr72-preview`,
 open a PR targeting `python-rewrite/main`, review and merge only if gates pass,
-then continue to Package C PR #72 update.
+then continue to Package D final verification.
