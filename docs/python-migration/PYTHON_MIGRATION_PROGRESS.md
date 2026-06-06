@@ -4,10 +4,10 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package 9 — FastAPI Compatibility Layer.
-- Current checkpoint: Package 9 implementation and checks passed; PR creation
+- Current package: Package 10 — Candidate Integration and Validation.
+- Current checkpoint: Package 10 implementation and checks passed; PR creation
   pending.
-- Active branch: `python-rewrite/09-fastapi-compatibility`.
+- Active branch: `python-rewrite/10-candidate-validation`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -15,8 +15,8 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `478a56c Merge pull request #69 from irin818/python-rewrite/08-conversation-runtime`.
-- Open PR: none for Package 9 yet.
+  `fd88109 Merge pull request #70 from irin818/python-rewrite/09-fastapi-compatibility`.
+- Open PR: none for Package 10 yet.
 
 ## Completed Work
 
@@ -108,6 +108,14 @@ Status: active handoff document.
   conversation create/list/history/send, and memory/context trace status.
 - Added API contract tests for provider-free readiness/state, temp
   create/send/history, trace status, and production-path write rejection.
+- Merged Package 9 PR #70 into `python-rewrite/main`.
+- Started Package 10 branch `python-rewrite/10-candidate-validation`.
+- Added candidate validation tests for synthetic API/runtime behavior and copied
+  temp database read/hash safety.
+- Created candidate review documents:
+  - `PYTHON_CANDIDATE_REPORT.md`
+  - `PYTHON_PRODUCTION_CUTOVER_CHECKLIST.md`
+  - `TYPESCRIPT_CORE_REMOVAL_PLAN.md`
 
 ## Tests Run
 
@@ -232,6 +240,24 @@ Status: active handoff document.
   - `.venv/bin/rin-python-candidate-check`
   - Note: pytest reports a Starlette `TestClient` deprecation warning from
     installed FastAPI/Starlette dependencies.
+- Package 10 focused Python gates passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+- Package 10 aggregate Python gates passed:
+  - `.venv/bin/rin-python-check`
+  - `.venv/bin/rin-python-parity-check`
+  - `.venv/bin/rin-python-readiness`
+  - `.venv/bin/rin-python-candidate-check`
+  - repeated `.venv/bin/rin-python-candidate-check`
+- Optional Python local Ollama smoke:
+  - default `rin-python-local-chat-smoke` skipped with zero model calls.
+  - `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_TIMEOUT_MS=60000`
+    timed out locally.
+  - `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_TIMEOUT_MS=180000`
+    succeeded against local `qwen3:4b`; external provider calls 0, full text not
+    included, raw provider response not included, thinking not included.
 - Initial TypeScript `npm run rin:check`: failed at readiness because the new
   migration worktree had no initialized local data directory.
 - TypeScript temp-data setup:
@@ -295,6 +321,20 @@ Status: active handoff document.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg9.wSzGId npm run rin:init` passed.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg9.wSzGId npm run rin:v2-check`
     passed.
+- Stable TypeScript Package 10 reference checks:
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg10a.DtPkpl npm run rin:init` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg10a.DtPkpl npm run rin:v2-check`
+    passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg10a.DtPkpl npm run rin:local-chat-smoke`
+    passed with default skipped behavior.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg10b.* npm run rin:v2-check` passed.
+- Copied owner-data read verification:
+  - temporary copy under `/tmp/rin-python-owner-copy.*`.
+  - original DB hash unchanged: yes.
+  - copied DB hash unchanged after read-only inspection: yes.
+  - schema version: 6.
+  - tables checked: 17.
+  - temporary copy removed.
 - `git diff --check`: passed.
 
 ## Parity Status
@@ -336,6 +376,11 @@ Status: active handoff document.
 - Package 9 parity target: local Console-compatible API surface where practical.
 - Package 9 validates local/provider-free readiness, local state, profile
   status, conversation create/send/history, and safe trace status.
+- Package 10 parity target: integrated candidate validation across synthetic
+  fixtures, temp runtime/API behavior, copied-data read safety, repeated
+  deterministic checks, and rollback documentation.
+- Package 10 validates DB hash stability, no cutover, no launcher switch, no
+  TypeScript removal, and explicit owner-review gates.
 - Parity matrix initialized in `PYTHON_PARITY_MATRIX.md`.
 - Behavioral parity begins in Package 1 with data contracts and synthetic
   fixtures.
@@ -367,9 +412,11 @@ Status: active handoff document.
   runtime or production launcher.
 - Package 9 app factory is not wired to production launchers. Write routes
   reject non-temp layouts and default to a mock local adapter.
+- Package 10 did not write to real `.rin-data`, did not change launchers, did
+  not merge to `main`, and did not remove TypeScript Core.
 
 ## Exact Next Task
 
-Commit Package 9, push `python-rewrite/09-fastapi-compatibility`, open a PR
+Commit Package 10, push `python-rewrite/10-candidate-validation`, open a PR
 targeting `python-rewrite/main`, review and merge only if gates pass, then
-continue to Package 10.
+stop for high-quality final review before any production cutover.

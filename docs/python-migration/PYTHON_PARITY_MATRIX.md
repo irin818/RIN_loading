@@ -22,6 +22,7 @@ Status: initialized for Package 0.
 | audit events | `src/database`, `src/conversation` | not started | pending Package 3/7/8 | pending | no |
 | readiness | `src/readiness` | foundation + TS readiness contract | Package 0 provider-free readiness; Package 1 synthetic round-trip | passed | no |
 | local API | `src/server` | local-only FastAPI app factory added | Package 9 API contract tests + TS v2 check | passed | no |
+| candidate validation | full RIN v2 checks | candidate docs and validation tests added | Package 10 repeated Python/TS checks + copied-data hash check | passed | no |
 
 Package 0 creates only foundation checks and safety scaffolding. It does not
 claim behavioral parity for migrated TypeScript core capabilities. The Package 0
@@ -58,3 +59,6 @@ TypeScript production runtime.
 
 Package 9 adds a local-only FastAPI compatibility layer. It is not connected to
 production launchers and rejects write routes outside guarded temp layouts.
+
+Package 10 validates the candidate for review only. It does not approve
+production cutover, launcher switching, real-data writes, or TypeScript removal.
