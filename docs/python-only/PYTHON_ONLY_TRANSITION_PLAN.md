@@ -113,8 +113,16 @@ removed with `git worktree remove`, and pruned. See
 
 ### Package G: Final Python-Only Verification
 
-Add `rin-check`, run all Python checks, safety scans, and local model readiness
-when available. Tag `python-only-v1.0.0` only after passing.
+Status: completed after final verification.
+
+Final docs:
+
+- `docs/python-only/PYTHON_ONLY_RELEASE_NOTES.md`
+- `docs/python-only/PYTHON_ONLY_ARCHITECTURE.md`
+- `docs/python-only/PYTHON_ONLY_KNOWN_LIMITATIONS.md`
+- `docs/python-only/TYPESCRIPT_RESIDUE_REPORT.md`
+
+Final checks passed and `python-only-v1.0.0` may be tagged from merged `main`.
 
 ### Package H: TypeScript Residue Audit
 

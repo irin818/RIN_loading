@@ -17,12 +17,12 @@ from rin.database import (
     record_failed_turn,
 )
 from rin.diagnostics.safety import UnsafeDataPathError, create_temp_data_dir
-from rin.storage import create_data_layout
+from rin.storage import RinDataLayout, create_data_layout
 
 NOW = "2026-06-05T00:00:00.000Z"
 
 
-def create_layout():
+def create_layout() -> RinDataLayout:
     temp = create_temp_data_dir()
     return create_temp_layout_database(temp.path)
 

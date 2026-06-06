@@ -1,18 +1,24 @@
 import json
 import shutil
 from pathlib import Path
+from typing import Any
 
 from rin.diagnostics.safety import create_temp_data_dir, resolve_path
 from rin.profiles import build_profile_report, format_profile_report
-from rin.storage import build_storage_report, create_data_layout, load_manifest
+from rin.storage import (
+    RinDataLayout,
+    build_storage_report,
+    create_data_layout,
+    load_manifest,
+)
 
 
-def write_json(path: Path, payload: dict) -> None:
+def write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(f"{json.dumps(payload, indent=2)}\n", encoding="utf-8")
 
 
-def create_layout():
+def create_layout() -> RinDataLayout:
     temp_dir = create_temp_data_dir()
     layout = create_data_layout(str(temp_dir.path), cwd="/")
     for directory in layout.directories.values():
