@@ -17,6 +17,21 @@ Both start the Python FastAPI server and local web UI at:
 http://127.0.0.1:8765/
 ```
 
+## Python Console Coverage
+
+The Python web UI covers the active owner-facing Console path:
+
+- chat input;
+- RIN response display;
+- conversation history;
+- readiness and local status;
+- selected adapter and local-model status;
+- profile summary;
+- memory/context trace summary;
+- visible error rendering;
+- read-only reload of persisted history;
+- clear Python-primary runtime identity.
+
 ## Recommended Launcher
 
 Use local Ollama/Qwen3 mode when available:

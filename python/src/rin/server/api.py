@@ -84,12 +84,18 @@ def create_app(
     clock_dependency = Depends(get_clock)
 
     @app.get("/", response_class=HTMLResponse)
-    def ui_root(current_layout: RinDataLayout = layout_dependency) -> HTMLResponse:
-        return render_console_page(current_layout)
+    def ui_root(
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> HTMLResponse:
+        return render_console_page(current_layout, current_adapter)
 
     @app.get("/ui", response_class=HTMLResponse)
-    def ui(current_layout: RinDataLayout = layout_dependency) -> HTMLResponse:
-        return render_console_page(current_layout)
+    def ui(
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> HTMLResponse:
+        return render_console_page(current_layout, current_adapter)
 
     @app.get("/readiness")
     def readiness() -> dict[str, object]:
@@ -208,12 +214,14 @@ def create_app(
             )
             return render_console_page(
                 current_layout,
+                current_adapter,
                 selected_conversation_id=target_conversation_id,
                 notice=f"Reply stored with turn {result['turnId']}.",
             )
         except Exception as error:
             return render_console_page(
                 current_layout,
+                current_adapter,
                 selected_conversation_id=body.conversationId,
                 error=f"{type(error).__name__}: {error}",
             )
@@ -304,6 +312,7 @@ def create_app(
 
 def render_console_page(
     layout: RinDataLayout,
+    adapter: ModelAdapterProtocol,
     *,
     selected_conversation_id: str | None = None,
     notice: str | None = None,
@@ -311,6 +320,8 @@ def render_console_page(
 ) -> HTMLResponse:
     snapshot = local_console_snapshot(layout)
     database = cast(dict[str, object], snapshot["database"])
+    memory_context = cast(dict[str, object], snapshot["memoryContext"])
+    readiness = build_python_readiness_report().to_dict()
     conversations = list_conversations(layout, limit=20)
     selected = selected_conversation_id or (
         conversations[0].id if conversations else None
@@ -319,6 +330,12 @@ def render_console_page(
     profile = snapshot["profile"]
     profile_status = (
         profile.get("status", "unknown") if isinstance(profile, dict) else "unknown"
+    )
+    profile_files = profile.get("files", []) if isinstance(profile, dict) else []
+    profile_file_count = len(profile_files) if isinstance(profile_files, list) else 0
+    adapter_id = adapter.id
+    local_model_status = (
+        "selected" if adapter_id == "rin-ollama-local" else "not selected"
     )
     conversation_options = "\n".join(
         [
@@ -363,16 +380,27 @@ def render_console_page(
   <body>
     <main>
       <h1>RIN Python Console</h1>
+      <p><strong>Identity:</strong> Python-primary local RIN runtime.</p>
       <section class="status">
         <p><strong>Runtime:</strong> Python FastAPI local-only</p>
+        <p><strong>Ready:</strong> {readiness["ok"]}</p>
+        <p><strong>Adapter:</strong> {escape(adapter_id)}</p>
+        <p><strong>Local model:</strong> {escape(local_model_status)}</p>
         <p><strong>Schema:</strong> {database["schemaVersion"]}</p>
         <p><strong>Conversations:</strong> {database["conversations"]}</p>
         <p><strong>Messages:</strong> {database["messages"]}</p>
         <p><strong>Profile status:</strong> {escape(str(profile_status))}</p>
+        <p><strong>Profile files:</strong> {profile_file_count}</p>
+        <p><strong>Memory V2 traces:</strong> {memory_context["memoryV2Traces"]}</p>
+        <p>
+          <strong>Trace full text included:</strong>
+          {memory_context["fullTextIncluded"]}
+        </p>
         <p>
           <strong>External API calls:</strong>
           {snapshot["externalProviderCallCount"]}
         </p>
+        <p><strong>Reload behavior:</strong> safe read-only refresh.</p>
       </section>
       {notice_html}
       {error_html}

@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from rin.contracts import ModelRequest, ModelResponse
+from rin.contracts import ModelRequest, ModelResponse, ModelResponseMetadata
 from rin.database import create_temp_layout_database
 from rin.diagnostics.safety import create_temp_data_dir
 from rin.server import create_app
@@ -22,6 +22,21 @@ class FailingAdapter:
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
         raise RuntimeError("test adapter failure")
+
+
+class LocalModelAdapter:
+    id = "rin-ollama-local"
+
+    async def generate(self, request: ModelRequest) -> ModelResponse:
+        return ModelResponse(
+            content="Python local model test reply.",
+            adapterId=self.id,
+            metadata=ModelResponseMetadata(
+                externalProvider=False,
+                memoryWriteRequested=False,
+                toolCallRequested=False,
+            ),
+        )
 
 
 def test_readiness_and_state_are_local_only() -> None:
@@ -93,8 +108,16 @@ def test_python_ui_renders_local_status_and_profile_summary() -> None:
 
         assert response.status_code == 200
         assert "RIN Python Console" in response.text
+        assert "Python-primary local RIN runtime." in response.text
         assert "Python FastAPI local-only" in response.text
+        assert "Ready:" in response.text
+        assert "Adapter:" in response.text
+        assert "Local model:" in response.text
         assert "Profile status:" in response.text
+        assert "Profile files:" in response.text
+        assert "Memory V2 traces:" in response.text
+        assert "Trace full text included:" in response.text
+        assert "safe read-only refresh" in response.text
         assert "External API calls:" in response.text
         assert "0" in response.text
         assert "No messages yet." in response.text
@@ -114,6 +137,37 @@ def test_python_ui_chat_submit_renders_conversation_history() -> None:
         assert "Python API mock reply." in response.text
         assert "Conversation History" in response.text
         assert state["externalProviderCallCount"] == 0
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_python_ui_reload_preserves_history_without_new_write() -> None:
+    client, layout = create_client()
+    try:
+        submitted = client.post("/ui/chat", json={"content": "reload-safe message"})
+        state_after_submit = client.get("/api/local-state").json()
+        reloaded = client.get("/ui")
+        state_after_reload = client.get("/api/local-state").json()
+
+        assert submitted.status_code == 200
+        assert reloaded.status_code == 200
+        assert "reload-safe message" in reloaded.text
+        assert "Python API mock reply." in reloaded.text
+        assert state_after_reload["database"] == state_after_submit["database"]
+        assert state_after_reload["externalProviderCallCount"] == 0
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_python_ui_renders_local_model_status() -> None:
+    client, layout = create_client(adapter=LocalModelAdapter())
+    try:
+        response = client.get("/")
+
+        assert response.status_code == 200
+        assert "rin-ollama-local" in response.text
+        assert "Local model:" in response.text
+        assert "selected" in response.text
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
