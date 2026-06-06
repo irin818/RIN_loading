@@ -4,9 +4,9 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package F — Final Candidate Re-Validation and PR #72 Update.
-- Current checkpoint: Package F final validation in progress.
-- Active branch: `python-rewrite/16-final-candidate-revalidation`.
+- Current package: Package A — Final Candidate Audit Before Main Integration.
+- Current checkpoint: final main-integration audit in progress.
+- Active branch: `python-rewrite/17-final-main-integration-audit`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -14,7 +14,7 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `04b69ff Merge pull request #77 from irin818/python-rewrite/15-console-api-compatibility`.
+  `ab42b0f Merge pull request #78 from irin818/python-rewrite/16-final-candidate-revalidation`.
 - Draft candidate PR: #72, review-only, open, draft, unmerged to `main`.
 
 ## Completed Work
@@ -144,6 +144,9 @@ Status: active handoff document.
 - Added `PYTHON_CONSOLE_COMPATIBILITY_REPORT.md`.
 - Merged Package E PR #77 into `python-rewrite/main`.
 - Started Package F branch `python-rewrite/16-final-candidate-revalidation`.
+- Merged Package F PR #78 into `python-rewrite/main`.
+- Started Package A branch `python-rewrite/17-final-main-integration-audit`.
+- Added `PYTHON_MAIN_INTEGRATION_AUDIT.md`.
 
 ## Tests Run
 
@@ -377,6 +380,24 @@ Status: active handoff document.
   - local model calls: 1.
   - external provider calls: 0.
   - full text/raw provider response/thinking included: no.
+- Main integration Package A Python gates passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+  - `.venv/bin/rin-python-check`
+  - `.venv/bin/rin-python-parity-check`
+  - `.venv/bin/rin-python-readiness`
+  - `.venv/bin/rin-python-candidate-check`
+  - `.venv/bin/rin-python-preview-smoke`
+  - `.venv/bin/rin-python-copy-data-shadow-report`
+  - `.venv/bin/rin-python-production-migration-dry-run`
+  - `.venv/bin/rin-python-rollback-rehearsal`
+  - `.venv/bin/rin-python-api-contract-check`
+- Main integration Package A optional local Ollama smoke passed:
+  - `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_TIMEOUT_MS=180000 .venv/bin/rin-python-preview-local-model-smoke`
+  - external provider calls: 0.
+  - full text/raw provider response/thinking included: no.
 - Optional Python local Ollama smoke:
   - default `rin-python-local-chat-smoke` skipped with zero model calls.
   - `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_TIMEOUT_MS=60000`
@@ -469,6 +490,11 @@ Status: active handoff document.
 - Stable TypeScript Package F final reference checks:
   - `RIN_DATA_DIR=/tmp/rin-python-ts-final1.ToshF8 npm run rin:v2-check` passed.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-final2.* npm run rin:v2-check` passed.
+  - `npm run rin:daily-chat-eval` passed.
+  - `git diff --check` passed.
+- Main integration Package A TypeScript audit checks:
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-audit1.RRc7D9 npm run rin:v2-check` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-audit2.J5mrcM npm run rin:check` passed.
   - `npm run rin:daily-chat-eval` passed.
   - `git diff --check` passed.
 - Copied owner-data read verification:
@@ -570,9 +596,11 @@ Status: active handoff document.
   not modify the React Console or production server routing.
 - Package F final validation keeps PR #72 draft/unmerged and does not approve
   production cutover.
+- Package A main-integration audit finds PR #72 preview-only and non-invasive,
+  pending top-level preview wording and final verification before merge.
 
 ## Exact Next Task
 
-Finish Package F documentation, push `python-rewrite/16-final-candidate-revalidation`,
+Finish Package A checks, push `python-rewrite/17-final-main-integration-audit`,
 open a PR targeting `python-rewrite/main`, review and merge only if gates pass,
-then update draft PR #72 and stop before production cutover.
+then continue to Package B preview-only main prep.
