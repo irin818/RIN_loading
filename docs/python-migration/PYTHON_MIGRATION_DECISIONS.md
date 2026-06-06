@@ -153,3 +153,19 @@ Implications:
 
 - Optional live Qwen3/Ollama checks are outside default aggregate gates.
 - Conversation runtime packages must preserve the same no-thinking-leak behavior.
+
+## Decision P0011: Python writes are temp-only with no override
+
+Decision:
+
+- Package 7 introduces write helpers only for `/tmp/rin-python-*` layouts.
+- Every write entry point calls the production-data safety guard before opening
+  a writable SQLite connection.
+- No environment variable, CLI flag, or code-level override exists during the
+  migration.
+
+Implications:
+
+- Runtime candidate work can persist synthetic conversations without touching
+  real owner data.
+- Any future production migration must be a separate reviewed cutover task.

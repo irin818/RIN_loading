@@ -4,10 +4,10 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package 6 — Ollama/Qwen3 Model Adapter.
-- Current checkpoint: Package 6 implementation and checks passed; PR creation
+- Current package: Package 7 — Temporary-Data Writes and Migration Support.
+- Current checkpoint: Package 7 implementation and checks passed; PR creation
   pending.
-- Active branch: `python-rewrite/06-ollama-adapter`.
+- Active branch: `python-rewrite/07-database-writes-temp-only`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -15,8 +15,8 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `65650ab Merge pull request #66 from irin818/python-rewrite/05-context-v2-algorithms`.
-- Open PR: none for Package 6 yet.
+  `e6fbb21 Merge pull request #67 from irin818/python-rewrite/06-ollama-adapter`.
+- Open PR: none for Package 7 yet.
 
 ## Completed Work
 
@@ -86,6 +86,14 @@ Status: active handoff document.
   no raw provider response exposure.
 - Added default-skipped Python local chat smoke command.
 - Added mocked adapter tests and default-skipped smoke tests.
+- Merged Package 6 PR #67 into `python-rewrite/main`.
+- Started Package 7 branch `python-rewrite/07-database-writes-temp-only`.
+- Added temp-only database write helpers for synthetic conversation creation,
+  message append, failed-turn records, safe audits, Memory V2 trace writes, and
+  synthetic schema initialization.
+- Added write tests proving production `.rin-data` rejection, transactional temp
+  writes, duplicate failure without overwrite, and privacy-preserving audit
+  summaries.
 
 ## Tests Run
 
@@ -178,6 +186,16 @@ Status: active handoff document.
   - `.venv/bin/rin-python-local-chat-smoke` passed with
     `skipped_not_selected`, `localModelCallCount: 0`, and external provider
     calls 0.
+- Package 7 focused Python gates passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+- Package 7 aggregate Python gates passed:
+  - `.venv/bin/rin-python-check`
+  - `.venv/bin/rin-python-parity-check`
+  - `.venv/bin/rin-python-readiness`
+  - `.venv/bin/rin-python-candidate-check`
 - Initial TypeScript `npm run rin:check`: failed at readiness because the new
   migration worktree had no initialized local data directory.
 - TypeScript temp-data setup:
@@ -227,6 +245,10 @@ Status: active handoff document.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg6.FWn0sT npm run rin:check` passed.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg6.FWn0sT npm run rin:local-chat-smoke`
     passed with `skipped_not_selected`.
+- Stable TypeScript Package 7 reference checks:
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg7.fMoSo1 npm run rin:init` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg7.fMoSo1 npm run rin:v2-check`
+    passed.
 - `git diff --check`: passed.
 
 ## Parity Status
@@ -256,6 +278,10 @@ Status: active handoff document.
   provider-free default smoke behavior.
 - Package 6 validates `think: false`, Qwen3 defaults, empty-content safe errors,
   thinking stripping, missing-model classification, and default skipped smoke.
+- Package 7 parity target: safe synthetic SQLite schema support and
+  TypeScript-compatible read summaries after temp writes.
+- Package 7 validates deterministic counts, readonly inspection compatibility,
+  duplicate protection, and no raw audit payload leakage in summaries.
 - Parity matrix initialized in `PYTHON_PARITY_MATRIX.md`.
 - Behavioral parity begins in Package 1 with data contracts and synthetic
   fixtures.
@@ -280,9 +306,11 @@ Status: active handoff document.
   databases, call providers, or change production context injection.
 - Package 6 default checks do not call Ollama or any external provider. Optional
   live smoke remains explicit via `RIN_MODEL_ADAPTER=rin-ollama-local`.
+- Package 7 write entry points all call the production-data guard. No override
+  exists, and tests assert real `.rin-data` rejection.
 
 ## Exact Next Task
 
-Commit Package 6, push `python-rewrite/06-ollama-adapter`, open a PR
+Commit Package 7, push `python-rewrite/07-database-writes-temp-only`, open a PR
 targeting `python-rewrite/main`, review and merge only if gates pass, then
-continue to Package 7.
+continue to Package 8.
