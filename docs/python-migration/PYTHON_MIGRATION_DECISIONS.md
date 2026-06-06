@@ -77,3 +77,17 @@ Implications:
   of relying on Pydantic defaults for optional fields.
 - Data-contract tests use synthetic fixtures only and do not imply storage,
   database, provider, or runtime behavior parity yet.
+
+## Decision P0006: Python npm wrappers use the project venv
+
+Decision:
+
+- Root `rin-python-*` npm wrappers call `python/.venv/bin/python` explicitly.
+- This avoids accidentally running macOS system Python 3.9 during the migration.
+- Read-only storage/profile CLI commands may display local diagnostic paths but
+  must not print private profile full text.
+
+Implications:
+
+- Developers must create `python/.venv` before using root Python npm wrappers.
+- Package 2 profile reports expose counts and validation issues only.
