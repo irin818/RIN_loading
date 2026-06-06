@@ -10,7 +10,7 @@ OLLAMA_URL="${RIN_OLLAMA_BASE_URL:-http://127.0.0.1:11434}"
 OLLAMA_MODEL="${RIN_OLLAMA_MODEL:-qwen3:4b}"
 
 echo "RIN Python primary launcher (local model)"
-echo "TypeScript fallback moved to: scripts/typescript-fallback/"
+echo "TypeScript rollback tag: typescript-final-fallback"
 echo "Production data: $PRODUCTION_DATA"
 
 if [[ ! -x "$VENV_PYTHON" ]]; then

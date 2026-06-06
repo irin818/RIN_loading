@@ -1,6 +1,6 @@
 # Python-Only Transition Plan
 
-Status: active transition plan.
+Status: active transition plan after TypeScript Core deletion.
 
 ## Goal
 
@@ -18,8 +18,8 @@ Move RIN as close as safely possible to a Python-only project while preserving:
 - Real-data Python cutover is complete.
 - `python-core-v1.0.0` exists.
 - `typescript-final-fallback` exists and has been pushed.
-- TypeScript source, React/Vite UI, Node scripts, and TypeScript tests remain in
-  the repository.
+- TypeScript source, React/Vite UI, Node scripts, and TypeScript tests have been
+  removed from the active tree.
 
 ## Package Sequence
 
@@ -58,7 +58,9 @@ See `docs/python-only/PYTHON_UI_CONSOLE_DECISION.md`.
 Status: completed.
 
 - Python launchers remain at root.
-- TypeScript fallback launchers moved to `scripts/typescript-fallback/`.
+- TypeScript fallback launchers were temporarily moved to
+  `scripts/typescript-fallback/`, then removed in D4 when TypeScript source and
+  Node configuration were deleted.
 - Fallback is documented through `typescript-final-fallback`.
 
 See:
@@ -67,6 +69,8 @@ See:
 - `docs/python-only/TYPESCRIPT_FALLBACK_GUIDE.md`
 
 ### Package D: Remove TypeScript Core
+
+Status: completed.
 
 Allowed only after:
 
@@ -86,6 +90,8 @@ Blocker status:
 - D3 operational/reporting decision: completed; remaining TypeScript reports are
   Python-replaced, explicitly retired, or fallback-only through the final
   TypeScript tag.
+- D4 deletion: completed; rollback is tag-only because current-tree TypeScript
+  fallback scripts depended on deleted TypeScript source and Node config.
 
 ### Package E: Repository Restructure
 
@@ -128,5 +134,5 @@ Stop before deletion if:
 
 ## Next Step
 
-Implement Package B Python UI / Console replacement before removing any
-TypeScript UI or Node/Vite files.
+Proceed to Package E repository restructure or document why the current
+`python/` layout should remain.

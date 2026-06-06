@@ -1,6 +1,6 @@
 # Python-Only Operation Guide
 
-Status: Package C.
+Status: Python-only active operation after TypeScript Core deletion.
 
 ## Active Launchers
 
@@ -58,10 +58,10 @@ Backups under `.rin-python-backups/` must not be deleted.
 
 ## TypeScript Fallback
 
-TypeScript fallback is preserved for rollback only under:
+TypeScript fallback is preserved through Git history and the final fallback tag:
 
 ```text
-scripts/typescript-fallback/
+typescript-final-fallback
 ```
 
-It is no longer an active root launcher path.
+The active tree no longer contains runnable TypeScript fallback scripts.

@@ -8,12 +8,11 @@ This repository is part of the broader RIN system. RIN is a local-first,
 single-owner, long-running personal agent system whose identity, memory,
 state, policy, and continuity must remain locally governed.
 
-This project currently appears to be a Vite + TypeScript project with React UI
-surfaces and Live2D-related front-end / visual interaction work. It also
-contains local RIN MVP runtime foundations such as storage, model abstraction,
-policy, memory proposal, state, and export boundaries. Earlier Agent
-actions/planner/tasks/tools/MCP scaffolds are decommissioned in the active v2
-architecture.
+This project is now a Python-first RIN runtime. Active source lives under
+`python/src/rin`, active tests live under `python/tests`, and the active local UI
+is served by FastAPI. The former TypeScript/React/Vite Core was removed from the
+active tree after Python replacement/retirement audits; rollback remains
+available through the `typescript-final-fallback` Git tag.
 
 Treat this repository as a stable long-term RIN component, not as a temporary
 demo or disposable prototype.
@@ -58,14 +57,11 @@ constraints. Only modify it for explicit, focused governance work.
 
 ## Expected Project Structure
 
-- Root configuration files: package, TypeScript, Vite, Vitest, ESLint, and
-  repository governance.
-- `src/`: application and runtime source code.
+- Root configuration files: repository governance and Python launchers.
+- `python/`: active Python package, tests, and `pyproject.toml`.
 - `public/`: browser-served static runtime assets.
 - `docs/`: project maps, technical direction, decisions, development notes,
   design notes, and Live2D documentation.
-- `tests/`: future cross-cutting or integration tests that do not naturally
-  belong beside source modules.
 - `scripts/`: future repository maintenance or development scripts.
 - `live2d-development/`: Live2D authoring, source art, integration notes, and
   model development workspace.
@@ -81,26 +77,22 @@ Generated or dependency directories must not be committed:
 Use these boundaries for new work unless an existing local pattern is more
 specific:
 
-- `src/`: application source and local runtime code.
-- `src/live2d/`: future Live2D runtime/control logic.
-- `src/components/`: future reusable UI components.
-- `src/features/`: future feature modules.
-- `src/config/`: configuration and constants.
-- `src/styles/`: shared styles.
+- `python/src/rin/`: active Python runtime package.
+- `python/tests/`: active Python tests.
+- `python/src/rin/server/`: FastAPI API and local UI.
+- `python/src/rin/body/`: minimal replaceable body status boundary.
 
-Current body adapter and visual body shell code lives under `src/body/` and
-`src/ui/`. Do not move it during unrelated tasks. Migrate to `src/live2d/` only
-through an explicit, tested structural task.
+Former TypeScript body adapter and visual body shell code was retired from
+active production. Future body/Live2D work should be introduced as explicit,
+tested Python-compatible work.
 
 ## Live2D File Policy
 
 - Live2D runtime assets belong under `public/live2d/`.
-- Live2D control code belongs under `src/live2d/` when introduced.
-- Current body adapter/control code may remain under `src/body/` until a
-  deliberate migration is planned.
+- Future Live2D control code should be introduced in a Python-compatible module
+  only through an explicit tested task.
 - Live2D development source files belong under `live2d-development/`.
-- Do not mix runtime assets, development source files, and TypeScript control
-  logic.
+- Do not mix runtime assets, development source files, and control logic.
 - Do not disrupt ongoing Live2D model or asset development conversations.
 - Do not move Live2D files unless the move is path-neutral or explicitly scoped.
 - Real Cubism `.moc3` loading is not currently implemented; do not claim or
@@ -147,15 +139,14 @@ Keep `.env.example` versioned when it contains only safe placeholder values.
 - Inspect relevant files before editing.
 - Read `PROJECT_CHARTER.md` before architecture, runtime, memory, identity,
   policy, tool, storage, synchronization, or Live2D changes.
-- Prefer `npm run rin:check` as the default aggregate local check before final
-  reports or PRs when practical. It runs typecheck, tests, lint, build, default
-  readiness, and memory evaluation without requiring Ollama.
-- For RIN v2.0 release or stabilization work, also run `npm run rin:v2-check`.
-  It is provider-free and does not apply Memory V2 legacy migration.
+- Prefer the active Python checks before final reports or PRs:
+  `python -m pytest`, `python -m ruff check .`,
+  `python -m ruff format --check .`, `python -m mypy src`,
+  `rin-python-candidate-check`, and `rin-python-production-check`.
 - If modifying memory retrieval, context injection, memoryContext
  trace/persistence, or conversation runtime paths that affect model context, run
- `npm run rin:memory-eval` in addition to standard checks. Do not bypass
- accepted-only retrieval, context budget, privacy, or traceability constraints.
+ the relevant Python unit tests and candidate check. Do not bypass accepted-only
+ retrieval, context budget, privacy, or traceability constraints.
 - If modifying local model adapter behavior, also run the explicit Ollama
   readiness check when the local runtime is available; keep this separate from
   the default aggregate check.
@@ -163,7 +154,7 @@ Keep `.env.example` versioned when it contains only safe placeholder values.
 - Avoid broad rewrites and formatting churn.
 - Preserve runtime behavior unless the task explicitly requests behavior change.
 - Keep local data and generated output out of commits.
-- Run relevant checks from `package.json` when available.
+- Run relevant Python checks from `python/pyproject.toml`.
 - Report clearly what changed, what was checked, and what remains risky.
 
 ## RIN v2.0 Codex Continuation Protocol

@@ -155,13 +155,12 @@ def test_python_production_check_passes_after_marker(
     cutover.run_real_data_migration_apply()
     for name in ("Start_RIN_Python.command", "Start_RIN_Python_Local_Model.command"):
         (tmp_path / name).write_text("#!/bin/zsh\n", encoding="utf-8")
-    fallback_dir = tmp_path / "scripts" / "typescript-fallback"
-    fallback_dir.mkdir(parents=True)
-    for name in (
-        "Start_RIN_TypeScript_Fallback.command",
-        "Start_RIN_TypeScript_Local_Model_Fallback.command",
-    ):
-        (fallback_dir / name).write_text("#!/bin/zsh\n", encoding="utf-8")
+    rollback_doc = tmp_path / "docs" / "python-only"
+    rollback_doc.mkdir(parents=True)
+    (rollback_doc / "TYPESCRIPT_FALLBACK_GUIDE.md").write_text(
+        "Fallback tag: typescript-final-fallback\n",
+        encoding="utf-8",
+    )
     monkeypatch.setattr(cutover, "REPO_ROOT", tmp_path)
 
     report = cutover.run_python_production_check()
@@ -172,7 +171,7 @@ def test_python_production_check_passes_after_marker(
     assert report.backupExists is True
     assert report.pythonLauncherExists is True
     assert report.pythonLocalModelLauncherExists is True
-    assert report.typescriptFallbackLauncherExists is True
-    assert report.typescriptLocalModelFallbackLauncherExists is True
+    assert report.typescriptRollbackDocumented is True
+    assert report.typescriptFallbackTag == "typescript-final-fallback"
     assert report.externalApiDisabled is True
     assert report.fullTextIncluded is False

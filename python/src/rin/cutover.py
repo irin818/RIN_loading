@@ -39,6 +39,7 @@ BACKUP_ARTIFACT = CUTOVER_STATE_DIR / "backup-latest.json"
 DRY_RUN_ARTIFACT = CUTOVER_STATE_DIR / "dry-run-latest.json"
 APPLY_ARTIFACT = CUTOVER_STATE_DIR / "apply-latest.json"
 ALLOW_MIGRATION_ENV = "RIN_PYTHON_REAL_DATA_MIGRATION"
+TYPESCRIPT_FALLBACK_TAG = "typescript-final-fallback"
 
 
 @dataclass(frozen=True)
@@ -129,8 +130,8 @@ class PythonProductionCheckReport:
     backupExists: bool
     pythonLauncherExists: bool
     pythonLocalModelLauncherExists: bool
-    typescriptFallbackLauncherExists: bool
-    typescriptLocalModelFallbackLauncherExists: bool
+    typescriptRollbackDocumented: bool
+    typescriptFallbackTag: str
     externalApiDisabled: bool
     localModelChecked: bool
     localModelReady: bool | None
@@ -492,10 +493,8 @@ def run_python_production_check(
     backup_exists = latest_backup_exists()
     python_launcher = REPO_ROOT / "Start_RIN_Python.command"
     python_local_launcher = REPO_ROOT / "Start_RIN_Python_Local_Model.command"
-    ts_fallback_dir = REPO_ROOT / "scripts" / "typescript-fallback"
-    ts_launcher = ts_fallback_dir / "Start_RIN_TypeScript_Fallback.command"
-    ts_local_launcher = (
-        ts_fallback_dir / "Start_RIN_TypeScript_Local_Model_Fallback.command"
+    ts_rollback_doc = (
+        REPO_ROOT / "docs" / "python-only" / "TYPESCRIPT_FALLBACK_GUIDE.md"
     )
     local_model_ready = check_local_ollama_model() if check_local_model else None
     passed = all(
@@ -505,8 +504,7 @@ def run_python_production_check(
             backup_exists,
             python_launcher.is_file(),
             python_local_launcher.is_file(),
-            ts_launcher.is_file(),
-            ts_local_launcher.is_file(),
+            ts_rollback_doc.is_file(),
             local_model_ready is not False,
         ]
     )
@@ -519,8 +517,8 @@ def run_python_production_check(
         backupExists=backup_exists,
         pythonLauncherExists=python_launcher.is_file(),
         pythonLocalModelLauncherExists=python_local_launcher.is_file(),
-        typescriptFallbackLauncherExists=ts_launcher.is_file(),
-        typescriptLocalModelFallbackLauncherExists=ts_local_launcher.is_file(),
+        typescriptRollbackDocumented=ts_rollback_doc.is_file(),
+        typescriptFallbackTag=TYPESCRIPT_FALLBACK_TAG,
         externalApiDisabled=True,
         localModelChecked=check_local_model,
         localModelReady=local_model_ready,
@@ -554,10 +552,9 @@ def format_python_production_check_report(
             f"Python launcher exists: {'yes' if report.pythonLauncherExists else 'no'}",
             "Python local model launcher exists: "
             f"{'yes' if report.pythonLocalModelLauncherExists else 'no'}",
-            "TypeScript fallback launcher exists: "
-            f"{'yes' if report.typescriptFallbackLauncherExists else 'no'}",
-            "TypeScript local model fallback launcher exists: "
-            f"{'yes' if report.typescriptLocalModelFallbackLauncherExists else 'no'}",
+            "TypeScript rollback documented: "
+            f"{'yes' if report.typescriptRollbackDocumented else 'no'}",
+            f"TypeScript fallback tag: {report.typescriptFallbackTag}",
             f"External API disabled: {'yes' if report.externalApiDisabled else 'no'}",
             f"Local model: {local_model}",
             f"Schema version: {report.schemaVersion}",

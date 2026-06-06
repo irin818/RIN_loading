@@ -20,7 +20,8 @@ production `.rin-data` before any migration apply can be considered.
 ## Command
 
 ```sh
-npm run rin-python-real-data-backup
+cd python
+.venv/bin/rin-python-real-data-backup
 ```
 
 Required result before migration apply:

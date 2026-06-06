@@ -23,14 +23,16 @@ Run the provider-free smoke:
 
 ```sh
 cd /Users/irin/Documents/RIN_loading_python
-npm run rin-python-preview-smoke
+cd python
+.venv/bin/rin-python-preview-smoke
 ```
 
 Run the preview server:
 
 ```sh
 cd /Users/irin/Documents/RIN_loading_python
-npm run rin-python-preview-server
+cd python
+.venv/bin/rin-python-preview-server
 ```
 
 Open:
@@ -50,14 +52,16 @@ Optional local model smoke, local Ollama only:
 ```sh
 RIN_MODEL_ADAPTER=rin-ollama-local \
 RIN_OLLAMA_TIMEOUT_MS=180000 \
-npm run rin-python-preview-local-model-smoke
+cd python
+.venv/bin/rin-python-preview-local-model-smoke
 ```
 
 Persistent sandbox mode for restartable Python testing:
 
 ```sh
-npm run rin-python-sandbox-init
-npm run rin-python-sandbox-smoke
+cd python
+.venv/bin/rin-python-sandbox-init
+.venv/bin/rin-python-sandbox-smoke
 scripts/python-preview/Start_RIN_Python_Sandbox.command
 ```
 

@@ -22,13 +22,15 @@ temporary copy of the owner's current `.rin-data` without modifying the original
 
 ```sh
 cd /Users/irin/Documents/RIN_loading_python
-npm run rin-python-copy-data-shadow-report
+cd python
+.venv/bin/rin-python-copy-data-shadow-report
 ```
 
 Retain the copied temp directory only for manual debugging:
 
 ```sh
-RIN_SHADOW_RETAIN_COPY=1 npm run rin-python-copy-data-shadow-report
+cd python
+RIN_SHADOW_RETAIN_COPY=1 .venv/bin/rin-python-copy-data-shadow-report
 ```
 
 ## Required Result

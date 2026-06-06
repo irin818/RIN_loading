@@ -1,6 +1,6 @@
 # TypeScript Fallback Guide
 
-Status: Package C rollback guide.
+Status: Package D4 rollback guide.
 
 ## Fallback Tag
 
@@ -18,20 +18,16 @@ git checkout typescript-final-fallback
 
 ## Fallback Launchers
 
-Fallback launchers are preserved under:
-
-```sh
-./scripts/typescript-fallback/Start_RIN_TypeScript_Fallback.command
-./scripts/typescript-fallback/Start_RIN_TypeScript_Local_Model_Fallback.command
-```
-
-These are rollback-only launchers. The active root launchers are Python-only.
+Fallback launchers are no longer preserved in the active tree because the
+TypeScript source and Node configuration have been removed. Use the fallback tag
+for any TypeScript rollback.
 
 ## Temporary Data Verification
 
-Verify TypeScript fallback on temporary data:
+Verify TypeScript fallback only after checking out the fallback tag:
 
 ```sh
+git checkout typescript-final-fallback
 TS_FALLBACK="$(mktemp -d /tmp/rin-ts-fallback.XXXXXX)"
 RIN_DATA_DIR="$TS_FALLBACK" npm run rin:init
 RIN_DATA_DIR="$TS_FALLBACK" npm run rin:v2-check

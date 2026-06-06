@@ -24,13 +24,17 @@ marker at `.rin-data/config/python_cutover_marker.json`.
 Production readiness:
 
 ```sh
-npm run rin-python-production-check
+cd python
+. .venv/bin/activate
+rin-python-production-check
 ```
 
 Include local Ollama readiness:
 
 ```sh
-RIN_PYTHON_CHECK_LOCAL_MODEL=1 npm run rin-python-production-check
+cd python
+. .venv/bin/activate
+RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check
 ```
 
 ## Data Safety

@@ -24,7 +24,8 @@ temporary copy of real `.rin-data`.
 ## Command
 
 ```sh
-npm run rin-python-real-data-migration-dry-run
+cd python
+.venv/bin/rin-python-real-data-migration-dry-run
 ```
 
 Required result before a future apply package:

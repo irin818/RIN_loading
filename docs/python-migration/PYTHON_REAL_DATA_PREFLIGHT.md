@@ -20,7 +20,8 @@ read-only before any migration apply is allowed.
 ## Command
 
 ```sh
-npm run rin-python-real-data-preflight
+cd python
+.venv/bin/rin-python-real-data-preflight
 ```
 
 Required result before migration apply:
