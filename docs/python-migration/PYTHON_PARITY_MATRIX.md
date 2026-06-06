@@ -31,6 +31,7 @@ Status: initialized for Package 0.
 | Console API contract | `src/server/localConsoleServer.ts` | preview-compatible `/api` aliases added | Package E API contract check | passed | no |
 | final candidate validation | full RIN v2 + Python post-candidate gates | A-F complete for review | Package F repeated Python/TS checks | passed | no |
 | main integration audit | TypeScript default runtime | preview-only merge audit added | Package A main-integration audit | passed | no |
+| final pre-merge verification | full Python + TypeScript preview-only gates | PR #72 ready for preview-only review | Package D repeated checks and safety scans | passed | no |
 
 Package 0 creates only foundation checks and safety scaffolding. It does not
 claim behavioral parity for migrated TypeScript core capabilities. The Package 0
@@ -92,3 +93,8 @@ real-data migration, and TypeScript Core removal.
 
 Package A for main integration confirms PR #72 is preview-only and non-invasive.
 Production readiness remains `no`.
+
+Package D final pre-merge verification repeats Python candidate checks, full
+Python gates, temp-data TypeScript checks, copied-data shadow validation,
+migration dry-run, rollback rehearsal, API contract check, and safety scans.
+Production readiness remains `no` because cutover is still not approved.

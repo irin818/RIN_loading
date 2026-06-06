@@ -39,4 +39,5 @@ cutover.
 - Rollback rehearsal: copy/temp-data only.
 - TypeScript rollback backend: still required.
 - Final candidate validation: passed for review only.
+- Final pre-merge verification: passed for preview-only main integration.
 - Cutover approval: still required from owner.
