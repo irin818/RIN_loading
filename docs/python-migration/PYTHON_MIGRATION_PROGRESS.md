@@ -4,9 +4,9 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package B — Python Preview Launcher and Safe Shadow Run.
-- Current checkpoint: Package B implementation in progress.
-- Active branch: `python-rewrite/12-python-preview-launcher`.
+- Current package: Package C — Copied-Data Shadow Validation.
+- Current checkpoint: Package C implementation in progress.
+- Active branch: `python-rewrite/13-copied-data-shadow-validation`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -14,7 +14,7 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `2139b8b Merge pull request #73 from irin818/python-rewrite/11-candidate-audit-gap-closure`.
+  `f6c270f Merge pull request #74 from irin818/python-rewrite/12-python-preview-launcher`.
 - Draft candidate PR: #72, review-only, open, draft, unmerged to `main`.
 
 ## Completed Work
@@ -127,6 +127,11 @@ Status: active handoff document.
   optional local-model preview smoke, and manual preview launcher under
   `scripts/python-preview/`.
 - Added `PYTHON_PREVIEW_GUIDE.md`.
+- Merged Package B PR #74 into `python-rewrite/main`.
+- Started Package C branch `python-rewrite/13-copied-data-shadow-validation`.
+- Added copied-data shadow validation command
+  `rin-python-copy-data-shadow-report`.
+- Added `PYTHON_SHADOW_VALIDATION.md`.
 
 ## Tests Run
 
@@ -276,6 +281,27 @@ Status: active handoff document.
   - `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_TIMEOUT_MS=180000 .venv/bin/rin-python-preview-local-model-smoke`
     passed locally against `qwen3:4b`; external provider calls 0 and no raw
     provider response/thinking/full text included.
+- Package C focused Python gates passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+  - `.venv/bin/rin-python-copy-data-shadow-report` passed.
+  - `.venv/bin/rin-python-check`
+  - `.venv/bin/rin-python-parity-check`
+  - `.venv/bin/rin-python-readiness`
+  - `.venv/bin/rin-python-candidate-check`
+- Package C copied-data shadow validation result:
+  - Source: `/Users/irin/Documents/RIN_loading/.rin-data`.
+  - Copy: `/private/tmp/rin-python-shadow-*`, removed after run.
+  - Source DB hash unchanged: yes.
+  - Schema version: 6.
+  - Safe counts: conversations 11, messages 34, Memory V2 traces 0, profile
+    files present 2.
+  - Read compatibility: passed.
+  - Write simulation: passed on copy only.
+  - Private text included: no.
+  - Full profile included: no.
 - Optional Python local Ollama smoke:
   - default `rin-python-local-chat-smoke` skipped with zero model calls.
   - `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_TIMEOUT_MS=60000`
@@ -356,6 +382,9 @@ Status: active handoff document.
 - Stable TypeScript Package B reference checks:
   - `RIN_DATA_DIR=/tmp/rin-python-ts-ref.pULKhq npm run rin:check` passed.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-v2.TIxFFz npm run rin:v2-check` passed.
+- Stable TypeScript Package C reference checks:
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-ref.VCITYY npm run rin:check` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-v2.16Rndm npm run rin:v2-check` passed.
 - Copied owner-data read verification:
   - temporary copy under `/tmp/rin-python-owner-copy.*`.
   - original DB hash unchanged: yes.
@@ -446,9 +475,12 @@ Status: active handoff document.
   TypeScript source, or real data paths.
 - Package B preview mode remains temp-only, binds to `127.0.0.1`, and does not
   alter `Start_RIN.command` or `Start_RIN_Local_Model.command`.
+- Package C shadow validation copies source data before Python inspection or
+  write simulation, hashes the source DB before/after, and prints no private raw
+  text.
 
 ## Exact Next Task
 
-Finish Package B checks, push `python-rewrite/12-python-preview-launcher`,
+Finish Package C checks, push `python-rewrite/13-copied-data-shadow-validation`,
 open a PR targeting `python-rewrite/main`, review and merge only if gates pass,
-then continue to Package C.
+then continue to Package D.

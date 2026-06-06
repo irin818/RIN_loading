@@ -35,6 +35,7 @@ rin-python-local-chat-smoke = "rin.cli.local_chat_smoke:main"
 rin-python-preview-server = "rin.cli.preview_server:main"
 rin-python-preview-smoke = "rin.cli.preview_smoke:main"
 rin-python-preview-local-model-smoke = "rin.cli.preview_local_model_smoke:main"
+rin-python-copy-data-shadow-report = "rin.cli.copy_data_shadow_report:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rin"]

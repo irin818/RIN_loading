@@ -25,6 +25,7 @@ Status: initialized for Package 0.
 | candidate validation | full RIN v2 checks | candidate docs and validation tests added | Package 10 repeated Python/TS checks + copied-data hash check | passed | no |
 | timing metrics | `src/conversation/runtimeReport.ts` | safe runtime elapsed result added | Package A runtime tests | passed | no |
 | preview mode | n/a production TypeScript launcher | temp-only Python preview added | Package B preview smoke tests | passed | no |
+| copied-data shadow validation | read-only owner data inspection | copy-first shadow report added | Package C synthetic hash/copy tests | passed | no |
 
 Package 0 creates only foundation checks and safety scaffolding. It does not
 claim behavioral parity for migrated TypeScript core capabilities. The Package 0
@@ -70,3 +71,6 @@ safe elapsed runtime result fields, not durable production timing events.
 
 Package B adds manual preview mode only. It uses `/tmp/rin-python-preview-*`,
 binds to localhost, and leaves TypeScript launchers unchanged.
+
+Package C copies owner data to `/tmp/rin-python-shadow-*` before Python
+inspection or write simulation and verifies the source DB hash is unchanged.
