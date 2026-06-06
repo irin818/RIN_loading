@@ -105,8 +105,11 @@ Status: completed with no move.
 
 ### Package F: Worktree Cleanup
 
-Document or remove `/Users/irin/Documents/RIN_loading_python` only after clean
-worktree checks.
+Status: completed.
+
+The old `/Users/irin/Documents/RIN_loading_python` migration worktree was clean,
+removed with `git worktree remove`, and pruned. See
+`docs/python-only/WORKTREE_CLEANUP_GUIDE.md`.
 
 ### Package G: Final Python-Only Verification
 
