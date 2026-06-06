@@ -56,6 +56,7 @@
     "rin-python-real-data-preflight": "cd python && .venv/bin/python -m rin.cli.real_data_preflight",
     "rin-python-real-data-backup": "cd python && .venv/bin/python -m rin.cli.real_data_backup",
     "rin-python-real-data-migration-dry-run": "cd python && .venv/bin/python -m rin.cli.real_data_migration_dry_run",
+    "rin-python-real-data-migration-apply": "cd python && .venv/bin/python -m rin.cli.real_data_migration_apply",
     "rin-python-copy-data-shadow-report": "cd python && .venv/bin/python -m rin.cli.copy_data_shadow_report",
     "rin-python-production-migration-dry-run": "cd python && .venv/bin/python -m rin.cli.production_migration_dry_run",
     "rin-python-rollback-rehearsal": "cd python && .venv/bin/python -m rin.cli.rollback_rehearsal",

@@ -13,6 +13,7 @@ from pathlib import Path
 from tempfile import mkdtemp
 
 PRODUCTION_RIN_DATA_DIR = Path("/Users/irin/Documents/RIN_loading/.rin-data")
+PYTHON_CUTOVER_MARKER_RELATIVE_PATH = Path("config/python_cutover_marker.json")
 PERSISTENT_SANDBOX_DATA_DIR = Path(
     "/Users/irin/Documents/RIN_loading/.rin-python-preview-data"
 )
@@ -91,13 +92,44 @@ def assert_safe_persistent_sandbox_data_dir(path: str | Path) -> Path:
     return resolved
 
 
+def python_cutover_marker_path(path: str | Path = PRODUCTION_RIN_DATA_DIR) -> Path:
+    """Return the Python production cutover marker path for a data directory."""
+
+    return resolve_path(path) / PYTHON_CUTOVER_MARKER_RELATIVE_PATH
+
+
+def is_python_production_cutover_marked(
+    path: str | Path = PRODUCTION_RIN_DATA_DIR,
+) -> bool:
+    """Return whether production data has an explicit Python cutover marker."""
+
+    return python_cutover_marker_path(path).is_file()
+
+
+def assert_safe_python_production_data_dir(path: str | Path) -> Path:
+    """Allow production writes only after the explicit Python cutover marker."""
+
+    resolved = resolve_path(path)
+    production = resolve_path(PRODUCTION_RIN_DATA_DIR)
+    if resolved != production:
+        msg = "Python production writes must target the production .rin-data root."
+        raise UnsafeDataPathError(msg)
+    if not is_python_production_cutover_marked(resolved):
+        msg = "Python production writes require python_cutover_marker.json."
+        raise UnsafeDataPathError(msg)
+    return resolved
+
+
 def assert_safe_python_write_data_dir(path: str | Path) -> Path:
     """Allow Python writes only in temp fixtures or the persistent sandbox."""
 
     try:
         return assert_safe_temp_data_dir(path)
     except UnsafeDataPathError:
-        return assert_safe_persistent_sandbox_data_dir(path)
+        try:
+            return assert_safe_persistent_sandbox_data_dir(path)
+        except UnsafeDataPathError:
+            return assert_safe_python_production_data_dir(path)
 
 
 def create_temp_data_dir(prefix: str = TEMP_DATA_PREFIX) -> TempDataDirectory:

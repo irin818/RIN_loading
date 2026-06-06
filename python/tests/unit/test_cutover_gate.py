@@ -7,7 +7,8 @@ from pathlib import Path
 import pytest
 
 import rin.cutover as cutover
-from rin.database import create_temp_layout_database, database_path_for
+import rin.diagnostics.safety as safety
+from rin.database import create_temp_layout_database
 from rin.diagnostics.safety import create_temp_data_dir
 from rin.sandbox import utc_now, write_core_files
 from rin.storage import create_data_layout
@@ -40,6 +41,7 @@ def fake_real_data(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     write_core_files(layout, now)
     create_temp_layout_database(layout.rootDir)
     monkeypatch.setattr(cutover, "PRODUCTION_RIN_DATA_DIR", root)
+    monkeypatch.setattr(safety, "PRODUCTION_RIN_DATA_DIR", root)
     monkeypatch.setattr(cutover, "CUTOVER_STATE_DIR", tmp_path / "state")
     monkeypatch.setattr(cutover, "BACKUP_ROOT", tmp_path / "backups")
     monkeypatch.setattr(
@@ -57,6 +59,11 @@ def fake_real_data(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         "DRY_RUN_ARTIFACT",
         tmp_path / "state/dry-run-latest.json",
     )
+    monkeypatch.setattr(
+        cutover,
+        "APPLY_ARTIFACT",
+        tmp_path / "state/apply-latest.json",
+    )
     yield root
     shutil.rmtree(root, ignore_errors=True)
 
@@ -68,8 +75,8 @@ def test_real_data_preflight_reports_counts_only(fake_real_data: Path) -> None:
     assert report.status == "passed"
     assert report.schemaVersion == 6
     assert report.fullTextIncluded is False
-    assert report.databaseHash == cutover.file_hash(
-        database_path_for(create_data_layout(str(fake_real_data), cwd="/"))
+    assert report.databaseHash == cutover.database_hash_for(
+        create_data_layout(str(fake_real_data), cwd="/")
     )
     assert "Sandbox Owner" not in formatted
     assert Path(report.artifactPath).is_file()
@@ -89,13 +96,9 @@ def test_real_data_backup_copies_and_verifies(fake_real_data: Path) -> None:
 def test_real_data_migration_dry_run_preserves_source_hash(
     fake_real_data: Path,
 ) -> None:
-    before = cutover.file_hash(
-        database_path_for(create_data_layout(str(fake_real_data), cwd="/"))
-    )
+    before = cutover.database_hash_for(create_data_layout(str(fake_real_data), cwd="/"))
     report = cutover.run_real_data_migration_dry_run()
-    after = cutover.file_hash(
-        database_path_for(create_data_layout(str(fake_real_data), cwd="/"))
-    )
+    after = cutover.database_hash_for(create_data_layout(str(fake_real_data), cwd="/"))
 
     assert report.status == "passed"
     assert report.sourceHashUnchanged is True
@@ -104,3 +107,38 @@ def test_real_data_migration_dry_run_preserves_source_hash(
     assert report.typescriptFallbackReadableAfterSimulation is True
     assert report.productionApplyAvailable is False
     assert Path(report.artifactPath).is_file()
+
+
+def test_real_data_migration_apply_requires_env(fake_real_data: Path) -> None:
+    cutover.run_real_data_backup()
+    cutover.run_real_data_migration_dry_run()
+
+    with pytest.raises(PermissionError):
+        cutover.run_real_data_migration_apply()
+
+
+def test_real_data_migration_apply_writes_marker_and_is_idempotent(
+    fake_real_data: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cutover.run_real_data_backup()
+    cutover.run_real_data_migration_dry_run()
+    monkeypatch.setenv(cutover.ALLOW_MIGRATION_ENV, "allow")
+
+    report = cutover.run_real_data_migration_apply()
+    second = cutover.run_real_data_migration_apply()
+
+    assert report.status == "passed"
+    assert report.auditMarkerWritten is True
+    assert report.fileMarkerWritten is True
+    assert report.rawMessagesPreserved is True
+    assert report.legacyMemoriesPreserved is True
+    assert report.pythonReadableAfterApply is True
+    assert report.pythonWriteVerified is True
+    assert report.typescriptFallbackReadable is True
+    assert report.fullTextIncluded is False
+    assert Path(report.markerPath).is_file()
+    assert Path(report.artifactPath).is_file()
+    assert second.status == "already_applied"
+    assert second.idempotent is True
+    assert safety.assert_safe_python_write_data_dir(fake_real_data) == fake_real_data

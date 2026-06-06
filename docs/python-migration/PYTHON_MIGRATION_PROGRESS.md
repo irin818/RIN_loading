@@ -4,10 +4,9 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Cutover Acceleration Package B — Real Data Backup and
-  Migration Gate.
-- Current checkpoint: real-data preflight, backup, and dry-run gates passed.
-- Active branch: `python-cutover/02-backup-migration-gate`.
+- Current package: Cutover Acceleration Package C — Real Data Migration Apply.
+- Current checkpoint: real-data migration apply implemented and executed once.
+- Active branch: `python-cutover/03-real-data-migration-apply`.
 - Target integration branch: `main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -20,11 +19,13 @@ Status: active handoff document.
 - Final preview-only main merge commit:
   `13ed047 Merge pull request #72 from irin818/python-rewrite/main`.
 - Production cutover: not yet performed.
-- Real `.rin-data` migration: not yet performed.
+- Real `.rin-data` migration: applied with marker and verified backup.
 - Latest verified cutover backup:
-  `.rin-python-backups/rin-data-backup-20260606T173144Z`.
-- Latest verified production DB hash:
+  `.rin-python-backups/rin-data-backup-20260606T173720Z`.
+- Latest verified pre-apply production DB hash:
   `56b4f8e2345389676ec9da6a381b5895246bf4ceba49f0d498018d1730e076cc`.
+- Latest verified post-apply composite DB hash:
+  `45a2ed6287bf900eb008351904fd1856779f346e6f5c1a2a54567a0ea1042875`.
 
 ## Completed Work
 
@@ -201,6 +202,14 @@ Status: active handoff document.
   - `PYTHON_REAL_DATA_PREFLIGHT.md`
   - `PYTHON_REAL_DATA_BACKUP.md`
   - `PYTHON_REAL_DATA_MIGRATION_GATE.md`
+- Merged Package B PR #85 into `main`.
+- Started cutover acceleration Package C branch
+  `python-cutover/03-real-data-migration-apply`.
+- Added real-data migration apply command:
+  `rin-python-real-data-migration-apply`.
+- Added marker-gated production write safety:
+  Python production writes require `.rin-data/config/python_cutover_marker.json`.
+- Added `PYTHON_REAL_DATA_MIGRATION_APPLY.md`.
 
 ## Tests Run
 
@@ -674,6 +683,41 @@ Status: active handoff document.
   - temp-data `npm run rin:v2-check`
   - `git diff --check`
   - safety scans for ignored backup/state/sandbox/venv/data paths.
+- Cutover Package C pre-apply gates passed:
+  - `rin-python-real-data-preflight`
+  - `rin-python-real-data-backup`
+  - `rin-python-real-data-migration-dry-run`
+- Cutover Package C apply result:
+  - command: `RIN_PYTHON_REAL_DATA_MIGRATION=allow
+    rin-python-real-data-migration-apply`
+  - status: passed.
+  - backup: `.rin-python-backups/rin-data-backup-20260606T173720Z`.
+  - marker: `.rin-data/config/python_cutover_marker.json`.
+  - audit marker written: yes.
+  - file marker written: yes.
+  - raw messages preserved: yes.
+  - legacy memories preserved: yes.
+  - Python readable after apply: yes.
+  - Python write verified: yes.
+  - TypeScript fallback readable: yes.
+  - full text included: no.
+  - second apply run returned `already_applied`.
+- Cutover Package C post-apply preflight passed:
+  - conversations: 13.
+  - messages: 34.
+  - Memory V2 traces: 0.
+  - current composite DB hash:
+    `45a2ed6287bf900eb008351904fd1856779f346e6f5c1a2a54567a0ea1042875`.
+- Cutover Package C checks passed:
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/rin-python-candidate-check`
+  - `.venv/bin/rin-python-rollback-rehearsal`
+  - temp-data `npm run rin:v2-check`
+  - `git diff --check`
+  - safety scans for ignored backup/state/sandbox/venv/data paths.
 - Copied owner-data read verification:
   - temporary copy under `/tmp/rin-python-owner-copy.*`.
   - original DB hash unchanged: yes.
@@ -788,6 +832,12 @@ Status: active handoff document.
   `.rin-data` remains rejected.
 - Cutover Package B establishes real-data preflight, backup, and migration
   dry-run artifacts. It does not implement production migration apply.
+- Cutover Package C applied only a Python cutover marker and sanitized audit
+  marker to real `.rin-data`; TypeScript fallback remains intact.
+- Package C verification note: two empty synthetic conversations were created by
+  legacy tests after the marker enabled production writes. Tests were fixed to
+  use markerless fake production paths. No raw message text was added by those
+  test artifacts.
 
 ## Exact Next Task
 
@@ -797,6 +847,6 @@ Owner can manually test Python Preview from `main` using
 real `.rin-data` migration, or TypeScript Core removal still requires a separate
 owner-approved PR.
 
-Push `python-cutover/02-backup-migration-gate`, open a PR to `main`, and merge
-only if review remains clean. Then continue to Package C real-data migration
-apply implementation and stop unless all apply preconditions remain satisfied.
+Push `python-cutover/03-real-data-migration-apply`, open a PR to `main`, and
+merge only if review remains clean. Then continue to Package D Python production
+launcher with TypeScript fallback.

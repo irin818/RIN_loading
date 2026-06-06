@@ -46,5 +46,9 @@ cutover.
 - Real-data preflight: passed.
 - Real-data backup: passed; verified backup exists under `.rin-python-backups/`.
 - Real-data migration dry-run: passed; original DB hash unchanged.
-- Production migration apply command: still not implemented.
+- Production migration apply command: implemented and run once.
+- Python cutover marker: present at `.rin-data/config/python_cutover_marker.json`.
+- Production migration apply: passed; second run returned `already_applied`.
+- Current post-apply DB hash:
+  `45a2ed6287bf900eb008351904fd1856779f346e6f5c1a2a54567a0ea1042875`.
 - Cutover approval: still required from owner.

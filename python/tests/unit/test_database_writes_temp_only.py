@@ -1,5 +1,6 @@
 import shutil
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -15,11 +16,7 @@ from rin.database import (
     list_messages,
     record_failed_turn,
 )
-from rin.diagnostics.safety import (
-    PRODUCTION_RIN_DATA_DIR,
-    UnsafeDataPathError,
-    create_temp_data_dir,
-)
+from rin.diagnostics.safety import UnsafeDataPathError, create_temp_data_dir
 from rin.storage import create_data_layout
 
 NOW = "2026-06-05T00:00:00.000Z"
@@ -30,8 +27,15 @@ def create_layout():
     return create_temp_layout_database(temp.path)
 
 
-def test_rejects_real_production_data_path() -> None:
-    layout = create_data_layout(str(PRODUCTION_RIN_DATA_DIR), cwd="/")
+def test_rejects_unmarked_production_data_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import rin.diagnostics.safety as safety
+
+    production = tmp_path / ".rin-data"
+    monkeypatch.setattr(safety, "PRODUCTION_RIN_DATA_DIR", production)
+    layout = create_data_layout(str(production), cwd="/")
 
     with pytest.raises(UnsafeDataPathError):
         create_conversation(layout, "blocked", NOW)

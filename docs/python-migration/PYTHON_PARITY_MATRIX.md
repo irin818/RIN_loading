@@ -34,6 +34,7 @@ Status: initialized for Package 0.
 | final pre-merge verification | full Python + TypeScript preview-only gates | PR #72 ready for preview-only review | Package D repeated checks and safety scans | passed | no |
 | persistent sandbox | n/a production TypeScript launcher | repo-local Python sandbox added | Cutover Package A sandbox smoke | passed | no |
 | real-data cutover gate | TypeScript fallback remains readable | preflight, backup, dry-run added | Cutover Package B real-data gate checks | passed | no |
+| real-data migration apply | TypeScript fallback remains readable | marker/audit apply added | Cutover Package C apply and idempotence checks | passed | partial |
 
 Package 0 creates only foundation checks and safety scaffolding. It does not
 claim behavioral parity for migrated TypeScript core capabilities. The Package 0
