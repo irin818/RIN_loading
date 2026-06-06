@@ -19,8 +19,10 @@ Status: initialized for Package 0.
 | structured errors | `src/model`, `src/conversation/errors.ts` | not started | pending Package 1/6/8 | pending | no |
 | conversation runtime | `src/conversation/runtime.ts` | not started | pending Package 8 | pending | no |
 | audit events | `src/database`, `src/conversation` | not started | pending Package 3/7/8 | pending | no |
-| readiness | `src/readiness` | foundation only | Package 0 provider-free readiness | partial | no |
+| readiness | `src/readiness` | foundation only | Package 0 provider-free readiness | passed | no |
 | local API | `src/server` | not started | pending Package 9 | pending | no |
 
 Package 0 creates only foundation checks and safety scaffolding. It does not
-claim behavioral parity for migrated TypeScript core capabilities.
+claim behavioral parity for migrated TypeScript core capabilities. The Package 0
+parity placeholder and provider-free Python readiness checks pass on Python
+3.12.13.
