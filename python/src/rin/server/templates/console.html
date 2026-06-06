@@ -9,9 +9,10 @@
   </head>
   <body>
     <main class="console-shell" data-selected-conversation="{{ selected_conversation_id or '' }}">
+      <div class="ambient-grid" aria-hidden="true"></div>
       <header class="console-header">
         <section>
-          <p class="eyebrow">Local AI operating console</p>
+          <p class="eyebrow">Local AI operating console / cybernetic link online</p>
           <h1>RIN Local Console</h1>
           <p class="runtime-line">{{ identity }}</p>
         </section>
@@ -84,11 +85,29 @@
           </section>
         </section>
 
-        <aside class="status-panel" aria-label="Status">
+        <aside class="status-panel" aria-label="Status and RIN presence">
           <div class="panel-heading">
-            <span>Status</span>
+            <span>RIN Presence</span>
             <span class="status-dot" aria-label="ready"></span>
           </div>
+
+          <section class="presence-card">
+            <div class="avatar-stage" aria-label="RIN avatar presence panel">
+              <div class="avatar-orbit"></div>
+              <img src="{{ avatar_asset_path }}" alt="RIN character portrait" />
+              <div class="scan-line"></div>
+            </div>
+            <div class="presence-copy">
+              <p class="eyebrow">Local body boundary</p>
+              <h2>RIN Avatar</h2>
+              <p>Static local presence active. Full Cubism runtime is future work.</p>
+            </div>
+            <dl class="presence-stats">
+              <div><dt>Mood</dt><dd>{{ body_report.bodyState.emotion }}</dd></div>
+              <div><dt>Expression</dt><dd>{{ body_report.bodyState.expression }}</dd></div>
+              <div><dt>Motion</dt><dd>{{ body_report.bodyState.motion }}</dd></div>
+            </dl>
+          </section>
 
           <section class="status-card">
             <h2>Readiness</h2>

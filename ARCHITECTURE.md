@@ -21,7 +21,8 @@ Python web UI.
 
 The active UI is rendered with Jinja2 templates plus static CSS and minimal
 vanilla JavaScript from `python/src/rin/server/`. There is no frontend build
-chain.
+chain. The console includes a local RIN presence panel backed by existing static
+assets under `public/live2d/`; it does not claim full Cubism runtime support.
 
 ## Runtime Boundaries
 

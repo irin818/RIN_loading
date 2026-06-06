@@ -5,21 +5,22 @@ Python-first for active runtime and development.
 
 ## Active Runtime
 
-Use the Python launchers from the repository root:
+Use the default launcher from the repository root:
 
 ```sh
-./Start_RIN_Python.command
-./Start_RIN_Python_Local_Model.command
+./Start_RIN.command
 ```
 
-Both start the local FastAPI web UI at:
+It starts local Ollama/Qwen3 mode and opens the local FastAPI web UI at:
 
 ```text
 http://127.0.0.1:8765/
 ```
 
-`Start_RIN_Python_Local_Model.command` selects local Ollama with `qwen3:4b`.
-`Start_RIN_Python.command` uses provider-free mock mode for local testing.
+`Start_RIN.command` checks the Python venv, verifies Ollama and `qwen3:4b`,
+starts the server, opens the browser once, and keeps the terminal open so
+Ctrl-C stops the server. `Start_RIN_Python.command` remains a non-default
+provider-free developer launcher.
 
 ## Python Console UI
 
@@ -28,8 +29,8 @@ vanilla JavaScript. It has no TypeScript, React, Vite, Node, npm, or frontend
 build chain.
 
 The console shows recent conversations, owner/RIN message bubbles, readiness,
-local model status, profile summary, memory/context trace summary, body status,
-and visible notice/error states.
+local model status, profile summary, memory/context trace summary, a local RIN
+avatar/presence panel, body status, and visible notice/error states.
 
 ## Install
 

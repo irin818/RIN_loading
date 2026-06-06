@@ -27,6 +27,8 @@ Active launchers:
 The UI binds locally at `http://127.0.0.1:8765/`.
 
 The UI has no TypeScript, React, Vite, Node, npm, or frontend build chain.
+The RIN presence panel uses a local static asset from `public/live2d/` and the
+Python body status boundary. Full Cubism runtime remains future work.
 
 ## Rollback
 

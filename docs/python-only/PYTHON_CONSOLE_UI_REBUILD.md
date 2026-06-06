@@ -33,6 +33,7 @@ The console has:
 - recent conversations in the left rail;
 - owner/RIN chat bubbles in the center;
 - readiness, model, profile, memory/trace, and body status cards on the right;
+- a local RIN avatar/presence panel using `public/live2d/rin/rin-bust-front.png`;
 - a fixed composer with Enter-to-send and Shift+Enter newline behavior;
 - visible notice and structured error states.
 
@@ -53,3 +54,6 @@ The rebuild preserves:
 
 The UI remains local-only and does not introduce external provider calls. Static
 assets are served from the Python package under `/static/...`.
+
+The avatar image is served locally from `/live2d/...`; no external asset URL or
+Cubism runtime is required.
