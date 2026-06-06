@@ -14,6 +14,7 @@ from rin.diagnostics.safety import (
     assert_safe_python_write_data_dir,
     assert_safe_temp_data_dir,
     create_temp_data_dir,
+    python_cutover_marker_path,
     resolve_path,
 )
 
@@ -62,5 +63,20 @@ def test_python_write_guard_allows_temp_or_sandbox_only() -> None:
         assert_safe_python_write_data_dir(PERSISTENT_SANDBOX_DATA_DIR)
         == PERSISTENT_SANDBOX_DATA_DIR.resolve()
     )
+
+
+def test_python_production_write_requires_marker(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import rin.diagnostics.safety as safety
+
+    production = tmp_path / ".rin-data"
+    monkeypatch.setattr(safety, "PRODUCTION_RIN_DATA_DIR", production)
     with pytest.raises(UnsafeDataPathError):
-        assert_safe_python_write_data_dir(PRODUCTION_RIN_DATA_DIR)
+        safety.assert_safe_python_write_data_dir(production)
+    marker = python_cutover_marker_path(production)
+    marker.parent.mkdir(parents=True)
+    marker.write_text("{}\n", encoding="utf-8")
+
+    assert safety.assert_safe_python_write_data_dir(production) == production.resolve()

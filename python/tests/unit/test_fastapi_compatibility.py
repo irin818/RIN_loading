@@ -1,9 +1,11 @@
 import shutil
+from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from rin.database import create_temp_layout_database
-from rin.diagnostics.safety import PRODUCTION_RIN_DATA_DIR, create_temp_data_dir
+from rin.diagnostics.safety import create_temp_data_dir
 from rin.server import create_app
 from rin.storage import create_data_layout
 
@@ -59,8 +61,15 @@ def test_conversation_create_send_and_history_contract() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
-def test_write_routes_reject_production_data_path() -> None:
-    layout = create_data_layout(str(PRODUCTION_RIN_DATA_DIR), cwd="/")
+def test_write_routes_reject_unmarked_production_data_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import rin.diagnostics.safety as safety
+
+    production = tmp_path / ".rin-data"
+    monkeypatch.setattr(safety, "PRODUCTION_RIN_DATA_DIR", production)
+    layout = create_data_layout(str(production), cwd="/")
     client = TestClient(create_app(layout))
 
     response = client.post("/conversations", json={"title": "blocked"})
