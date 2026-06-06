@@ -4,10 +4,10 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package 7 — Temporary-Data Writes and Migration Support.
-- Current checkpoint: Package 7 implementation and checks passed; PR creation
+- Current package: Package 8 — Python Conversation Runtime Candidate.
+- Current checkpoint: Package 8 implementation and checks passed; PR creation
   pending.
-- Active branch: `python-rewrite/07-database-writes-temp-only`.
+- Active branch: `python-rewrite/08-conversation-runtime`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -15,8 +15,8 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `e6fbb21 Merge pull request #67 from irin818/python-rewrite/06-ollama-adapter`.
-- Open PR: none for Package 7 yet.
+  `961f922 Merge pull request #68 from irin818/python-rewrite/07-database-writes-temp-only`.
+- Open PR: none for Package 8 yet.
 
 ## Completed Work
 
@@ -94,6 +94,14 @@ Status: active handoff document.
 - Added write tests proving production `.rin-data` rejection, transactional temp
   writes, duplicate failure without overwrite, and privacy-preserving audit
   summaries.
+- Merged Package 7 PR #68 into `python-rewrite/main`.
+- Started Package 8 branch `python-rewrite/08-conversation-runtime`.
+- Added temp-only Python conversation runtime candidate:
+  owner persistence, Context V2 report assembly, model adapter call, response
+  sanitization, RIN reply persistence, completed/failed turn records, and Memory
+  V2 trace write.
+- Added deterministic mock runtime tests for success, model failure, thinking
+  stripping, and empty-after-thinking rejection.
 
 ## Tests Run
 
@@ -196,6 +204,16 @@ Status: active handoff document.
   - `.venv/bin/rin-python-parity-check`
   - `.venv/bin/rin-python-readiness`
   - `.venv/bin/rin-python-candidate-check`
+- Package 8 focused Python gates passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+- Package 8 aggregate Python gates passed:
+  - `.venv/bin/rin-python-check`
+  - `.venv/bin/rin-python-parity-check`
+  - `.venv/bin/rin-python-readiness`
+  - `.venv/bin/rin-python-candidate-check`
 - Initial TypeScript `npm run rin:check`: failed at readiness because the new
   migration worktree had no initialized local data directory.
 - TypeScript temp-data setup:
@@ -249,6 +267,12 @@ Status: active handoff document.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg7.fMoSo1 npm run rin:init` passed.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg7.fMoSo1 npm run rin:v2-check`
     passed.
+- Stable TypeScript Package 8 reference checks:
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg8.eDr1Dl npm run rin:init` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg8.eDr1Dl npm run rin:conversation-runtime-report`
+    passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg8.eDr1Dl npm run rin:v2-check`
+    passed.
 - `git diff --check`: passed.
 
 ## Parity Status
@@ -282,6 +306,11 @@ Status: active handoff document.
   TypeScript-compatible read summaries after temp writes.
 - Package 7 validates deterministic counts, readonly inspection compatibility,
   duplicate protection, and no raw audit payload leakage in summaries.
+- Package 8 parity target: candidate conversation runtime safety properties and
+  TypeScript-compatible persistence/read summaries.
+- Package 8 validates owner-message preservation on model failure, no fake RIN
+  reply, no duplicate retry, no thinking persistence, and Memory V2 trace
+  creation on success.
 - Parity matrix initialized in `PYTHON_PARITY_MATRIX.md`.
 - Behavioral parity begins in Package 1 with data contracts and synthetic
   fixtures.
@@ -308,9 +337,12 @@ Status: active handoff document.
   live smoke remains explicit via `RIN_MODEL_ADAPTER=rin-ollama-local`.
 - Package 7 write entry points all call the production-data guard. No override
   exists, and tests assert real `.rin-data` rejection.
+- Package 8 calls the same production-data guard before runtime writes and uses
+  deterministic mock tests by default. It does not replace the TypeScript
+  runtime or production launcher.
 
 ## Exact Next Task
 
-Commit Package 7, push `python-rewrite/07-database-writes-temp-only`, open a PR
+Commit Package 8, push `python-rewrite/08-conversation-runtime`, open a PR
 targeting `python-rewrite/main`, review and merge only if gates pass, then
-continue to Package 8.
+continue to Package 9.

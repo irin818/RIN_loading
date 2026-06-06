@@ -169,3 +169,19 @@ Implications:
 - Runtime candidate work can persist synthetic conversations without touching
   real owner data.
 - Any future production migration must be a separate reviewed cutover task.
+
+## Decision P0012: Runtime candidate preserves failure state
+
+Decision:
+
+- Package 8 persists the owner message before the model call.
+- If the model fails or returns empty/reasoning-only content, the runtime records
+  a failed turn and writes no RIN reply.
+- Successful turns persist sanitized final content and a Memory V2 trace summary
+  with no raw owner text.
+
+Implications:
+
+- The Python candidate can be tested with deterministic mock adapters without
+  hiding model failures.
+- Production runtime replacement remains out of scope until final cutover review.
