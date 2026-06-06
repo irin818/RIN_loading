@@ -38,6 +38,7 @@ rin-python-preview-local-model-smoke = "rin.cli.preview_local_model_smoke:main"
 rin-python-copy-data-shadow-report = "rin.cli.copy_data_shadow_report:main"
 rin-python-production-migration-dry-run = "rin.cli.production_migration_dry_run:main"
 rin-python-rollback-rehearsal = "rin.cli.rollback_rehearsal:main"
+rin-python-api-contract-check = "rin.cli.api_contract_check:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rin"]

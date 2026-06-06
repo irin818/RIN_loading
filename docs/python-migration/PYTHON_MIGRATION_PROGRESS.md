@@ -4,9 +4,9 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package D — Migration Dry-Run and Rollback Rehearsal.
-- Current checkpoint: Package D implementation in progress.
-- Active branch: `python-rewrite/14-migration-dry-run-rollback`.
+- Current package: Package E — Console/API Compatibility Verification.
+- Current checkpoint: Package E implementation in progress.
+- Active branch: `python-rewrite/15-console-api-compatibility`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -14,7 +14,7 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `9c5917c Merge pull request #75 from irin818/python-rewrite/13-copied-data-shadow-validation`.
+  `71ecf55 Merge pull request #76 from irin818/python-rewrite/14-migration-dry-run-rollback`.
 - Draft candidate PR: #72, review-only, open, draft, unmerged to `main`.
 
 ## Completed Work
@@ -138,6 +138,10 @@ Status: active handoff document.
   - `rin-python-production-migration-dry-run`
   - `rin-python-rollback-rehearsal`
 - Added `PYTHON_ROLLBACK_PLAN.md`.
+- Merged Package D PR #76 into `python-rewrite/main`.
+- Started Package E branch `python-rewrite/15-console-api-compatibility`.
+- Added preview-compatible Console API aliases and `rin-python-api-contract-check`.
+- Added `PYTHON_CONSOLE_COMPATIBILITY_REPORT.md`.
 
 ## Tests Run
 
@@ -330,6 +334,27 @@ Status: active handoff document.
   - TypeScript readable state: compatible schema, no launcher change.
   - Production apply available: no.
   - Private text included: no.
+- Package E focused Python gates passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+  - `.venv/bin/rin-python-api-contract-check` passed.
+  - `.venv/bin/rin-python-check`
+  - `.venv/bin/rin-python-parity-check`
+  - `.venv/bin/rin-python-readiness`
+  - `.venv/bin/rin-python-candidate-check`
+- Package E API contract result:
+  - `GET /api/local-state`: ok.
+  - `POST /api/conversations`: ok.
+  - `GET /api/conversations/{id}`: ok.
+  - readiness: ok.
+  - memory/context trace status: ok.
+  - profile summary: ok.
+  - structured errors: ok.
+  - provider calls: 0.
+  - external provider calls: 0.
+  - UI changes required: no.
 - Optional Python local Ollama smoke:
   - default `rin-python-local-chat-smoke` skipped with zero model calls.
   - `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_TIMEOUT_MS=60000`
@@ -416,6 +441,9 @@ Status: active handoff document.
 - Stable TypeScript Package D reference checks:
   - `RIN_DATA_DIR=/tmp/rin-python-ts-ref.3P0p2o npm run rin:check` passed.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-v2.fHq2cD npm run rin:v2-check` passed.
+- Stable TypeScript Package E reference checks:
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-ref.RXhMdO npm run rin:check` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-v2.dmdvXI npm run rin:v2-check` passed.
 - Copied owner-data read verification:
   - temporary copy under `/tmp/rin-python-owner-copy.*`.
   - original DB hash unchanged: yes.
@@ -511,9 +539,11 @@ Status: active handoff document.
   text.
 - Package D dry-run and rollback rehearsal expose no production apply path and
   mutate copied/temp data only.
+- Package E verifies Console API compatibility on synthetic temp data and does
+  not modify the React Console or production server routing.
 
 ## Exact Next Task
 
-Finish Package D checks, push `python-rewrite/14-migration-dry-run-rollback`,
+Finish Package E checks, push `python-rewrite/15-console-api-compatibility`,
 open a PR targeting `python-rewrite/main`, review and merge only if gates pass,
-then continue to Package E.
+then continue to Package F.

@@ -27,6 +27,8 @@ class ConversationSendBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     content: str
+    conversationId: str | None = None
+    turnId: str | None = None
 
 
 class ApiState(BaseModel):
@@ -83,6 +85,19 @@ def create_app(
 
     @app.get("/state")
     def state(current_layout: RinDataLayout = layout_dependency) -> dict[str, object]:
+        return api_state_payload(current_layout)
+
+    @app.get("/api/local-state")
+    def api_local_state(
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return local_console_snapshot(current_layout)
+
+    @app.get("/api/readiness")
+    def api_readiness() -> dict[str, object]:
+        return {"ok": True, "readiness": build_python_readiness_report().to_dict()}
+
+    def api_state_payload(current_layout: RinDataLayout) -> dict[str, object]:
         status = inspect_database(current_layout)
         return ApiState(
             mode="python-fastapi-compatibility",
@@ -126,6 +141,35 @@ def create_app(
         )
         return conversation.model_dump(mode="json")
 
+    @app.post("/api/conversations")
+    async def api_conversation_send(
+        body: ConversationSendBody,
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+        current_clock: RuntimeClock = clock_dependency,
+    ) -> dict[str, object]:
+        target_conversation_id = body.conversationId
+        if target_conversation_id is None:
+            reject_unsafe_write_layout(current_layout)
+            conversation = create_conversation(
+                current_layout,
+                "Python API conversation",
+                current_clock.now(),
+            )
+            target_conversation_id = conversation.id
+        result = await send_message(
+            target_conversation_id,
+            body,
+            current_layout,
+            current_adapter,
+            current_clock,
+        )
+        return {
+            "ok": True,
+            "turn": result,
+            "snapshot": local_console_snapshot(current_layout),
+        }
+
     @app.get("/conversations")
     def list_conversations_endpoint(
         current_layout: RinDataLayout = layout_dependency,
@@ -136,6 +180,19 @@ def create_app(
                 for item in list_conversations(current_layout, limit=50)
             ],
             "fullTextIncluded": False,
+        }
+
+    @app.get("/api/conversations")
+    def api_list_conversations(
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return {
+            "ok": True,
+            "conversations": [
+                item.model_dump(mode="json")
+                for item in list_conversations(current_layout, limit=20)
+            ],
+            "snapshot": local_console_snapshot(current_layout),
         }
 
     @app.get("/conversations/{conversation_id}/history")
@@ -149,6 +206,26 @@ def create_app(
                 item.model_dump(mode="json")
                 for item in list_messages(current_layout, conversation_id)
             ],
+        }
+
+    @app.get("/api/conversations/{conversation_id}")
+    def api_conversation_history(
+        conversation_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        conversations = [
+            item.model_dump(mode="json")
+            for item in list_conversations(current_layout, limit=50)
+            if item.id == conversation_id
+        ]
+        return {
+            "ok": True,
+            "conversation": conversations[0] if conversations else None,
+            "messages": [
+                item.model_dump(mode="json")
+                for item in list_messages(current_layout, conversation_id)
+            ],
+            "snapshot": local_console_snapshot(current_layout),
         }
 
     @app.post("/conversations/{conversation_id}/send")
@@ -175,6 +252,36 @@ def create_app(
         return result.model_dump(mode="json")
 
     return app
+
+
+def local_console_snapshot(layout: RinDataLayout) -> dict[str, object]:
+    status = inspect_database(layout)
+    profile = build_profile_report(layout).model_dump(mode="json")
+    return {
+        "ok": True,
+        "mode": "python-fastapi-compatibility",
+        "localOnly": True,
+        "providerCallCount": 0,
+        "externalProviderCallCount": 0,
+        "fullTextIncluded": False,
+        "database": {
+            "schemaVersion": status.schemaVersion,
+            "conversations": status.counts.conversations,
+            "messages": status.counts.messages,
+            "memoryV2Traces": status.counts.memoryV2Traces,
+        },
+        "profile": profile,
+        "modelRuntime": {
+            "activeAdapter": "rin-mock-local",
+            "provider": "local",
+            "localOnly": True,
+        },
+        "memoryContext": {
+            "available": True,
+            "memoryV2Traces": status.counts.memoryV2Traces,
+            "fullTextIncluded": False,
+        },
+    }
 
 
 def reject_unsafe_write_layout(layout: RinDataLayout) -> None:
