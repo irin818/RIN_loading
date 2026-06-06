@@ -38,14 +38,19 @@ Python-only.
 
 ## Classification
 
+Current launcher update: `Start_RIN.command` is now the only normal
+owner-facing root launcher. The older `Start_RIN_Python.command` and
+`Start_RIN_Python_Local_Model.command` names are historical only and were
+removed to reduce confusion.
+
 | Item | Classification | Reason |
 |---|---|---|
-| `Start_RIN_Python.command` | keep | Active Python production launcher. |
-| `Start_RIN_Python_Local_Model.command` | keep | Recommended active Python local-model launcher. |
+| `Start_RIN.command` | keep | Single active Python local-model launcher. |
+| `Start_RIN_Python.command` | historical/removed | Older Python launcher removed after single-launcher simplification. |
+| `Start_RIN_Python_Local_Model.command` | historical/removed | Older Python local-model launcher removed after single-launcher simplification. |
 | `python/` | keep | Active Python runtime, checks, migration, production server, and tests. |
 | `scripts/python-preview/` | keep temporarily | Useful Python preview/sandbox path during transition. |
-| `Start_RIN.command` | keep temporarily | TypeScript fallback launcher until Python UI fully replaces React Console and rollback path is documented. |
-| `Start_RIN_Local_Model.command` | keep temporarily | TypeScript local-model fallback launcher. |
+| `Start_RIN_Local_Model.command` | historical/removed | Old TypeScript local-model fallback launcher; rollback is now tag-only. |
 | `scripts/start-rin.sh` | keep temporarily | Required by TypeScript fallback launcher. |
 | `scripts/start-rin-local-model.sh` | keep temporarily | Required by TypeScript local-model fallback launcher. |
 | `src/ui/` | uncertain/blocker | React Console is still the only full browser UI. Python currently has API endpoints, not an HTML UI. |
@@ -111,17 +116,16 @@ that coverage in Python.
 
 ### 5. Which launchers should remain?
 
-For now:
+Current state:
 
-- Keep active Python launchers:
+- Keep the single active Python launcher:
+  - `Start_RIN.command`
+- Treat the older Python launcher names as historical/removed:
   - `Start_RIN_Python.command`
   - `Start_RIN_Python_Local_Model.command`
-- Keep TypeScript fallback launchers temporarily:
-  - `Start_RIN.command`
-  - `Start_RIN_Local_Model.command`
 
-Package C may move TypeScript fallback launchers under
-`scripts/typescript-fallback/` after Python UI is verified.
+TypeScript fallback is rollback-only through the `typescript-final-fallback`
+Git tag.
 
 ### 6. What exact rollback path exists after deletion?
 

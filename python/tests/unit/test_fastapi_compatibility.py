@@ -277,18 +277,18 @@ def test_no_typescript_or_node_artifacts_reintroduced() -> None:
 def test_default_launcher_is_local_model_and_browser_open() -> None:
     root = Path(__file__).resolve().parents[3]
     launcher = root / "Start_RIN.command"
-    local_delegate = root / "Start_RIN_Python_Local_Model.command"
-    mock_launcher = root / "Start_RIN_Python.command"
 
     launcher_text = launcher.read_text(encoding="utf-8")
-    local_delegate_text = local_delegate.read_text(encoding="utf-8")
-    mock_launcher_text = mock_launcher.read_text(encoding="utf-8")
 
+    assert launcher.exists()
+    assert not (root / "Start_RIN_Python_Local_Model.command").exists()
+    assert not (root / "Start_RIN_Python.command").exists()
     assert 'RIN_MODEL_ADAPTER="rin-ollama-local"' in launcher_text
+    assert "http://127.0.0.1:11434" in launcher_text
+    assert "qwen3:4b" in launcher_text
     assert 'RIN_OLLAMA_MODEL="$OLLAMA_MODEL"' in launcher_text
     assert "RIN_OLLAMA_TIMEOUT_MS" in launcher_text
     assert "RIN_OLLAMA_NUM_PREDICT" in launcher_text
+    assert 'LOCAL_URL="http://127.0.0.1:8765/"' in launcher_text
     assert 'open "$LOCAL_URL"' in launcher_text
     assert "for _ in {1..60}" in launcher_text
-    assert 'exec "$SCRIPT_DIR/Start_RIN.command"' in local_delegate_text
-    assert "Non-default developer launcher" in mock_launcher_text

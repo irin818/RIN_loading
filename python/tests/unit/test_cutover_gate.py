@@ -157,8 +157,25 @@ def test_python_production_check_passes_after_marker(
     cutover.run_real_data_migration_dry_run()
     monkeypatch.setenv(cutover.ALLOW_MIGRATION_ENV, "allow")
     cutover.run_real_data_migration_apply()
-    for name in ("Start_RIN_Python.command", "Start_RIN_Python_Local_Model.command"):
-        (tmp_path / name).write_text("#!/bin/zsh\n", encoding="utf-8")
+    launcher = tmp_path / "Start_RIN.command"
+    launcher.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env bash",
+                'LOCAL_URL="http://127.0.0.1:8765/"',
+                'OLLAMA_URL="${RIN_OLLAMA_BASE_URL:-http://127.0.0.1:11434}"',
+                'OLLAMA_MODEL="${RIN_OLLAMA_MODEL:-qwen3:4b}"',
+                'export RIN_MODEL_ADAPTER="rin-ollama-local"',
+                'export RIN_OLLAMA_BASE_URL="$OLLAMA_URL"',
+                'export RIN_OLLAMA_MODEL="$OLLAMA_MODEL"',
+                'export RIN_OLLAMA_TIMEOUT_MS="${RIN_OLLAMA_TIMEOUT_MS:-180000}"',
+                'export RIN_OLLAMA_NUM_PREDICT="${RIN_OLLAMA_NUM_PREDICT:-1024}"',
+                'open "$LOCAL_URL"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+    launcher.chmod(0o755)
     rollback_doc = tmp_path / "docs" / "python-only"
     rollback_doc.mkdir(parents=True)
     (rollback_doc / "TYPESCRIPT_FALLBACK_GUIDE.md").write_text(
@@ -173,8 +190,9 @@ def test_python_production_check_passes_after_marker(
     assert report.markerPresent is True
     assert report.realDataReadable is True
     assert report.backupExists is True
-    assert report.pythonLauncherExists is True
-    assert report.pythonLocalModelLauncherExists is True
+    assert report.defaultLauncherExists is True
+    assert report.defaultLauncherExecutable is True
+    assert report.defaultLauncherLocalModel is True
     assert report.typescriptRollbackDocumented is True
     assert report.typescriptFallbackTag == "typescript-final-fallback"
     assert report.externalApiDisabled is True

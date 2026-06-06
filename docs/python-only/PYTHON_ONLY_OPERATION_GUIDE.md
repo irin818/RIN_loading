@@ -2,7 +2,7 @@
 
 Status: Python-only active operation after TypeScript Core deletion.
 
-## Active Launchers
+## Active Launcher
 
 The owner-facing default launcher is:
 
@@ -40,11 +40,9 @@ Double-click:
 ./Start_RIN.command
 ```
 
-Compatibility/developer launchers:
-
-- `Start_RIN_Python_Local_Model.command` delegates to `Start_RIN.command`.
-- `Start_RIN_Python.command` remains non-default provider-free mock mode for
-  developer testing.
+`Start_RIN.command` is the only normal owner-facing root launcher. The old
+`Start_RIN_Python_Local_Model.command` and `Start_RIN_Python.command` names were
+removed intentionally to reduce confusion; external APIs remain disabled.
 
 ## Production Safety
 

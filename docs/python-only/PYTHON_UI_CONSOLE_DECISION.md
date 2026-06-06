@@ -34,10 +34,12 @@ runtime and model adapter boundary as the compatibility API.
 
 ## Local Model Support
 
-`Start_RIN_Python_Local_Model.command` selects `rin-ollama-local`, validates
-that local Ollama has `qwen3:4b`, and starts the same FastAPI app. The UI uses
-the selected adapter through the app dependency, so local-model mode does not
-require a React or TypeScript layer.
+`Start_RIN.command` selects `rin-ollama-local`, validates that local Ollama has
+`qwen3:4b`, and starts the same FastAPI app. The UI uses the selected adapter
+through the app dependency, so local-model mode does not require a React or
+TypeScript layer. The old `Start_RIN_Python.command` and
+`Start_RIN_Python_Local_Model.command` launcher names were removed later to
+reduce confusion.
 
 ## External API Policy
 

@@ -9,23 +9,21 @@ Status: Python is the recommended primary launch path.
 - Verified real-data backup created.
 - Real-data migration dry-run passed.
 - Real-data migration apply completed with marker and audit record.
-- Python production launchers added.
-- TypeScript fallback launchers and source remain intact.
+- Python production launcher added.
+- TypeScript fallback is now Git-tag based.
 - `rin-python-production-check` added.
 
 ## Current Recommendation
 
-Recommended:
+Current recommended launcher:
 
 ```sh
-./Start_RIN_Python_Local_Model.command
+./Start_RIN.command
 ```
 
-Provider-free Python mode:
-
-```sh
-./Start_RIN_Python.command
-```
+It starts Python RIN with local Ollama `qwen3:4b` by default. The old
+`Start_RIN_Python.command` and `Start_RIN_Python_Local_Model.command` names were
+removed later as part of single-launcher simplification.
 
 Fallback:
 

@@ -60,10 +60,14 @@ JSON data/assets.
 - `docs/`
 - `public/live2d/`
 - `live2d-development/`
-- `Start_RIN_Python.command`
-- `Start_RIN_Python_Local_Model.command`
+- `Start_RIN.command`
 - `.rin-data/`
 - `.rin-python-backups/`
 
 Live2D assets and development materials are retained as non-TypeScript future
 work/historical material.
+
+The earlier extra Python launchers, `Start_RIN_Python.command` and
+`Start_RIN_Python_Local_Model.command`, were removed later during
+single-launcher simplification. The normal owner-facing root launcher is now
+only `Start_RIN.command`.

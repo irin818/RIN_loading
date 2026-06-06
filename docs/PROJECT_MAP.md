@@ -15,7 +15,8 @@ Current active pieces:
 - Local SQLite-backed `.rin-data/`.
 - Production cutover marker under `.rin-data/config/python_cutover_marker.json`.
 - Preserved backup bundles under `.rin-python-backups/`.
-- Local-model support through Ollama/Qwen3 when explicitly selected.
+- Local-model support through the default `Start_RIN.command` launcher, using
+  Ollama/Qwen3.
 - TypeScript rollback through the `typescript-final-fallback` Git tag.
 
 Retired from active tree:
@@ -35,16 +36,10 @@ python3.12 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
 ```
 
-Start Python mock mode:
+Start the owner-facing Python local-model UI:
 
 ```sh
-./Start_RIN_Python.command
-```
-
-Start Python local-model mode:
-
-```sh
-./Start_RIN_Python_Local_Model.command
+./Start_RIN.command
 ```
 
 Run checks:
