@@ -15,8 +15,8 @@ echo "当前项目目录："
 pwd
 echo
 
-if [ ! -x "Start_RIN_Python_Local_Model.command" ]; then
-  echo "[错误] 未找到 Python 启动器 Start_RIN_Python_Local_Model.command"
+if [ ! -x "Start_RIN.command" ]; then
+  echo "[错误] 未找到默认启动器 Start_RIN.command"
   echo "请把这个 .command 文件放到 RIN_loading 项目根目录。"
   echo
   read -n 1 -s -r -p "按任意键退出..."
@@ -44,4 +44,4 @@ echo "准备启动 RIN Python Console..."
 echo
 echo "主界面：$MAIN_URL"
 echo
-exec ./Start_RIN_Python_Local_Model.command
+exec ./Start_RIN.command

@@ -4,36 +4,36 @@ Status: owner-facing local startup guide.
 
 ## Default Safe Launcher
 
-Double-click `Start_RIN_Python.command` from the repository root.
+Double-click `Start_RIN.command` from the repository root.
 
 It will:
 
 - check the Python virtual environment exists;
+- check required Python packages are installed;
 - check the production migration marker exists;
-- start the Python FastAPI server and local web UI;
+- check Ollama is reachable at `http://127.0.0.1:11434`;
+- check `qwen3:4b` is available;
+- start the Python FastAPI server in local model mode;
 - serve `http://127.0.0.1:8765/`;
+- open the browser once after the server is ready;
 - keep the terminal window open for logs.
 
-The default launcher does not set external provider environment variables, does
-not require API keys, and does not call external APIs.
+The default launcher does not require API keys and does not call external APIs.
 
-## Local Ollama / Qwen3 Launcher
+## Local Ollama / Qwen3 Defaults
 
-Double-click `Start_RIN_Python_Local_Model.command` when you explicitly want to
-use local Ollama with `qwen3:4b`.
-
-It will first check that Ollama is reachable at `http://127.0.0.1:11434` and
-that `qwen3:4b` is available. If the model is missing, run:
+If the model is missing, run:
 
 ```sh
 ollama pull qwen3:4b
 ```
 
-This launcher sets only local Ollama environment variables for the process it
-starts. It does not call external APIs.
+The launcher sets only local Ollama environment variables for the process it
+starts:
 
-The local model launcher defaults to:
-
+- `RIN_MODEL_ADAPTER=rin-ollama-local`
+- `RIN_OLLAMA_BASE_URL=http://127.0.0.1:11434`
+- `RIN_OLLAMA_MODEL=qwen3:4b`
 - `RIN_OLLAMA_TIMEOUT_MS=180000`
 - `RIN_OLLAMA_NUM_PREDICT=1024`
 - `RIN_OLLAMA_TEMPERATURE=0.5`
@@ -45,7 +45,14 @@ assistant text instead of spending the response on `message.thinking`. You can
 override the numeric settings in your shell before launching if needed. If Qwen3
 still returns thinking tags or a reasoning preamble in `message.content`, the
 adapter removes recognized thinking-tag content and rejects remaining
-internal-analysis-style output instead of storing it as a RIN reply.
+internal-analysis-style output instead of storing it as a RIN reply. Remaining
+thinking leaks are tracked in `docs/python-only/THINKING_LEAK_FIX_PLAN.md`.
+
+## Compatibility Launchers
+
+- `Start_RIN_Python_Local_Model.command` delegates to `Start_RIN.command`.
+- `Start_RIN_Python.command` remains a non-default provider-free developer
+  launcher.
 
 ## Local Chat Smoke
 
@@ -111,13 +118,13 @@ Try:
 If double-clicking says the file cannot be opened, run this from the repository:
 
 ```sh
-chmod +x Start_RIN_Python.command Start_RIN_Python_Local_Model.command 打开RIN项目.command
+chmod +x Start_RIN.command Start_RIN_Python.command Start_RIN_Python_Local_Model.command 打开RIN项目.command
 ```
 
 If macOS quarantine blocks the file after download or transfer, run:
 
 ```sh
-xattr -d com.apple.quarantine Start_RIN_Python.command Start_RIN_Python_Local_Model.command 打开RIN项目.command
+xattr -d com.apple.quarantine Start_RIN.command Start_RIN_Python.command Start_RIN_Python_Local_Model.command 打开RIN项目.command
 ```
 
 ## If Python Dependencies Are Missing
