@@ -88,6 +88,8 @@ Status: Packages A-F final candidate validation completed for review.
   smoke.
 - Package A main-integration audit found PR #72 safe for preview-only main
   integration after final documentation and verification gates.
+- Package B adds top-level README and architecture preview notes so main users
+  can distinguish TypeScript production launch from Python preview launch.
 
 ## Unresolved Risks
 

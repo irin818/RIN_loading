@@ -41,7 +41,7 @@ Status: Package A final audit for preview-only main integration.
    - Yes. Python FastAPI is preview-compatible for core Console flow only. It
      does not claim full Console memory review API parity or production routing.
 9. Are preview docs clear?
-   - Mostly yes. `PYTHON_PREVIEW_GUIDE.md` is clear; Package B will add top-level
+   - Yes. `PYTHON_PREVIEW_GUIDE.md` is clear, and Package B adds top-level
      README/architecture discoverability before main merge.
 10. Is production cutover still blocked?
     - Yes. No production apply path exists, production launchers are unchanged,
@@ -55,7 +55,6 @@ Status: Package A final audit for preview-only main integration.
 
 ## Required Before Merge
 
-- Add concise top-level README and architecture preview notices.
 - Re-run Python candidate, preview, shadow, dry-run, rollback, and API contract
   checks.
 - Re-run TypeScript temp-data checks.
