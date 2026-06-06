@@ -16,6 +16,7 @@ Status: initialized for Package 0.
 | Context V2 | `src/context/contextV2.ts` | pure report builder added | Package 1 synthetic round-trip; Package 5 built-in fixture parity and repeated deterministic run | passed | no |
 | Ollama request | `src/model/ollamaAdapter.ts` | mocked adapter added | Package 6 mocked request/response tests | passed | no |
 | response sanitizer | `src/model` daily chat quality | thinking strip/empty-content handling added | Package 6 mocked error/sanitizer tests | passed | no |
+| temp write repository | `src/database`, runtime persistence | guarded temp-only writes added | Package 7 synthetic write tests + readonly summaries | passed | no |
 | structured errors | `src/model`, `src/conversation/errors.ts` | error contracts added | Package 1 synthetic round-trip | passed | no |
 | conversation runtime | `src/conversation/runtime.ts` | not started | pending Package 8 | pending | no |
 | audit events | `src/database`, `src/conversation` | not started | pending Package 3/7/8 | pending | no |
@@ -47,3 +48,6 @@ context injection or read/write runtime data.
 
 Package 6 adds a Python Ollama adapter over mocked tests only by default. Live
 Ollama smoke remains explicit and skipped unless selected by environment.
+
+Package 7 adds write support only for guarded synthetic/temp layouts. Production
+`.rin-data` is rejected by every write entry point and there is no override.

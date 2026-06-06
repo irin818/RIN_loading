@@ -14,6 +14,16 @@ from rin.database.readonly import (
     list_messages,
     open_readonly_database,
 )
+from rin.database.writes import (
+    append_audit_event,
+    append_message,
+    assert_safe_write_layout,
+    create_conversation,
+    create_memory_trace,
+    create_temp_layout_database,
+    initialize_temp_database,
+    record_failed_turn,
+)
 
 __all__ = [
     "AuditEventSummary",
@@ -30,5 +40,13 @@ __all__ = [
     "list_memory_v2_traces",
     "list_messages",
     "open_readonly_database",
+    "append_audit_event",
+    "append_message",
+    "assert_safe_write_layout",
+    "create_conversation",
+    "create_memory_trace",
+    "create_temp_layout_database",
+    "initialize_temp_database",
+    "record_failed_turn",
 ]
 """SQLite database helpers for the Python RIN candidate."""
