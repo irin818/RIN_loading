@@ -111,6 +111,7 @@ def test_python_ui_renders_local_status_and_profile_summary() -> None:
 
         assert response.status_code == 200
         assert "RIN Local Console" in response.text
+        assert "cybernetic link online" in response.text
         assert "console.css" in response.text
         assert "console.js" in response.text
         assert "Python-primary local RIN runtime." in response.text
@@ -124,6 +125,10 @@ def test_python_ui_renders_local_status_and_profile_summary() -> None:
         assert "Memory V2 traces" in response.text
         assert "Full text" in response.text
         assert "Body / Live2D" in response.text
+        assert "RIN Presence" in response.text
+        assert "RIN Avatar" in response.text
+        assert "/live2d/rin/rin-bust-front.png" in response.text
+        assert "Full Cubism runtime is future work" in response.text
         assert "External calls" in response.text
         assert "0" in response.text
         assert "Start a local conversation." in response.text
@@ -136,11 +141,15 @@ def test_python_ui_static_assets_are_served() -> None:
     try:
         css = client.get("/static/console.css")
         js = client.get("/static/console.js")
+        avatar = client.get("/live2d/rin/rin-bust-front.png")
 
         assert css.status_code == 200
-        assert "near-black" not in css.text
+        assert "avatar-stage" in css.text
+        assert "ambient-grid" in css.text
         assert "RIN console submit failed" in js.text
         assert "requestSubmit" in js.text
+        assert avatar.status_code == 200
+        assert avatar.headers["content-type"] == "image/png"
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
@@ -251,3 +260,23 @@ def test_no_typescript_or_node_artifacts_reintroduced() -> None:
     ]
 
     assert filtered == []
+
+
+def test_default_launcher_is_local_model_and_browser_open() -> None:
+    root = Path(__file__).resolve().parents[3]
+    launcher = root / "Start_RIN.command"
+    local_delegate = root / "Start_RIN_Python_Local_Model.command"
+    mock_launcher = root / "Start_RIN_Python.command"
+
+    launcher_text = launcher.read_text(encoding="utf-8")
+    local_delegate_text = local_delegate.read_text(encoding="utf-8")
+    mock_launcher_text = mock_launcher.read_text(encoding="utf-8")
+
+    assert 'RIN_MODEL_ADAPTER="rin-ollama-local"' in launcher_text
+    assert 'RIN_OLLAMA_MODEL="$OLLAMA_MODEL"' in launcher_text
+    assert "RIN_OLLAMA_TIMEOUT_MS" in launcher_text
+    assert "RIN_OLLAMA_NUM_PREDICT" in launcher_text
+    assert 'open "$LOCAL_URL"' in launcher_text
+    assert "for _ in {1..60}" in launcher_text
+    assert 'exec "$SCRIPT_DIR/Start_RIN.command"' in local_delegate_text
+    assert "Non-default developer launcher" in mock_launcher_text

@@ -1,13 +1,15 @@
-#!/bin/zsh
+#!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="${0:A:h}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PYTHON_DIR="$SCRIPT_DIR/python"
 VENV_PYTHON="$PYTHON_DIR/.venv/bin/python"
 PRODUCTION_DATA="$SCRIPT_DIR/.rin-data"
 MARKER="$PRODUCTION_DATA/config/python_cutover_marker.json"
 
 echo "RIN Python primary launcher"
+echo "Non-default developer launcher: provider-free mock mode."
+echo "Owner default launcher: Start_RIN.command"
 echo "TypeScript rollback tag: typescript-final-fallback"
 echo "Production data: $PRODUCTION_DATA"
 

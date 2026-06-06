@@ -25,8 +25,10 @@ from rin.profiles import build_profile_report
 from rin.storage import RinDataLayout
 
 SERVER_DIR = Path(__file__).parent
+REPO_ROOT = SERVER_DIR.parents[3]
 TEMPLATES = Jinja2Templates(directory=SERVER_DIR / "templates")
 STATIC_DIR = SERVER_DIR / "static"
+PUBLIC_LIVE2D_DIR = REPO_ROOT / "public" / "live2d"
 
 
 class ConversationCreateBody(BaseModel):
@@ -76,6 +78,12 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(title="RIN Python Compatibility API", version="0.0.0")
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    if PUBLIC_LIVE2D_DIR.is_dir():
+        app.mount(
+            "/live2d",
+            StaticFiles(directory=PUBLIC_LIVE2D_DIR),
+            name="live2d",
+        )
     selected_adapter = adapter or MockApiAdapter()
     selected_clock = clock or RuntimeClock()
 
@@ -416,6 +424,7 @@ def build_console_view_model(
         "profile_file_count": profile_file_count,
         "memory_context": memory_context,
         "body_report": body_report,
+        "avatar_asset_path": "/live2d/rin/rin-bust-front.png",
         "adapter_id": adapter_id,
         "model_name": model_name,
         "local_model_status": local_model_status,
