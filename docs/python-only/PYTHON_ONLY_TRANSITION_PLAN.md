@@ -55,12 +55,16 @@ See `docs/python-only/PYTHON_UI_CONSOLE_DECISION.md`.
 
 ### Package C: Python Launchers Become Sole Active Launchers
 
-After Package B passes:
+Status: completed.
 
-- keep Python launchers at root;
-- move TypeScript launchers to `scripts/typescript-fallback/` or remove root
-  active status;
-- document fallback through `typescript-final-fallback`.
+- Python launchers remain at root.
+- TypeScript fallback launchers moved to `scripts/typescript-fallback/`.
+- Fallback is documented through `typescript-final-fallback`.
+
+See:
+
+- `docs/python-only/PYTHON_ONLY_OPERATION_GUIDE.md`
+- `docs/python-only/TYPESCRIPT_FALLBACK_GUIDE.md`
 
 ### Package D: Remove TypeScript Core
 

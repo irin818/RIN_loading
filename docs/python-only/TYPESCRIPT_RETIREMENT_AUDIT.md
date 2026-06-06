@@ -2,6 +2,10 @@
 
 Status: Package A audit. No TypeScript deletion is approved by this document.
 
+Package C update: TypeScript fallback launchers were later moved from the
+repository root to `scripts/typescript-fallback/`. The root launcher path is now
+Python-only.
+
 ## Baseline
 
 - Repository: `/Users/irin/Documents/RIN_loading`

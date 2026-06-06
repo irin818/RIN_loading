@@ -16,11 +16,11 @@ Provider-free/mock launcher:
 ./Start_RIN_Python.command
 ```
 
-TypeScript fallback launchers remain available:
+TypeScript fallback launchers are rollback-only under:
 
 ```sh
-./Start_RIN.command
-./Start_RIN_Local_Model.command
+./scripts/typescript-fallback/Start_RIN_TypeScript_Fallback.command
+./scripts/typescript-fallback/Start_RIN_TypeScript_Local_Model_Fallback.command
 ```
 
 ## Safety Behavior
@@ -31,4 +31,5 @@ TypeScript fallback launchers remain available:
 - Local model launcher checks local Ollama for `qwen3:4b`.
 - Local model timeout defaults to 180 seconds.
 - External APIs are not required or enabled.
-- TypeScript Core and launchers are not removed.
+- TypeScript Core is not removed yet; fallback launchers are no longer active
+  root launchers.

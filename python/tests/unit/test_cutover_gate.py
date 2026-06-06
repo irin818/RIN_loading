@@ -153,13 +153,15 @@ def test_python_production_check_passes_after_marker(
     cutover.run_real_data_migration_dry_run()
     monkeypatch.setenv(cutover.ALLOW_MIGRATION_ENV, "allow")
     cutover.run_real_data_migration_apply()
-    for name in (
-        "Start_RIN_Python.command",
-        "Start_RIN_Python_Local_Model.command",
-        "Start_RIN.command",
-        "Start_RIN_Local_Model.command",
-    ):
+    for name in ("Start_RIN_Python.command", "Start_RIN_Python_Local_Model.command"):
         (tmp_path / name).write_text("#!/bin/zsh\n", encoding="utf-8")
+    fallback_dir = tmp_path / "scripts" / "typescript-fallback"
+    fallback_dir.mkdir(parents=True)
+    for name in (
+        "Start_RIN_TypeScript_Fallback.command",
+        "Start_RIN_TypeScript_Local_Model_Fallback.command",
+    ):
+        (fallback_dir / name).write_text("#!/bin/zsh\n", encoding="utf-8")
     monkeypatch.setattr(cutover, "REPO_ROOT", tmp_path)
 
     report = cutover.run_python_production_check()

@@ -25,8 +25,8 @@ Current root-level configuration includes:
 - `.gitignore` for generated, dependency, local-data, and secret exclusions.
 - `Start_RIN_Python.command` and `Start_RIN_Python_Local_Model.command` for
   Python primary macOS double-click launch after migration marker cutover.
-- `Start_RIN.command` and `Start_RIN_Local_Model.command` remain TypeScript
-  fallback macOS double-click launchers.
+- TypeScript fallback launchers live under `scripts/typescript-fallback/` and
+  are rollback-only, not active root launchers.
 - `python/` and `scripts/python-preview/` for the Python Core, preview, and
   sandbox workflows.
 
@@ -39,8 +39,9 @@ Governance and project documentation lives at the root and in `docs/`.
 The Python Core intentionally does not live under `src/`; it is isolated under
 `python/` with explicit `rin-python-*` commands. After the owner-approved
 cutover, Python is the recommended primary runtime. Production Python launchers
-require the real-data migration marker before using `.rin-data`. The TypeScript
-runtime, source, and launchers remain available as fallback.
+  require the real-data migration marker before using `.rin-data`. The
+  TypeScript runtime and source remain available for rollback, with fallback
+  launchers moved under `scripts/typescript-fallback/`.
 
 Current known module boundaries include:
 

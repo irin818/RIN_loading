@@ -4,12 +4,15 @@ Status: fallback retained after Python cutover.
 
 ## Launchers
 
-TypeScript fallback remains available:
+TypeScript fallback remains available as an explicit rollback path, not as an
+active root launcher:
 
 ```sh
-./Start_RIN.command
-./Start_RIN_Local_Model.command
+./scripts/typescript-fallback/Start_RIN_TypeScript_Fallback.command
+./scripts/typescript-fallback/Start_RIN_TypeScript_Local_Model_Fallback.command
 ```
+
+The final fallback source tag is `typescript-final-fallback`.
 
 ## When To Use
 
@@ -35,5 +38,5 @@ RIN_DATA_DIR="$TS_FALLBACK" npm run rin:v2-check
 
 - TypeScript Core has not been deleted.
 - TypeScript tests have not been removed.
-- TypeScript fallback launchers have not been removed.
+- TypeScript fallback launchers have moved under `scripts/typescript-fallback/`.
 - Production backup bundles must remain preserved.

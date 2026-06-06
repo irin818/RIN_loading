@@ -102,21 +102,21 @@ npm install
 Recommended: double-click `Start_RIN_Python_Local_Model.command` from the
 repository root to start the Python RIN primary backend and local web UI with
 local Ollama/Qwen3. Use `Start_RIN_Python.command` for provider-free mock mode.
-The Python UI is served at `http://127.0.0.1:8765/`. TypeScript fallback remains
-available through `Start_RIN.command` and `Start_RIN_Local_Model.command`.
+The Python UI is served at `http://127.0.0.1:8765/`. TypeScript fallback is
+historical/rollback-only under `scripts/typescript-fallback/`.
 
 推荐在仓库根目录双击 `Start_RIN_Python_Local_Model.command`，用本地
 Ollama/Qwen3 启动 Python RIN 主后端。`Start_RIN_Python.command` 可用于
-provider-free mock 模式。TypeScript fallback 仍可通过 `Start_RIN.command`
-和 `Start_RIN_Local_Model.command` 使用。
+provider-free mock 模式。TypeScript fallback 现在仅作为历史/回滚路径保留在
+`scripts/typescript-fallback/`。
 
 If macOS blocks the launcher, run:
 
 如果 macOS 阻止启动器，运行：
 
 ```sh
-chmod +x Start_RIN_Python.command Start_RIN_Python_Local_Model.command Start_RIN.command Start_RIN_Local_Model.command scripts/start-rin.sh scripts/start-rin-local-model.sh
-xattr -d com.apple.quarantine Start_RIN_Python.command Start_RIN_Python_Local_Model.command Start_RIN.command Start_RIN_Local_Model.command
+chmod +x Start_RIN_Python.command Start_RIN_Python_Local_Model.command scripts/typescript-fallback/*.command scripts/typescript-fallback/*.sh
+xattr -d com.apple.quarantine Start_RIN_Python.command Start_RIN_Python_Local_Model.command scripts/typescript-fallback/*.command
 ```
 
 If `python/.venv/` is missing, create it with Python 3.12 and reinstall the
@@ -137,8 +137,9 @@ editable package。如果缺少 `node_modules/`，先运行一次 `npm install` 
 TypeScript fallback 启动器。Python 和 TypeScript 启动器都不需要外部 API 或
 API Key。不要把 API Key 写入启动器文件。
 
-Optional local model mode: double-click `Start_RIN_Local_Model.command` only when
-you explicitly want local Ollama with `qwen3:4b`. It checks Ollama locally and
+Optional Python local model mode: double-click
+`Start_RIN_Python_Local_Model.command` when you explicitly want local Ollama
+with `qwen3:4b`. It checks Ollama locally and
 starts with a larger Qwen3 generation budget (`RIN_OLLAMA_NUM_PREDICT=1024`,
 `RIN_OLLAMA_TIMEOUT_MS=180000`) and the adapter asks Ollama for final content
 with `think: false` to reduce empty final responses. The adapter also removes
@@ -146,8 +147,8 @@ Qwen3 thinking tags from final content and rejects remaining internal-analysis
 style output instead of storing it as a RIN reply. It does not call external
 APIs. See `docs/LOCAL_LAUNCHER.md`.
 
-可选本地模型模式：只有在明确想使用本地 Ollama 和 `qwen3:4b` 时，才双击
-`Start_RIN_Local_Model.command`。它只检查本地 Ollama，并使用更大的 Qwen3 生成预算
+可选 Python 本地模型模式：只有在明确想使用本地 Ollama 和 `qwen3:4b` 时，
+才双击 `Start_RIN_Python_Local_Model.command`。它只检查本地 Ollama，并使用更大的 Qwen3 生成预算
 （`RIN_OLLAMA_NUM_PREDICT=1024`、`RIN_OLLAMA_TIMEOUT_MS=180000`）；adapter 也会用
 `think: false` 要求 Ollama 返回最终内容，以减少空最终回复。adapter 还会从最终内容中移除
 Qwen3 thinking tag，并拒绝仍然像内部分析的输出，避免把它存成 RIN 回复。它不调用外部 API。
@@ -156,9 +157,8 @@ Qwen3 thinking tag，并拒绝仍然像内部分析的输出，避免把它存�
 ## Python Core Primary / Python Core 主路径
 
 The Python Core is now the recommended primary backend after the real-data
-marker migration. The TypeScript RIN Console remains available as fallback
-through `Start_RIN.command` and `Start_RIN_Local_Model.command`; TypeScript Core
-has not been deleted.
+marker migration. The TypeScript RIN Console is rollback-only under
+`scripts/typescript-fallback/`; TypeScript Core has not been deleted yet.
 
 Python production launchers use real `.rin-data` only when the migration marker
 exists at `.rin-data/config/python_cutover_marker.json`. To run the
@@ -191,9 +191,8 @@ scripts/python-preview/Start_RIN_Python_Preview.command
 
 See `docs/python-migration/PYTHON_PREVIEW_GUIDE.md` for details.
 
-Python Core 现在是推荐主后端。TypeScript RIN Console 仍通过
-`Start_RIN.command` 和 `Start_RIN_Local_Model.command` 保留为 fallback；
-TypeScript Core 尚未删除。Python production launcher 只有在
+Python Core 现在是推荐主后端。TypeScript RIN Console 仅作为回滚路径保留在
+`scripts/typescript-fallback/`；TypeScript Core 尚未删除。Python production launcher 只有在
 `.rin-data/config/python_cutover_marker.json` 存在时才会使用真实 `.rin-data`。
 
 ## Run Empty Project
