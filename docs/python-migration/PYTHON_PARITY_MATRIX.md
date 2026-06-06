@@ -13,7 +13,7 @@ Status: initialized for Package 0.
 | Memory V2 schema | `src/memory/v2Schema.ts` | schema report contract + trace reads added | Package 1 synthetic round-trip; Package 3 SQLite fixture | passed | no |
 | Memory V2 scoring | `src/memory/v2Engine.ts` | pure analyzer added | Package 4 built-in fixture parity and repeated deterministic run | passed | no |
 | short-term memory | `src/memory` short-term report | trace contract/token helpers added | Package 1 synthetic round-trip; Package 4 token fixtures | passed | no |
-| Context V2 | `src/context/contextV2.ts` | report contract added | Package 1 synthetic round-trip | passed | no |
+| Context V2 | `src/context/contextV2.ts` | pure report builder added | Package 1 synthetic round-trip; Package 5 built-in fixture parity and repeated deterministic run | passed | no |
 | Ollama request | `src/model/ollamaAdapter.ts` | not started | pending Package 6 | pending | no |
 | response sanitizer | `src/model` daily chat quality | not started | pending Package 6 | pending | no |
 | structured errors | `src/model`, `src/conversation/errors.ts` | error contracts added | Package 1 synthetic round-trip | passed | no |
@@ -41,3 +41,6 @@ file hash unchanged.
 
 Package 4 adds pure Memory V2 algorithms and deterministic token helpers. It
 does not write Memory V2 traces or mutate accepted memory records.
+
+Package 5 adds pure Context V2 report assembly. It does not change production
+context injection or read/write runtime data.
