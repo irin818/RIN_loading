@@ -58,3 +58,22 @@ Implications:
 
 - SQLite access will begin with the Python standard library.
 - Dependency additions must remain justified in `python/README.md`.
+
+## Decision P0005: Python contracts preserve TypeScript JSON field names
+
+Decision:
+
+- Package 1 Pydantic contracts preserve compatibility-required TypeScript JSON
+  field names, including camelCase names.
+- Unknown fields are rejected with `extra="forbid"`.
+- Required TypeScript `null` fields remain nullable in Python.
+- Optional TypeScript fields are represented as `None` in Python and should be
+  serialized with `exclude_none=True` when matching JavaScript `undefined`
+  omission semantics.
+
+Implications:
+
+- Later API and runtime packages must choose serialization intentionally instead
+  of relying on Pydantic defaults for optional fields.
+- Data-contract tests use synthetic fixtures only and do not imply storage,
+  database, provider, or runtime behavior parity yet.
