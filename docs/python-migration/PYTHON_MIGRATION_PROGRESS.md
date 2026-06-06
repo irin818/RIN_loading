@@ -4,10 +4,10 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package 2 — Storage and Profile Read-Only Compatibility.
-- Current checkpoint: Package 2 implementation and checks passed; PR creation
+- Current package: Package 3 — SQLite Read-Only Repository.
+- Current checkpoint: Package 3 implementation and checks passed; PR creation
   pending.
-- Active branch: `python-rewrite/02-storage-profiles-readonly`.
+- Active branch: `python-rewrite/03-database-readonly`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -15,8 +15,8 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `dd17807 Merge pull request #62 from irin818/python-rewrite/01-data-contracts`.
-- Open PR: none for Package 2 yet.
+  `b7b1cd2 Merge pull request #63 from irin818/python-rewrite/02-storage-profiles-readonly`.
+- Open PR: none for Package 3 yet.
 
 ## Completed Work
 
@@ -58,6 +58,13 @@ Status: active handoff document.
   `rin-python-profile-report`.
 - Updated root npm Python wrappers to use `python/.venv/bin/python` explicitly
   instead of plain `python`.
+- Merged Package 2 PR #63 into `python-rewrite/main`.
+- Started Package 3 branch `python-rewrite/03-database-readonly`.
+- Implemented read-only SQLite repository support with `mode=ro` connections.
+- Added schema/table inspection, conversation/message reads, legacy memory reads,
+  Memory V2 trace reads, and safe audit summaries.
+- Added synthetic `/tmp/rin-python-*` SQLite fixture tests, including database
+  hash stability after inspection and read-only write rejection.
 
 ## Tests Run
 
@@ -103,6 +110,16 @@ Status: active handoff document.
   - `RIN_DATA_DIR=/tmp/rin-python-* .venv/bin/rin-python-storage-report`
   - `RIN_DATA_DIR=/tmp/rin-python-* .venv/bin/rin-python-profile-validate`
   - `RIN_DATA_DIR=/tmp/rin-python-* .venv/bin/rin-python-profile-report`
+- Package 3 focused Python gates passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+- Package 3 aggregate Python gates passed:
+  - `.venv/bin/rin-python-check`
+  - `.venv/bin/rin-python-parity-check`
+  - `.venv/bin/rin-python-readiness`
+  - `.venv/bin/rin-python-candidate-check`
 - Initial TypeScript `npm run rin:check`: failed at readiness because the new
   migration worktree had no initialized local data directory.
 - TypeScript temp-data setup:
@@ -126,6 +143,13 @@ Status: active handoff document.
     passed.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg2.LdQzRL npm run rin:profile-report`
     passed.
+- Stable TypeScript Package 3 reference checks:
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg3.XwglNK npm run rin:init` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg3.XwglNK npm run rin:check` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg3.XwglNK npm run rin:conversation-runtime-report`
+    passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg3.XwglNK npm run rin:memory-v2-schema-report`
+    passed.
 - `git diff --check`: passed.
 
 ## Parity Status
@@ -141,6 +165,10 @@ Status: active handoff document.
   interpretation.
 - Package 2 validates manifest parsing, core file presence, valid/invalid
   profile summaries, missing manifest handling, and temp-only fixture paths.
+- Package 3 parity target: synthetic SQLite fixture interpretation.
+- Package 3 validates schema version/table counts, deterministic conversation
+  and message ordering, legacy memory row mapping, Memory V2 trace row mapping,
+  audit summary privacy, and read-only DB behavior.
 - Parity matrix initialized in `PYTHON_PARITY_MATRIX.md`.
 - Behavioral parity begins in Package 1 with data contracts and synthetic
   fixtures.
@@ -157,9 +185,11 @@ Status: active handoff document.
   omission semantics.
 - Package 2 storage reports include local paths in CLI output because they are
   local diagnostic commands, but they do not include private profile text.
+- Package 3 does not run migrations or create missing tables; all access is
+  read-only and expects an existing SQLite file.
 
 ## Exact Next Task
 
-Commit Package 2, push `python-rewrite/02-storage-profiles-readonly`, open a PR
+Commit Package 3, push `python-rewrite/03-database-readonly`, open a PR
 targeting `python-rewrite/main`, review and merge only if gates pass, then
-continue to Package 3.
+continue to Package 4.
