@@ -51,4 +51,6 @@ cutover.
 - Production migration apply: passed; second run returned `already_applied`.
 - Current post-apply DB hash:
   `45a2ed6287bf900eb008351904fd1856779f346e6f5c1a2a54567a0ea1042875`.
+- Python production launchers: added.
+- TypeScript fallback launchers: preserved.
 - Cutover approval: still required from owner.

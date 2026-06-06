@@ -4,9 +4,10 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Cutover Acceleration Package C — Real Data Migration Apply.
-- Current checkpoint: real-data migration apply implemented and executed once.
-- Active branch: `python-cutover/03-real-data-migration-apply`.
+- Current package: Cutover Acceleration Package D — Python Production Launcher.
+- Current checkpoint: Python production launchers added; TypeScript fallback
+  preserved.
+- Active branch: `python-cutover/04-python-production-launcher`.
 - Target integration branch: `main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -210,6 +211,17 @@ Status: active handoff document.
 - Added marker-gated production write safety:
   Python production writes require `.rin-data/config/python_cutover_marker.json`.
 - Added `PYTHON_REAL_DATA_MIGRATION_APPLY.md`.
+- Merged Package C PR #86 into `main`.
+- Started cutover acceleration Package D branch
+  `python-cutover/04-python-production-launcher`.
+- Added Python production server command:
+  `rin-python-production-server`.
+- Added root Python production launchers:
+  - `Start_RIN_Python.command`
+  - `Start_RIN_Python_Local_Model.command`
+- Added `PYTHON_PRODUCTION_LAUNCHER.md`.
+- Updated `README.md` launch guidance to recommend Python and keep TypeScript
+  fallback launchers.
 
 ## Tests Run
 
@@ -718,6 +730,17 @@ Status: active handoff document.
   - temp-data `npm run rin:v2-check`
   - `git diff --check`
   - safety scans for ignored backup/state/sandbox/venv/data paths.
+- Cutover Package D checks passed:
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/rin-python-candidate-check`
+  - `zsh -n Start_RIN_Python.command`
+  - `zsh -n Start_RIN_Python_Local_Model.command`
+  - temp-data `npm run rin:v2-check`
+  - `git diff --check`
+  - safety scans for ignored backup/state/sandbox/venv/data paths.
 - Copied owner-data read verification:
   - temporary copy under `/tmp/rin-python-owner-copy.*`.
   - original DB hash unchanged: yes.
@@ -838,6 +861,9 @@ Status: active handoff document.
   legacy tests after the marker enabled production writes. Tests were fixed to
   use markerless fake production paths. No raw message text was added by those
   test artifacts.
+- Cutover Package D adds Python production launchers that refuse to start
+  without the migration marker and bind the Python server to `127.0.0.1:8765`.
+  TypeScript launchers remain unchanged and available.
 
 ## Exact Next Task
 
@@ -847,6 +873,6 @@ Owner can manually test Python Preview from `main` using
 real `.rin-data` migration, or TypeScript Core removal still requires a separate
 owner-approved PR.
 
-Push `python-cutover/03-real-data-migration-apply`, open a PR to `main`, and
-merge only if review remains clean. Then continue to Package D Python production
-launcher with TypeScript fallback.
+Push `python-cutover/04-python-production-launcher`, open a PR to `main`, and
+merge only if review remains clean. Then continue to Package E final default
+recommendation switch and production check.

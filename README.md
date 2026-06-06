@@ -99,30 +99,43 @@ npm install
 
 ## One-click local launch / 一键启动
 
-Double-click `Start_RIN.command` from the repository root to start the local RIN
-Console. It checks Node/npm, checks `node_modules/`, runs local readiness,
-starts `npm run rin:console`, opens `http://127.0.0.1:4173`, and keeps a
-terminal window open for logs.
+Recommended: double-click `Start_RIN_Python_Local_Model.command` from the
+repository root to start the Python RIN primary backend with local
+Ollama/Qwen3. Use `Start_RIN_Python.command` for provider-free mock mode.
+TypeScript fallback remains available through `Start_RIN.command` and
+`Start_RIN_Local_Model.command`.
 
-在仓库根目录双击 `Start_RIN.command` 可启动本地 RIN Console。它会检查 Node/npm、
-检查 `node_modules/`、运行本地 readiness、启动 `npm run rin:console`、打开
-`http://127.0.0.1:4173`，并保留终端窗口显示日志。
+推荐在仓库根目录双击 `Start_RIN_Python_Local_Model.command`，用本地
+Ollama/Qwen3 启动 Python RIN 主后端。`Start_RIN_Python.command` 可用于
+provider-free mock 模式。TypeScript fallback 仍可通过 `Start_RIN.command`
+和 `Start_RIN_Local_Model.command` 使用。
 
 If macOS blocks the launcher, run:
 
 如果 macOS 阻止启动器，运行：
 
 ```sh
-chmod +x Start_RIN.command Start_RIN_Local_Model.command scripts/start-rin.sh scripts/start-rin-local-model.sh
-xattr -d com.apple.quarantine Start_RIN.command Start_RIN_Local_Model.command
+chmod +x Start_RIN_Python.command Start_RIN_Python_Local_Model.command Start_RIN.command Start_RIN_Local_Model.command scripts/start-rin.sh scripts/start-rin-local-model.sh
+xattr -d com.apple.quarantine Start_RIN_Python.command Start_RIN_Python_Local_Model.command Start_RIN.command Start_RIN_Local_Model.command
 ```
 
-If `node_modules/` is missing, run `npm install` once and then double-click the
-launcher again. External APIs and API keys are not required by the default
-launcher. Do not put API keys in launcher files.
+If `python/.venv/` is missing, create it with Python 3.12 and reinstall the
+editable Python package:
 
-如果缺少 `node_modules/`，先运行一次 `npm install`，然后再次双击启动器。默认
-启动器不需要外部 API 或 API Key。不要把 API Key 写入启动器文件。
+```sh
+cd python
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
+```
+
+If `node_modules/` is missing, run `npm install` once before using the
+TypeScript fallback launchers. External APIs and API keys are not required by
+the Python or TypeScript launchers. Do not put API keys in launcher files.
+
+如果缺少 `python/.venv/`，先用 Python 3.12 创建 venv 并重新安装 Python
+editable package。如果缺少 `node_modules/`，先运行一次 `npm install` 再使用
+TypeScript fallback 启动器。Python 和 TypeScript 启动器都不需要外部 API 或
+API Key。不要把 API Key 写入启动器文件。
 
 Optional local model mode: double-click `Start_RIN_Local_Model.command` only when
 you explicitly want local Ollama with `qwen3:4b`. It checks Ollama locally and
@@ -140,18 +153,31 @@ APIs. See `docs/LOCAL_LAUNCHER.md`.
 Qwen3 thinking tag，并拒绝仍然像内部分析的输出，避免把它存成 RIN 回复。它不调用外部 API。
 详见 `docs/LOCAL_LAUNCHER.md`。
 
-## Python Core Preview / Python Core 预览
+## Python Core Primary / Python Core 主路径
 
-The Python Core is included as a preview/candidate implementation only. The
-default production runtime remains the TypeScript RIN Console launched by
-`Start_RIN.command`; `Start_RIN_Local_Model.command` remains the TypeScript local
-Ollama launcher. No real `.rin-data` migration or production cutover has
-occurred.
+The Python Core is now the recommended primary backend after the real-data
+marker migration. The TypeScript RIN Console remains available as fallback
+through `Start_RIN.command` and `Start_RIN_Local_Model.command`; TypeScript Core
+has not been deleted.
 
-Python Preview uses temporary data under `/tmp/rin-python-preview-*` by default
-and refuses the production data path
-`/Users/irin/Documents/RIN_loading/.rin-data`. To run the provider-free preview
-smoke:
+Python production launchers use real `.rin-data` only when the migration marker
+exists at `.rin-data/config/python_cutover_marker.json`. To run the
+provider-free Python production server:
+
+```sh
+./Start_RIN_Python.command
+```
+
+To run the recommended local-model Python server:
+
+```sh
+./Start_RIN_Python_Local_Model.command
+```
+
+Python Preview and Sandbox modes remain available for non-production testing.
+Preview uses temporary data under `/tmp/rin-python-preview-*`; Sandbox uses the
+ignored persistent `.rin-python-preview-data` directory. To run the
+provider-free preview smoke:
 
 ```sh
 npm run rin-python-preview-smoke
@@ -165,11 +191,10 @@ scripts/python-preview/Start_RIN_Python_Preview.command
 
 See `docs/python-migration/PYTHON_PREVIEW_GUIDE.md` for details.
 
-Python Core 目前只是预览/候选实现。默认正式运行路径仍然是
-`Start_RIN.command` 启动的 TypeScript RIN Console；
-`Start_RIN_Local_Model.command` 仍然是 TypeScript 本地 Ollama 启动器。当前没有进行真实
-`.rin-data` 迁移，也没有进行生产切换。Python Preview 默认使用
-`/tmp/rin-python-preview-*` 临时数据，并会拒绝真实生产数据路径。
+Python Core 现在是推荐主后端。TypeScript RIN Console 仍通过
+`Start_RIN.command` 和 `Start_RIN_Local_Model.command` 保留为 fallback；
+TypeScript Core 尚未删除。Python production launcher 只有在
+`.rin-data/config/python_cutover_marker.json` 存在时才会使用真实 `.rin-data`。
 
 ## Run Empty Project
 
