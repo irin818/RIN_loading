@@ -492,8 +492,11 @@ def run_python_production_check(
     backup_exists = latest_backup_exists()
     python_launcher = REPO_ROOT / "Start_RIN_Python.command"
     python_local_launcher = REPO_ROOT / "Start_RIN_Python_Local_Model.command"
-    ts_launcher = REPO_ROOT / "Start_RIN.command"
-    ts_local_launcher = REPO_ROOT / "Start_RIN_Local_Model.command"
+    ts_fallback_dir = REPO_ROOT / "scripts" / "typescript-fallback"
+    ts_launcher = ts_fallback_dir / "Start_RIN_TypeScript_Fallback.command"
+    ts_local_launcher = (
+        ts_fallback_dir / "Start_RIN_TypeScript_Local_Model_Fallback.command"
+    )
     local_model_ready = check_local_ollama_model() if check_local_model else None
     passed = all(
         [

@@ -9,7 +9,7 @@ OLLAMA_TEMPERATURE="${RIN_OLLAMA_TEMPERATURE:-0.5}"
 OLLAMA_TOP_P="${RIN_OLLAMA_TOP_P:-0.9}"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repo_dir="$(cd "$script_dir/.." && pwd)"
+repo_dir="$(cd "$script_dir/../.." && pwd)"
 
 pause_on_error() {
   local exit_code="$1"
@@ -21,7 +21,8 @@ pause_on_error() {
 
 trap 'pause_on_error $?' EXIT
 
-echo "RIN local model launcher"
+echo "RIN TypeScript local-model fallback"
+echo "Use only for rollback from the Python primary runtime."
 echo "This launcher explicitly selects local Ollama only."
 echo "External APIs are not required and are not enabled."
 echo ""
@@ -30,13 +31,13 @@ cd "$repo_dir"
 
 if ! command -v node >/dev/null 2>&1; then
   echo "Node.js was not found."
-  echo "Install Node.js 22 or newer, then try Start_RIN_Local_Model.command again."
+  echo "Install Node.js 22 or newer, then try the TypeScript fallback again."
   exit 1
 fi
 
 if ! command -v npm >/dev/null 2>&1; then
   echo "npm was not found."
-  echo "Install npm with Node.js, then try Start_RIN_Local_Model.command again."
+  echo "Install npm with Node.js, then try the TypeScript fallback again."
   exit 1
 fi
 
@@ -44,7 +45,7 @@ if [ ! -d "node_modules" ]; then
   echo "Dependencies are not installed."
   echo "Run this once from the RIN repository:"
   echo "  npm install"
-  echo "Then double-click Start_RIN_Local_Model.command again."
+  echo "Then start the TypeScript fallback again."
   exit 1
 fi
 

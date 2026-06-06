@@ -4,15 +4,14 @@ Status: owner-facing local startup guide.
 
 ## Default Safe Launcher
 
-Double-click `Start_RIN.command` from the repository root.
+Double-click `Start_RIN_Python.command` from the repository root.
 
 It will:
 
-- check Node.js and npm are available;
-- check `node_modules/` exists;
-- run `npm run rin:readiness`;
-- start `npm run rin:console`;
-- open `http://127.0.0.1:4173`;
+- check the Python virtual environment exists;
+- check the production migration marker exists;
+- start the Python FastAPI server and local web UI;
+- serve `http://127.0.0.1:8765/`;
 - keep the terminal window open for logs.
 
 The default launcher does not set external provider environment variables, does
@@ -20,8 +19,8 @@ not require API keys, and does not call external APIs.
 
 ## Local Ollama / Qwen3 Launcher
 
-Double-click `Start_RIN_Local_Model.command` only when you explicitly want to use
-local Ollama with `qwen3:4b`.
+Double-click `Start_RIN_Python_Local_Model.command` when you explicitly want to
+use local Ollama with `qwen3:4b`.
 
 It will first check that Ollama is reachable at `http://127.0.0.1:11434` and
 that `qwen3:4b` is available. If the model is missing, run:
@@ -59,7 +58,7 @@ RIN_OLLAMA_BASE_URL=http://127.0.0.1:11434 \
 RIN_OLLAMA_MODEL=qwen3:4b \
 RIN_OLLAMA_NUM_PREDICT=1024 \
 RIN_OLLAMA_TIMEOUT_MS=180000 \
-npm run rin:local-chat-smoke
+cd python && .venv/bin/rin-python-local-chat-smoke
 ```
 
 Without `RIN_MODEL_ADAPTER=rin-ollama-local`, the command skips safely and does
@@ -113,24 +112,31 @@ Try:
 If double-clicking says the file cannot be opened, run this from the repository:
 
 ```sh
-chmod +x Start_RIN.command Start_RIN_Local_Model.command scripts/start-rin.sh scripts/start-rin-local-model.sh
+chmod +x Start_RIN_Python.command Start_RIN_Python_Local_Model.command scripts/typescript-fallback/*.command scripts/typescript-fallback/*.sh
 ```
 
 If macOS quarantine blocks the file after download or transfer, run:
 
 ```sh
-xattr -d com.apple.quarantine Start_RIN.command Start_RIN_Local_Model.command
+xattr -d com.apple.quarantine Start_RIN_Python.command Start_RIN_Python_Local_Model.command scripts/typescript-fallback/*.command
 ```
 
-## If Dependencies Are Missing
+## If Python Dependencies Are Missing
 
 The launcher will not install dependencies automatically. Run:
 
 ```sh
-npm install
+cd python
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
 ```
 
 Then double-click the launcher again.
+
+## TypeScript Fallback
+
+TypeScript fallback is rollback-only under `scripts/typescript-fallback/`.
+Use it only when validating or performing rollback from the Python primary path.
 
 ## Secrets Policy
 

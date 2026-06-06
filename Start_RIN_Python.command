@@ -8,7 +8,7 @@ PRODUCTION_DATA="$SCRIPT_DIR/.rin-data"
 MARKER="$PRODUCTION_DATA/config/python_cutover_marker.json"
 
 echo "RIN Python primary launcher"
-echo "TypeScript fallback remains available: Start_RIN.command"
+echo "TypeScript fallback moved to: scripts/typescript-fallback/"
 echo "Production data: $PRODUCTION_DATA"
 
 if [[ ! -x "$VENV_PYTHON" ]]; then

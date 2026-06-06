@@ -30,12 +30,12 @@ Provider-free Python mode:
 Fallback:
 
 ```sh
-./Start_RIN_Local_Model.command
-./Start_RIN.command
+./scripts/typescript-fallback/Start_RIN_TypeScript_Local_Model_Fallback.command
+./scripts/typescript-fallback/Start_RIN_TypeScript_Fallback.command
 ```
 
 ## Not Done
 
 - TypeScript Core has not been deleted.
-- TypeScript fallback launchers have not been removed.
+- TypeScript fallback launchers have moved out of the root active launcher path.
 - Long-running production soak has not yet completed.
