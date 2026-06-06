@@ -185,3 +185,20 @@ Implications:
 - The Python candidate can be tested with deterministic mock adapters without
   hiding model failures.
 - Production runtime replacement remains out of scope until final cutover review.
+
+## Decision P0013: FastAPI compatibility is app-factory only
+
+Decision:
+
+- Package 9 exposes a FastAPI app factory for local compatibility testing.
+- It is not wired into the macOS launcher, TypeScript Console, or production
+  runtime.
+- Write routes reject layouts outside `/tmp/rin-python-*` and default to a mock
+  local adapter.
+
+Implications:
+
+- API contract tests can validate candidate behavior without opening a server or
+  touching real data.
+- Binding, deployment, launcher replacement, and production routing remain
+  explicit cutover tasks.

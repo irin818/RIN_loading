@@ -21,7 +21,7 @@ Status: initialized for Package 0.
 | conversation runtime | `src/conversation/runtime.ts` | temp-only candidate added | Package 8 mock runtime tests + TS runtime report | passed | no |
 | audit events | `src/database`, `src/conversation` | not started | pending Package 3/7/8 | pending | no |
 | readiness | `src/readiness` | foundation + TS readiness contract | Package 0 provider-free readiness; Package 1 synthetic round-trip | passed | no |
-| local API | `src/server` | not started | pending Package 9 | pending | no |
+| local API | `src/server` | local-only FastAPI app factory added | Package 9 API contract tests + TS v2 check | passed | no |
 
 Package 0 creates only foundation checks and safety scaffolding. It does not
 claim behavioral parity for migrated TypeScript core capabilities. The Package 0
@@ -55,3 +55,6 @@ Package 7 adds write support only for guarded synthetic/temp layouts. Production
 Package 8 adds a candidate runtime path for synthetic/temp layouts. It preserves
 owner messages on model failure, writes no fake reply, and does not replace the
 TypeScript production runtime.
+
+Package 9 adds a local-only FastAPI compatibility layer. It is not connected to
+production launchers and rejects write routes outside guarded temp layouts.
