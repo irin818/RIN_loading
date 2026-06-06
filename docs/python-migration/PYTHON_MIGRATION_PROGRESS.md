@@ -4,9 +4,9 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package C — Copied-Data Shadow Validation.
-- Current checkpoint: Package C implementation in progress.
-- Active branch: `python-rewrite/13-copied-data-shadow-validation`.
+- Current package: Package D — Migration Dry-Run and Rollback Rehearsal.
+- Current checkpoint: Package D implementation in progress.
+- Active branch: `python-rewrite/14-migration-dry-run-rollback`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -14,7 +14,7 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `f6c270f Merge pull request #74 from irin818/python-rewrite/12-python-preview-launcher`.
+  `9c5917c Merge pull request #75 from irin818/python-rewrite/13-copied-data-shadow-validation`.
 - Draft candidate PR: #72, review-only, open, draft, unmerged to `main`.
 
 ## Completed Work
@@ -132,6 +132,12 @@ Status: active handoff document.
 - Added copied-data shadow validation command
   `rin-python-copy-data-shadow-report`.
 - Added `PYTHON_SHADOW_VALIDATION.md`.
+- Merged Package C PR #75 into `python-rewrite/main`.
+- Started Package D branch `python-rewrite/14-migration-dry-run-rollback`.
+- Added dry-run and rollback rehearsal commands:
+  - `rin-python-production-migration-dry-run`
+  - `rin-python-rollback-rehearsal`
+- Added `PYTHON_ROLLBACK_PLAN.md`.
 
 ## Tests Run
 
@@ -302,6 +308,28 @@ Status: active handoff document.
   - Write simulation: passed on copy only.
   - Private text included: no.
   - Full profile included: no.
+- Package D focused Python gates passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+  - `.venv/bin/rin-python-production-migration-dry-run` passed.
+  - `.venv/bin/rin-python-rollback-rehearsal` passed.
+  - `.venv/bin/rin-python-check`
+  - `.venv/bin/rin-python-parity-check`
+  - `.venv/bin/rin-python-readiness`
+  - `.venv/bin/rin-python-candidate-check`
+- Package D dry-run result:
+  - Source DB hash unchanged: yes.
+  - Copied-data result: passed.
+  - Production apply available: no.
+  - Private text included: no.
+  - Planned operations are copy/inspect/simulate/verify only.
+- Package D rollback rehearsal result:
+  - Python write session: passed on copy.
+  - TypeScript readable state: compatible schema, no launcher change.
+  - Production apply available: no.
+  - Private text included: no.
 - Optional Python local Ollama smoke:
   - default `rin-python-local-chat-smoke` skipped with zero model calls.
   - `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_TIMEOUT_MS=60000`
@@ -385,6 +413,9 @@ Status: active handoff document.
 - Stable TypeScript Package C reference checks:
   - `RIN_DATA_DIR=/tmp/rin-python-ts-ref.VCITYY npm run rin:check` passed.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-v2.16Rndm npm run rin:v2-check` passed.
+- Stable TypeScript Package D reference checks:
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-ref.3P0p2o npm run rin:check` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-v2.fHq2cD npm run rin:v2-check` passed.
 - Copied owner-data read verification:
   - temporary copy under `/tmp/rin-python-owner-copy.*`.
   - original DB hash unchanged: yes.
@@ -478,9 +509,11 @@ Status: active handoff document.
 - Package C shadow validation copies source data before Python inspection or
   write simulation, hashes the source DB before/after, and prints no private raw
   text.
+- Package D dry-run and rollback rehearsal expose no production apply path and
+  mutate copied/temp data only.
 
 ## Exact Next Task
 
-Finish Package C checks, push `python-rewrite/13-copied-data-shadow-validation`,
+Finish Package D checks, push `python-rewrite/14-migration-dry-run-rollback`,
 open a PR targeting `python-rewrite/main`, review and merge only if gates pass,
-then continue to Package D.
+then continue to Package E.

@@ -26,6 +26,8 @@ Status: initialized for Package 0.
 | timing metrics | `src/conversation/runtimeReport.ts` | safe runtime elapsed result added | Package A runtime tests | passed | no |
 | preview mode | n/a production TypeScript launcher | temp-only Python preview added | Package B preview smoke tests | passed | no |
 | copied-data shadow validation | read-only owner data inspection | copy-first shadow report added | Package C synthetic hash/copy tests | passed | no |
+| migration dry-run | TypeScript remains production reference | copy-only dry-run added, no apply path | Package D synthetic dry-run tests | passed | no |
+| rollback rehearsal | TypeScript rollback path | copy-only rehearsal added | Package D rollback tests | passed | no |
 
 Package 0 creates only foundation checks and safety scaffolding. It does not
 claim behavioral parity for migrated TypeScript core capabilities. The Package 0
@@ -74,3 +76,6 @@ binds to localhost, and leaves TypeScript launchers unchanged.
 
 Package C copies owner data to `/tmp/rin-python-shadow-*` before Python
 inspection or write simulation and verifies the source DB hash is unchanged.
+
+Package D adds dry-run and rollback rehearsal commands only. There is no
+production migration apply path.

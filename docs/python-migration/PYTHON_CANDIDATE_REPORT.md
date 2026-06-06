@@ -77,6 +77,8 @@ Status: Package 10 candidate validation completed for review.
 - No production launcher or main-branch cutover changes are included.
 - Rollback remains: continue using TypeScript main and ignore Python integration
   branches.
+- Package D dry-run/rehearsal commands simulate migration and rollback only on
+  copied/temp data and expose no production apply path.
 
 ## Unresolved Risks
 

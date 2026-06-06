@@ -50,6 +50,8 @@
     "rin-python-preview-smoke": "cd python && .venv/bin/python -m rin.cli.preview_smoke",
     "rin-python-preview-local-model-smoke": "cd python && .venv/bin/python -m rin.cli.preview_local_model_smoke",
     "rin-python-copy-data-shadow-report": "cd python && .venv/bin/python -m rin.cli.copy_data_shadow_report",
+    "rin-python-production-migration-dry-run": "cd python && .venv/bin/python -m rin.cli.production_migration_dry_run",
+    "rin-python-rollback-rehearsal": "cd python && .venv/bin/python -m rin.cli.rollback_rehearsal",
     "rin:full-check": "npm run rin:check && npm run rin:semantic-eval && npm run rin:semantic-readiness && npm run rin:semantic-index-report && npm run rin:semantic-live-index-report && npm run rin:hybrid-retrieval-report && npm run rin:semantic-trace-list && npm run rin:semantic-trace-read && npm run rin:memory-maintenance-report && npm run rin:backup-dry-run && npm run rin:backup-encrypted-smoke && npm run rin:restore-dry-run",
     "rin:v0-2-check": "npm run rin:full-check",
     "rin:v0-3-check": "npm run rin:v0-2-check && npm run rin:external-model-smoke && npm run rin:project-report && npm run rin:rollback-notes",

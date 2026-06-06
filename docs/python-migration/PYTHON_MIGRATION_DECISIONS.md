@@ -237,3 +237,18 @@ Implications:
 - Copied-data validation can increase confidence without approving real-data
   migration.
 - Any source hash change is a hard stop condition.
+
+## Decision P0016: Production migration apply is intentionally absent
+
+Decision:
+
+- Package D adds dry-run and rollback rehearsal commands only.
+- There is no production migration apply command, flag, or confirmation token.
+- Dry-run and rollback rehearsal copy data to `/tmp/rin-python-shadow-*` and
+  mutate only the copy.
+- Rollback remains TypeScript-first until an owner-approved cutover changes that.
+
+Implications:
+
+- The candidate can be rehearsed without crossing production boundaries.
+- Any future apply path must be a separate owner-approved task.
