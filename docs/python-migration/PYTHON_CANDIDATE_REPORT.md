@@ -86,6 +86,8 @@ Status: Packages A-F final candidate validation completed for review.
   checks, TypeScript v2 checks, copied-data shadow validation, migration
   dry-run, rollback rehearsal, API contract check, and optional local Ollama
   smoke.
+- Package A main-integration audit found PR #72 safe for preview-only main
+  integration after final documentation and verification gates.
 
 ## Unresolved Risks
 
