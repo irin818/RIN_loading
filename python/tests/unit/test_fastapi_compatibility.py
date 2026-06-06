@@ -110,26 +110,31 @@ def test_python_ui_renders_local_status_and_profile_summary() -> None:
         response = client.get("/")
 
         assert response.status_code == 200
-        assert "RIN Local Console" in response.text
-        assert "cybernetic link online" in response.text
+        assert "RIN control chamber" in response.text
+        assert 'class="cockpit-shell"' in response.text
+        assert 'class="command-bar"' in response.text
+        assert 'class="cockpit-grid"' in response.text
+        assert 'class="conversation-rail"' in response.text
+        assert 'class="chat-cockpit"' in response.text
+        assert 'class="composer-dock"' in response.text
+        assert 'class="right-console"' in response.text
+        assert 'class="status-matrix"' in response.text
+        assert 'class="micro-grid"' in response.text
         assert "console.css" in response.text
         assert "console.js" in response.text
         assert "Python-primary local RIN runtime." in response.text
-        assert "Local AI operating console" in response.text
-        assert "Readiness" in response.text
-        assert "Ready" in response.text
+        assert "Python local runtime" in response.text
         assert "Adapter rin-mock-local" in response.text
-        assert "Local model" in response.text
-        assert "Profile" in response.text
-        assert "Files" in response.text
-        assert "Memory V2 traces" in response.text
-        assert "Full text" in response.text
-        assert "Body / Live2D" in response.text
-        assert "RIN Presence" in response.text
-        assert "RIN Avatar" in response.text
+        assert "LOCAL MODEL" in response.text
+        assert "MEMORY V2" in response.text
+        assert "PROFILE" in response.text
+        assert "Profile files" in response.text
+        assert "Trace text" in response.text
+        assert "Body" in response.text
+        assert "RIN ONLINE" in response.text
         assert "/live2d/rin/rin-bust-front.png" in response.text
-        assert "Full Cubism runtime is future work" in response.text
-        assert "External calls" in response.text
+        assert "Full Cubism runtime remains future work" in response.text
+        assert "external calls" in response.text
         assert "0" in response.text
         assert "Start a local conversation." in response.text
     finally:
@@ -144,8 +149,14 @@ def test_python_ui_static_assets_are_served() -> None:
         avatar = client.get("/live2d/rin/rin-bust-front.png")
 
         assert css.status_code == 200
+        assert "cockpit-grid" in css.text
+        assert "conversation-rail" in css.text
+        assert "chat-cockpit" in css.text
+        assert "composer-dock" in css.text
+        assert "right-console" in css.text
         assert "avatar-stage" in css.text
         assert "ambient-grid" in css.text
+        assert "scan-drift" in css.text
         assert "RIN console submit failed" in js.text
         assert "requestSubmit" in js.text
         assert avatar.status_code == 200
@@ -166,7 +177,8 @@ def test_python_ui_chat_submit_renders_conversation_history() -> None:
         assert "Python API mock reply." in response.text
         assert 'class="message-bubble owner"' in response.text
         assert 'class="message-bubble rin"' in response.text
-        assert "Chat" in response.text
+        assert "Local conversation" in response.text
+        assert 'class="composer-dock"' in response.text
         assert state["externalProviderCallCount"] == 0
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
@@ -198,7 +210,7 @@ def test_python_ui_renders_local_model_status() -> None:
 
         assert response.status_code == 200
         assert "rin-ollama-local" in response.text
-        assert "Local model" in response.text
+        assert "LOCAL MODEL" in response.text
         assert "qwen3:4b" in response.text
         assert "selected" in response.text
     finally:
@@ -214,7 +226,7 @@ def test_python_ui_error_rendering_is_visible() -> None:
         assert "Structured error" in response.text
         assert "error-box" in response.text
         assert "test adapter failure" in response.text
-        assert "RIN Local Console" in response.text
+        assert "RIN control chamber" in response.text
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
