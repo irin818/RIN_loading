@@ -53,6 +53,17 @@ RIN_OLLAMA_TIMEOUT_MS=180000 \
 npm run rin-python-preview-local-model-smoke
 ```
 
+Persistent sandbox mode for restartable Python testing:
+
+```sh
+npm run rin-python-sandbox-init
+npm run rin-python-sandbox-smoke
+scripts/python-preview/Start_RIN_Python_Sandbox.command
+```
+
+Sandbox data lives at `.rin-python-preview-data`, is ignored by Git, and is not
+production `.rin-data`.
+
 ## Non-Goals
 
 - No production cutover.

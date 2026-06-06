@@ -5,7 +5,19 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default [
-  { ignores: ["dist"] },
+  {
+    ignores: [
+      "dist",
+      "build",
+      "node_modules",
+      "python/.venv",
+      "python/.mypy_cache",
+      "python/.pytest_cache",
+      "python/.ruff_cache",
+      ".rin-data",
+      ".rin-python-preview-data",
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

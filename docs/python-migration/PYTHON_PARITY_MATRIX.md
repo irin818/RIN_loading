@@ -32,6 +32,7 @@ Status: initialized for Package 0.
 | final candidate validation | full RIN v2 + Python post-candidate gates | A-F complete for review | Package F repeated Python/TS checks | passed | no |
 | main integration audit | TypeScript default runtime | preview-only merge audit added | Package A main-integration audit | passed | no |
 | final pre-merge verification | full Python + TypeScript preview-only gates | PR #72 ready for preview-only review | Package D repeated checks and safety scans | passed | no |
+| persistent sandbox | n/a production TypeScript launcher | repo-local Python sandbox added | Cutover Package A sandbox smoke | passed | no |
 
 Package 0 creates only foundation checks and safety scaffolding. It does not
 claim behavioral parity for migrated TypeScript core capabilities. The Package 0

@@ -1,8 +1,9 @@
 """Safety helpers for Python migration development.
 
-During the migration program, Python write-capable commands are only allowed to
-write inside explicitly temporary test directories. There is intentionally no
-override for the owner's production `.rin-data`.
+During preview and cutover preparation, Python write-capable commands are only
+allowed to write inside explicitly temporary test directories or the named
+repo-local persistent sandbox. There is intentionally no production `.rin-data`
+override here.
 """
 
 from __future__ import annotations
@@ -12,6 +13,9 @@ from pathlib import Path
 from tempfile import mkdtemp
 
 PRODUCTION_RIN_DATA_DIR = Path("/Users/irin/Documents/RIN_loading/.rin-data")
+PERSISTENT_SANDBOX_DATA_DIR = Path(
+    "/Users/irin/Documents/RIN_loading/.rin-python-preview-data"
+)
 TEMP_DATA_PREFIX = "rin-python-"
 TEMP_ROOT = Path("/tmp")
 
@@ -67,6 +71,33 @@ def assert_safe_temp_data_dir(path: str | Path) -> Path:
         raise UnsafeDataPathError(msg)
 
     return resolved
+
+
+def is_persistent_sandbox_data_path(path: str | Path) -> bool:
+    """Return whether a path is the approved repo-local Python sandbox."""
+
+    resolved = resolve_path(path)
+    sandbox = resolve_path(PERSISTENT_SANDBOX_DATA_DIR)
+    return resolved == sandbox or sandbox in resolved.parents
+
+
+def assert_safe_persistent_sandbox_data_dir(path: str | Path) -> Path:
+    """Require persistent Python writes to use the approved sandbox path."""
+
+    resolved = assert_not_production_data_path(path)
+    if not is_persistent_sandbox_data_path(resolved):
+        msg = "Persistent Python sandbox data must use .rin-python-preview-data."
+        raise UnsafeDataPathError(msg)
+    return resolved
+
+
+def assert_safe_python_write_data_dir(path: str | Path) -> Path:
+    """Allow Python writes only in temp fixtures or the persistent sandbox."""
+
+    try:
+        return assert_safe_temp_data_dir(path)
+    except UnsafeDataPathError:
+        return assert_safe_persistent_sandbox_data_dir(path)
 
 
 def create_temp_data_dir(prefix: str = TEMP_DATA_PREFIX) -> TempDataDirectory:

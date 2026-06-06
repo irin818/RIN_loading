@@ -41,4 +41,6 @@ cutover.
 - Final candidate validation: passed for review only.
 - Final pre-merge verification: passed for preview-only main integration.
 - Preview-only main integration: PR #72 merged; no production cutover performed.
+- Persistent Python sandbox: Package A checks passed; production `.rin-data`
+  remains unmigrated.
 - Cutover approval: still required from owner.
