@@ -4,10 +4,10 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package 5 — Context V2 Pure Algorithms.
-- Current checkpoint: Package 5 implementation and checks passed; PR creation
+- Current package: Package 6 — Ollama/Qwen3 Model Adapter.
+- Current checkpoint: Package 6 implementation and checks passed; PR creation
   pending.
-- Active branch: `python-rewrite/05-context-v2-algorithms`.
+- Active branch: `python-rewrite/06-ollama-adapter`.
 - Target integration branch: `python-rewrite/main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -15,8 +15,8 @@ Status: active handoff document.
 - Latest verified TypeScript reference commit:
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
-  `6eedd1e Merge pull request #65 from irin818/python-rewrite/04-memory-v2-algorithms`.
-- Open PR: none for Package 5 yet.
+  `65650ab Merge pull request #66 from irin818/python-rewrite/05-context-v2-algorithms`.
+- Open PR: none for Package 6 yet.
 
 ## Completed Work
 
@@ -79,6 +79,13 @@ Status: active handoff document.
   reporting.
 - Added Python Context V2 tests matching TypeScript built-in fixtures and
   repeated deterministic checks.
+- Merged Package 5 PR #66 into `python-rewrite/main`.
+- Started Package 6 branch `python-rewrite/06-ollama-adapter`.
+- Implemented Python Ollama/Qwen3 adapter with `think: false`, local defaults,
+  structured safe errors, empty-content classification, thinking stripping, and
+  no raw provider response exposure.
+- Added default-skipped Python local chat smoke command.
+- Added mocked adapter tests and default-skipped smoke tests.
 
 ## Tests Run
 
@@ -158,6 +165,19 @@ Status: active handoff document.
   - `.venv/bin/rin-python-candidate-check`
 - Package 5 repeated deterministic Python check passed:
   - `.venv/bin/python -m pytest tests/unit/test_context_v2_algorithms.py tests/unit/test_context_v2_algorithms.py`
+- Package 6 focused Python gates passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+- Package 6 aggregate Python gates passed:
+  - `.venv/bin/rin-python-check`
+  - `.venv/bin/rin-python-parity-check`
+  - `.venv/bin/rin-python-readiness`
+  - `.venv/bin/rin-python-candidate-check`
+  - `.venv/bin/rin-python-local-chat-smoke` passed with
+    `skipped_not_selected`, `localModelCallCount: 0`, and external provider
+    calls 0.
 - Initial TypeScript `npm run rin:check`: failed at readiness because the new
   migration worktree had no initialized local data directory.
 - TypeScript temp-data setup:
@@ -202,6 +222,11 @@ Status: active handoff document.
     passed.
   - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg5.mtmIuS npm run rin:context-v2-report`
     passed.
+- Stable TypeScript Package 6 reference checks:
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg6.FWn0sT npm run rin:init` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg6.FWn0sT npm run rin:check` passed.
+  - `RIN_DATA_DIR=/tmp/rin-python-ts-pkg6.FWn0sT npm run rin:local-chat-smoke`
+    passed with `skipped_not_selected`.
 - `git diff --check`: passed.
 
 ## Parity Status
@@ -227,6 +252,10 @@ Status: active handoff document.
 - Package 5 parity target: pure deterministic Context V2 fixture ordering,
   budget, deduplication, and latest-owner preservation.
 - Package 5 matches TypeScript built-in Context V2 fixture results.
+- Package 6 parity target: mocked Ollama request/response/error handling and
+  provider-free default smoke behavior.
+- Package 6 validates `think: false`, Qwen3 defaults, empty-content safe errors,
+  thinking stripping, missing-model classification, and default skipped smoke.
 - Parity matrix initialized in `PYTHON_PARITY_MATRIX.md`.
 - Behavioral parity begins in Package 1 with data contracts and synthetic
   fixtures.
@@ -249,9 +278,11 @@ Status: active handoff document.
   records, mutate accepted memories, or call providers.
 - Package 5 only implements pure context report assembly. It does not read/write
   databases, call providers, or change production context injection.
+- Package 6 default checks do not call Ollama or any external provider. Optional
+  live smoke remains explicit via `RIN_MODEL_ADAPTER=rin-ollama-local`.
 
 ## Exact Next Task
 
-Commit Package 5, push `python-rewrite/05-context-v2-algorithms`, open a PR
+Commit Package 6, push `python-rewrite/06-ollama-adapter`, open a PR
 targeting `python-rewrite/main`, review and merge only if gates pass, then
-continue to Package 6.
+continue to Package 7.

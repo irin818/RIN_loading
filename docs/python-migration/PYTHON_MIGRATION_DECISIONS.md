@@ -137,3 +137,19 @@ Implications:
 - Storage-backed Context V2 assembly is deferred to later runtime/API packages.
 - Any future difference in budget or deduplication behavior must be documented
   before merge.
+
+## Decision P0010: Ollama live calls are explicit only
+
+Decision:
+
+- Package 6 default checks and smoke commands remain provider-free and
+  `skipped_not_selected` unless `RIN_MODEL_ADAPTER=rin-ollama-local`.
+- The Python Ollama adapter sends `think: false` and never treats reasoning-only
+  output as assistant content.
+- Error details may include safe metadata such as field names, but not raw
+  provider responses or thinking text.
+
+Implications:
+
+- Optional live Qwen3/Ollama checks are outside default aggregate gates.
+- Conversation runtime packages must preserve the same no-thinking-leak behavior.
