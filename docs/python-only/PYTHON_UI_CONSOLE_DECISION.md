@@ -17,6 +17,7 @@ The Python server now serves:
 - `GET /`
 - `GET /ui`
 - `POST /ui/chat`
+- `GET /api/status-dashboard`
 
 The page includes:
 
@@ -26,6 +27,7 @@ The page includes:
 - chat input;
 - conversation selector;
 - response/history display;
+- read-only dashboard metrics and lightweight local visualizations;
 - clear visible error output;
 - external API call count.
 

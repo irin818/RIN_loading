@@ -50,8 +50,9 @@ thinking leaks are tracked in `docs/python-only/THINKING_LEAK_FIX_PLAN.md`.
 
 The only normal owner-facing root launcher is now `Start_RIN.command`.
 `Start_RIN_Python.command` and `Start_RIN_Python_Local_Model.command` were
-removed intentionally to reduce launcher confusion. Do not recreate replacement
-root launchers for normal operation.
+removed intentionally to reduce launcher confusion. `打开RIN项目.command` was
+also removed as an extra root alias. Do not recreate replacement root launchers
+for normal operation.
 
 ## Local Chat Smoke
 

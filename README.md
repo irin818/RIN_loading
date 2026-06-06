@@ -20,8 +20,9 @@ http://127.0.0.1:8765/
 `Start_RIN.command` is the only normal owner-facing root launcher. It checks the
 Python venv, verifies Ollama and `qwen3:4b`, starts the server, opens the
 browser once, and keeps the terminal open so Ctrl-C stops the server. The old
-`Start_RIN_Python.command` and `Start_RIN_Python_Local_Model.command` names were
-removed intentionally to reduce launcher confusion.
+`Start_RIN_Python.command`, `Start_RIN_Python_Local_Model.command`, and
+`打开RIN项目.command` aliases were removed intentionally to reduce launcher
+confusion.
 
 ## Python Console UI
 
@@ -29,10 +30,10 @@ The active local console uses FastAPI, Jinja2 templates, static CSS, and minimal
 vanilla JavaScript. It has no TypeScript, React, Vite, Node, npm, or frontend
 build chain.
 
-The console uses a compact black-green cockpit layout with a slim conversation
-rail, a dominant chat cockpit with an attached composer dock, compact local
-model/profile/memory status chips, a local RIN avatar/presence panel, and visible
-notice/error states.
+The console uses a minimal black-green AI OS dashboard layout with a slim
+conversation rail, a dominant clean chat plane with an attached composer dock,
+compact live status metrics, local memory/message visualizations, a local RIN
+avatar/presence panel, and visible notice/error states.
 
 ## Install
 

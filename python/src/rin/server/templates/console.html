@@ -8,22 +8,26 @@
     <script defer src="{{ url_for('static', path='/console.js') }}"></script>
   </head>
   <body>
-    <main class="cockpit-shell" data-selected-conversation="{{ selected_conversation_id or '' }}">
+    <main
+      class="ai-os-shell"
+      data-selected-conversation="{{ selected_conversation_id or '' }}"
+      data-dashboard-url="/api/status-dashboard{% if selected_conversation_id %}?conversationId={{ selected_conversation_id }}{% endif %}"
+    >
       <div class="ambient-grid" aria-hidden="true"></div>
-      <div class="ambient-bloom bloom-a" aria-hidden="true"></div>
-      <div class="ambient-bloom bloom-b" aria-hidden="true"></div>
 
-      <header class="command-bar">
-        <section class="brand-block">
-          <p class="eyebrow">RIN control chamber</p>
+      <header class="system-bar" aria-label="RIN system status">
+        <section class="brand-mark">
+          <span class="status-dot" aria-label="RIN online"></span>
           <h1>RIN</h1>
-          <p>{{ identity }}</p>
+          <span>minimal AI OS / {{ identity }}</span>
         </section>
-        <section class="command-chips" aria-label="Runtime status">
-          <span class="chip chip-hot">{{ model_name }}</span>
-          <span class="chip">Python local runtime</span>
-          <span class="chip">Adapter {{ adapter_id }}</span>
-          <span class="chip chip-ok">External API disabled</span>
+        <section class="system-chips">
+          <span class="chip strong">local model <b>{{ dashboard.model }}</b></span>
+          <span class="chip">{{ dashboard.adapter }}</span>
+          <span class="chip">{{ local_model_status }}</span>
+          <span class="chip ok" data-dashboard-field="readiness.label">{{ dashboard.readiness.label }}</span>
+          <span class="chip">external <b data-dashboard-field="externalProviderCallCount">{{ dashboard.externalProviderCallCount }}</b></span>
+          <span class="chip">{{ dashboard.serverMode }}</span>
         </section>
       </header>
 
@@ -37,17 +41,17 @@
         </aside>
       {% endif %}
 
-      <section class="cockpit-grid">
-        <aside class="conversation-rail" aria-label="Compact recent conversations">
+      <section class="os-grid">
+        <aside class="conversation-rail" aria-label="Conversation rail">
           <div class="rail-heading">
-            <span>RECENT</span>
+            <span>Chats</span>
             <span>{{ conversations | length }}</span>
           </div>
-          <a class="new-chat-link" href="/ui?new=1">+ New</a>
+          <a class="new-chat-link" href="/ui?new=1">New chat</a>
           <nav class="conversation-list">
             {% for conversation in conversations %}
               <a
-                class="conversation-card{% if conversation.id == selected_conversation_id %} selected{% endif %}"
+                class="conversation-row{% if conversation.id == selected_conversation_id %} selected{% endif %}"
                 href="/ui?conversationId={{ conversation.id }}"
                 data-conversation-id="{{ conversation.id }}"
               >
@@ -60,16 +64,16 @@
           </nav>
         </aside>
 
-        <section class="chat-cockpit" aria-label="Main chat cockpit">
-          <header class="chat-head">
+        <section class="chat-plane" aria-label="Chat">
+          <header class="chat-strip">
             <section>
-              <p class="eyebrow">Active channel</p>
+              <p class="eyebrow">Active thread</p>
               <h2>Local conversation</h2>
             </section>
-            <section class="mini-chips" aria-label="Chat counters">
-              <span>{{ message_count }} messages</span>
-              <span>{{ database.conversations }} conv</span>
-              <span>{{ snapshot.externalProviderCallCount }} external calls</span>
+            <section class="thread-metrics" aria-label="Thread metrics">
+              <span><b data-dashboard-field="activeConversation.messageCount">{{ dashboard.activeConversation.messageCount }}</b> messages</span>
+              <span><b data-dashboard-field="activeConversation.ownerMessages">{{ dashboard.activeConversation.ownerMessages }}</b> owner</span>
+              <span><b data-dashboard-field="activeConversation.rinMessages">{{ dashboard.activeConversation.rinMessages }}</b> RIN</span>
             </section>
           </header>
 
@@ -88,7 +92,7 @@
               </article>
             {% else %}
               <section class="empty-state">
-                <p class="eyebrow">Awaiting input</p>
+                <p class="eyebrow">Ready</p>
                 <h2>Start a local conversation.</h2>
                 <p>Messages stay local. External provider calls remain disabled.</p>
               </section>
@@ -101,44 +105,73 @@
             <textarea
               id="chat-input"
               name="content"
-              placeholder="Transmit to RIN..."
+              placeholder="Message RIN..."
               required
             ></textarea>
             <button id="send-button" type="submit">Send</button>
-            <p class="composer-hint">Enter to send · Shift+Enter for newline · Ctrl-C stops server</p>
+            <p class="composer-hint">Enter to send. Shift+Enter for newline.</p>
           </form>
         </section>
 
-        <aside class="right-console" aria-label="RIN presence and compact status">
-          <section class="presence-card">
-            <div class="presence-title">
-              <span class="status-dot" aria-label="RIN online"></span>
-              <span>RIN ONLINE</span>
+        <aside class="status-dashboard" aria-label="Live status dashboard">
+          <section class="presence-panel">
+            <div class="presence-copy">
+              <span class="status-dot"></span>
+              <strong>RIN ONLINE</strong>
+              <span>static presence / future Live2D</span>
             </div>
             <div class="avatar-stage" aria-label="RIN avatar presence panel">
-              <div class="avatar-frame"></div>
-              <div class="avatar-orbit"></div>
               <img src="{{ avatar_asset_path }}" alt="RIN character portrait" />
-              <div class="scan-line"></div>
             </div>
-            <p>Static local presence. Full Cubism runtime remains future work.</p>
           </section>
 
-          <section class="status-matrix" aria-label="Compact system status">
-            <div class="matrix-row hot"><span>LOCAL MODEL</span><strong>{{ model_name }}</strong></div>
-            <div class="matrix-row"><span>ADAPTER</span><strong>{{ adapter_id }}</strong></div>
-            <div class="matrix-row"><span>MEMORY V2</span><strong>{{ memory_context.memoryV2Traces }} traces</strong></div>
-            <div class="matrix-row"><span>PROFILE</span><strong>{{ profile_status }}</strong></div>
-            <div class="matrix-row"><span>EXTERNAL</span><strong>{{ snapshot.externalProviderCallCount }} calls</strong></div>
+          <section class="metric-card memory-card">
+            <div>
+              <p class="eyebrow">Memory V2</p>
+              <strong data-dashboard-field="memoryContext.memoryV2Traces">{{ dashboard.memoryContext.memoryV2Traces }}</strong>
+              <span>traces</span>
+            </div>
+            <div
+              class="trace-ring"
+              style="--ring-fill: {{ dashboard.memoryContext.ringFillPercent }}%"
+              aria-label="Memory trace ring"
+            >
+              <span>{{ dashboard.memoryContext.memoryV2Traces }}</span>
+            </div>
           </section>
 
-          <section class="micro-grid">
-            <div><span>Schema</span><strong>{{ database.schemaVersion }}</strong></div>
-            <div><span>Convos</span><strong>{{ database.conversations }}</strong></div>
-            <div><span>Msgs</span><strong>{{ database.messages }}</strong></div>
-            <div><span>Profile files</span><strong>{{ profile_file_count }}</strong></div>
-            <div><span>Trace text</span><strong>{{ memory_context.fullTextIncluded }}</strong></div>
-            <div><span>Body</span><strong>{{ body_report.status }}</strong></div>
+          <section class="metric-card balance-card">
+            <div class="metric-head">
+              <p class="eyebrow">Message balance</p>
+              <span data-dashboard-field="activeConversation.messageCount">{{ dashboard.activeConversation.messageCount }}</span>
+            </div>
+            <div class="balance-row">
+              <span>Owner</span>
+              <div class="balance-track"><i data-dashboard-bar="owner" style="width: {{ dashboard.activeConversation.ownerMessagePercent }}%"></i></div>
+              <b data-dashboard-field="activeConversation.ownerMessages">{{ dashboard.activeConversation.ownerMessages }}</b>
+            </div>
+            <div class="balance-row">
+              <span>RIN</span>
+              <div class="balance-track"><i data-dashboard-bar="rin" style="width: {{ dashboard.activeConversation.rinMessagePercent }}%"></i></div>
+              <b data-dashboard-field="activeConversation.rinMessages">{{ dashboard.activeConversation.rinMessages }}</b>
+            </div>
+          </section>
+
+          <section class="health-grid" aria-label="Runtime health grid">
+            <div class="{{ dashboard.health.database }}"><span>DB</span><b>{{ dashboard.database.schemaVersion }}</b></div>
+            <div class="{{ dashboard.health.model }}"><span>MODEL</span><b>{{ dashboard.model }}</b></div>
+            <div class="{{ dashboard.health.profile }}"><span>PROFILE</span><b>{{ dashboard.profile.status }}</b></div>
+            <div class="{{ dashboard.health.memory }}"><span>MEMORY</span><b>{{ dashboard.memoryContext.memoryV2Traces }}</b></div>
+            <div class="{{ dashboard.health.local }}"><span>LOCAL</span><b>{{ dashboard.serverMode }}</b></div>
+          </section>
+
+          <section class="data-list">
+            <div><span>Schema</span><b data-dashboard-field="database.schemaVersion">{{ dashboard.database.schemaVersion }}</b></div>
+            <div><span>Conversations</span><b data-dashboard-field="database.conversations">{{ dashboard.database.conversations }}</b></div>
+            <div><span>Messages</span><b data-dashboard-field="database.messages">{{ dashboard.database.messages }}</b></div>
+            <div><span>Profile files</span><b data-dashboard-field="profile.fileCount">{{ dashboard.profile.fileCount }}</b></div>
+            <div><span>Trace full text</span><b data-dashboard-field="memoryContext.fullTextIncluded">{{ dashboard.memoryContext.fullTextIncluded }}</b></div>
+            <div><span>Body</span><b data-dashboard-field="body.status">{{ dashboard.body.status }}</b></div>
           </section>
         </aside>
       </section>

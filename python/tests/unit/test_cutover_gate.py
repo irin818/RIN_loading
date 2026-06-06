@@ -193,6 +193,7 @@ def test_python_production_check_passes_after_marker(
     assert report.defaultLauncherExists is True
     assert report.defaultLauncherExecutable is True
     assert report.defaultLauncherLocalModel is True
+    assert report.extraRootCommandLaunchersAbsent is True
     assert report.typescriptRollbackDocumented is True
     assert report.typescriptFallbackTag == "typescript-final-fallback"
     assert report.externalApiDisabled is True

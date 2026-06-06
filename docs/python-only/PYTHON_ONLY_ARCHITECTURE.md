@@ -25,7 +25,8 @@ Active launcher:
 The launcher starts the Python UI locally at `http://127.0.0.1:8765/`, defaults
 to Ollama `qwen3:4b`, and keeps external APIs disabled. The old
 `Start_RIN_Python.command` and `Start_RIN_Python_Local_Model.command` root
-launchers were removed intentionally to keep one normal launch path.
+launchers, plus the `打开RIN项目.command` alias, were removed intentionally to
+keep one normal launch path.
 
 The UI has no TypeScript, React, Vite, Node, npm, or frontend build chain.
 The RIN presence panel uses a local static asset from `public/live2d/` and the
