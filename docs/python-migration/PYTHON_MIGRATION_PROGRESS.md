@@ -4,10 +4,11 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package D — Final Pre-Merge Verification for PR #72.
-- Current checkpoint: final verification passed; documentation update in progress.
-- Active branch: `python-rewrite/20-pr72-final-verification`.
-- Target integration branch: `python-rewrite/main`.
+- Current package: Package F — Post-Merge Preview Usage Finalization.
+- Current checkpoint: PR #72 merged into `main` as preview-only; post-merge
+  checks passed.
+- Active branch: `python-preview/post-merge-docs-if-needed`.
+- Target integration branch: `main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
 - TypeScript reference tag: `v2.0.0`.
@@ -15,7 +16,9 @@ Status: active handoff document.
   `48bcb13 Merge pull request #60 from irin818/codex/v2-progress-complete`.
 - Latest verified migration integration commit:
   `22520df Merge pull request #81 from irin818/python-rewrite/19-update-pr72-preview`.
-- Draft candidate PR: #72, review-only, open, draft, unmerged to `main`.
+- Candidate PR: #72, merged to `main` as preview-only.
+- Final preview-only main merge commit:
+  `13ed047 Merge pull request #72 from irin818/python-rewrite/main`.
 
 ## Completed Work
 
@@ -160,6 +163,13 @@ Status: active handoff document.
 - Merged Package C PR #81 into `python-rewrite/main`.
 - Started Package D branch `python-rewrite/20-pr72-final-verification`.
 - Ran final pre-merge verification for PR #72.
+- Marked PR #72 ready for review and merged it into `main` as preview-only.
+- Pulled `main` in `/Users/irin/Documents/RIN_loading`.
+- Verified post-merge that `Start_RIN.command`,
+  `Start_RIN_Local_Model.command`, and TypeScript `src/` had no diff from
+  pre-merge `main`.
+- Created Python venv under `/Users/irin/Documents/RIN_loading/python/.venv`
+  for local post-merge preview checks.
 
 ## Tests Run
 
@@ -565,6 +575,17 @@ Status: active handoff document.
   - no hidden control or bidi characters.
   - secret-like assignment scan found existing placeholders/config validation
     examples only, including README `your-api-key`; no real secret values.
+- Post-merge TypeScript checks on `main` passed:
+  - temp-data `npm run rin:v2-check`
+  - temp-data `npm run rin:check`
+  - `npm run rin:daily-chat-eval`
+  - `git diff --check`
+- Post-merge Python preview checks on `main` passed:
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/rin-python-candidate-check`
+  - `.venv/bin/rin-python-preview-smoke`
+  - `.venv/bin/rin-python-copy-data-shadow-report`
+  - `.venv/bin/rin-python-api-contract-check`
 - Copied owner-data read verification:
   - temporary copy under `/tmp/rin-python-owner-copy.*`.
   - original DB hash unchanged: yes.
@@ -671,10 +692,14 @@ Status: active handoff document.
 - Package C keeps PR #72 draft, clean, mergeable, and preview-only.
 - Package D final verification passed and found no blocker to marking PR #72
   ready for review.
+- Package E merged PR #72 into `main` as preview-only. TypeScript remains the
+  default production runtime, Python remains preview/candidate, real `.rin-data`
+  remains untouched by Python writes, and production cutover remains blocked.
 
 ## Exact Next Task
 
-Finish Package D docs, push `python-rewrite/20-pr72-final-verification`,
-open a PR targeting `python-rewrite/main`, review and merge only if gates pass,
-then mark PR #72 ready and continue to Package E merge if preconditions remain
-safe.
+Owner can manually test Python Preview from `main` using
+`scripts/python-preview/Start_RIN_Python_Preview.command` or
+`npm run rin-python-preview-smoke`. Any production cutover, launcher switch,
+real `.rin-data` migration, or TypeScript Core removal still requires a separate
+owner-approved PR.

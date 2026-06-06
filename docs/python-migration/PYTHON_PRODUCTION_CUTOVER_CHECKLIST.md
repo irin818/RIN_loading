@@ -40,4 +40,5 @@ cutover.
 - TypeScript rollback backend: still required.
 - Final candidate validation: passed for review only.
 - Final pre-merge verification: passed for preview-only main integration.
+- Preview-only main integration: PR #72 merged; no production cutover performed.
 - Cutover approval: still required from owner.
