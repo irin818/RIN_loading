@@ -17,14 +17,16 @@ Active launcher:
 
 It runs the Python FastAPI application on `127.0.0.1:8765`, defaults to local
 Ollama `qwen3:4b`, disables external API use, and serves the local Python web
-UI. The old `Start_RIN_Python.command` and
-`Start_RIN_Python_Local_Model.command` launchers were removed intentionally to
-leave one owner-facing root launcher.
+UI. The old `Start_RIN_Python.command`,
+`Start_RIN_Python_Local_Model.command`, and `打开RIN项目.command` launchers were
+removed intentionally to leave one owner-facing root launcher.
 
 The active UI is rendered with Jinja2 templates plus static CSS and minimal
 vanilla JavaScript from `python/src/rin/server/`. There is no frontend build
-chain. The console includes a local RIN presence panel backed by existing static
-assets under `public/live2d/`; it does not claim full Cubism runtime support.
+chain. The console is a minimal black-green AI OS dashboard with read-only live
+status metrics and lightweight CSS/JS visualizations. It includes a local RIN
+presence panel backed by existing static assets under `public/live2d/`; it does
+not claim full Cubism runtime support.
 
 ## Runtime Boundaries
 

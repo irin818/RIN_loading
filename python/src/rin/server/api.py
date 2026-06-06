@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from pathlib import Path
 from typing import cast
 
@@ -145,6 +146,18 @@ def create_app(
         current_layout: RinDataLayout = layout_dependency,
     ) -> dict[str, object]:
         return local_console_snapshot(current_layout)
+
+    @app.get("/api/status-dashboard")
+    def api_status_dashboard(
+        conversationId: str | None = None,
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> dict[str, object]:
+        return build_status_dashboard_summary(
+            current_layout,
+            current_adapter,
+            selected_conversation_id=conversationId,
+        )
 
     @app.get("/api/readiness")
     def api_readiness() -> dict[str, object]:
@@ -410,6 +423,12 @@ def build_console_view_model(
     local_model_status = (
         "selected" if adapter_id == "rin-ollama-local" else "not selected"
     )
+    dashboard = build_status_dashboard_summary(
+        layout,
+        adapter,
+        selected_conversation_id=selected,
+        messages=messages,
+    )
     return {
         "title": "RIN Python Local Console",
         "identity": "Python-primary local RIN runtime.",
@@ -428,8 +447,115 @@ def build_console_view_model(
         "adapter_id": adapter_id,
         "model_name": model_name,
         "local_model_status": local_model_status,
+        "dashboard": dashboard,
         "notice": notice,
         "error": error,
+    }
+
+
+def build_status_dashboard_summary(
+    layout: RinDataLayout,
+    adapter: ModelAdapterProtocol,
+    *,
+    selected_conversation_id: str | None = None,
+    messages: Sequence[object] | None = None,
+) -> dict[str, object]:
+    snapshot = local_console_snapshot(layout)
+    database = cast(dict[str, object], snapshot["database"])
+    memory_context = cast(dict[str, object], snapshot["memoryContext"])
+    readiness = build_python_readiness_report().to_dict()
+    body_report = build_body_report().to_dict()
+    profile = snapshot["profile"]
+    profile_status = (
+        profile.get("status", "unknown") if isinstance(profile, dict) else "unknown"
+    )
+    profile_files = profile.get("files", []) if isinstance(profile, dict) else []
+    profile_file_count = len(profile_files) if isinstance(profile_files, list) else 0
+    conversations = list_conversations(layout, limit=1)
+    active_conversation_id = selected_conversation_id or (
+        conversations[0].id if conversations else None
+    )
+    active_messages = (
+        messages
+        if messages is not None
+        else list_messages(layout, active_conversation_id)
+        if active_conversation_id
+        else []
+    )
+    owner_message_count = sum(
+        1 for message in active_messages if getattr(message, "role", "") == "owner"
+    )
+    rin_message_count = sum(
+        1 for message in active_messages if getattr(message, "role", "") == "rin"
+    )
+    active_message_count = len(active_messages)
+    owner_message_percent = (
+        round((owner_message_count / active_message_count) * 100)
+        if active_message_count
+        else 0
+    )
+    rin_message_percent = (
+        round((rin_message_count / active_message_count) * 100)
+        if active_message_count
+        else 0
+    )
+    raw_memory_trace_count = database.get("memoryV2Traces", 0)
+    memory_trace_count = (
+        raw_memory_trace_count if isinstance(raw_memory_trace_count, int) else 0
+    )
+    memory_ring_percent = min(100, round((memory_trace_count / 20) * 100))
+    adapter_id = adapter.id
+    model_name = (
+        os.environ.get("RIN_OLLAMA_MODEL", "qwen3:4b")
+        if adapter_id == "rin-ollama-local"
+        else "provider-free mock"
+    )
+    raw_schema_version = database.get("schemaVersion", 0)
+    schema_version = raw_schema_version if isinstance(raw_schema_version, int) else 0
+    memory_available = memory_context.get("available") is True
+    return {
+        "readiness": {
+            "ok": readiness.get("ok") is True,
+            "label": "ok" if readiness.get("ok") is True else "warning",
+        },
+        "adapter": adapter_id,
+        "model": model_name,
+        "serverMode": "local-only",
+        "externalProviderCallCount": snapshot["externalProviderCallCount"],
+        "database": {
+            "schemaVersion": schema_version,
+            "conversations": database["conversations"],
+            "messages": database["messages"],
+        },
+        "profile": {
+            "status": profile_status,
+            "fileCount": profile_file_count,
+        },
+        "memoryContext": {
+            "available": memory_available,
+            "memoryV2Traces": memory_trace_count,
+            "fullTextIncluded": memory_context["fullTextIncluded"],
+            "ringFillPercent": memory_ring_percent,
+        },
+        "activeConversation": {
+            "id": active_conversation_id,
+            "messageCount": active_message_count,
+            "ownerMessages": owner_message_count,
+            "rinMessages": rin_message_count,
+            "ownerMessagePercent": owner_message_percent,
+            "rinMessagePercent": rin_message_percent,
+        },
+        "body": {
+            "status": body_report["status"],
+            "adapterId": body_report["adapterId"],
+        },
+        "health": {
+            "database": "ok" if schema_version >= 6 else "warning",
+            "model": "ok" if adapter_id else "warning",
+            "profile": "ok" if profile_status == "valid" else "warning",
+            "memory": "ok" if memory_available else "warning",
+            "local": "ok" if snapshot["localOnly"] is True else "warning",
+        },
     }
 
 

@@ -42,7 +42,8 @@ Double-click:
 
 `Start_RIN.command` is the only normal owner-facing root launcher. The old
 `Start_RIN_Python_Local_Model.command` and `Start_RIN_Python.command` names were
-removed intentionally to reduce confusion; external APIs remain disabled.
+removed intentionally to reduce confusion. `打开RIN项目.command` was also removed
+as an extra root alias; external APIs remain disabled.
 
 ## Production Safety
 

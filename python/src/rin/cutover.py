@@ -132,6 +132,7 @@ class PythonProductionCheckReport:
     defaultLauncherExists: bool
     defaultLauncherExecutable: bool
     defaultLauncherLocalModel: bool
+    extraRootCommandLaunchersAbsent: bool
     typescriptRollbackDocumented: bool
     typescriptFallbackTag: str
     externalApiDisabled: bool
@@ -494,6 +495,11 @@ def run_python_production_check(
     status = inspect_database(layout)
     backup_exists = latest_backup_exists()
     default_launcher = REPO_ROOT / "Start_RIN.command"
+    extra_root_command_launchers = sorted(
+        path.name
+        for path in REPO_ROOT.glob("*.command")
+        if path.name != "Start_RIN.command"
+    )
     launcher_text = (
         default_launcher.read_text(encoding="utf-8")
         if default_launcher.is_file()
@@ -521,6 +527,7 @@ def run_python_production_check(
             backup_exists,
             default_launcher.is_file(),
             default_launcher_local_model,
+            not extra_root_command_launchers,
             ts_rollback_doc.is_file(),
             local_model_ready is not False,
         ]
@@ -536,6 +543,7 @@ def run_python_production_check(
         defaultLauncherExecutable=default_launcher.is_file()
         and os.access(default_launcher, os.X_OK),
         defaultLauncherLocalModel=default_launcher_local_model,
+        extraRootCommandLaunchersAbsent=not extra_root_command_launchers,
         typescriptRollbackDocumented=ts_rollback_doc.is_file(),
         typescriptFallbackTag=TYPESCRIPT_FALLBACK_TAG,
         externalApiDisabled=True,
@@ -574,6 +582,8 @@ def format_python_production_check_report(
             f"{'yes' if report.defaultLauncherExecutable else 'no'}",
             "Default launcher local model: "
             f"{'yes' if report.defaultLauncherLocalModel else 'no'}",
+            "Extra root command launchers absent: "
+            f"{'yes' if report.extraRootCommandLaunchersAbsent else 'no'}",
             "TypeScript rollback documented: "
             f"{'yes' if report.typescriptRollbackDocumented else 'no'}",
             f"TypeScript fallback tag: {report.typescriptFallbackTag}",
