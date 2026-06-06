@@ -107,3 +107,17 @@ Implications:
   packages.
 - Write-capable behavior is deferred to Package 7 and must use the production
   data safety guard before every write entry point.
+
+## Decision P0008: Memory V2 algorithms remain pure until write packages
+
+Decision:
+
+- Package 4 implements only pure deterministic analysis and tokenization.
+- It does not persist Memory V2 traces, apply migrations, delete raw messages,
+  mutate accepted memories, or call providers.
+- Built-in TypeScript fixture decisions are treated as parity targets.
+
+Implications:
+
+- Memory V2 trace writes remain deferred to Package 7/8.
+- Any future differences from TypeScript scoring must be documented before merge.
