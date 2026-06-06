@@ -91,3 +91,19 @@ Implications:
 
 - Developers must create `python/.venv` before using root Python npm wrappers.
 - Package 2 profile reports expose counts and validation issues only.
+
+## Decision P0007: Read-only database access uses SQLite mode=ro
+
+Decision:
+
+- Package 3 opens SQLite files with `file:<path>?mode=ro`.
+- The Python read-only repository does not create migration tables, apply
+  migrations, or initialize databases.
+- Audit summaries expose event types and payload keys only, not payload values.
+
+Implications:
+
+- Missing or malformed databases fail instead of being repaired in read-only
+  packages.
+- Write-capable behavior is deferred to Package 7 and must use the production
+  data safety guard before every write entry point.

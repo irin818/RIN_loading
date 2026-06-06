@@ -7,10 +7,10 @@ Status: initialized for Package 0.
 | manifest | `src/storage` | read-only parser added | Package 1 synthetic round-trip; Package 2 synthetic read-only fixture | passed | no |
 | core config files | `src/storage` | read-only inspection added | Package 1 synthetic round-trip; Package 2 synthetic read-only fixture | passed | no |
 | profile loading | `src/profile` | read-only loader/report added | Package 1 synthetic round-trip; Package 2 synthetic read-only fixture | passed | no |
-| database inspection | `src/database` | not started | pending Package 3 | pending | no |
-| conversations | `src/conversation` | record contracts added | Package 1 synthetic round-trip | passed | no |
-| messages | `src/conversation` | record contracts added | Package 1 synthetic round-trip | passed | no |
-| Memory V2 schema | `src/memory/v2Schema.ts` | schema report contract added | Package 1 synthetic round-trip | passed | no |
+| database inspection | `src/database` | read-only repository added | Package 3 synthetic SQLite fixture/hash check | passed | no |
+| conversations | `src/conversation` | read-only listing/lookup added | Package 1 synthetic round-trip; Package 3 SQLite fixture | passed | no |
+| messages | `src/conversation` | read-only listing added | Package 1 synthetic round-trip; Package 3 SQLite fixture | passed | no |
+| Memory V2 schema | `src/memory/v2Schema.ts` | schema report contract + trace reads added | Package 1 synthetic round-trip; Package 3 SQLite fixture | passed | no |
 | Memory V2 scoring | `src/memory/v2Engine.ts` | not started | pending Package 4 | pending | no |
 | short-term memory | `src/memory` short-term report | trace contract added | Package 1 synthetic round-trip | passed | no |
 | Context V2 | `src/context/contextV2.ts` | report contract added | Package 1 synthetic round-trip | passed | no |
@@ -34,3 +34,7 @@ runtime execution.
 Package 2 adds read-only storage/profile compatibility over synthetic
 `/tmp/rin-python-*` fixtures. It does not write production data and does not
 claim database repository parity.
+
+Package 3 adds read-only SQLite repository compatibility over synthetic
+`/tmp/rin-python-*` fixtures. It verifies that inspection leaves the database
+file hash unchanged.
