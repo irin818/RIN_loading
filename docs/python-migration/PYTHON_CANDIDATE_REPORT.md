@@ -54,6 +54,9 @@ Status: Package 10 candidate validation completed for review.
   conversation writes, history, trace status, and production write rejection.
 - Read-only copied-data inspection is permitted only after copying to
   `/tmp/rin-python-*`; original data must remain hash-stable.
+- Copied-data shadow validation copies source data to `/tmp/rin-python-shadow-*`,
+  runs read inspection and optional write simulation on the copy, and verifies
+  source DB hash stability.
 - Write simulation is limited to safe temp/copy fixtures.
 - Copied owner-data read verification passed: original DB hash unchanged,
   copied DB hash unchanged after read-only inspection, schema version 6, and 17

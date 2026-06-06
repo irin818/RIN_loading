@@ -219,3 +219,21 @@ Implications:
   `.rin-data`.
 - Preview mode is not production cutover and must not be treated as the default
   backend.
+
+## Decision P0015: Shadow validation copies owner data before inspection
+
+Decision:
+
+- Package C shadow validation reads the production data directory only as a
+  source for hashing and copying.
+- Inspection and write simulation run only on `/tmp/rin-python-shadow-*`.
+- The command records source DB hash before and after the run and fails if it
+  changes.
+- Reports include counts/status only and no private raw conversation or profile
+  text.
+
+Implications:
+
+- Copied-data validation can increase confidence without approving real-data
+  migration.
+- Any source hash change is a hard stop condition.
