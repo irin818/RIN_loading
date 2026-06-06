@@ -55,5 +55,10 @@ cutover.
 - TypeScript fallback launchers: preserved.
 - Python production check: passed.
 - Default recommendation: Python primary, TypeScript fallback.
+- Post-cutover verification: passed.
+- Local Ollama/Qwen3 readiness: passed.
+- Python real-data conversation smoke: passed.
+- Current post-smoke DB hash:
+  `690db14d9ca07ceb8e2ddcf2528541fbf69461621476fcd25de4a55cb23c58f1`.
 - Cutover approval: owner-authorized in the production cutover acceleration
   task.
