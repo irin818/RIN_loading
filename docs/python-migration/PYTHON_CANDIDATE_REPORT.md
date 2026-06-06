@@ -1,11 +1,11 @@
 # Python RIN Core Candidate Report
 
-Status: Packages A-F final candidate validation completed for review.
+Status: merged to `main` as preview/candidate only.
 
 ## Candidate Scope
 
-- Branch: `python-rewrite/main`
-- Integration target: `python-rewrite/main`
+- Branch: `main`
+- Integration target: merged preview-only via PR #72
 - Production target: not approved
 - Launcher switch: not approved
 - TypeScript Core removal: not approved
@@ -94,6 +94,10 @@ Status: Packages A-F final candidate validation completed for review.
   checks, full Python gates, repeated/temp-data TypeScript checks, safety scans,
   copied-data shadow validation, migration dry-run, rollback rehearsal, API
   contract check, and optional local Ollama/Qwen3 smoke.
+- PR #72 merged into `main` as preview-only at
+  `13ed047 Merge pull request #72 from irin818/python-rewrite/main`.
+- Post-merge checks on `main` passed for TypeScript production defaults and
+  Python preview smoke/candidate/API/shadow validation.
 
 ## Unresolved Risks
 

@@ -1,11 +1,13 @@
 # Python Main Integration Audit
 
-Status: Package A final audit for preview-only main integration.
+Status: preview-only main integration completed.
 
 ## Scope
 
-- PR: #72 from `python-rewrite/main` to `main`
-- Candidate head audited: `ab42b0f`
+- PR: #72 from `python-rewrite/main` to `main`, merged preview-only
+- Main merge commit: `13ed047`
+- Candidate head audited before merge: `ab42b0f`; final integration head:
+  `f18d1cc`
 - Target mode: preview/candidate code on `main`, not production cutover
 - Production TypeScript runtime: remains default and rollback path
 
@@ -59,8 +61,15 @@ Status: Package A final audit for preview-only main integration.
   dry-run, rollback, API contract, TypeScript temp-data, and safety-scan checks.
 - PR #72 diff was rechecked for no production launcher changes, no TypeScript
   Core deletion, no private data, and no real-data artifacts.
-- PR #72 may be marked ready for review and merged as preview-only if mergeable
-  state remains clean.
+- PR #72 was marked ready and merged as preview-only.
+
+## Post-Merge Result
+
+- `main` contains the Python Core preview/candidate implementation.
+- TypeScript remains the default production runtime.
+- `Start_RIN.command` and `Start_RIN_Local_Model.command` remain unchanged.
+- Python preview remains temp-data-only by default.
+- Production cutover remains blocked.
 
 ## Explicit Non-Goals
 
