@@ -27,7 +27,7 @@ fi
 export RIN_PYTHON_DATA_DIR="$PRODUCTION_DATA"
 export RIN_OLLAMA_TIMEOUT_MS="${RIN_OLLAMA_TIMEOUT_MS:-180000}"
 
-echo "Local URL: http://127.0.0.1:8765"
+echo "Local UI: http://127.0.0.1:8765/"
 echo "Adapter: ${RIN_MODEL_ADAPTER:-rin-mock-local}"
 echo "External APIs are disabled by default."
 echo "Press Ctrl-C to stop the Python server."

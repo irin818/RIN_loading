@@ -36,11 +36,11 @@ Deletion status: blocked pending Python UI replacement.
 
 ### Package B: Python UI / Console Replacement
 
-Required before TypeScript UI removal.
+Status: completed with Route 1.
 
-Preferred route: FastAPI-served HTML UI with no React/Vite dependency.
+Implemented route: FastAPI-served HTML UI with no React/Vite dependency.
 
-Required features:
+Implemented features:
 
 - local-only `127.0.0.1`;
 - chat input and response display;
@@ -50,6 +50,8 @@ Required features:
 - visible error display;
 - local Ollama mode support;
 - no external API calls.
+
+See `docs/python-only/PYTHON_UI_CONSOLE_DECISION.md`.
 
 ### Package C: Python Launchers Become Sole Active Launchers
 

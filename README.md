@@ -100,10 +100,10 @@ npm install
 ## One-click local launch / 一键启动
 
 Recommended: double-click `Start_RIN_Python_Local_Model.command` from the
-repository root to start the Python RIN primary backend with local
-Ollama/Qwen3. Use `Start_RIN_Python.command` for provider-free mock mode.
-TypeScript fallback remains available through `Start_RIN.command` and
-`Start_RIN_Local_Model.command`.
+repository root to start the Python RIN primary backend and local web UI with
+local Ollama/Qwen3. Use `Start_RIN_Python.command` for provider-free mock mode.
+The Python UI is served at `http://127.0.0.1:8765/`. TypeScript fallback remains
+available through `Start_RIN.command` and `Start_RIN_Local_Model.command`.
 
 推荐在仓库根目录双击 `Start_RIN_Python_Local_Model.command`，用本地
 Ollama/Qwen3 启动 Python RIN 主后端。`Start_RIN_Python.command` 可用于
@@ -168,7 +168,7 @@ provider-free Python production server:
 ./Start_RIN_Python.command
 ```
 
-To run the recommended local-model Python server:
+To run the recommended local-model Python server and UI:
 
 ```sh
 ./Start_RIN_Python_Local_Model.command

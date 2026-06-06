@@ -39,7 +39,7 @@ export RIN_OLLAMA_MODEL="$OLLAMA_MODEL"
 export RIN_OLLAMA_TIMEOUT_MS="${RIN_OLLAMA_TIMEOUT_MS:-180000}"
 export RIN_OLLAMA_NUM_PREDICT="${RIN_OLLAMA_NUM_PREDICT:-1024}"
 
-echo "Local URL: http://127.0.0.1:8765"
+echo "Local UI: http://127.0.0.1:8765/"
 echo "Adapter: rin-ollama-local"
 echo "Local model: $RIN_OLLAMA_MODEL"
 echo "External APIs are disabled."

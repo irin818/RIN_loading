@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from html import escape
+from typing import cast
+
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict
 
 from rin.contracts import ModelRequest, ModelResponse, ModelResponseMetadata
@@ -78,6 +82,14 @@ def create_app(
     layout_dependency = Depends(get_layout)
     adapter_dependency = Depends(get_adapter)
     clock_dependency = Depends(get_clock)
+
+    @app.get("/", response_class=HTMLResponse)
+    def ui_root(current_layout: RinDataLayout = layout_dependency) -> HTMLResponse:
+        return render_console_page(current_layout)
+
+    @app.get("/ui", response_class=HTMLResponse)
+    def ui(current_layout: RinDataLayout = layout_dependency) -> HTMLResponse:
+        return render_console_page(current_layout)
 
     @app.get("/readiness")
     def readiness() -> dict[str, object]:
@@ -170,6 +182,42 @@ def create_app(
             "snapshot": local_console_snapshot(current_layout),
         }
 
+    @app.post("/ui/chat", response_class=HTMLResponse)
+    async def ui_chat(
+        body: ConversationSendBody,
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+        current_clock: RuntimeClock = clock_dependency,
+    ) -> HTMLResponse:
+        try:
+            target_conversation_id = body.conversationId
+            if target_conversation_id is None:
+                reject_unsafe_write_layout(current_layout)
+                conversation = create_conversation(
+                    current_layout,
+                    "Python UI conversation",
+                    current_clock.now(),
+                )
+                target_conversation_id = conversation.id
+            result = await send_message(
+                target_conversation_id,
+                body,
+                current_layout,
+                current_adapter,
+                current_clock,
+            )
+            return render_console_page(
+                current_layout,
+                selected_conversation_id=target_conversation_id,
+                notice=f"Reply stored with turn {result['turnId']}.",
+            )
+        except Exception as error:
+            return render_console_page(
+                current_layout,
+                selected_conversation_id=body.conversationId,
+                error=f"{type(error).__name__}: {error}",
+            )
+
     @app.get("/conversations")
     def list_conversations_endpoint(
         current_layout: RinDataLayout = layout_dependency,
@@ -252,6 +300,127 @@ def create_app(
         return result.model_dump(mode="json")
 
     return app
+
+
+def render_console_page(
+    layout: RinDataLayout,
+    *,
+    selected_conversation_id: str | None = None,
+    notice: str | None = None,
+    error: str | None = None,
+) -> HTMLResponse:
+    snapshot = local_console_snapshot(layout)
+    database = cast(dict[str, object], snapshot["database"])
+    conversations = list_conversations(layout, limit=20)
+    selected = selected_conversation_id or (
+        conversations[0].id if conversations else None
+    )
+    messages = list_messages(layout, selected) if selected else []
+    profile = snapshot["profile"]
+    profile_status = (
+        profile.get("status", "unknown") if isinstance(profile, dict) else "unknown"
+    )
+    conversation_options = "\n".join(
+        [
+            '<option value="'
+            + escape(item.id)
+            + ('" selected>' if item.id == selected else '">')
+            + escape(item.title)
+            + "</option>"
+            for item in conversations
+        ]
+    )
+    messages_html = "\n".join(
+        [
+            f"<article class='message {escape(item.role)}'>"
+            f"<strong>{escape(item.role)}</strong>"
+            f"<p>{escape(item.content)}</p>"
+            "</article>"
+            for item in messages
+        ]
+    )
+    notice_html = f"<p class='notice'>{escape(notice)}</p>" if notice else ""
+    error_html = f"<p class='error'>{escape(error)}</p>" if error else ""
+    body = f"""<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RIN Python Console</title>
+    <style>
+      body {{ font-family: system-ui, sans-serif; margin: 2rem; line-height: 1.4; }}
+      main {{ max-width: 900px; margin: auto; }}
+      textarea {{ box-sizing: border-box; min-height: 7rem; width: 100%; }}
+      select, button {{ font: inherit; margin-top: 0.5rem; }}
+      .status, .message {{ border: 1px solid #ddd; border-radius: 8px; padding: 1rem; }}
+      .message {{ margin: 0.75rem 0; }}
+      .owner {{ background: #f7fbff; }}
+      .rin {{ background: #f8fff7; }}
+      .notice {{ color: #0a5; }}
+      .error {{ color: #b00020; white-space: pre-wrap; }}
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>RIN Python Console</h1>
+      <section class="status">
+        <p><strong>Runtime:</strong> Python FastAPI local-only</p>
+        <p><strong>Schema:</strong> {database["schemaVersion"]}</p>
+        <p><strong>Conversations:</strong> {database["conversations"]}</p>
+        <p><strong>Messages:</strong> {database["messages"]}</p>
+        <p><strong>Profile status:</strong> {escape(str(profile_status))}</p>
+        <p>
+          <strong>External API calls:</strong>
+          {snapshot["externalProviderCallCount"]}
+        </p>
+      </section>
+      {notice_html}
+      {error_html}
+      <section>
+        <h2>Chat</h2>
+        <form id="chat-form">
+          <label>
+            Conversation
+            <select name="conversationId">
+              <option value="">New conversation</option>
+              {conversation_options}
+            </select>
+          </label>
+          <label>
+            Message
+            <textarea name="content" required></textarea>
+          </label>
+          <button type="submit">Send</button>
+        </form>
+      </section>
+      <section>
+        <h2>Conversation History</h2>
+        {messages_html or "<p>No messages yet.</p>"}
+      </section>
+    </main>
+    <script>
+      const formElement = document.getElementById("chat-form");
+      formElement.addEventListener("submit", async (event) => {{
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        const payload = {{
+          content: String(form.get("content") || ""),
+          conversationId: String(form.get("conversationId") || "") || null,
+        }};
+        const response = await fetch("/ui/chat", {{
+          method: "POST",
+          headers: {{ "Content-Type": "application/json" }},
+          body: JSON.stringify(payload),
+        }});
+        document.open();
+        document.write(await response.text());
+        document.close();
+      }});
+    </script>
+  </body>
+</html>
+"""
+    return HTMLResponse(body)
 
 
 def local_console_snapshot(layout: RinDataLayout) -> dict[str, object]:
