@@ -4,10 +4,9 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Package F — Post-Merge Preview Usage Finalization.
-- Current checkpoint: PR #72 merged into `main` as preview-only; post-merge
-  checks passed.
-- Active branch: `python-preview/post-merge-docs-if-needed`.
+- Current package: Cutover Acceleration Package A — Persistent Python Sandbox.
+- Current checkpoint: persistent sandbox checks passed.
+- Active branch: `python-cutover/01-persistent-sandbox`.
 - Target integration branch: `main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -19,6 +18,8 @@ Status: active handoff document.
 - Candidate PR: #72, merged to `main` as preview-only.
 - Final preview-only main merge commit:
   `13ed047 Merge pull request #72 from irin818/python-rewrite/main`.
+- Production cutover: not yet performed.
+- Real `.rin-data` migration: not yet performed.
 
 ## Completed Work
 
@@ -170,6 +171,18 @@ Status: active handoff document.
   pre-merge `main`.
 - Created Python venv under `/Users/irin/Documents/RIN_loading/python/.venv`
   for local post-merge preview checks.
+- Started cutover acceleration Package A branch
+  `python-cutover/01-persistent-sandbox`.
+- Added persistent Python sandbox path `.rin-python-preview-data`.
+- Added sandbox CLI commands:
+  - `rin-python-sandbox-init`
+  - `rin-python-sandbox-server`
+  - `rin-python-sandbox-smoke`
+  - `rin-python-sandbox-reset-dry-run`
+- Added `scripts/python-preview/Start_RIN_Python_Sandbox.command`.
+- Added `PYTHON_PERSISTENT_SANDBOX.md`.
+- Created ignored persistent sandbox directory:
+  `/Users/irin/Documents/RIN_loading/.rin-python-preview-data`.
 
 ## Tests Run
 
@@ -586,6 +599,26 @@ Status: active handoff document.
   - `.venv/bin/rin-python-preview-smoke`
   - `.venv/bin/rin-python-copy-data-shadow-report`
   - `.venv/bin/rin-python-api-contract-check`
+- Cutover Package A Python checks passed:
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/rin-python-candidate-check`
+  - `.venv/bin/rin-python-preview-smoke`
+  - `.venv/bin/rin-python-sandbox-init`
+  - `.venv/bin/rin-python-sandbox-smoke`
+  - `.venv/bin/rin-python-sandbox-reset-dry-run`
+- Cutover Package A TypeScript fallback check passed:
+  - temp-data `npm run rin:v2-check`
+  - `git diff --check`
+- Cutover Package A safety scans passed:
+  - no tracked `.rin-data`, `.rin-python-preview-data`, database, log, backup,
+    env, or key/certificate files.
+  - `.rin-python-preview-data` is ignored by Git.
+  - no hidden control or bidi characters.
+  - secret-like matches are existing placeholder/config-validation references,
+    not private values.
 - Copied owner-data read verification:
   - temporary copy under `/tmp/rin-python-owner-copy.*`.
   - original DB hash unchanged: yes.
@@ -695,6 +728,9 @@ Status: active handoff document.
 - Package E merged PR #72 into `main` as preview-only. TypeScript remains the
   default production runtime, Python remains preview/candidate, real `.rin-data`
   remains untouched by Python writes, and production cutover remains blocked.
+- Cutover Package A expands Python write safety to allow only
+  `/tmp/rin-python-*` and the exact persistent sandbox path. Production
+  `.rin-data` remains rejected.
 
 ## Exact Next Task
 
@@ -703,3 +739,7 @@ Owner can manually test Python Preview from `main` using
 `npm run rin-python-preview-smoke`. Any production cutover, launcher switch,
 real `.rin-data` migration, or TypeScript Core removal still requires a separate
 owner-approved PR.
+
+Push `python-cutover/01-persistent-sandbox`, open a PR to `main`, and merge only
+if review remains clean. Then continue to Package B real-data preflight,
+backup, and dry-run gate.

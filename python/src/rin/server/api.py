@@ -12,7 +12,7 @@ from rin.database import (
     list_messages,
 )
 from rin.diagnostics.readiness import build_python_readiness_report
-from rin.diagnostics.safety import assert_safe_temp_data_dir
+from rin.diagnostics.safety import assert_safe_python_write_data_dir
 from rin.profiles import build_profile_report
 from rin.storage import RinDataLayout
 
@@ -286,12 +286,15 @@ def local_console_snapshot(layout: RinDataLayout) -> dict[str, object]:
 
 def reject_unsafe_write_layout(layout: RinDataLayout) -> None:
     try:
-        assert_safe_temp_data_dir(layout.rootDir)
+        assert_safe_python_write_data_dir(layout.rootDir)
     except Exception as error:
         raise HTTPException(
             status_code=403,
             detail={
                 "code": "UNSAFE_DATA_PATH",
-                "message": "Python compatibility API writes require /tmp/rin-python-*.",
+                "message": (
+                    "Python compatibility API writes require /tmp/rin-python-* "
+                    "or the approved persistent sandbox."
+                ),
             },
         ) from error

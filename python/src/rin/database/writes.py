@@ -7,12 +7,12 @@ from uuid import uuid4
 
 from rin.contracts import ConversationMessageRecord, ConversationRecord
 from rin.database.readonly import database_path_for
-from rin.diagnostics.safety import assert_safe_temp_data_dir
+from rin.diagnostics.safety import assert_safe_python_write_data_dir
 from rin.storage import RinDataLayout, create_data_layout
 
 
 def assert_safe_write_layout(layout: RinDataLayout) -> Path:
-    return assert_safe_temp_data_dir(layout.rootDir)
+    return assert_safe_python_write_data_dir(layout.rootDir)
 
 
 def initialize_temp_database(layout: RinDataLayout) -> Path:

@@ -18,7 +18,7 @@ from rin.database import (
     record_completed_turn,
     record_failed_turn,
 )
-from rin.diagnostics.safety import assert_safe_temp_data_dir
+from rin.diagnostics.safety import assert_safe_python_write_data_dir
 from rin.model.ollama import (
     ModelError,
     has_unsafe_thinking_leak,
@@ -86,7 +86,7 @@ async def run_conversation_turn(
     clock: RuntimeClock | None = None,
 ) -> ConversationRuntimeResult:
     started_at = perf_counter()
-    assert_safe_temp_data_dir(layout.rootDir)
+    assert_safe_python_write_data_dir(layout.rootDir)
     runtime_clock = clock or RuntimeClock()
     now = runtime_clock.now()
     conversation = None
