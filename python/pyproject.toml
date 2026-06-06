@@ -11,6 +11,7 @@ requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.115",
   "httpx>=0.27",
+  "jinja2>=3.1",
   "pydantic>=2.8",
   "uvicorn>=0.30",
 ]
@@ -52,6 +53,10 @@ rin-python-api-contract-check = "rin.cli.api_contract_check:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rin"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/rin/server/templates" = "rin/server/templates"
+"src/rin/server/static" = "rin/server/static"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

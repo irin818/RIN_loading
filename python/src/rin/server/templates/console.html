@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/console.css') }}" />
+    <script defer src="{{ url_for('static', path='/console.js') }}"></script>
+  </head>
+  <body>
+    <main class="console-shell" data-selected-conversation="{{ selected_conversation_id or '' }}">
+      <header class="console-header">
+        <section>
+          <p class="eyebrow">Local AI operating console</p>
+          <h1>RIN Local Console</h1>
+          <p class="runtime-line">{{ identity }}</p>
+        </section>
+        <section class="runtime-pills" aria-label="Runtime status">
+          <span class="pill pill-strong">{{ model_name }}</span>
+          <span class="pill">Adapter {{ adapter_id }}</span>
+          <span class="pill status-ok">Local</span>
+          <span class="pill">External API disabled</span>
+        </section>
+      </header>
+
+      {% if notice %}
+        <aside class="notice-box" role="status">{{ notice }}</aside>
+      {% endif %}
+      {% if error %}
+        <aside class="error-box" role="alert">
+          <strong>Structured error</strong>
+          <span>{{ error }}</span>
+        </aside>
+      {% endif %}
+
+      <section class="console-grid">
+        <aside class="conversation-panel" aria-label="Recent conversations">
+          <div class="panel-heading">
+            <span>Conversations</span>
+            <span class="panel-count">{{ conversations | length }}</span>
+          </div>
+          <a class="new-chat-link" href="/ui?new=1">New chat</a>
+          <nav class="conversation-list">
+            {% for conversation in conversations %}
+              <a
+                class="conversation-card{% if conversation.id == selected_conversation_id %} selected{% endif %}"
+                href="/ui?conversationId={{ conversation.id }}"
+                data-conversation-id="{{ conversation.id }}"
+              >
+                <strong>{{ conversation.title }}</strong>
+                <span>{{ conversation.id }}</span>
+              </a>
+            {% else %}
+              <p class="empty-copy">No conversations yet.</p>
+            {% endfor %}
+          </nav>
+        </aside>
+
+        <section class="chat-panel" aria-label="Chat">
+          <div class="panel-heading chat-heading">
+            <span>Chat</span>
+            <span class="muted">{{ message_count }} messages</span>
+          </div>
+          <section id="message-stream" class="message-stream" aria-live="polite">
+            {% for message in messages %}
+              <article class="message-row message-row-{{ message.role }}">
+                <div class="message-bubble {{ message.role }}">
+                  <div class="message-meta">
+                    <strong>{{ message.role }}</strong>
+                    {% if message.createdAt %}
+                      <time>{{ message.createdAt }}</time>
+                    {% endif %}
+                  </div>
+                  <p>{{ message.content }}</p>
+                </div>
+              </article>
+            {% else %}
+              <section class="empty-state">
+                <p class="eyebrow">Ready</p>
+                <h2>Start a local conversation.</h2>
+                <p>Messages stay local. External provider calls remain disabled.</p>
+              </section>
+            {% endfor %}
+          </section>
+        </section>
+
+        <aside class="status-panel" aria-label="Status">
+          <div class="panel-heading">
+            <span>Status</span>
+            <span class="status-dot" aria-label="ready"></span>
+          </div>
+
+          <section class="status-card">
+            <h2>Readiness</h2>
+            <dl>
+              <div><dt>Ready</dt><dd>{{ readiness.ok }}</dd></div>
+              <div><dt>Schema</dt><dd>{{ database.schemaVersion }}</dd></div>
+              <div><dt>Conversations</dt><dd>{{ database.conversations }}</dd></div>
+              <div><dt>Messages</dt><dd>{{ database.messages }}</dd></div>
+            </dl>
+          </section>
+
+          <section class="status-card">
+            <h2>Model</h2>
+            <dl>
+              <div><dt>Adapter</dt><dd>{{ adapter_id }}</dd></div>
+              <div><dt>Local model</dt><dd>{{ local_model_status }}</dd></div>
+              <div><dt>External calls</dt><dd>{{ snapshot.externalProviderCallCount }}</dd></div>
+            </dl>
+          </section>
+
+          <section class="status-card">
+            <h2>Profile</h2>
+            <dl>
+              <div><dt>Status</dt><dd>{{ profile_status }}</dd></div>
+              <div><dt>Files</dt><dd>{{ profile_file_count }}</dd></div>
+            </dl>
+          </section>
+
+          <section class="status-card">
+            <h2>Memory / Trace</h2>
+            <dl>
+              <div><dt>Memory V2 traces</dt><dd>{{ memory_context.memoryV2Traces }}</dd></div>
+              <div><dt>Full text</dt><dd>{{ memory_context.fullTextIncluded }}</dd></div>
+            </dl>
+          </section>
+
+          <section class="status-card">
+            <h2>Body / Live2D</h2>
+            <dl>
+              <div><dt>Status</dt><dd>{{ body_report.status }}</dd></div>
+              <div><dt>Adapter</dt><dd>{{ body_report.adapterId }}</dd></div>
+              <div><dt>Replaceable</dt><dd>{{ body_report.bodyReplaceable }}</dd></div>
+            </dl>
+          </section>
+        </aside>
+      </section>
+
+      <form id="chat-form" class="composer" autocomplete="off">
+        <input type="hidden" name="conversationId" value="{{ selected_conversation_id or '' }}" />
+        <label class="sr-only" for="chat-input">Message</label>
+        <textarea
+          id="chat-input"
+          name="content"
+          placeholder="Send a local message to RIN..."
+          required
+        ></textarea>
+        <button id="send-button" type="submit">Send</button>
+        <p class="composer-hint">Local-only. Press Enter to send, Shift+Enter for newline. Ctrl-C stops the server.</p>
+      </form>
+    </main>
+  </body>
+</html>

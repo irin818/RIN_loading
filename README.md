@@ -21,6 +21,16 @@ http://127.0.0.1:8765/
 `Start_RIN_Python_Local_Model.command` selects local Ollama with `qwen3:4b`.
 `Start_RIN_Python.command` uses provider-free mock mode for local testing.
 
+## Python Console UI
+
+The active local console uses FastAPI, Jinja2 templates, static CSS, and minimal
+vanilla JavaScript. It has no TypeScript, React, Vite, Node, npm, or frontend
+build chain.
+
+The console shows recent conversations, owner/RIN message bubbles, readiness,
+local model status, profile summary, memory/context trace summary, body status,
+and visible notice/error states.
+
 ## Install
 
 Create the Python environment:
@@ -97,3 +107,4 @@ Important Python-only transition docs:
 - `docs/python-only/BODY_LIVE2D_RETIREMENT_OR_REPLACEMENT.md`
 - `docs/python-only/OPERATIONAL_SURFACE_RETIREMENT_REPORT.md`
 - `docs/python-only/TYPESCRIPT_FALLBACK_GUIDE.md`
+- `docs/python-only/PYTHON_CONSOLE_UI_REBUILD.md`
