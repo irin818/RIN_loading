@@ -19,10 +19,11 @@ Status: initialized for Package 0.
 | temp write repository | `src/database`, runtime persistence | guarded temp-only writes added | Package 7 synthetic write tests + readonly summaries | passed | no |
 | structured errors | `src/model`, `src/conversation/errors.ts` | error contracts added | Package 1 synthetic round-trip | passed | no |
 | conversation runtime | `src/conversation/runtime.ts` | temp-only candidate added | Package 8 mock runtime tests + TS runtime report | passed | no |
-| audit events | `src/database`, `src/conversation` | not started | pending Package 3/7/8 | pending | no |
+| audit events | `src/database`, `src/conversation` | safe summaries and temp writes added | Package 3 audit summary tests; Package 7 temp audit tests | passed | no |
 | readiness | `src/readiness` | foundation + TS readiness contract | Package 0 provider-free readiness; Package 1 synthetic round-trip | passed | no |
 | local API | `src/server` | local-only FastAPI app factory added | Package 9 API contract tests + TS v2 check | passed | no |
 | candidate validation | full RIN v2 checks | candidate docs and validation tests added | Package 10 repeated Python/TS checks + copied-data hash check | passed | no |
+| timing metrics | `src/conversation/runtimeReport.ts` | safe runtime elapsed result added | Package A runtime tests | passed | no |
 
 Package 0 creates only foundation checks and safety scaffolding. It does not
 claim behavioral parity for migrated TypeScript core capabilities. The Package 0
@@ -62,3 +63,6 @@ production launchers and rejects write routes outside guarded temp layouts.
 
 Package 10 validates the candidate for review only. It does not approve
 production cutover, launcher switching, real-data writes, or TypeScript removal.
+
+Package A audits the candidate and closes low-risk gaps only. Timing metrics are
+safe elapsed runtime result fields, not durable production timing events.

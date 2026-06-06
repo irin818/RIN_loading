@@ -25,6 +25,7 @@ Status: Package 10 candidate validation completed for review.
   RIN reply.
 - FastAPI compatibility routes cover readiness, state, profile status,
   conversation create/send/history, and trace status for temp data.
+- Package A audit added safe elapsed runtime timing in candidate results.
 
 ## Approved Differences
 
@@ -76,3 +77,4 @@ Status: Package 10 candidate validation completed for review.
   latency remains a risk.
 - Production owner-data migration semantics require separate review.
 - API compatibility is practical and local-only, not a full Console replacement.
+- Durable TypeScript-style timing event tables are not implemented in Python.
