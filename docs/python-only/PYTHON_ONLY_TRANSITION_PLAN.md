@@ -78,6 +78,12 @@ Allowed only after:
 
 Remove only files proven replaced.
 
+Blocker status:
+
+- D1 Python Console coverage: completed.
+- D2 body/Live2D decision: completed; current active TypeScript body runtime is
+  retired and a minimal Python body report exists.
+
 ### Package E: Repository Restructure
 
 After TypeScript removal:
