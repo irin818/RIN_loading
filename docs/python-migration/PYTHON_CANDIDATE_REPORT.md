@@ -79,6 +79,8 @@ Status: Package 10 candidate validation completed for review.
   branches.
 - Package D dry-run/rehearsal commands simulate migration and rollback only on
   copied/temp data and expose no production apply path.
+- Package E adds preview-compatible Console API aliases for `/api/local-state`,
+  `/api/conversations`, and `/api/conversations/{id}` on synthetic/temp data.
 
 ## Unresolved Risks
 
@@ -91,3 +93,4 @@ Status: Package 10 candidate validation completed for review.
 - Durable TypeScript-style timing event tables are not implemented in Python.
 - Preview server is local/manual and not integrated with the React Console
   launcher.
+- Python does not yet implement the full TypeScript Console memory review API.

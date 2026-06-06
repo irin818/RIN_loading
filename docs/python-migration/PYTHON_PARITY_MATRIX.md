@@ -28,6 +28,7 @@ Status: initialized for Package 0.
 | copied-data shadow validation | read-only owner data inspection | copy-first shadow report added | Package C synthetic hash/copy tests | passed | no |
 | migration dry-run | TypeScript remains production reference | copy-only dry-run added, no apply path | Package D synthetic dry-run tests | passed | no |
 | rollback rehearsal | TypeScript rollback path | copy-only rehearsal added | Package D rollback tests | passed | no |
+| Console API contract | `src/server/localConsoleServer.ts` | preview-compatible `/api` aliases added | Package E API contract check | passed | no |
 
 Package 0 creates only foundation checks and safety scaffolding. It does not
 claim behavioral parity for migrated TypeScript core capabilities. The Package 0
@@ -79,3 +80,6 @@ inspection or write simulation and verifies the source DB hash is unchanged.
 
 Package D adds dry-run and rollback rehearsal commands only. There is no
 production migration apply path.
+
+Package E adds enough Console-shaped API aliases for preview contract checks on
+synthetic temp data. It does not modify the React Console or production server.
