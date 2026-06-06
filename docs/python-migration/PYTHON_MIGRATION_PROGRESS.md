@@ -4,10 +4,11 @@ Status: active handoff document.
 
 ## Current State
 
-- Current package: Cutover Acceleration Package D — Python Production Launcher.
-- Current checkpoint: Python production launchers added; TypeScript fallback
-  preserved.
-- Active branch: `python-cutover/04-python-production-launcher`.
+- Current package: Cutover Acceleration Package E — Default Recommendation and
+  Production Check.
+- Current checkpoint: Python is recommended primary path; production check
+  passed.
+- Active branch: `python-cutover/05-default-recommendation-switch`.
 - Target integration branch: `main`.
 - Worktree: `/Users/irin/Documents/RIN_loading_python`.
 - TypeScript reference branch: `main`.
@@ -222,6 +223,13 @@ Status: active handoff document.
 - Added `PYTHON_PRODUCTION_LAUNCHER.md`.
 - Updated `README.md` launch guidance to recommend Python and keep TypeScript
   fallback launchers.
+- Merged Package D PR #87 into `main`.
+- Started cutover acceleration Package E branch
+  `python-cutover/05-default-recommendation-switch`.
+- Added `rin-python-production-check`.
+- Added `PYTHON_CUTOVER_COMPLETE.md`.
+- Updated `ARCHITECTURE.md` to describe Python as primary and TypeScript as
+  fallback.
 
 ## Tests Run
 
@@ -864,6 +872,25 @@ Status: active handoff document.
 - Cutover Package D adds Python production launchers that refuse to start
   without the migration marker and bind the Python server to `127.0.0.1:8765`.
   TypeScript launchers remain unchanged and available.
+- Cutover Package E production check passed:
+  - marker present: yes.
+  - real data readable: yes.
+  - backup exists: yes.
+  - Python launchers exist: yes.
+  - TypeScript fallback launchers exist: yes.
+  - external API disabled: yes.
+  - current composite DB hash:
+    `45a2ed6287bf900eb008351904fd1856779f346e6f5c1a2a54567a0ea1042875`.
+- Cutover Package E checks passed:
+  - `.venv/bin/python -m ruff check .`
+  - `.venv/bin/python -m ruff format --check .`
+  - `.venv/bin/python -m mypy src`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/rin-python-candidate-check`
+  - `.venv/bin/rin-python-production-check`
+  - temp-data `npm run rin:v2-check`
+  - `git diff --check`
+  - safety scans.
 
 ## Exact Next Task
 
@@ -873,6 +900,6 @@ Owner can manually test Python Preview from `main` using
 real `.rin-data` migration, or TypeScript Core removal still requires a separate
 owner-approved PR.
 
-Push `python-cutover/04-python-production-launcher`, open a PR to `main`, and
-merge only if review remains clean. Then continue to Package E final default
-recommendation switch and production check.
+Push `python-cutover/05-default-recommendation-switch`, open a PR to `main`, and
+merge only if review remains clean. Then continue to Package F post-cutover
+verification and tag.

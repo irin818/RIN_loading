@@ -54,6 +54,7 @@
     "rin-python-sandbox-smoke": "cd python && .venv/bin/python -m rin.cli.sandbox_smoke",
     "rin-python-sandbox-reset-dry-run": "cd python && .venv/bin/python -m rin.cli.sandbox_reset_dry_run",
     "rin-python-production-server": "cd python && .venv/bin/python -m rin.cli.production_server",
+    "rin-python-production-check": "cd python && .venv/bin/python -m rin.cli.production_check",
     "rin-python-real-data-preflight": "cd python && .venv/bin/python -m rin.cli.real_data_preflight",
     "rin-python-real-data-backup": "cd python && .venv/bin/python -m rin.cli.real_data_backup",
     "rin-python-real-data-migration-dry-run": "cd python && .venv/bin/python -m rin.cli.real_data_migration_dry_run",
