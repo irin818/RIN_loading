@@ -1,4 +1,5 @@
 import shutil
+from typing import cast
 
 import pytest
 
@@ -98,6 +99,34 @@ async def test_runtime_persists_owner_and_rin_reply_on_success() -> None:
             "memory_update",
             "response_returned",
         ]
+        input_stage = trace.stages[0]
+        memory_stage = next(
+            stage for stage in trace.stages if stage.name == "memory_v2_retrieval"
+        )
+        context_stage = next(
+            stage for stage in trace.stages if stage.name == "context_assembly"
+        )
+        request_stage = next(
+            stage for stage in trace.stages if stage.name == "model_request"
+        )
+        reply_stage = next(
+            stage for stage in trace.stages if stage.name == "rin_reply_persisted"
+        )
+        memory_update_stage = next(
+            stage for stage in trace.stages if stage.name == "memory_update"
+        )
+
+        assert input_stage.output["inputLength"] == len("hello")
+        assert input_stage.output["inputHash"]
+        assert memory_stage.status == "skipped"
+        assert memory_stage.decision["skipReason"] == (
+            "runtime retrieval not wired into prompt assembly"
+        )
+        assert context_stage.output["componentTable"]
+        assert request_stage.output["requestOutline"]
+        assert reply_stage.output["storedSanitizedAnswer"] is True
+        assert reply_stage.output["storedRawThinking"] is False
+        assert memory_update_stage.output["tracesCreatedCount"] == 1
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
@@ -162,6 +191,12 @@ async def test_runtime_strips_thinking_before_persistence() -> None:
         assert sanitizer.metadata["thinkingTagDetected"] is True
         assert sanitizer.metadata["thinkingRemoved"] is True
         assert sanitizer.metadata["finalAnswerLength"] == len("Eat noodles.")
+        assert sanitizer.output["rawLength"] == len(
+            "<think>private</think>\n\nEat noodles."
+        )
+        assert sanitizer.output["finalLength"] == len("Eat noodles.")
+        assert cast(int, sanitizer.output["removedCharacterCount"]) > 0
+        assert sanitizer.privacy["hiddenReasoningTextIncluded"] is False
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 

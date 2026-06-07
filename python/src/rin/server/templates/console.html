@@ -132,53 +132,100 @@
 
           <section class="console-page" data-console-page="runtime-trace">
             <header class="page-heading">
-              <div><p class="eyebrow">Runtime Dataflow Trace</p><h2>Latest Backend Turn Pipeline</h2></div>
-              <div class="inline-chips"><span>privacy: safe</span><span>raw prompt hidden</span><span>raw model output hidden</span></div>
+              <div><p class="eyebrow">Runtime Dataflow Analyzer</p><h2>Latest Backend Turn Pipeline</h2></div>
+              <div class="inline-chips"><span>Safe Mode</span><span>prompt hidden</span><span>raw output hidden</span></div>
             </header>
             {% if runtime_trace %}
-              <section class="trace-summary">
-                <div><span>Turn</span><b>{{ runtime_trace.turnId }}</b></div>
-                <div><span>Conversation</span><b>{{ runtime_trace.conversationId }}</b></div>
+              <section class="trace-v2-summary">
                 <div><span>Status</span><b>{{ runtime_trace.status }}</b></div>
-                <div><span>Total</span><b>{{ runtime_trace.totalDurationMs }} ms</b></div>
+                <div><span>Duration</span><b>{{ runtime_trace.totalDurationMs }} ms</b></div>
+                <div><span>Conversation</span><b title="{{ runtime_trace.conversationId }}">{{ runtime_trace.conversationShortId }}</b></div>
+                <div><span>Turn</span><b title="{{ runtime_trace.turnId }}">{{ runtime_trace.turnShortId }}</b></div>
+                <div><span>Privacy</span><b>{{ runtime_trace.privacyMode }}</b></div>
+                <div><span>Model</span><b>{{ runtime_trace.analysis.model }}</b></div>
+                <div><span>Final</span><b>{{ runtime_trace.analysis.finalAnswerLength }} chars</b></div>
               </section>
-              <section class="trace-layout">
-                <div class="trace-timeline" aria-label="Runtime pipeline timeline">
+
+              <section class="trace-flow-metrics">
+                <article><span>Owner input</span><b>{{ runtime_trace.analysis.ownerInputLength }}</b></article>
+                <article><span>Recent selected</span><b>{{ runtime_trace.analysis.recentMessagesSelected }}</b></article>
+                <article><span>Memory injected</span><b>{{ runtime_trace.analysis.memoryTracesInjected }}</b></article>
+                <article><span>Request messages</span><b>{{ runtime_trace.analysis.requestMessages }}</b></article>
+                <article><span>Raw output</span><b>{{ runtime_trace.analysis.rawOutputLength }}</b></article>
+                <article><span>Removed</span><b>{{ runtime_trace.analysis.removedThinkingCharacters }}</b></article>
+                <article><span>Stored sanitized</span><b>{{ runtime_trace.analysis.storedSanitizedOnly }}</b></article>
+              </section>
+
+              <section class="trace-analyzer">
+                <nav class="trace-timeline compact" aria-label="Runtime pipeline timeline">
                   {% for stage in runtime_trace.stages %}
-                    <article class="trace-stage {{ stage.status }}">
+                    <button class="trace-stage {{ stage.status }}{% if loop.first %} active{% endif %}" type="button" data-trace-stage="{{ stage.name }}">
                       <span>{{ loop.index }}</span>
-                      <div>
-                        <strong>{{ stage.name }}</strong>
-                        <em>{{ stage.status }}</em>
-                      </div>
+                      <strong>{{ stage.displayName }}</strong>
+                      <em>{{ stage.status }}</em>
+                      <b>{{ stage.summary }}</b>
+                    </button>
+                  {% endfor %}
+                </nav>
+
+                <section class="trace-detail-v2">
+                  {% for stage in runtime_trace.stages %}
+                    <article class="trace-stage-panel{% if loop.first %} active{% endif %}" data-trace-stage-panel="{{ stage.name }}">
+                      <header>
+                        <div><p class="eyebrow">{{ stage.name }}</p><h3>{{ stage.displayName }}</h3></div>
+                        <div class="inline-chips"><span>{{ stage.status }}</span><span>{{ stage.durationMs }} ms</span><span>{{ stage.summary }}</span></div>
+                      </header>
+                      {% for section_name, section in [("Input", stage.input), ("Operation", stage.operation), ("Output", stage.output), ("Decision", stage.decision), ("Privacy", stage.privacy)] %}
+                        <section class="trace-section">
+                          <h4>{{ section_name }}</h4>
+                          <dl>
+                            {% for key, value in section.items() %}
+                              <div><dt>{{ key }}</dt><dd>{{ value }}</dd></div>
+                            {% endfor %}
+                          </dl>
+                        </section>
+                      {% endfor %}
+                      {% if stage.warnings %}
+                        <section class="trace-section warning"><h4>Warnings</h4><p>{{ stage.warnings | join(", ") }}</p></section>
+                      {% endif %}
+                      {% if stage.errors %}
+                        <section class="trace-section error"><h4>Errors</h4><p>{{ stage.errors | join(", ") }}</p></section>
+                      {% endif %}
                     </article>
                   {% endfor %}
-                </div>
-                <div class="trace-detail">
-                  <h3>Stage Details</h3>
-                  {% for stage in runtime_trace.stages %}
-                    <details {% if loop.first %}open{% endif %}>
-                      <summary>{{ stage.name }} · {{ stage.status }}</summary>
-                      <dl>
-                        {% for key, value in stage.metadata.items() %}
-                          <div><dt>{{ key }}</dt><dd>{{ value }}</dd></div>
-                        {% endfor %}
-                      </dl>
-                    </details>
-                  {% endfor %}
-                </div>
+                </section>
+
+                <aside class="trace-e2e">
+                  <h3>End-to-End Summary</h3>
+                  <div class="trace-bar-block">
+                    <span>Sanitizer raw → final</span>
+                    <div class="trace-bar"><i style="width: {{ runtime_trace.analysis.rawToFinalPercent }}%"></i><em style="width: {{ runtime_trace.analysis.removedPercent }}%"></em></div>
+                    <small>{{ runtime_trace.analysis.rawOutputLength }} raw / {{ runtime_trace.analysis.finalAnswerLength }} final / {{ runtime_trace.analysis.removedThinkingCharacters }} removed</small>
+                  </div>
+                  <div class="trace-bar-block">
+                    <span>Context → request</span>
+                    <div class="trace-bar cyan"><i style="width: {{ runtime_trace.analysis.contextToRequestPercent }}%"></i></div>
+                    <small>{{ runtime_trace.analysis.contextCharacters }} context chars / {{ runtime_trace.analysis.requestCharacters }} request chars</small>
+                  </div>
+                  <div class="trace-duration-bars">
+                    {% for item in runtime_trace.analysis.durationBars %}
+                      <div><span>{{ item.name }}</span><div class="trace-bar mini"><i class="{{ item.status }}" style="width: {{ item.percent }}%"></i></div><b>{{ item.durationMs }} ms</b></div>
+                    {% endfor %}
+                  </div>
+                  <section class="trace-privacy-box">
+                    <strong>Safe Mode</strong>
+                    <span>Full prompt hidden</span>
+                    <span>Raw model output hidden</span>
+                    <span>Full profile and memory text hidden</span>
+                  </section>
+                  <section class="trace-diagnostic-note">
+                    <strong>Memory retrieval</strong>
+                    <span>{{ runtime_trace.analysis.memoryRetrievalStatus }} · {{ runtime_trace.analysis.memorySkipReason }}</span>
+                  </section>
+                </aside>
               </section>
-              <section class="trace-panels">
-                {% for stage in runtime_trace.stages %}
-                  {% if stage.name == "sanitization_final_answer" %}
-                    <article class="explain-card trace-sanitizer"><h3>Sanitization</h3><p>thinkingTagDetected: {{ stage.metadata.thinkingTagDetected }}</p><p>thinkingLikePrefixDetected: {{ stage.metadata.thinkingLikePrefixDetected }}</p><p>thinkingRemoved: {{ stage.metadata.thinkingRemoved }}</p><p>finalAnswerLength: {{ stage.metadata.finalAnswerLength }}</p></article>
-                  {% endif %}
-                  {% if stage.name == "memory_v2_retrieval" or stage.name == "memory_update" or stage.name == "context_assembly" %}
-                    <article class="explain-card"><h3>{{ stage.name }}</h3><p>Status: {{ stage.status }}</p><p>Full text included: {{ stage.metadata.fullTextIncluded | default("n/a") }}</p><p>Raw prompt included: {{ stage.metadata.rawPromptIncluded | default("n/a") }}</p></article>
-                  {% endif %}
-                {% endfor %}
-              </section>
-              <details class="safe-json">
+
+              <details class="safe-json compact-json">
                 <summary>Safe trace JSON</summary>
                 <pre>{{ runtime_trace }}</pre>
               </details>
