@@ -10,6 +10,7 @@ from rin.model.ollama import (
     ModelError,
     OllamaAdapter,
     OllamaGenerationOptions,
+    sanitize_assistant_content,
 )
 
 
@@ -127,6 +128,60 @@ async def test_thinking_tags_are_stripped_from_final_content() -> None:
     assert response.content == "今晚可以吃番茄鸡蛋面。"
     assert "private" not in response.content
     assert "<think>" not in response.content
+
+
+def test_sanitizer_keeps_content_after_closing_think_marker() -> None:
+    content, removed = sanitize_assistant_content("</think>\n今晚可以吃面。")
+
+    assert removed is True
+    assert content == "今晚可以吃面。"
+
+
+def test_sanitizer_extracts_chinese_final_answer_after_analysis() -> None:
+    content, removed = sanitize_assistant_content(
+        "首先，用户问晚饭吃什么。我需要分析。\n最终答案：今晚可以吃番茄鸡蛋面。"
+    )
+
+    assert removed is True
+    assert content == "今晚可以吃番茄鸡蛋面。"
+
+
+def test_sanitizer_rejects_thinking_only_chinese_preface() -> None:
+    content, removed = sanitize_assistant_content(
+        "首先，用户问晚饭吃什么。我需要分析用户偏好。"
+    )
+
+    assert removed is False
+    assert content == ""
+
+
+def test_sanitizer_keeps_normal_chinese_answer() -> None:
+    content, removed = sanitize_assistant_content("今晚可以吃番茄鸡蛋面。")
+
+    assert removed is False
+    assert content == "今晚可以吃番茄鸡蛋面。"
+
+
+@pytest.mark.asyncio
+async def test_chinese_internal_analysis_without_final_answer_is_safe_error() -> None:
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(
+                200,
+                json={
+                    "message": {
+                        "role": "assistant",
+                        "content": "首先，用户问晚饭吃什么。我需要分析用户偏好。",
+                    }
+                },
+            )
+        )
+    ) as client:
+        adapter = OllamaAdapter(client=client)
+        with pytest.raises(ModelError) as captured:
+            await adapter.generate(request())
+
+    assert captured.value.code == "MODEL_RESPONSE_INVALID"
 
 
 @pytest.mark.asyncio

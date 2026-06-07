@@ -1,7 +1,6 @@
 # Thinking Leak Fix Plan
 
-Status: follow-up plan. This UI polish task does not change model, memory,
-context, database, or sanitizer behavior.
+Status: implemented first stabilization pass.
 
 ## Current Observations
 
@@ -11,13 +10,20 @@ The Python Ollama adapter already sends:
 think: false
 ```
 
-and has existing cleanup/rejection for:
+and now has cleanup/rejection for:
 
 - paired `<think>...</think>` blocks;
 - trailing `</think>` output;
 - empty content after thinking removal;
 - remaining `<think>`, `</think>`, `internal analysis`, and `hidden reasoning`
-  markers.
+  markers;
+- Chinese internal-analysis prefaces such as `首先，用户问...`, `用户问...`,
+  `我需要分析...`, `根据系统...`, `响应策略...`, `最终响应思路...`, and
+  `完整响应草稿...`;
+- English internal-analysis prefaces such as `the user asks...` and
+  `I need to analyze...`;
+- explicit final answer extraction from markers such as `最终答案：`,
+  `最终回答：`, `直接回答：`, and `Final answer:`.
 
 Owner feedback says reasoning/thinking can still leak in live replies, so the
 existing guard is not sufficient for all Qwen3 outputs.
@@ -29,25 +35,25 @@ as `thinkingTagDetected`, `thinkingLikePrefixDetected`, `thinkingTagRemoved`,
 raw-to-final before/after length bar. It does not expose full raw model output or
 hidden reasoning by default.
 
-## Dedicated Follow-Up Scope
+## Implemented Guard Strategy
 
-Handle this in a separate model/runtime task:
+The current first-pass sanitizer follows this order:
 
-- verify Ollama receives `think=false` for qwen3:4b in live requests;
-- collect safe, redacted examples of leaked patterns;
-- use Runtime Trace sanitizer metadata to confirm which patterns were detected
-  or missed;
-- broaden post-generation sanitizer tests for Qwen3-specific output;
-- strip or reject additional `<think>...</think>` variants;
-- reject Chinese internal-analysis phrasing and reasoning preambles;
-- ensure thinking-only content is never stored as a RIN message;
-- confirm UI renders only sanitized final assistant content;
-- run live smoke prompts with `qwen3:4b` and external provider calls at `0`.
+1. Remove paired `<think>...</think>` blocks.
+2. If a closing `</think>` remains, keep only content after the final marker.
+3. Extract a clear final-answer section when present.
+4. Reject thinking-like prefaces when no safe final answer can be extracted.
+5. Reject remaining unsafe thinking markers.
+
+Rejected output is returned as `MODEL_RESPONSE_INVALID`; it is not stored as a
+RIN reply and does not create a Memory V2 trace.
+
+Runtime Trace records safe metadata for verification: raw/final lengths,
+removed character count, thinking tag detection/removal, thinking-like prefix
+removal, final-answer extraction, rejection reason, and stored-sanitized-only
+status. It does not expose full raw model output.
 
 ## Non-Goals For This UI Task
 
-- no Memory V2 changes;
-- no Context V2 changes;
 - no database schema changes;
-- no Ollama adapter rewrite;
 - no broad model behavior changes.

@@ -140,7 +140,13 @@ function openTraceStageWindow(stageId, stages) {
   element.style.top = `${Math.max(16, Math.min(window.innerHeight - 52, 96 + offset))}px`;
 
   const close = element.querySelector(".trace-window-close");
-  close.addEventListener("click", () => {
+  close.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  close.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     openTraceWindows.delete(stageId);
     element.remove();
   });
@@ -188,9 +194,18 @@ function renderStageDetails(stage) {
   details.className = "trace-window-json";
   const summaryNode = document.createElement("summary");
   summaryNode.textContent = "Safe JSON";
-  const pre = document.createElement("pre");
-  pre.textContent = JSON.stringify(stage, null, 2);
-  details.append(summaryNode, pre);
+  details.appendChild(summaryNode);
+  details.addEventListener(
+    "toggle",
+    () => {
+      if (details.open && !details.querySelector("pre")) {
+        const pre = document.createElement("pre");
+        pre.textContent = JSON.stringify(stage, null, 2);
+        details.appendChild(pre);
+      }
+    },
+    { once: true },
+  );
   fragment.appendChild(details);
   return fragment;
 }
@@ -513,12 +528,18 @@ function makeDraggable(element, handle) {
     return;
   }
   handle.addEventListener("pointerdown", (event) => {
+    if (event.target.closest("button")) {
+      return;
+    }
     event.preventDefault();
+    event.stopPropagation();
     focusWindow(element);
     const rect = element.getBoundingClientRect();
     const offsetX = event.clientX - rect.left;
     const offsetY = event.clientY - rect.top;
-    handle.setPointerCapture(event.pointerId);
+    if (handle.setPointerCapture) {
+      handle.setPointerCapture(event.pointerId);
+    }
 
     function move(moveEvent) {
       const maxLeft = Math.max(80 - element.offsetWidth, window.innerWidth - 80);
@@ -530,7 +551,9 @@ function makeDraggable(element, handle) {
     }
 
     function stop() {
-      handle.releasePointerCapture(event.pointerId);
+      if (handle.hasPointerCapture && handle.hasPointerCapture(event.pointerId)) {
+        handle.releasePointerCapture(event.pointerId);
+      }
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", stop);
       window.removeEventListener("pointercancel", stop);
@@ -545,6 +568,7 @@ function makeDraggable(element, handle) {
 function closeAllTraceWindows() {
   openTraceWindows.forEach((element) => element.remove());
   openTraceWindows.clear();
+  traceWindowOffset = 0;
 }
 
 function resetTraceWindows() {

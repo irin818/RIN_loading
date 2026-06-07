@@ -182,6 +182,8 @@ def test_python_ui_static_assets_are_served() -> None:
         assert "trace-window-body" in css.text
         assert "overflow: visible" in css.text
         assert "position: fixed" in css.text
+        assert "memory-console-grid" in css.text
+        assert "memory-trace-table" in css.text
         assert "rin-character" in css.text
         assert "presence-panel" in css.text
         assert "composer-dock" in css.text
@@ -203,6 +205,8 @@ def test_python_ui_static_assets_are_served() -> None:
         assert "renderSanitizerVisual" in js.text
         assert "closeAllTraceWindows" in js.text
         assert "resetTraceWindows" in js.text
+        assert "stopPropagation" in js.text
+        assert "hasPointerCapture" in js.text
         assert "trace-stage-data" in js.text
         assert "control-console-shell" in js.text
         assert "/api/status-dashboard" not in js.text
@@ -246,6 +250,7 @@ def test_python_ui_chat_submit_renders_conversation_history() -> None:
         )
         assert "Close all windows" in response.text
         assert "Reset windows" in response.text
+        assert 'class="trace-window-close"' in response.text
         assert 'id="trace-stage-data"' in response.text
         assert "trace-stage-panel" not in response.text
         assert "trace-detail-v2" not in response.text
@@ -404,9 +409,45 @@ def test_diagnostics_endpoints_are_safe_and_read_only() -> None:
 
         assert model["providerCallsMade"] == 0
         assert memory["fullTextIncluded"] is False
+        assert memory["algorithm"]["fullTextIncluded"] is False
+        assert memory["state"]["retrievalWiredIntoPrompt"] is False
+        assert memory["health"]["retrievalStatus"] == "skipped"
+        assert memory["curve"]["samplePoints"]
+        assert memory["contents"]
+        assert "private diagnostic endpoint check" not in str(memory["contents"])
         assert context["fullPromptIncluded"] is False
         assert profiles["fullTextIncluded"] is False
         assert body["cubismRuntimeActive"] is False
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_memory_page_renders_useful_safe_console_sections() -> None:
+    client, layout = create_client()
+    try:
+        response = client.post("/ui/chat", json={"content": "memory page private text"})
+
+        assert response.status_code == 200
+        assert "Memory Algorithm" in response.text
+        assert "AI Memory State" in response.text
+        assert "Retrieval Status" in response.text
+        assert "Memory Curve" in response.text
+        assert "Safe Memory Trace Index" in response.text
+        assert "Last Turn Memory Update" in response.text
+        assert "Gaps / Warnings" in response.text
+        assert (
+            "Memory V2 retrieval is not wired into prompt assembly yet."
+            in response.text
+        )
+        assert "memory page private text" in response.text
+
+        memory = client.get("/api/diagnostics/memory")
+        assert memory.status_code == 200
+        payload = memory.json()
+        assert payload["readOnly"] is True
+        assert payload["localOnly"] is True
+        assert payload["fullTextIncluded"] is False
+        assert "memory page private text" not in memory.text
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 

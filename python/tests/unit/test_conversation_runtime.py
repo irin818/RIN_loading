@@ -196,7 +196,62 @@ async def test_runtime_strips_thinking_before_persistence() -> None:
         )
         assert sanitizer.output["finalLength"] == len("Eat noodles.")
         assert cast(int, sanitizer.output["removedCharacterCount"]) > 0
+        assert sanitizer.operation["thinkingTagRemoved"] is True
         assert sanitizer.privacy["hiddenReasoningTextIncluded"] is False
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+@pytest.mark.asyncio
+async def test_runtime_extracts_chinese_final_answer_before_persistence() -> None:
+    layout = create_layout()
+    try:
+        RUNTIME_TRACE_STORE.clear()
+        result = await run_conversation_turn(
+            layout,
+            "晚饭吃什么？",
+            MockAdapter(
+                "首先，用户问晚饭吃什么。我需要分析。\n最终答案：今晚可以吃番茄鸡蛋面。"
+            ),
+            clock=RuntimeClock(NOW),
+        )
+
+        messages = list_messages(layout, result.conversationId)
+
+        assert result.status == "completed"
+        assert messages[-1].content == "今晚可以吃番茄鸡蛋面。"
+        assert "用户问" not in messages[-1].content
+        trace = RUNTIME_TRACE_STORE.latest()
+        assert trace is not None
+        sanitizer = next(
+            stage for stage in trace.stages if stage.name == "sanitization_final_answer"
+        )
+        assert sanitizer.operation["extractedFinalAnswer"] is True
+        assert sanitizer.output["storedSanitizedOnly"] is True
+        memory_update = next(
+            stage for stage in trace.stages if stage.name == "memory_update"
+        )
+        assert memory_update.output["fullTextStoredInTrace"] is False
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+@pytest.mark.asyncio
+async def test_runtime_rejects_chinese_thinking_only_output() -> None:
+    layout = create_layout()
+    try:
+        result = await run_conversation_turn(
+            layout,
+            "晚饭吃什么？",
+            MockAdapter("首先，用户问晚饭吃什么。我需要分析用户偏好。"),
+            clock=RuntimeClock(NOW),
+        )
+
+        messages = list_messages(layout, result.conversationId)
+
+        assert result.status == "failed"
+        assert result.errorCode == "MODEL_RESPONSE_INVALID"
+        assert [message.role for message in messages] == ["owner"]
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
