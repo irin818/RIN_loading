@@ -5,7 +5,6 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PYTHON_DIR="$SCRIPT_DIR/python"
 VENV_PYTHON="$PYTHON_DIR/.venv/bin/python"
 PRODUCTION_DATA="$SCRIPT_DIR/.rin-data"
-MARKER="$PRODUCTION_DATA/config/python_cutover_marker.json"
 LOCAL_URL="http://127.0.0.1:8765/"
 OLLAMA_URL="${RIN_OLLAMA_BASE_URL:-http://127.0.0.1:11434}"
 OLLAMA_MODEL="${RIN_OLLAMA_MODEL:-qwen3:4b}"
@@ -37,13 +36,6 @@ fi
 if ! "$VENV_PYTHON" -c "import fastapi, jinja2, rin" >/dev/null 2>&1; then
   echo "Python packages are not installed in the venv."
   echo "Run: cd \"$PYTHON_DIR\" && .venv/bin/python -m pip install -e \".[dev]\""
-  exit 1
-fi
-
-if [[ ! -f "$MARKER" ]]; then
-  echo "Refusing to start Python production server."
-  echo "Missing migration marker: $MARKER"
-  echo "Run and review: docs/python-migration/PYTHON_REAL_DATA_MIGRATION_APPLY.md"
   exit 1
 fi
 

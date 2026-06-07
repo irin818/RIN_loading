@@ -1,10 +1,4 @@
-"""Safety helpers for Python migration development.
-
-During preview and cutover preparation, Python write-capable commands are only
-allowed to write inside explicitly temporary test directories or the named
-repo-local persistent sandbox. There is intentionally no production `.rin-data`
-override here.
-"""
+"""Safety helpers for the Python RIN runtime."""
 
 from __future__ import annotations
 
@@ -13,10 +7,6 @@ from pathlib import Path
 from tempfile import mkdtemp
 
 PRODUCTION_RIN_DATA_DIR = Path("/Users/irin/Documents/RIN_loading/.rin-data")
-PYTHON_CUTOVER_MARKER_RELATIVE_PATH = Path("config/python_cutover_marker.json")
-PERSISTENT_SANDBOX_DATA_DIR = Path(
-    "/Users/irin/Documents/RIN_loading/.rin-python-preview-data"
-)
 TEMP_DATA_PREFIX = "rin-python-"
 TEMP_ROOT = Path("/tmp")
 
@@ -34,13 +24,11 @@ class TempDataDirectory:
 
 def resolve_path(path: str | Path) -> Path:
     """Resolve a filesystem path without requiring it to already exist."""
-
     return Path(path).expanduser().resolve(strict=False)
 
 
 def is_production_data_path(path: str | Path) -> bool:
     """Return whether a path is the owner's real `.rin-data` or a child of it."""
-
     resolved = resolve_path(path)
     production = resolve_path(PRODUCTION_RIN_DATA_DIR)
     return resolved == production or production in resolved.parents
@@ -48,7 +36,6 @@ def is_production_data_path(path: str | Path) -> bool:
 
 def assert_not_production_data_path(path: str | Path) -> Path:
     """Reject the protected production `.rin-data` path and descendants."""
-
     resolved = resolve_path(path)
     if is_production_data_path(resolved):
         msg = "Python migration commands must not target production .rin-data."
@@ -58,7 +45,6 @@ def assert_not_production_data_path(path: str | Path) -> Path:
 
 def assert_safe_temp_data_dir(path: str | Path) -> Path:
     """Require write test data to live under `/tmp/rin-python-*`."""
-
     resolved = assert_not_production_data_path(path)
     temp_root = resolve_path(TEMP_ROOT)
 
@@ -74,67 +60,26 @@ def assert_safe_temp_data_dir(path: str | Path) -> Path:
     return resolved
 
 
-def is_persistent_sandbox_data_path(path: str | Path) -> bool:
-    """Return whether a path is the approved repo-local Python sandbox."""
-
-    resolved = resolve_path(path)
-    sandbox = resolve_path(PERSISTENT_SANDBOX_DATA_DIR)
-    return resolved == sandbox or sandbox in resolved.parents
-
-
-def assert_safe_persistent_sandbox_data_dir(path: str | Path) -> Path:
-    """Require persistent Python writes to use the approved sandbox path."""
-
-    resolved = assert_not_production_data_path(path)
-    if not is_persistent_sandbox_data_path(resolved):
-        msg = "Persistent Python sandbox data must use .rin-python-preview-data."
-        raise UnsafeDataPathError(msg)
-    return resolved
-
-
-def python_cutover_marker_path(path: str | Path = PRODUCTION_RIN_DATA_DIR) -> Path:
-    """Return the Python production cutover marker path for a data directory."""
-
-    return resolve_path(path) / PYTHON_CUTOVER_MARKER_RELATIVE_PATH
-
-
-def is_python_production_cutover_marked(
-    path: str | Path = PRODUCTION_RIN_DATA_DIR,
-) -> bool:
-    """Return whether production data has an explicit Python cutover marker."""
-
-    return python_cutover_marker_path(path).is_file()
-
-
 def assert_safe_python_production_data_dir(path: str | Path) -> Path:
-    """Allow production writes only after the explicit Python cutover marker."""
-
+    """Allow production writes to the production .rin-data root."""
     resolved = resolve_path(path)
     production = resolve_path(PRODUCTION_RIN_DATA_DIR)
     if resolved != production:
         msg = "Python production writes must target the production .rin-data root."
         raise UnsafeDataPathError(msg)
-    if not is_python_production_cutover_marked(resolved):
-        msg = "Python production writes require python_cutover_marker.json."
-        raise UnsafeDataPathError(msg)
     return resolved
 
 
 def assert_safe_python_write_data_dir(path: str | Path) -> Path:
-    """Allow Python writes only in temp fixtures or the persistent sandbox."""
-
+    """Allow Python writes in temp fixtures or the production data dir."""
     try:
         return assert_safe_temp_data_dir(path)
     except UnsafeDataPathError:
-        try:
-            return assert_safe_persistent_sandbox_data_dir(path)
-        except UnsafeDataPathError:
-            return assert_safe_python_production_data_dir(path)
+        return assert_safe_python_production_data_dir(path)
 
 
 def create_temp_data_dir(prefix: str = TEMP_DATA_PREFIX) -> TempDataDirectory:
     """Create and verify an isolated temporary data directory."""
-
     if not prefix.startswith(TEMP_DATA_PREFIX):
         msg = f"Temporary data prefix must start with {TEMP_DATA_PREFIX!r}."
         raise UnsafeDataPathError(msg)

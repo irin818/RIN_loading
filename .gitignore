@@ -27,11 +27,7 @@ python/.venv/
 
 # local data
 .rin-data/
-.rin-python-backups/
-.rin-python-cutover-state/
-.rin-python-preview-data/
 .rin-imported-data/
-.rin-*-data/
 *.db
 *.sqlite
 *.sqlite3
