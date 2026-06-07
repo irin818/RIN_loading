@@ -360,10 +360,11 @@ def map_memory(row: sqlite3.Row) -> MemoryRecord:
 
 
 def map_memory_v2_trace(row: sqlite3.Row) -> MemoryV2TraceRecord:
+    keys = set(row.keys())
     return MemoryV2TraceRecord(
         id=str(row["id"]),
-        sourceId=str(row["source_id"]),
-        traceType=str(row["trace_type"]),
+        sourceId=str(row["source_id"] if "source_id" in keys else row["source_ref_id"]),
+        traceType=str(row["trace_type"] if "trace_type" in keys else row["trace_kind"]),
         signalSummary=json.loads(str(row["signal_summary_json"])),
         salienceScore=float(row["salience_score"]),
         createdAt=str(row["created_at"]),

@@ -18,10 +18,16 @@ from rin.database import (
     create_conversation,
     inspect_database,
     list_conversations,
+    list_memory_v2_traces,
     list_messages,
 )
 from rin.diagnostics.readiness import build_python_readiness_report
-from rin.diagnostics.runtime_trace import RUNTIME_TRACE_STORE, safe_trace_response
+from rin.diagnostics.runtime_trace import (
+    RUNTIME_TRACE_STORE,
+    input_preview,
+    safe_trace_response,
+    short_id,
+)
 from rin.diagnostics.safety import assert_safe_python_write_data_dir
 from rin.profiles import build_profile_report
 from rin.storage import RinDataLayout
@@ -703,6 +709,7 @@ def build_diagnostics_payload(
         if adapter_id == "rin-ollama-local"
         else "n/a"
     )
+    memory_diagnostics = build_memory_diagnostics_payload(layout)
     payloads: dict[str, dict[str, object]] = {
         "overview": {
             "mode": "diagnostics-overview",
@@ -728,18 +735,7 @@ def build_diagnostics_payload(
             "smokeStatus": "not run automatically",
             "sanitizerStatus": "thinking output is guarded by adapter tests",
         },
-        "memory": {
-            "mode": "diagnostics-memory",
-            "readOnly": True,
-            "fullTextIncluded": False,
-            "memoryV2Traces": database["memoryV2Traces"],
-            "messageMemoryContexts": database.get("messageMemoryContexts", "n/a"),
-            "available": memory_context.get("available") is True,
-            "privacy": "counts and metadata only; no full memory text",
-            "retentionSummary": (
-                "Memory V2 traces are inspected by count only in this console."
-            ),
-        },
+        "memory": memory_diagnostics,
         "context": {
             "mode": "diagnostics-context",
             "readOnly": True,
@@ -799,6 +795,154 @@ def build_diagnostics_payload(
         "section": section,
         "externalProviderCallCount": snapshot["externalProviderCallCount"],
         "conversations": conversation_summaries,
+    }
+
+
+def build_memory_diagnostics_payload(layout: RinDataLayout) -> dict[str, object]:
+    status = inspect_database(layout)
+    traces = list_memory_v2_traces(layout, limit=12)
+    latest_trace = RUNTIME_TRACE_STORE.latest()
+    memory_retrieval_stage = (
+        next(
+            (
+                stage
+                for stage in latest_trace.stages
+                if stage.name == "memory_v2_retrieval"
+            ),
+            None,
+        )
+        if latest_trace
+        else None
+    )
+    memory_update_stage = (
+        next(
+            (stage for stage in latest_trace.stages if stage.name == "memory_update"),
+            None,
+        )
+        if latest_trace
+        else None
+    )
+    retrieval_wired = False
+    retrieval_skip_reason = (
+        str(memory_retrieval_stage.decision.get("skipReason", "n/a"))
+        if memory_retrieval_stage
+        else "runtime retrieval not wired into prompt assembly"
+    )
+    return {
+        "mode": "diagnostics-memory",
+        "readOnly": True,
+        "localOnly": True,
+        "fullTextIncluded": False,
+        "algorithm": {
+            "shortTermWindowPolicy": "last six prior messages in active conversation",
+            "retentionFormula": (
+                "n/a - Memory V2 retention curve is not parameterized yet"
+            ),
+            "scoringSummary": (
+                "current writes create safe long-term candidate traces with a "
+                "salience score; runtime retrieval ranking is not wired yet"
+            ),
+            "privacyPolicy": (
+                "safe counts, hashes, ids, scores, and short previews only"
+            ),
+            "fullTextIncluded": False,
+        },
+        "state": {
+            "traceCount": status.counts.memoryV2Traces,
+            "signalCount": status.counts.memoryV2TraceSignals,
+            "messageMemoryContexts": status.counts.messageMemoryContexts,
+            "recentUpdateStatus": memory_update_stage.status
+            if memory_update_stage
+            else "n/a",
+            "retrievalWiredIntoPrompt": retrieval_wired,
+            "retrievalSkipReason": retrieval_skip_reason,
+            "memoryInjectedIntoLastContextCount": memory_retrieval_stage.output.get(
+                "selectedTraceCount",
+                0,
+            )
+            if memory_retrieval_stage
+            else 0,
+            "lastMemoryUpdateCounts": memory_update_stage.output
+            if memory_update_stage
+            else {},
+            "lastTraceIds": [short_id(trace.id) for trace in traces[:5]],
+        },
+        "contents": [safe_memory_trace_item(trace) for trace in traces],
+        "curve": {
+            "formula": "n/a - no decay/stability parameter is active in runtime yet",
+            "samplePoints": [
+                {"label": "now", "retentionEstimate": "n/a"},
+                {"label": "1h", "retentionEstimate": "n/a"},
+                {"label": "6h", "retentionEstimate": "n/a"},
+                {"label": "24h", "retentionEstimate": "n/a"},
+                {"label": "7d", "retentionEstimate": "n/a"},
+            ],
+        },
+        "health": {
+            "databaseReadable": True,
+            "traceTableStatus": "ok"
+            if any(
+                table.name == "memory_v2_traces" and table.exists
+                for table in status.tables
+            )
+            else "missing",
+            "recentHistoryAvailable": status.counts.messages > 0,
+            "retrievalStatus": "active" if retrieval_wired else "skipped",
+            "updateStatus": memory_update_stage.status
+            if memory_update_stage
+            else "n/a",
+            "privacySafe": True,
+        },
+        "warnings": [
+            "Memory V2 retrieval is not wired into prompt assembly yet.",
+            "Memory curve is not parameterized yet; retention estimates are n/a.",
+        ],
+        "memoryV2Traces": status.counts.memoryV2Traces,
+        "messageMemoryContexts": status.counts.messageMemoryContexts,
+        "available": True,
+        "privacy": "counts and metadata only; no full memory text",
+        "retentionSummary": (
+            "Memory V2 writes safe candidate traces; retrieval and retention "
+            "curve are visible as gaps until implemented."
+        ),
+    }
+
+
+def safe_memory_trace_item(trace: object) -> dict[str, object]:
+    signal_summary = getattr(trace, "signalSummary", {})
+    content_length = (
+        signal_summary.get("contentCharacterCount", "n/a")
+        if isinstance(signal_summary, dict)
+        else "n/a"
+    )
+    source = (
+        signal_summary.get("source", "n/a")
+        if isinstance(signal_summary, dict)
+        else "n/a"
+    )
+    raw_included = (
+        signal_summary.get("rawTextIncluded", False)
+        if isinstance(signal_summary, dict)
+        else False
+    )
+    return {
+        "traceId": getattr(trace, "id", "n/a"),
+        "traceShortId": short_id(str(getattr(trace, "id", ""))),
+        "sourceShortId": short_id(str(getattr(trace, "sourceId", ""))),
+        "traceType": getattr(trace, "traceType", "n/a"),
+        "createdAt": getattr(trace, "createdAt", "n/a"),
+        "updatedAt": getattr(trace, "updatedAt", "n/a"),
+        "salienceScore": getattr(trace, "salienceScore", "n/a"),
+        "age": "n/a",
+        "retentionEstimate": "n/a",
+        "signalKeys": sorted(signal_summary.keys())
+        if isinstance(signal_summary, dict)
+        else [],
+        "safePreview": input_preview(
+            f"{source}; {content_length} chars; rawTextIncluded={raw_included}",
+            limit=72,
+        ),
+        "fullTextIncluded": False,
     }
 
 

@@ -51,6 +51,18 @@ class ModelErrorDetails:
     responseFields: list[str] | None = None
 
 
+@dataclass(frozen=True)
+class SanitizedAssistantContent:
+    content: str
+    removed: bool
+    thinkingTagRemoved: bool
+    thinkingLikePrefixRemoved: bool
+    extractedFinalAnswer: bool
+    rejected: bool
+    rejectionReason: str | None
+    rulesApplied: list[str]
+
+
 class ModelError(RuntimeError):
     def __init__(
         self,
@@ -204,50 +216,144 @@ def read_ollama_assistant_content(adapter: OllamaAdapter, payload: Any) -> str:
             ),
         )
 
-    sanitized, removed = sanitize_assistant_content(content)
-    if not sanitized.strip():
+    sanitized = sanitize_assistant_content_details(content)
+    if not sanitized.content.strip() or sanitized.rejected:
         raise adapter.error(
             "MODEL_RESPONSE_INVALID",
             "Ollama returned no final assistant content after removing "
             "thinking artifacts.",
             ModelErrorDetails(
                 emptyContent=True,
-                emptyAfterThinkingRemoval=True,
+                emptyAfterThinkingRemoval=not sanitized.content.strip(),
                 possibleReasoningOnlyOutput=True,
-                thinkingArtifactRemoved=removed,
+                thinkingArtifactRemoved=sanitized.removed,
                 responseFields=response_fields(payload),
             ),
         )
-    if has_unsafe_thinking_leak(sanitized):
+    if has_unsafe_thinking_leak(sanitized.content):
         raise adapter.error(
             "MODEL_RESPONSE_INVALID",
             "Ollama response included internal analysis text.",
             ModelErrorDetails(
                 possibleReasoningOnlyOutput=True,
-                thinkingArtifactRemoved=removed,
+                thinkingArtifactRemoved=sanitized.removed,
                 unsafeContentIssue="internal_analysis",
                 responseFields=response_fields(payload),
             ),
         )
-    return sanitized
+    return sanitized.content
 
 
 def sanitize_assistant_content(content: str) -> tuple[str, bool]:
-    without_pairs = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL | re.I)
-    if without_pairs != content:
-        return without_pairs.strip(), True
+    sanitized = sanitize_assistant_content_details(content)
+    return sanitized.content, sanitized.removed
+
+
+THINKING_PREFIX_PATTERNS = (
+    re.compile(r"^\s*(首先[，,]\s*)?用户(问|询问|想知道)", re.I),
+    re.compile(r"^\s*我需要(分析|判断|考虑|先)", re.I),
+    re.compile(r"^\s*根据(系统|上下文|用户)", re.I),
+    re.compile(r"^\s*(响应策略|最终响应思路|完整响应草稿|分析|思路)\s*[:：]", re.I),
+    re.compile(r"^\s*(first,\s*)?the user (asks|asked|wants)", re.I),
+    re.compile(r"^\s*i need to (analy[sz]e|consider|determine)", re.I),
+)
+
+FINAL_ANSWER_MARKER_PATTERN = re.compile(
+    (
+        r"(?:最终答案|最终回答|最终响应|直接回答|答案|Final answer|Final response)"
+        r"\s*[:：]\s*"
+    ),
+    re.I,
+)
+
+
+def sanitize_assistant_content_details(content: str) -> SanitizedAssistantContent:
+    rules = [
+        "remove paired <think> blocks",
+        "keep content after final </think>",
+        "extract explicit final answer section",
+        "reject thinking-like preface without safe final answer",
+        "reject remaining unsafe thinking markers",
+    ]
+    working = content.strip()
+    thinking_tag_removed = False
+    thinking_prefix_removed = False
+    extracted_final_answer = False
+
+    without_pairs = re.sub(r"<think>.*?</think>", "", working, flags=re.DOTALL | re.I)
+    if without_pairs != working:
+        working = without_pairs.strip()
+        thinking_tag_removed = True
+
+    lower = working.lower()
     marker = "</think>"
-    if marker in content.lower():
-        index = content.lower().rfind(marker)
-        return content[index + len(marker) :].strip(), True
-    return content.strip(), False
+    if marker in lower:
+        index = lower.rfind(marker)
+        working = working[index + len(marker) :].strip()
+        thinking_tag_removed = True
+
+    marker_match = list(FINAL_ANSWER_MARKER_PATTERN.finditer(working))
+    if marker_match:
+        working = working[marker_match[-1].end() :].strip()
+        extracted_final_answer = True
+
+    thinking_like_prefix = has_thinking_like_prefix_text(working)
+    if thinking_like_prefix and not extracted_final_answer:
+        return SanitizedAssistantContent(
+            content="",
+            removed=thinking_tag_removed,
+            thinkingTagRemoved=thinking_tag_removed,
+            thinkingLikePrefixRemoved=False,
+            extractedFinalAnswer=False,
+            rejected=True,
+            rejectionReason="thinking_like_prefix_without_final_answer",
+            rulesApplied=rules,
+        )
+    if thinking_like_prefix:
+        thinking_prefix_removed = True
+
+    unsafe = has_unsafe_thinking_leak(working)
+    return SanitizedAssistantContent(
+        content=working,
+        removed=(
+            thinking_tag_removed
+            or thinking_prefix_removed
+            or extracted_final_answer
+            or working != content.strip()
+        ),
+        thinkingTagRemoved=thinking_tag_removed,
+        thinkingLikePrefixRemoved=thinking_prefix_removed,
+        extractedFinalAnswer=extracted_final_answer,
+        rejected=unsafe,
+        rejectionReason="unsafe_thinking_marker_remaining" if unsafe else None,
+        rulesApplied=rules,
+    )
+
+
+def has_thinking_like_prefix_text(content: str) -> bool:
+    return any(pattern.search(content) for pattern in THINKING_PREFIX_PATTERNS)
 
 
 def has_unsafe_thinking_leak(content: str) -> bool:
     lowered = content.lower()
+    markers = (
+        "<think>",
+        "</think>",
+        "internal analysis",
+        "hidden reasoning",
+        "reasoning process",
+        "首先，用户问",
+        "用户问",
+        "我需要分析",
+        "根据系统",
+        "响应策略",
+        "最终响应思路",
+        "完整响应草稿",
+    )
     return any(
-        marker in lowered
-        for marker in ("<think>", "</think>", "internal analysis", "hidden reasoning")
+        marker in lowered for marker in markers
+    ) or has_thinking_like_prefix_text(
+        content,
     )
 
 

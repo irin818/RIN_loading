@@ -233,9 +233,76 @@
 
           <section class="console-page{% if active_tab == 'memory' %} active{% endif %}" data-console-page="memory">
             <header class="page-heading"><div><p class="eyebrow">Memory System</p><h2>Memory V2</h2></div></header>
-            <section class="split-panel">
-              <div class="metric-card memory-card"><div><p class="eyebrow">Trace count</p><strong>{{ diagnostics.memory.memoryV2Traces }}</strong><span>Trace full text: {{ diagnostics.memory.fullTextIncluded }}</span></div><div class="trace-ring" style="--ring-fill: {{ dashboard.memoryContext.ringFillPercent }}%"><span>{{ diagnostics.memory.memoryV2Traces }}</span></div></div>
-              <div class="explain-card"><h3>Privacy</h3><p>{{ diagnostics.memory.privacy }}</p><h3>Retention</h3><p>{{ diagnostics.memory.retentionSummary }}</p></div>
+            <section class="memory-console-grid">
+              <article class="memory-console-card">
+                <p class="eyebrow">Memory Algorithm</p>
+                <h3>Current Policy</h3>
+                <dl>
+                  <div><dt>Short-term</dt><dd>{{ diagnostics.memory.algorithm.shortTermWindowPolicy }}</dd></div>
+                  <div><dt>Retention</dt><dd>{{ diagnostics.memory.algorithm.retentionFormula }}</dd></div>
+                  <div><dt>Scoring</dt><dd>{{ diagnostics.memory.algorithm.scoringSummary }}</dd></div>
+                  <div><dt>Privacy</dt><dd>{{ diagnostics.memory.algorithm.privacyPolicy }}</dd></div>
+                </dl>
+              </article>
+              <article class="memory-console-card memory-state-card">
+                <p class="eyebrow">AI Memory State</p>
+                <div class="memory-state-metrics">
+                  <div><span>Traces</span><b>{{ diagnostics.memory.state.traceCount }}</b></div>
+                  <div><span>Signals</span><b>{{ diagnostics.memory.state.signalCount }}</b></div>
+                  <div><span>Injected last turn</span><b>{{ diagnostics.memory.state.memoryInjectedIntoLastContextCount }}</b></div>
+                  <div><span>Update</span><b>{{ diagnostics.memory.state.recentUpdateStatus }}</b></div>
+                  <div><span>Trace full text</span><b>{{ diagnostics.memory.fullTextIncluded }}</b></div>
+                </div>
+              </article>
+              <article class="memory-console-card">
+                <p class="eyebrow">Retrieval Status</p>
+                <h3>{% if diagnostics.memory.state.retrievalWiredIntoPrompt %}wired{% else %}not wired{% endif %}</h3>
+                <p>{{ diagnostics.memory.state.retrievalSkipReason }}</p>
+              </article>
+              <article class="memory-console-card memory-curve-card">
+                <p class="eyebrow">Memory Curve</p>
+                <h3>{{ diagnostics.memory.curve.formula }}</h3>
+                <div class="memory-curve">
+                  {% for point in diagnostics.memory.curve.samplePoints %}
+                    <div><span>{{ point.label }}</span><i></i><b>{{ point.retentionEstimate }}</b></div>
+                  {% endfor %}
+                </div>
+              </article>
+              <article class="memory-console-card memory-table-card">
+                <p class="eyebrow">Safe Memory Trace Index</p>
+                {% if diagnostics.memory.contents %}
+                  <table class="memory-trace-table">
+                    <thead><tr><th>trace</th><th>type</th><th>score</th><th>updated</th><th>safe preview</th></tr></thead>
+                    <tbody>
+                      {% for trace in diagnostics.memory.contents %}
+                        <tr>
+                          <td title="{{ trace.traceId }}">{{ trace.traceShortId }}</td>
+                          <td>{{ trace.traceType }}</td>
+                          <td>{{ trace.salienceScore }}</td>
+                          <td>{{ trace.updatedAt }}</td>
+                          <td>{{ trace.safePreview }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                {% else %}
+                  <p>No Memory V2 traces recorded yet.</p>
+                {% endif %}
+              </article>
+              <article class="memory-console-card">
+                <p class="eyebrow">Last Turn Memory Update</p>
+                <dl>
+                  <div><dt>Status</dt><dd>{{ diagnostics.memory.state.recentUpdateStatus }}</dd></div>
+                  <div><dt>Counts</dt><dd>{{ diagnostics.memory.state.lastMemoryUpdateCounts }}</dd></div>
+                  <div><dt>Last trace ids</dt><dd>{{ diagnostics.memory.state.lastTraceIds }}</dd></div>
+                </dl>
+              </article>
+              <article class="memory-console-card memory-warning-card">
+                <p class="eyebrow">Gaps / Warnings</p>
+                {% for warning in diagnostics.memory.warnings %}
+                  <p>{{ warning }}</p>
+                {% endfor %}
+              </article>
             </section>
           </section>
 

@@ -167,6 +167,11 @@ the scrollable glass console panel, where layout and clipping ancestors could
 make dragging feel constrained or cause windows to jump back toward their
 original panel position.
 
+Inspector close controls stop pointer propagation before drag handling starts,
+and drag listeners are removed on pointerup or pointercancel. Safe JSON inside
+an inspector is rendered lazily only when its disclosure is opened, reducing UI
+freeze risk when many stage windows are open.
+
 Inspector windows are stage-specific rather than generic metadata dumps. Each
 window shows a short purpose line, curated primary fields, targeted tables or
 visuals when useful, diagnostics, privacy status, and collapsed safe JSON. For
@@ -200,9 +205,14 @@ The trace records safe sanitizer fields:
 - `finalAnswerPreview`;
 - `storedSanitizedAnswer`;
 - `storedRawThinking`.
+- `extractedFinalAnswer`;
+- `rejectionReason`.
 
 This makes thinking leaks observable without storing hidden reasoning in memory
 or exposing raw model output in the UI.
+
+The Model Request stage also records whether the current owner message is present
+and last in the request. A warning is added if that invariant ever fails.
 
 ## Current Limitations
 

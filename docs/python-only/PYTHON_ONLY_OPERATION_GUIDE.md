@@ -27,6 +27,8 @@ The Python web UI covers the active owner-facing Console path:
 - selected adapter and local-model status;
 - profile summary;
 - memory/context trace summary;
+- useful read-only Memory Console with algorithm, state, safe trace index,
+  retrieval gap, curve status, and health;
 - runtime dataflow trace page for the latest real backend chat turn;
 - local RIN avatar/presence panel;
 - visible error rendering;
@@ -39,6 +41,11 @@ memory text, hidden reasoning, or raw model output.
 
 The console preserves the active tab in the browser. Chat submissions return to
 the Chat / Test page instead of resetting to Overview.
+
+Response speed depends on local model cold start, Ollama/qwen3:4b inference
+speed, request size, `num_predict`, and whether the model attempts hidden
+reasoning despite `think=false`. Runtime Trace can be used to compare request
+characters, model duration, raw/final answer length, and sanitizer removal.
 
 ## Recommended Launcher
 

@@ -687,6 +687,116 @@ p {
   gap: 0.42rem;
 }
 
+.memory-console-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  min-height: 0;
+}
+
+.memory-console-card {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.7rem;
+  border: 1px solid rgba(80, 255, 169, 0.14);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.memory-console-card h3 {
+  margin: 0;
+  color: var(--green);
+  font-size: 0.86rem;
+}
+
+.memory-console-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.memory-console-card dl {
+  display: grid;
+  gap: 0.34rem;
+  margin: 0;
+}
+
+.memory-console-card dl div,
+.memory-state-metrics div {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.42fr) minmax(0, 1fr);
+  gap: 0.45rem;
+  align-items: start;
+}
+
+.memory-console-card dt,
+.memory-state-metrics span {
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+
+.memory-console-card dd,
+.memory-state-metrics b {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+}
+
+.memory-state-metrics {
+  display: grid;
+  gap: 0.32rem;
+}
+
+.memory-curve {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.memory-curve div {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 42px;
+  gap: 0.35rem;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.64rem;
+}
+
+.memory-curve i {
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(0, 255, 157, 0.35), rgba(53, 255, 200, 0.08));
+}
+
+.memory-table-card {
+  grid-column: 1 / -1;
+}
+
+.memory-trace-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.66rem;
+}
+
+.memory-trace-table th,
+.memory-trace-table td {
+  padding: 0.28rem 0.32rem;
+  border-bottom: 1px solid rgba(80, 255, 169, 0.1);
+  color: var(--muted);
+  text-align: left;
+  vertical-align: top;
+}
+
+.memory-trace-table td {
+  color: var(--text);
+}
+
+.memory-warning-card {
+  border-color: rgba(216, 216, 120, 0.28);
+}
+
 .trace-toolbar {
   display: flex;
   align-items: center;
