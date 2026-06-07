@@ -69,6 +69,9 @@ async def test_ollama_request_shape_uses_think_false() -> None:
     }
     assert response.content == "local response"
     assert response.metadata.externalProvider is False
+    assert response.metadata.rawContentLength == len("local response")
+    assert response.metadata.rawContentHash
+    assert response.metadata.adapterSanitized is False
 
 
 @pytest.mark.asyncio
@@ -128,6 +131,12 @@ async def test_thinking_tags_are_stripped_from_final_content() -> None:
     assert response.content == "今晚可以吃番茄鸡蛋面。"
     assert "private" not in response.content
     assert "<think>" not in response.content
+    assert response.metadata.rawContentLength == len(
+        "<think>private</think>\n\n今晚可以吃番茄鸡蛋面。"
+    )
+    assert response.metadata.adapterSanitized is True
+    assert response.metadata.adapterRemovedCharacterCount
+    assert response.metadata.rawModelOutputIncluded is False
 
 
 def test_sanitizer_keeps_content_after_closing_think_marker() -> None:
@@ -135,6 +144,13 @@ def test_sanitizer_keeps_content_after_closing_think_marker() -> None:
 
     assert removed is True
     assert content == "今晚可以吃面。"
+
+
+def test_sanitizer_extracts_final_answer_after_closing_marker() -> None:
+    content, removed = sanitize_assistant_content("</think>\n最终回答：今晚吃面。")
+
+    assert removed is True
+    assert content == "今晚吃面。"
 
 
 def test_sanitizer_extracts_chinese_final_answer_after_analysis() -> None:
@@ -149,6 +165,22 @@ def test_sanitizer_extracts_chinese_final_answer_after_analysis() -> None:
 def test_sanitizer_rejects_thinking_only_chinese_preface() -> None:
     content, removed = sanitize_assistant_content(
         "首先，用户问晚饭吃什么。我需要分析用户偏好。"
+    )
+
+    assert removed is False
+    assert content == ""
+
+
+def test_sanitizer_rejects_we_need_analysis_preface() -> None:
+    content, removed = sanitize_assistant_content("我们需要检查是否符合系统要求。")
+
+    assert removed is False
+    assert content == ""
+
+
+def test_sanitizer_rejects_qwen3_english_analysis_preface() -> None:
+    content, removed = sanitize_assistant_content(
+        "Okay, the user is asking what to eat tonight. Let me check history."
     )
 
     assert removed is False

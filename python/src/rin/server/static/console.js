@@ -17,6 +17,31 @@ function setSubmitting(isSubmitting) {
   }
 }
 
+let chatSubmitTimer = null;
+
+function setChatStatus(message, kind = "muted") {
+  const status = document.getElementById("chat-status");
+  if (status) {
+    status.textContent = message;
+    status.dataset.kind = kind;
+  }
+}
+
+function startChatTimer() {
+  const startedAt = Date.now();
+  window.clearInterval(chatSubmitTimer);
+  setChatStatus("Sending... 0s", "pending");
+  chatSubmitTimer = window.setInterval(() => {
+    const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+    setChatStatus(`Waiting for local model... ${elapsed}s`, "pending");
+  }, 1000);
+}
+
+function stopChatTimer() {
+  window.clearInterval(chatSubmitTimer);
+  chatSubmitTimer = null;
+}
+
 function readPath(payload, path) {
   return path.split(".").reduce((value, key) => {
     if (value && Object.prototype.hasOwnProperty.call(value, key)) {
@@ -114,6 +139,11 @@ function focusWindow(element) {
   element.style.zIndex = String(topTraceWindowZ);
 }
 
+function closeTraceWindow(stageId, element) {
+  openTraceWindows.delete(stageId);
+  element.remove();
+}
+
 function openTraceStageWindow(stageId, stages) {
   const existing = openTraceWindows.get(stageId);
   if (existing) {
@@ -147,8 +177,7 @@ function openTraceStageWindow(stageId, stages) {
   close.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    openTraceWindows.delete(stageId);
-    element.remove();
+    closeTraceWindow(stageId, element);
   });
   element.addEventListener("pointerdown", () => focusWindow(element));
   makeDraggable(element, element.querySelector(".trace-window-titlebar"));
@@ -571,6 +600,19 @@ function closeAllTraceWindows() {
   traceWindowOffset = 0;
 }
 
+function closeTopTraceWindow() {
+  let topEntry = null;
+  openTraceWindows.forEach((element, stageId) => {
+    const zIndex = Number(element.style.zIndex || 0);
+    if (!topEntry || zIndex > topEntry.zIndex) {
+      topEntry = { stageId, element, zIndex };
+    }
+  });
+  if (topEntry) {
+    closeTraceWindow(topEntry.stageId, topEntry.element);
+  }
+}
+
 function resetTraceWindows() {
   let index = 0;
   openTraceWindows.forEach((element) => {
@@ -594,15 +636,56 @@ async function submitChatForm(formElement) {
 
   window.localStorage.setItem("rin.activeConsoleTab", "chat");
   setSubmitting(true);
-  const response = await fetch("/ui/chat", {
+  startChatTimer();
+  const response = await fetch("/api/chat-test/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  const html = await response.text();
-  document.open();
-  document.write(html);
-  document.close();
+  const result = await response.json();
+  if (!response.ok || !result.ok) {
+    throw new Error(result.errorCode || result.detail || "Chat request failed");
+  }
+  const conversationInput = formElement.querySelector("[name='conversationId']");
+  if (conversationInput) {
+    conversationInput.value = result.conversationId || "";
+  }
+  const input = document.getElementById("chat-input");
+  if (input) {
+    input.value = "";
+  }
+  appendChatMessage(result.ownerMessage);
+  appendChatMessage(result.rinMessage);
+  updateDashboard(result.dashboard || {});
+  setChatStatus(`Reply stored with turn ${result.turnId} · ${result.elapsedMs} ms`, "ok");
+  scrollMessagesToEnd();
+}
+
+function appendChatMessage(message) {
+  if (!message || !message.content) {
+    return;
+  }
+  const stream = document.getElementById("message-stream");
+  if (!stream) {
+    return;
+  }
+  stream.querySelector(".empty-state")?.remove();
+  const row = document.createElement("article");
+  row.className = `message-row message-row-${message.role}`;
+  const bubble = document.createElement("div");
+  bubble.className = `message-bubble ${message.role}`;
+  const meta = document.createElement("div");
+  meta.className = "message-meta";
+  const role = document.createElement("strong");
+  role.textContent = message.role;
+  const time = document.createElement("time");
+  time.textContent = message.createdAt || "";
+  const body = document.createElement("p");
+  body.textContent = message.content;
+  meta.append(role, time);
+  bubble.append(meta, body);
+  row.appendChild(bubble);
+  stream.appendChild(row);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -661,6 +744,16 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-trace-reset-windows]").forEach((button) => {
     button.addEventListener("click", resetTraceWindows);
   });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || openTraceWindows.size === 0) {
+      return;
+    }
+    if (event.shiftKey) {
+      closeAllTraceWindows();
+    } else {
+      closeTopTraceWindow();
+    }
+  });
 
   const formElement = document.getElementById("chat-form");
   const input = document.getElementById("chat-input");
@@ -669,8 +762,11 @@ document.addEventListener("DOMContentLoaded", () => {
     formElement.addEventListener("submit", (event) => {
       event.preventDefault();
       void submitChatForm(formElement).catch((error) => {
-        setSubmitting(false);
+        setChatStatus(`Error: ${error.message}`, "error");
         console.error("RIN console submit failed", error);
+      }).finally(() => {
+        stopChatTimer();
+        setSubmitting(false);
       });
     });
   }

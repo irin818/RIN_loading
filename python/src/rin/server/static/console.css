@@ -627,6 +627,24 @@ p {
   font-size: 0.68rem;
 }
 
+.chat-status {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.chat-status[data-kind="pending"] {
+  color: var(--cyan);
+}
+
+.chat-status[data-kind="ok"] {
+  color: var(--green);
+}
+
+.chat-status[data-kind="error"] {
+  color: var(--danger);
+}
+
 .data-list,
 .conversation-table,
 .command-list {

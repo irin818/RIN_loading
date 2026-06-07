@@ -194,6 +194,11 @@ def test_python_ui_static_assets_are_served() -> None:
         assert "RIN console submit failed" in js.text
         assert "requestSubmit" in js.text
         assert "refreshDashboard" in js.text
+        assert "/api/chat-test/send" in js.text
+        assert "document.write" not in js.text
+        assert "document.open" not in js.text
+        assert "appendChatMessage" in js.text
+        assert "startChatTimer" in js.text
         assert "activateConsolePage" in js.text
         assert "openTraceStageWindow" in js.text
         assert "makeDraggable" in js.text
@@ -205,6 +210,8 @@ def test_python_ui_static_assets_are_served() -> None:
         assert "renderSanitizerVisual" in js.text
         assert "closeAllTraceWindows" in js.text
         assert "resetTraceWindows" in js.text
+        assert "closeTopTraceWindow" in js.text
+        assert 'event.key !== "Escape"' in js.text
         assert "stopPropagation" in js.text
         assert "hasPointerCapture" in js.text
         assert "trace-stage-data" in js.text
@@ -256,6 +263,34 @@ def test_python_ui_chat_submit_renders_conversation_history() -> None:
         assert "trace-detail-v2" not in response.text
         assert 'data-stage-id="input_received"' in response.text
         assert 'class="composer-dock"' in response.text
+        assert 'id="chat-status"' in response.text
+        assert state["externalProviderCallCount"] == 0
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_chat_test_json_endpoint_updates_without_raw_thinking() -> None:
+    client, layout = create_client()
+    try:
+        response = client.post(
+            "/api/chat-test/send",
+            json={"content": "json chat endpoint message"},
+        )
+        state = client.get("/api/local-state").json()
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["ok"] is True
+        assert payload["status"] == "completed"
+        assert payload["conversationId"]
+        assert payload["turnId"]
+        assert payload["ownerMessage"]["content"] == "json chat endpoint message"
+        assert payload["rinMessage"]["content"] == "Python API mock reply."
+        assert payload["finalAnswer"] == "Python API mock reply."
+        assert payload["rawThinkingStored"] is False
+        assert payload["rawModelOutputIncluded"] is False
+        assert payload["hiddenReasoningIncluded"] is False
+        assert payload["externalProviderCallCount"] == 0
         assert state["externalProviderCallCount"] == 0
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
@@ -412,8 +447,13 @@ def test_diagnostics_endpoints_are_safe_and_read_only() -> None:
         assert memory["algorithm"]["fullTextIncluded"] is False
         assert memory["state"]["retrievalWiredIntoPrompt"] is False
         assert memory["health"]["retrievalStatus"] == "skipped"
+        assert memory["algorithm"]["memoryV2WritePolicy"]
+        assert memory["aiMemoryState"]["shortTermContextActive"] is True
+        assert memory["aiMemoryState"]["longTermRetrievalActive"] is False
         assert memory["curve"]["samplePoints"]
+        assert memory["curve"]["status"] == "not parameterized yet"
         assert memory["contents"]
+        assert memory["contents"][0]["rawTextIncluded"] is False
         assert "private diagnostic endpoint check" not in str(memory["contents"])
         assert context["fullPromptIncluded"] is False
         assert profiles["fullTextIncluded"] is False
@@ -433,6 +473,8 @@ def test_memory_page_renders_useful_safe_console_sections() -> None:
         assert "Retrieval Status" in response.text
         assert "Memory Curve" in response.text
         assert "Safe Memory Trace Index" in response.text
+        assert "Short-term active" in response.text
+        assert "Memory used last request" in response.text
         assert "Last Turn Memory Update" in response.text
         assert "Gaps / Warnings" in response.text
         assert (
@@ -539,10 +581,12 @@ def test_runtime_trace_api_is_safe_and_read_only() -> None:
         )
         assert context["output"]["componentTable"]
         assert request["output"]["requestOutline"]
-        assert raw["output"]["rawContentLength"] == len("Python API mock reply.")
-        assert raw["output"]["rawContentHash"]
+        assert raw["output"]["providerRawMetadataAvailable"] is False
+        assert raw["output"]["rawContentLength"] == "n/a"
+        assert raw["output"]["adapterContentLength"] == len("Python API mock reply.")
         assert sanitizer["output"]["rawLength"] == len("Python API mock reply.")
         assert sanitizer["output"]["finalLength"] == len("Python API mock reply.")
+        assert request["output"]["currentOwnerInputLast"] is True
         assert reply["output"]["storedSanitizedAnswer"] is True
         assert reply["output"]["storedRawThinking"] is False
         assert memory_update["output"]["tracesCreatedCount"] == 1
