@@ -155,11 +155,32 @@ The page shows:
   composition, and stage duration;
 - safe trace JSON behind a collapsed disclosure.
 
-Click any stage in the timeline to open a draggable floating detail window.
-Multiple stage windows can be open at once. Each window can be moved by its title
-bar, focused by clicking it, and closed independently. Stage windows show Input,
-Operation, Output, Decision, Privacy, Warnings, Errors, and collapsed safe JSON
-using only the safe backend trace data already rendered into the page.
+Click any stage in the timeline to open a free-floating inspector window.
+Multiple stage windows can be open at once, so the owner can compare, for
+example, Context Assembly and Model Request side by side. Each window is appended
+to a global fixed-position layer near the end of the page, can be moved by its
+title bar, focused by clicking it, and closed independently. The Runtime Trace
+toolbar can close all inspector windows or reset their layout.
+
+This global layer is deliberate: earlier inspector windows were rendered inside
+the scrollable glass console panel, where layout and clipping ancestors could
+make dragging feel constrained or cause windows to jump back toward their
+original panel position.
+
+Inspector windows are stage-specific rather than generic metadata dumps. Each
+window shows a short purpose line, curated primary fields, targeted tables or
+visuals when useful, diagnostics, privacy status, and collapsed safe JSON. For
+example:
+
+- Recent History shows selected message metadata as a compact table.
+- Context Assembly shows the context component table.
+- Model Request shows request options and request outline.
+- Sanitizer shows raw-to-final length reduction.
+- Memory Retrieval prominently shows when retrieval is skipped because Memory V2
+  is not wired into prompt assembly yet.
+
+All inspector content uses only the safe backend trace data already rendered into
+the page.
 
 If no chat turn has run in the current server session, the page shows an empty
 state and asks the owner to send a message in Chat / Test.

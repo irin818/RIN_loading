@@ -180,6 +180,8 @@ def test_python_ui_static_assets_are_served() -> None:
         assert "trace-window-layer" in css.text
         assert "trace-window-titlebar" in css.text
         assert "trace-window-body" in css.text
+        assert "overflow: visible" in css.text
+        assert "position: fixed" in css.text
         assert "rin-character" in css.text
         assert "presence-panel" in css.text
         assert "composer-dock" in css.text
@@ -193,6 +195,14 @@ def test_python_ui_static_assets_are_served() -> None:
         assert "activateConsolePage" in js.text
         assert "openTraceStageWindow" in js.text
         assert "makeDraggable" in js.text
+        assert "setPointerCapture" in js.text
+        assert "releasePointerCapture" in js.text
+        assert 'window.addEventListener("pointermove", move)' in js.text
+        assert "curatedPrimaryFields" in js.text
+        assert "renderStageSpecificSections" in js.text
+        assert "renderSanitizerVisual" in js.text
+        assert "closeAllTraceWindows" in js.text
+        assert "resetTraceWindows" in js.text
         assert "trace-stage-data" in js.text
         assert "control-console-shell" in js.text
         assert "/api/status-dashboard" not in js.text
@@ -231,6 +241,11 @@ def test_python_ui_chat_submit_renders_conversation_history() -> None:
         )
         assert 'id="trace-window-layer"' in response.text
         assert 'id="trace-stage-window-template"' in response.text
+        assert response.text.index('id="trace-window-layer"') > response.text.index(
+            "</main>"
+        )
+        assert "Close all windows" in response.text
+        assert "Reset windows" in response.text
         assert 'id="trace-stage-data"' in response.text
         assert "trace-stage-panel" not in response.text
         assert "trace-detail-v2" not in response.text
