@@ -18,6 +18,14 @@ The Python server now serves:
 - `GET /ui`
 - `POST /ui/chat`
 - `GET /api/status-dashboard`
+- `GET /api/diagnostics/overview`
+- `GET /api/diagnostics/model`
+- `GET /api/diagnostics/memory`
+- `GET /api/diagnostics/context`
+- `GET /api/diagnostics/database`
+- `GET /api/diagnostics/profiles`
+- `GET /api/diagnostics/body`
+- `GET /api/diagnostics/events`
 
 The page includes:
 
@@ -27,6 +35,7 @@ The page includes:
 - chat input;
 - conversation selector;
 - response/history display;
+- dedicated Chat / Test page for manual runtime testing;
 - central static RIN character/presence display;
 - read-only dashboard metrics and lightweight local visualizations;
 - clear visible error output;

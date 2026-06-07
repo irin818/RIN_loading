@@ -53,7 +53,7 @@ function updateDashboard(payload) {
 }
 
 async function refreshDashboard() {
-  const shell = document.querySelector(".glass-hud-shell");
+  const shell = document.querySelector(".control-console-shell");
   if (!shell || !shell.dataset.dashboardUrl) {
     return;
   }
@@ -66,6 +66,25 @@ async function refreshDashboard() {
     return;
   }
   updateDashboard(await response.json());
+}
+
+function activateConsolePage(pageName) {
+  document.querySelectorAll("[data-console-tab]").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.consoleTab === pageName);
+  });
+  document.querySelectorAll("[data-console-page]").forEach((page) => {
+    page.classList.toggle("active", page.dataset.consolePage === pageName);
+  });
+}
+
+function updateClock() {
+  const clock = document.getElementById("console-clock");
+  if (clock) {
+    clock.textContent = new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
 }
 
 async function submitChatForm(formElement) {
@@ -93,10 +112,26 @@ async function submitChatForm(formElement) {
 
 document.addEventListener("DOMContentLoaded", () => {
   scrollMessagesToEnd();
+  updateClock();
+  window.setInterval(updateClock, 30000);
   void refreshDashboard().catch(() => {});
-  window.setInterval(() => {
-    void refreshDashboard().catch(() => {});
-  }, 30000);
+
+  document.querySelectorAll("[data-console-tab]").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      activateConsolePage(tab.dataset.consoleTab);
+      if (tab.dataset.consoleTab === "chat") {
+        scrollMessagesToEnd();
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-refresh-dashboard]").forEach((button) => {
+    button.addEventListener("click", () => {
+      void refreshDashboard().catch((error) => {
+        console.error("RIN dashboard refresh failed", error);
+      });
+    });
+  });
 
   const formElement = document.getElementById("chat-form");
   const input = document.getElementById("chat-input");

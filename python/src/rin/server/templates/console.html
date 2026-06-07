@@ -9,26 +9,30 @@
   </head>
   <body>
     <main
-      class="glass-hud-shell"
+      class="control-console-shell"
       data-selected-conversation="{{ selected_conversation_id or '' }}"
       data-dashboard-url="/api/status-dashboard{% if selected_conversation_id %}?conversationId={{ selected_conversation_id }}{% endif %}"
     >
       <div class="ambient-grid" aria-hidden="true"></div>
-      <div class="horizon-glow" aria-hidden="true"></div>
+      <div class="particle-field" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
 
-      <header class="hud-topbar" aria-label="RIN local interface status">
+      <header class="console-topbar" aria-label="RIN Control Console status">
         <section class="brand-mark">
           <span class="status-dot" aria-label="RIN online"></span>
           <div>
-            <h1>RIN Local Interface</h1>
-            <p>{{ identity }}</p>
+            <h1>RIN Control Console</h1>
+            <p>Observe, test, and understand RIN. {{ identity }}</p>
           </div>
         </section>
         <section class="system-chips">
           <span class="chip strong">local model <b>{{ dashboard.model }}</b></span>
           <span class="chip">{{ dashboard.adapter }}</span>
           <span class="chip ok" data-dashboard-field="readiness.label">{{ dashboard.readiness.label }}</span>
+          <span class="chip">local-only</span>
           <span class="chip">external <b data-dashboard-field="externalProviderCallCount">{{ dashboard.externalProviderCallCount }}</b></span>
+          <span class="chip">time <b id="console-clock">--:--</b></span>
         </section>
       </header>
 
@@ -42,141 +46,204 @@
         </aside>
       {% endif %}
 
-      <section class="hud-stage">
-        <section class="rin-presence-layer" aria-label="Central RIN presence">
-          <div class="presence-aura" aria-hidden="true"></div>
-          <div class="presence-ring" aria-hidden="true"></div>
-          <img class="rin-character" src="{{ avatar_asset_path }}" alt="RIN static character presence" />
-          <div class="presence-caption glass-panel">
-            <span class="status-dot"></span>
-            <strong>RIN PRESENCE</strong>
-            <span>static body / Live2D future</span>
-          </div>
+      <section class="console-grid">
+        <nav class="console-nav glass-panel" aria-label="Console pages">
+          <button class="nav-tab active" type="button" data-console-tab="overview">Overview</button>
+          <button class="nav-tab" type="button" data-console-tab="chat">Chat / Test</button>
+          <button class="nav-tab" type="button" data-console-tab="model">Model</button>
+          <button class="nav-tab" type="button" data-console-tab="memory">Memory</button>
+          <button class="nav-tab" type="button" data-console-tab="context">Context</button>
+          <button class="nav-tab" type="button" data-console-tab="database">Database</button>
+          <button class="nav-tab" type="button" data-console-tab="conversations">Conversations</button>
+          <button class="nav-tab" type="button" data-console-tab="profiles">Profiles</button>
+          <button class="nav-tab" type="button" data-console-tab="body">Body / Live2D</button>
+          <button class="nav-tab" type="button" data-console-tab="events">Logs / Events</button>
+          <button class="nav-tab" type="button" data-console-tab="developer">Developer Checks</button>
+        </nav>
+
+        <section class="console-main glass-panel" aria-label="Selected console page">
+          <section class="console-page active" data-console-page="overview">
+            <header class="page-heading">
+              <div><p class="eyebrow">Overview</p><h2>Kernel State</h2></div>
+              <button class="ghost-button" type="button" data-refresh-dashboard>Refresh</button>
+            </header>
+            <section class="overview-grid">
+              <div class="metric-tile"><span>Runtime</span><b>{{ dashboard.serverMode }}</b></div>
+              <div class="metric-tile"><span>Model</span><b>{{ dashboard.model }}</b></div>
+              <div class="metric-tile"><span>External calls</span><b data-dashboard-field="externalProviderCallCount">{{ dashboard.externalProviderCallCount }}</b></div>
+              <div class="metric-tile"><span>DB schema</span><b data-dashboard-field="database.schemaVersion">{{ dashboard.database.schemaVersion }}</b></div>
+              <div class="metric-tile"><span>Conversations</span><b data-dashboard-field="database.conversations">{{ dashboard.database.conversations }}</b></div>
+              <div class="metric-tile"><span>Messages</span><b data-dashboard-field="database.messages">{{ dashboard.database.messages }}</b></div>
+            </section>
+            <section class="visual-grid">
+              <div class="metric-card memory-card">
+                <div><p class="eyebrow">Memory V2</p><strong data-dashboard-field="memoryContext.memoryV2Traces">{{ dashboard.memoryContext.memoryV2Traces }}</strong><span>traces</span></div>
+                <div class="trace-ring" style="--ring-fill: {{ dashboard.memoryContext.ringFillPercent }}%" aria-label="Memory trace ring"><span>{{ dashboard.memoryContext.memoryV2Traces }}</span></div>
+              </div>
+              <div class="metric-card balance-card">
+                <div class="metric-head"><p class="eyebrow">Message balance</p><span data-dashboard-field="activeConversation.messageCount">{{ dashboard.activeConversation.messageCount }}</span></div>
+                <div class="balance-row"><span>Owner</span><div class="balance-track"><i data-dashboard-bar="owner" style="width: {{ dashboard.activeConversation.ownerMessagePercent }}%"></i></div><b data-dashboard-field="activeConversation.ownerMessages">{{ dashboard.activeConversation.ownerMessages }}</b></div>
+                <div class="balance-row"><span>RIN</span><div class="balance-track"><i data-dashboard-bar="rin" style="width: {{ dashboard.activeConversation.rinMessagePercent }}%"></i></div><b data-dashboard-field="activeConversation.rinMessages">{{ dashboard.activeConversation.rinMessages }}</b></div>
+              </div>
+              <div class="health-grid" aria-label="Runtime health grid">
+                <div class="{{ dashboard.health.database }}"><span>DB</span><b>{{ dashboard.database.schemaVersion }}</b></div>
+                <div class="{{ dashboard.health.model }}"><span>MODEL</span><b>{{ dashboard.model }}</b></div>
+                <div class="{{ dashboard.health.profile }}"><span>PROFILE</span><b>{{ dashboard.profile.status }}</b></div>
+                <div class="{{ dashboard.health.memory }}"><span>MEMORY</span><b>{{ dashboard.memoryContext.memoryV2Traces }}</b></div>
+                <div class="{{ dashboard.health.local }}"><span>LOCAL</span><b>{{ dashboard.serverMode }}</b></div>
+              </div>
+            </section>
+          </section>
+
+          <section class="console-page" data-console-page="chat">
+            <header class="page-heading">
+              <div><p class="eyebrow">Manual Runtime Test Chat</p><h2>Chat / Test Interface · Local conversation</h2></div>
+              <div class="inline-chips"><span>{{ adapter_id }}</span><span>{{ model_name }}</span><span>{{ local_model_status }}</span></div>
+            </header>
+            <nav class="conversation-strip" aria-label="Recent conversations">
+              <a class="new-chat-link" href="/ui?new=1">New</a>
+              {% for conversation in conversations[:6] %}
+                <a class="conversation-pill{% if conversation.id == selected_conversation_id %} selected{% endif %}" href="/ui?conversationId={{ conversation.id }}" data-conversation-id="{{ conversation.id }}">{{ conversation.title }}</a>
+              {% else %}
+                <span class="empty-copy">No conversations.</span>
+              {% endfor %}
+            </nav>
+            <section id="message-stream" class="message-stream" aria-live="polite">
+              {% for message in messages %}
+                <article class="message-row message-row-{{ message.role }}">
+                  <div class="message-bubble {{ message.role }}">
+                    <div class="message-meta"><strong>{{ message.role }}</strong>{% if message.createdAt %}<time>{{ message.createdAt }}</time>{% endif %}</div>
+                    <p>{{ message.content }}</p>
+                  </div>
+                </article>
+              {% else %}
+                <section class="empty-state"><p class="eyebrow">Ready</p><h2>Start a local conversation.</h2><p>Use this page for manual runtime tests, model quality checks, and fallback interaction.</p></section>
+              {% endfor %}
+            </section>
+            <form id="chat-form" class="composer-dock" autocomplete="off">
+              <input type="hidden" name="conversationId" value="{{ selected_conversation_id or '' }}" />
+              <label class="sr-only" for="chat-input">Message</label>
+              <textarea id="chat-input" name="content" placeholder="Send a local test message to RIN..." required></textarea>
+              <button id="send-button" type="submit">Send</button>
+              <p class="composer-hint">Chat is preserved for manual testing, debugging, model checks, and fallback use.</p>
+            </form>
+          </section>
+
+          <section class="console-page" data-console-page="model">
+            <header class="page-heading"><div><p class="eyebrow">Model Runtime</p><h2>Adapter and Local Model</h2></div></header>
+            <section class="data-list">
+              <div><span>Adapter</span><b>{{ diagnostics.model.adapter }}</b></div>
+              <div><span>Provider</span><b>{{ diagnostics.model.provider }}</b></div>
+              <div><span>Model</span><b>{{ diagnostics.model.model }}</b></div>
+              <div><span>Base URL</span><b>{{ diagnostics.model.baseUrl }}</b></div>
+              <div><span>Timeout</span><b>{{ diagnostics.model.timeoutMs }}</b></div>
+              <div><span>Num predict</span><b>{{ diagnostics.model.numPredict }}</b></div>
+              <div><span>Smoke</span><b>{{ diagnostics.model.smokeStatus }}</b></div>
+              <div><span>Sanitizer</span><b>{{ diagnostics.model.sanitizerStatus }}</b></div>
+            </section>
+          </section>
+
+          <section class="console-page" data-console-page="memory">
+            <header class="page-heading"><div><p class="eyebrow">Memory System</p><h2>Memory V2</h2></div></header>
+            <section class="split-panel">
+              <div class="metric-card memory-card"><div><p class="eyebrow">Trace count</p><strong>{{ diagnostics.memory.memoryV2Traces }}</strong><span>Trace full text: {{ diagnostics.memory.fullTextIncluded }}</span></div><div class="trace-ring" style="--ring-fill: {{ dashboard.memoryContext.ringFillPercent }}%"><span>{{ diagnostics.memory.memoryV2Traces }}</span></div></div>
+              <div class="explain-card"><h3>Privacy</h3><p>{{ diagnostics.memory.privacy }}</p><h3>Retention</h3><p>{{ diagnostics.memory.retentionSummary }}</p></div>
+            </section>
+          </section>
+
+          <section class="console-page" data-console-page="context">
+            <header class="page-heading"><div><p class="eyebrow">Context Builder</p><h2>Context V2</h2></div></header>
+            <section class="data-list">
+              <div><span>Recent window</span><b>{{ diagnostics.context.recentWindowPolicy }}</b></div>
+              <div><span>Profile injection</span><b>{{ diagnostics.context.profileInjection }}</b></div>
+              <div><span>Memory injection</span><b>{{ diagnostics.context.memoryInjection }}</b></div>
+              <div><span>Deduplication</span><b>{{ diagnostics.context.deduplication }}</b></div>
+              <div><span>Budget policy</span><b>{{ diagnostics.context.budgetPolicy }}</b></div>
+              <div><span>Raw prompt</span><b>{{ diagnostics.context.fullPromptIncluded }}</b></div>
+            </section>
+          </section>
+
+          <section class="console-page" data-console-page="database">
+            <header class="page-heading"><div><p class="eyebrow">Database / Storage</p><h2>Read-Only Storage Diagnostics</h2></div></header>
+            <section class="data-list">
+              <div><span>Data dir</span><b>{{ diagnostics.database.dataDirName }}</b></div>
+              <div><span>Manifest</span><b>{{ diagnostics.database.manifestPresent }}</b></div>
+              <div><span>Schema</span><b>{{ diagnostics.database.databaseSchemaVersion }}</b></div>
+              <div><span>Conversations</span><b>{{ diagnostics.database.conversationCount }}</b></div>
+              <div><span>Messages</span><b>{{ diagnostics.database.messageCount }}</b></div>
+              <div><span>Profile files</span><b>{{ diagnostics.database.profileFileCount }}</b></div>
+              <div><span>Backup dir</span><b>{{ diagnostics.database.backupDirPresent }}</b></div>
+              <div><span>Cutover marker</span><b>{{ diagnostics.database.pythonCutoverMarkerPresent }}</b></div>
+            </section>
+          </section>
+
+          <section class="console-page" data-console-page="conversations">
+            <header class="page-heading"><div><p class="eyebrow">Conversations</p><h2>Recent Conversation Index</h2></div></header>
+            <section class="conversation-table">
+              {% for item in diagnostics.overview.conversations %}
+                <article><strong>{{ item.title }}</strong><span>{{ item.id }}</span><b>{{ item.messageCount }} msg / {{ item.ownerMessages }} owner / {{ item.rinMessages }} RIN</b></article>
+              {% else %}
+                <p class="empty-copy">No conversations.</p>
+              {% endfor %}
+            </section>
+          </section>
+
+          <section class="console-page" data-console-page="profiles">
+            <header class="page-heading"><div><p class="eyebrow">Profiles</p><h2>Safe Profile Status</h2></div></header>
+            <section class="data-list">
+              <div><span>Status</span><b>{{ diagnostics.profiles.status }}</b></div>
+              <div><span>File count</span><b>{{ diagnostics.profiles.fileCount }}</b></div>
+              <div><span>Summary</span><b>{{ diagnostics.profiles.summary }}</b></div>
+              <div><span>Full text</span><b>{{ diagnostics.profiles.fullTextIncluded }}</b></div>
+            </section>
+          </section>
+
+          <section class="console-page" data-console-page="body">
+            <header class="page-heading"><div><p class="eyebrow">Body / Live2D</p><h2>Static Web Presence</h2></div></header>
+            <section class="data-list">
+              <div><span>Status</span><b>{{ diagnostics.body.status }}</b></div>
+              <div><span>Adapter</span><b>{{ diagnostics.body.adapterId }}</b></div>
+              <div><span>Asset</span><b>{{ diagnostics.body.staticPresenceAsset }}</b></div>
+              <div><span>Cubism runtime active</span><b>{{ diagnostics.body.cubismRuntimeActive }}</b></div>
+              <div><span>Future</span><b>{{ diagnostics.body.futureDesktopBody }}</b></div>
+            </section>
+          </section>
+
+          <section class="console-page" data-console-page="events">
+            <header class="page-heading"><div><p class="eyebrow">Logs / Events</p><h2>Safe Diagnostics</h2></div></header>
+            <section class="data-list">
+              <div><span>Audit events</span><b>{{ diagnostics.events.recentAuditEventCount }}</b></div>
+              <div><span>Error count</span><b>{{ diagnostics.events.errorCount }}</b></div>
+              <div><span>Last error code</span><b>{{ diagnostics.events.lastErrorCode }}</b></div>
+              <div><span>Payloads</span><b>{{ diagnostics.events.fullPayloadIncluded }}</b></div>
+              <div><span>Notes</span><b>{{ diagnostics.events.notes }}</b></div>
+            </section>
+          </section>
+
+          <section class="console-page" data-console-page="developer">
+            <header class="page-heading"><div><p class="eyebrow">Developer Checks</p><h2>Command Guidance</h2></div></header>
+            <section class="command-list">
+              <code>python -m pytest</code>
+              <code>python -m ruff check .</code>
+              <code>python -m ruff format --check .</code>
+              <code>python -m mypy .</code>
+              <code>rin-python-production-check</code>
+              <code>rin-python-candidate-check</code>
+              <code>RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke</code>
+            </section>
+          </section>
         </section>
 
-        <aside class="left-glass-panel glass-panel" aria-label="Chat input and history">
-          <header class="panel-title">
-            <div>
-              <p class="eyebrow">Message terminal</p>
-              <h2>Local conversation</h2>
-            </div>
-            <span>{{ message_count }} msg</span>
-          </header>
-
-          <nav class="conversation-strip" aria-label="Recent conversations">
-            <a class="new-chat-link" href="/ui?new=1">New</a>
-            {% for conversation in conversations[:4] %}
-              <a
-                class="conversation-pill{% if conversation.id == selected_conversation_id %} selected{% endif %}"
-                href="/ui?conversationId={{ conversation.id }}"
-                data-conversation-id="{{ conversation.id }}"
-              >
-                {{ conversation.title }}
-              </a>
-            {% else %}
-              <span class="empty-copy">No conversations.</span>
-            {% endfor %}
-          </nav>
-
-          <section id="message-stream" class="message-stream" aria-live="polite">
-            {% for message in messages %}
-              <article class="message-row message-row-{{ message.role }}">
-                <div class="message-bubble {{ message.role }}">
-                  <div class="message-meta">
-                    <strong>{{ message.role }}</strong>
-                    {% if message.createdAt %}
-                      <time>{{ message.createdAt }}</time>
-                    {% endif %}
-                  </div>
-                  <p>{{ message.content }}</p>
-                </div>
-              </article>
-            {% else %}
-              <section class="empty-state">
-                <p class="eyebrow">Ready</p>
-                <h2>Start a local conversation.</h2>
-                <p>Messages stay local. External provider calls remain disabled.</p>
-              </section>
-            {% endfor %}
+        <aside class="presence-panel glass-panel" aria-label="RIN static presence display">
+          <section class="presence-stage">
+            <div class="presence-aura" aria-hidden="true"></div>
+            <div class="presence-ring" aria-hidden="true"></div>
+            <img class="rin-character" src="{{ avatar_asset_path }}" alt="RIN static character presence" />
           </section>
-
-          <form id="chat-form" class="composer-dock" autocomplete="off">
-            <input type="hidden" name="conversationId" value="{{ selected_conversation_id or '' }}" />
-            <label class="sr-only" for="chat-input">Message</label>
-            <textarea
-              id="chat-input"
-              name="content"
-              placeholder="Send a local message to RIN..."
-              required
-            ></textarea>
-            <button id="send-button" type="submit">Send</button>
-            <p class="composer-hint">Enter to send. Shift+Enter for newline.</p>
-          </form>
-        </aside>
-
-        <aside class="right-glass-panel glass-panel" aria-label="Status memory and profile">
-          <header class="panel-title">
-            <div>
-              <p class="eyebrow">Live local state</p>
-              <h2>Status</h2>
-            </div>
-            <span data-dashboard-field="serverMode">{{ dashboard.serverMode }}</span>
-          </header>
-
-          <section class="status-chip-grid">
-            <div><span>Model</span><b>{{ dashboard.model }}</b></div>
-            <div><span>Adapter</span><b>{{ dashboard.adapter }}</b></div>
-            <div><span>Ready</span><b data-dashboard-field="readiness.label">{{ dashboard.readiness.label }}</b></div>
-            <div><span>External</span><b data-dashboard-field="externalProviderCallCount">{{ dashboard.externalProviderCallCount }}</b></div>
-          </section>
-
-          <section class="metric-card memory-card">
-            <div>
-              <p class="eyebrow">Memory V2</p>
-              <strong data-dashboard-field="memoryContext.memoryV2Traces">{{ dashboard.memoryContext.memoryV2Traces }}</strong>
-              <span>traces</span>
-            </div>
-            <div
-              class="trace-ring"
-              style="--ring-fill: {{ dashboard.memoryContext.ringFillPercent }}%"
-              aria-label="Memory trace ring"
-            >
-              <span>{{ dashboard.memoryContext.memoryV2Traces }}</span>
-            </div>
-          </section>
-
-          <section class="metric-card balance-card">
-            <div class="metric-head">
-              <p class="eyebrow">Message flow</p>
-              <span data-dashboard-field="activeConversation.messageCount">{{ dashboard.activeConversation.messageCount }}</span>
-            </div>
-            <div class="balance-row">
-              <span>Owner</span>
-              <div class="balance-track"><i data-dashboard-bar="owner" style="width: {{ dashboard.activeConversation.ownerMessagePercent }}%"></i></div>
-              <b data-dashboard-field="activeConversation.ownerMessages">{{ dashboard.activeConversation.ownerMessages }}</b>
-            </div>
-            <div class="balance-row">
-              <span>RIN</span>
-              <div class="balance-track"><i data-dashboard-bar="rin" style="width: {{ dashboard.activeConversation.rinMessagePercent }}%"></i></div>
-              <b data-dashboard-field="activeConversation.rinMessages">{{ dashboard.activeConversation.rinMessages }}</b>
-            </div>
-          </section>
-
-          <section class="health-grid" aria-label="Runtime health grid">
-            <div class="{{ dashboard.health.database }}"><span>DB</span><b>{{ dashboard.database.schemaVersion }}</b></div>
-            <div class="{{ dashboard.health.model }}"><span>MODEL</span><b>{{ dashboard.model }}</b></div>
-            <div class="{{ dashboard.health.profile }}"><span>PROFILE</span><b>{{ dashboard.profile.status }}</b></div>
-            <div class="{{ dashboard.health.memory }}"><span>MEMORY</span><b>{{ dashboard.memoryContext.memoryV2Traces }}</b></div>
-            <div class="{{ dashboard.health.local }}"><span>LOCAL</span><b>{{ dashboard.serverMode }}</b></div>
-          </section>
-
-          <section class="data-list">
-            <div><span>Schema</span><b data-dashboard-field="database.schemaVersion">{{ dashboard.database.schemaVersion }}</b></div>
-            <div><span>Conversations</span><b data-dashboard-field="database.conversations">{{ dashboard.database.conversations }}</b></div>
-            <div><span>Messages</span><b data-dashboard-field="database.messages">{{ dashboard.database.messages }}</b></div>
-            <div><span>Profile files</span><b data-dashboard-field="profile.fileCount">{{ dashboard.profile.fileCount }}</b></div>
-            <div><span>Trace full text</span><b data-dashboard-field="memoryContext.fullTextIncluded">{{ dashboard.memoryContext.fullTextIncluded }}</b></div>
-            <div><span>Body</span><b data-dashboard-field="body.status">{{ dashboard.body.status }}</b></div>
+          <section class="presence-caption">
+            <span class="status-dot"></span>
+            <strong>RIN PRESENCE</strong>
+            <span>STATIC BODY / LIVE2D FUTURE</span>
           </section>
         </aside>
       </section>
