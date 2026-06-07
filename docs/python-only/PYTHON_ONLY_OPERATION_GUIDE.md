@@ -37,6 +37,9 @@ Runtime Trace is safe by default: it shows ids, counts, timestamps, lengths,
 short previews, hashes, and stage status, but not full prompts, profile text,
 memory text, hidden reasoning, or raw model output.
 
+The console preserves the active tab in the browser. Chat submissions return to
+the Chat / Test page instead of resetting to Overview.
+
 ## Recommended Launcher
 
 Double-click:

@@ -149,13 +149,17 @@ The page shows:
 
 - compact latest-turn summary with short ids;
 - compact vertical pipeline timeline with status and per-stage summary;
-- selected-stage dataflow detail sections: Input, Operation, Output, Decision,
-  Privacy, Warnings, and Errors;
 - end-to-end diagnostics for input, recent history, memory injection, request
   messages, raw output, removed characters, and sanitized storage;
 - CSS-only bars for raw-to-final sanitizer shrinkage, context-to-request
   composition, and stage duration;
 - safe trace JSON behind a collapsed disclosure.
+
+Click any stage in the timeline to open a draggable floating detail window.
+Multiple stage windows can be open at once. Each window can be moved by its title
+bar, focused by clicking it, and closed independently. Stage windows show Input,
+Operation, Output, Decision, Privacy, Warnings, Errors, and collapsed safe JSON
+using only the safe backend trace data already rendered into the page.
 
 If no chat turn has run in the current server session, the page shows an empty
 state and asks the owner to send a message in Chat / Test.

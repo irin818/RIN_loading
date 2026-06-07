@@ -1,3 +1,4 @@
+import re
 import shutil
 from pathlib import Path
 
@@ -174,9 +175,11 @@ def test_python_ui_static_assets_are_served() -> None:
         assert "console-nav" in css.text
         assert "console-page.active" in css.text
         assert "trace-timeline" in css.text
-        assert "trace-detail-v2" in css.text
         assert "trace-e2e" in css.text
         assert "trace-v2-summary" in css.text
+        assert "trace-window-layer" in css.text
+        assert "trace-window-titlebar" in css.text
+        assert "trace-window-body" in css.text
         assert "rin-character" in css.text
         assert "presence-panel" in css.text
         assert "composer-dock" in css.text
@@ -188,7 +191,9 @@ def test_python_ui_static_assets_are_served() -> None:
         assert "requestSubmit" in js.text
         assert "refreshDashboard" in js.text
         assert "activateConsolePage" in js.text
-        assert "activateTraceStage" in js.text
+        assert "openTraceStageWindow" in js.text
+        assert "makeDraggable" in js.text
+        assert "trace-stage-data" in js.text
         assert "control-console-shell" in js.text
         assert "/api/status-dashboard" not in js.text
         assert avatar.status_code == 200
@@ -217,8 +222,37 @@ def test_python_ui_chat_submit_renders_conversation_history() -> None:
         assert "Runtime Dataflow Analyzer" in response.text
         assert "End-to-End Summary" in response.text
         assert "Sanitizer raw" in response.text
+        assert 'data-console-tab="chat">Chat / Test' in response.text
+        assert 'data-console-page="chat"' in response.text
+        assert 'class="console-page active" data-console-page="chat"' in response.text
+        assert (
+            'class="console-page active" data-console-page="overview"'
+            not in response.text
+        )
+        assert 'id="trace-window-layer"' in response.text
+        assert 'id="trace-stage-window-template"' in response.text
+        assert 'id="trace-stage-data"' in response.text
+        assert "trace-stage-panel" not in response.text
+        assert "trace-detail-v2" not in response.text
+        assert 'data-stage-id="input_received"' in response.text
         assert 'class="composer-dock"' in response.text
         assert state["externalProviderCallCount"] == 0
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_console_tab_buttons_are_explicit_button_type() -> None:
+    client, layout = create_client()
+    try:
+        response = client.get("/")
+
+        assert response.status_code == 200
+        tab_buttons = re.findall(
+            r"<button[^>]+data-console-tab=\"[^\"]+\"[^>]*>",
+            response.text,
+        )
+        assert len(tab_buttons) == 12
+        assert all('type="button"' in item for item in tab_buttons)
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
