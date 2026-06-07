@@ -1,15 +1,7 @@
 # Development Protocol
 
-## Branch Policy
-
-- `main` is stable.
-- Use `codex/<task-name>` for Codex implementation work after initial bootstrap.
-- Use `docs/<topic>` for documentation-only branches.
-- Use `fix/<issue-name>` for narrow bug fixes.
-- Use `experiment/<topic>` for uncertain or exploratory work.
-
-Initial repository bootstrap may commit directly to `main` when no remote
-history exists. After the first push, prefer task branches and pull requests.
+For branch naming conventions and Git workflow, see the Git and GitHub
+Workflow section in `AGENTS.md`.
 
 ## Commit Policy
 
@@ -51,28 +43,8 @@ Multiple Codex conversations may work in this repository. Each task must:
 If unexpected user or agent changes are present, work with them and do not
 revert them unless explicitly instructed.
 
-### RIN v2.0 Continuation Policy
-
-Every Codex conversation that continues v2.0 work must begin by reading:
-
-1. `docs/RIN_V2_MASTER_PLAN.md`
-2. `docs/RIN_V2_PROGRESS.md`
-3. `docs/RIN_V2_DECISIONS.md`
-
-After reading those files, inspect local git status, current branch, recent log,
-remote branch state, and open PRs. Continue only the current package recorded in
-`docs/RIN_V2_PROGRESS.md` unless the owner explicitly changes scope.
-
-Before stopping a v2.0 conversation:
-
-1. leave coherent commits for completed work;
-2. push the active branch when a remote exists;
-3. update `docs/RIN_V2_PROGRESS.md`;
-4. record the exact next task;
-5. report blockers, failed checks, and merge status honestly.
-
-Do not depend on chat context alone for v2.0 continuity. Repository-persisted
-plan, progress, and decision files are the handoff source of truth.
+For the RIN v2.0 continuation workflow (startup reads, stop checklist, handoff
+source of truth), see the RIN v2.0 Codex Continuation Protocol section in `AGENTS.md`.
 
 ## Testing and Check Policy
 
@@ -98,16 +70,16 @@ available:
 Task-specific checks still apply. For example, Live2D, CLI, import/export,
 storage, or provider-specific changes may require additional targeted commands.
 
-Local Ollama readiness remains a separate optional/live-model check and should
-be run when a task specifically changes local model behavior:
+Local Ollama readiness remains a separate optional check; the command shown
+above under local-model work (`RIN_PYTHON_CHECK_LOCAL_MODEL=1
+rin-python-production-check`) doubles as the readiness gate when Ollama is
+available.
 
-- `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_BASE_URL=http://127.0.0.1:11434 RIN_OLLAMA_MODEL=qwen3:4b npm run rin:readiness`
+Individual diagnosis or narrow verification:
 
-Individual commands for diagnosis or narrow verification:
-
-- `npm run build`
-- `npm test`
-- `npm run lint`
+- `python -m pytest tests/unit/test_memory_v2_algorithms.py -v` (targeted test file)
+- `python -m ruff check src/rin/memory/` (single-module lint)
+- `python -m mypy src/rin/memory/` (single-module type check)
 
 For documentation-only or governance-only changes, run available checks as a
 sanity pass when practical and report any skipped checks. If a check fails due
@@ -116,39 +88,23 @@ unrelated fixes.
 
 ## Memory Retrieval Evaluation Policy
 
-Run `npm run rin:memory-eval` for any change that touches memory retrieval,
-context assembly, memory context traceability, memoryContext persistence/reload,
-or runtime paths that affect model context, including:
+A Python memory retrieval evaluation harness is pending implementation. Once
+available, it should be run for any change to:
 
-- `src/memory/*`
-- `src/context/*`
-- `src/conversation/runtime.ts`
-- memoryContext persistence or reload logic
+- `python/src/rin/memory/*`
+- `python/src/rin/context/*`
+- `python/src/rin/conversation/runtime.py`
+- memory context traceability, persistence, or reload logic
 - retrieval scoring, tokenization, trace, or fixture expectations
 
-This check matters because accepted memories are slow variables that can
-influence fast model context. The evaluation harness must remain deterministic,
-local, provider-free, and real-data-free: it must not call model providers, must
-not require Ollama, and must not use real owner data.
+Same invariants apply: the harness must be deterministic, local, provider-free,
+and real-data-free — no model providers, no Ollama requirement, no real owner
+data. Failures should block merge unless the task intentionally updates
+retrieval behavior or fixture expectations with a documented explanation of how
+accepted-only, budget, privacy, and traceability constraints are preserved.
 
-Failures in `npm run rin:memory-eval` should block merge unless the task
-intentionally updates retrieval behavior or fixture expectations. If fixtures or
-expectations are updated, the final report must explain why the expectation
-changed and how accepted-only, budget, privacy, and traceability constraints are
-preserved.
-
-## Protected Governance File Policy
-
-Protected governance files:
-
-- `AGENTS.md`
-- `PROJECT_CHARTER.md`
-- `ARCHITECTURE.md`
-- `DEVELOPMENT_PROTOCOL.md`
-- `README.md` when it defines project scope or public behavior
-
-Do not overwrite, delete, rename, or simplify these files casually. Update them
-only for explicit governance, architecture, protocol, or public behavior tasks.
+For the list of protected governance files and their rules, see the Protected
+Governance Files section in `AGENTS.md`.
 
 ## Secret Handling Policy
 
@@ -176,34 +132,10 @@ Do not print secrets in summaries, logs, commits, or PR descriptions.
 - Preserve `live2d-development/` organization unless a task explicitly targets
   Live2D development structure.
 - Keep runtime assets under `public/live2d/`.
-- Keep production TypeScript control logic under `src/`, with future Live2D
-  control code expected under `src/live2d/`.
+- Keep Live2D control code under `python/src/rin/body/`.
 - Do not mix source art, Cubism project files, exported runtime assets, and
-  TypeScript control logic.
+  control code.
 - Do not disrupt ongoing Live2D model/asset work from other conversations.
 - Do not change runtime asset paths without updating and testing all consumers.
 
-## Stage Completion Report Format
-
-End each task with:
-
-### Summary
-- what was done
-
-### Changed Files
-- path: reason
-
-### Tests / Checks
-- command: result
-
-### Git / GitHub
-- branch:
-- commit:
-- push status:
-- PR status:
-
-### Risks
-- remaining risks or assumptions
-
-### Next Step
-- recommended next action
+For task completion report format, see the Final Report Format section in `AGENTS.md`.

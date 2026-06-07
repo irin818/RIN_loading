@@ -1,35 +1,31 @@
-# RIN Python Core Candidate
+# RIN Python Core
 
-Status: Package 0 foundation.
-
-This directory contains the isolated Python candidate for the RIN core
-migration. The TypeScript RIN v2.0 implementation remains the production
-reference and rollback path until a later owner-approved cutover.
+This directory contains the Python runtime for RIN, the local-first personal
+agent system. It is the active production runtime as of the Python cutover.
 
 ## Scope
 
-Package 0 creates only:
+The Python package covers:
 
-- Python project configuration
-- package/module skeleton
-- provider-free check commands
-- temporary data safety helpers
-- migration control documentation
-- initial tests for imports, readiness, and path safety
-
-It does not replace the TypeScript runtime, switch launchers, modify production
-`.rin-data`, or apply database migrations.
+- FastAPI web server with Jinja2 console UI
+- Local Ollama model adapter (Qwen3 4B recommended)
+- SQLite conversation and memory storage
+- Profile validation, diagnostics, and readiness checks
+- Migration, backup, sandbox, and rollback tooling
+- Provider-neutral model abstraction layer
 
 ## Dependencies
 
-- Pydantic v2: future explicit JSON/data contracts.
-- FastAPI and Uvicorn: future local API compatibility candidate.
-- httpx: future Ollama/Qwen3 adapter and API tests.
-- pytest and pytest-asyncio: test runner and future async API/model tests.
-- Ruff: lint and format checks.
-- mypy: static typing check.
+- FastAPI + Uvicorn: local web API and console server
+- Jinja2: server-side HTML templates
+- httpx: HTTP client for local model adapter and API tests
+- Pydantic v2: data contracts and validation
+- pytest + pytest-asyncio: test runner
+- Ruff: lint and format
+- mypy: static type checking
 
-No cloud service, vector database, heavy ORM, or external provider SDK is added.
+No cloud service, vector database, heavy ORM, or external provider SDK is
+required.
 
 ## Install For Development
 
@@ -44,36 +40,43 @@ If `python3.12` is not installed, use another Python 3.12+ executable.
 
 ## Checks
 
-From `python/` after installing development dependencies:
+From `python/` after activating `.venv`:
 
 ```sh
-rin-python-check
-rin-python-parity-check
-rin-python-readiness
+# Aggregate checks
+python -m pytest
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy src
 rin-python-candidate-check
+rin-python-production-check
+
+# Optional local-model checks (requires Ollama + qwen3:4b)
+RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check
+RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke
 ```
 
-Equivalent module form:
-
-```sh
-PYTHONPATH=src python -m rin.cli.check
-PYTHONPATH=src python -m rin.cli.parity_check
-PYTHONPATH=src python -m rin.cli.readiness
-PYTHONPATH=src python -m rin.cli.candidate_check
-```
-
-All Package 0 checks are provider-free and do not require Ollama or external
-API credentials.
+All base checks are provider-free and do not require Ollama or external API
+credentials.
 
 ## Data Safety
 
-Python migration write tests must use `/tmp/rin-python-*`.
+The Python runtime writes production data only after the cutover marker exists:
 
-The safety guard rejects:
+```text
+.rin-data/config/python_cutover_marker.json
+```
 
-- `/Users/irin/Documents/RIN_loading/.rin-data`
-- any child path inside that production `.rin-data`
-- non-temporary write-test paths
+Migration write tests use `/tmp/rin-python-*` paths only. The safety guard
+rejects writes to the production `.rin-data` directory during migration dry
+runs.
 
-There is intentionally no override for real production writes during this
-migration program.
+## Production Launch
+
+Use the root launcher from the repository root:
+
+```sh
+./Start_RIN.command
+```
+
+It starts the FastAPI server on `http://127.0.0.1:8765/` with local Ollama.
