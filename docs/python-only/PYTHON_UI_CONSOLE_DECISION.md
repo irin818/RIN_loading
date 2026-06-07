@@ -27,6 +27,7 @@ The page includes:
 - chat input;
 - conversation selector;
 - response/history display;
+- central static RIN character/presence display;
 - read-only dashboard metrics and lightweight local visualizations;
 - clear visible error output;
 - external API call count.

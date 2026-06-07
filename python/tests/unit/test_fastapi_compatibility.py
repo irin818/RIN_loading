@@ -110,14 +110,15 @@ def test_python_ui_renders_local_status_and_profile_summary() -> None:
         response = client.get("/")
 
         assert response.status_code == 200
-        assert "minimal AI OS" in response.text
-        assert 'class="ai-os-shell"' in response.text
-        assert 'class="system-bar"' in response.text
-        assert 'class="os-grid"' in response.text
-        assert 'class="conversation-rail"' in response.text
-        assert 'class="chat-plane"' in response.text
+        assert "RIN Local Interface" in response.text
+        assert 'class="glass-hud-shell"' in response.text
+        assert 'class="hud-topbar"' in response.text
+        assert 'class="hud-stage"' in response.text
+        assert 'class="rin-presence-layer"' in response.text
+        assert 'class="rin-character"' in response.text
+        assert 'class="left-glass-panel glass-panel"' in response.text
+        assert 'class="right-glass-panel glass-panel"' in response.text
         assert 'class="composer-dock"' in response.text
-        assert 'class="status-dashboard"' in response.text
         assert 'class="trace-ring"' in response.text
         assert 'class="metric-card balance-card"' in response.text
         assert 'class="health-grid"' in response.text
@@ -131,9 +132,9 @@ def test_python_ui_renders_local_status_and_profile_summary() -> None:
         assert "Profile files" in response.text
         assert "Trace full text" in response.text
         assert "Body" in response.text
-        assert "RIN ONLINE" in response.text
-        assert "/live2d/rin/rin-bust-front.png" in response.text
-        assert "static presence / future Live2D" in response.text
+        assert "RIN PRESENCE" in response.text
+        assert "/live2d/rin/rin-front-fullbody.png" in response.text
+        assert "static body / Live2D future" in response.text
         assert "external" in response.text
         assert "0" in response.text
         assert "Start a local conversation." in response.text
@@ -147,24 +148,29 @@ def test_python_ui_static_assets_are_served() -> None:
         css = client.get("/static/console.css")
         js = client.get("/static/console.js")
         avatar = client.get("/live2d/rin/rin-bust-front.png")
+        fullbody = client.get("/live2d/rin/rin-front-fullbody.png")
 
         assert css.status_code == 200
-        assert "ai-os-shell" in css.text
-        assert "os-grid" in css.text
-        assert "conversation-rail" in css.text
-        assert "chat-plane" in css.text
+        assert "glass-hud-shell" in css.text
+        assert "hud-stage" in css.text
+        assert "rin-presence-layer" in css.text
+        assert "rin-character" in css.text
+        assert "left-glass-panel" in css.text
+        assert "right-glass-panel" in css.text
         assert "composer-dock" in css.text
-        assert "status-dashboard" in css.text
         assert "trace-ring" in css.text
         assert "health-grid" in css.text
-        assert "avatar-stage" in css.text
+        assert "presence-caption" in css.text
         assert "ambient-grid" in css.text
         assert "RIN console submit failed" in js.text
         assert "requestSubmit" in js.text
         assert "refreshDashboard" in js.text
+        assert "glass-hud-shell" in js.text
         assert "/api/status-dashboard" not in js.text
         assert avatar.status_code == 200
         assert avatar.headers["content-type"] == "image/png"
+        assert fullbody.status_code == 200
+        assert fullbody.headers["content-type"] == "image/png"
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
@@ -230,7 +236,7 @@ def test_python_ui_error_rendering_is_visible() -> None:
         assert "Structured error" in response.text
         assert "error-box" in response.text
         assert "test adapter failure" in response.text
-        assert "minimal AI OS" in response.text
+        assert "RIN Local Interface" in response.text
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 

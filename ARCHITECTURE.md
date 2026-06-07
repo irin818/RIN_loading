@@ -23,10 +23,10 @@ removed intentionally to leave one owner-facing root launcher.
 
 The active UI is rendered with Jinja2 templates plus static CSS and minimal
 vanilla JavaScript from `python/src/rin/server/`. There is no frontend build
-chain. The console is a minimal black-green AI OS dashboard with read-only live
-status metrics and lightweight CSS/JS visualizations. It includes a local RIN
-presence panel backed by existing static assets under `public/live2d/`; it does
-not claim full Cubism runtime support.
+chain. The console is a character-centered black-green glass HUD with a central
+static RIN presence, translucent left/right panels, read-only live status
+metrics, and lightweight CSS/JS visualizations. It uses local assets under
+`public/live2d/` and does not claim full Cubism runtime support.
 
 ## Runtime Boundaries
 

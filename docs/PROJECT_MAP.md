@@ -11,8 +11,8 @@ Current active pieces:
 
 - Python runtime package under `python/src/rin`.
 - Python tests under `python/tests`.
-- FastAPI local web UI at `http://127.0.0.1:8765/`, rendered as a minimal
-  black-green AI OS dashboard.
+- FastAPI local web UI at `http://127.0.0.1:8765/`, rendered as a
+  character-centered black-green glass HUD.
 - Local SQLite-backed `.rin-data/`.
 - Production cutover marker under `.rin-data/config/python_cutover_marker.json`.
 - Preserved backup bundles under `.rin-python-backups/`.

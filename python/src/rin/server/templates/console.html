@@ -9,73 +9,74 @@
   </head>
   <body>
     <main
-      class="ai-os-shell"
+      class="glass-hud-shell"
       data-selected-conversation="{{ selected_conversation_id or '' }}"
       data-dashboard-url="/api/status-dashboard{% if selected_conversation_id %}?conversationId={{ selected_conversation_id }}{% endif %}"
     >
       <div class="ambient-grid" aria-hidden="true"></div>
+      <div class="horizon-glow" aria-hidden="true"></div>
 
-      <header class="system-bar" aria-label="RIN system status">
+      <header class="hud-topbar" aria-label="RIN local interface status">
         <section class="brand-mark">
           <span class="status-dot" aria-label="RIN online"></span>
-          <h1>RIN</h1>
-          <span>minimal AI OS / {{ identity }}</span>
+          <div>
+            <h1>RIN Local Interface</h1>
+            <p>{{ identity }}</p>
+          </div>
         </section>
         <section class="system-chips">
           <span class="chip strong">local model <b>{{ dashboard.model }}</b></span>
           <span class="chip">{{ dashboard.adapter }}</span>
-          <span class="chip">{{ local_model_status }}</span>
           <span class="chip ok" data-dashboard-field="readiness.label">{{ dashboard.readiness.label }}</span>
           <span class="chip">external <b data-dashboard-field="externalProviderCallCount">{{ dashboard.externalProviderCallCount }}</b></span>
-          <span class="chip">{{ dashboard.serverMode }}</span>
         </section>
       </header>
 
       {% if notice %}
-        <aside class="notice-box" role="status">{{ notice }}</aside>
+        <aside class="notice-box glass-panel" role="status">{{ notice }}</aside>
       {% endif %}
       {% if error %}
-        <aside class="error-box" role="alert">
+        <aside class="error-box glass-panel" role="alert">
           <strong>Structured error</strong>
           <span>{{ error }}</span>
         </aside>
       {% endif %}
 
-      <section class="os-grid">
-        <aside class="conversation-rail" aria-label="Conversation rail">
-          <div class="rail-heading">
-            <span>Chats</span>
-            <span>{{ conversations | length }}</span>
+      <section class="hud-stage">
+        <section class="rin-presence-layer" aria-label="Central RIN presence">
+          <div class="presence-aura" aria-hidden="true"></div>
+          <div class="presence-ring" aria-hidden="true"></div>
+          <img class="rin-character" src="{{ avatar_asset_path }}" alt="RIN static character presence" />
+          <div class="presence-caption glass-panel">
+            <span class="status-dot"></span>
+            <strong>RIN PRESENCE</strong>
+            <span>static body / Live2D future</span>
           </div>
-          <a class="new-chat-link" href="/ui?new=1">New chat</a>
-          <nav class="conversation-list">
-            {% for conversation in conversations %}
+        </section>
+
+        <aside class="left-glass-panel glass-panel" aria-label="Chat input and history">
+          <header class="panel-title">
+            <div>
+              <p class="eyebrow">Message terminal</p>
+              <h2>Local conversation</h2>
+            </div>
+            <span>{{ message_count }} msg</span>
+          </header>
+
+          <nav class="conversation-strip" aria-label="Recent conversations">
+            <a class="new-chat-link" href="/ui?new=1">New</a>
+            {% for conversation in conversations[:4] %}
               <a
-                class="conversation-row{% if conversation.id == selected_conversation_id %} selected{% endif %}"
+                class="conversation-pill{% if conversation.id == selected_conversation_id %} selected{% endif %}"
                 href="/ui?conversationId={{ conversation.id }}"
                 data-conversation-id="{{ conversation.id }}"
               >
-                <strong>{{ conversation.title }}</strong>
-                <span>{{ conversation.id }}</span>
+                {{ conversation.title }}
               </a>
             {% else %}
-              <p class="empty-copy">No conversations.</p>
+              <span class="empty-copy">No conversations.</span>
             {% endfor %}
           </nav>
-        </aside>
-
-        <section class="chat-plane" aria-label="Chat">
-          <header class="chat-strip">
-            <section>
-              <p class="eyebrow">Active thread</p>
-              <h2>Local conversation</h2>
-            </section>
-            <section class="thread-metrics" aria-label="Thread metrics">
-              <span><b data-dashboard-field="activeConversation.messageCount">{{ dashboard.activeConversation.messageCount }}</b> messages</span>
-              <span><b data-dashboard-field="activeConversation.ownerMessages">{{ dashboard.activeConversation.ownerMessages }}</b> owner</span>
-              <span><b data-dashboard-field="activeConversation.rinMessages">{{ dashboard.activeConversation.rinMessages }}</b> RIN</span>
-            </section>
-          </header>
 
           <section id="message-stream" class="message-stream" aria-live="polite">
             {% for message in messages %}
@@ -105,24 +106,28 @@
             <textarea
               id="chat-input"
               name="content"
-              placeholder="Message RIN..."
+              placeholder="Send a local message to RIN..."
               required
             ></textarea>
             <button id="send-button" type="submit">Send</button>
             <p class="composer-hint">Enter to send. Shift+Enter for newline.</p>
           </form>
-        </section>
+        </aside>
 
-        <aside class="status-dashboard" aria-label="Live status dashboard">
-          <section class="presence-panel">
-            <div class="presence-copy">
-              <span class="status-dot"></span>
-              <strong>RIN ONLINE</strong>
-              <span>static presence / future Live2D</span>
+        <aside class="right-glass-panel glass-panel" aria-label="Status memory and profile">
+          <header class="panel-title">
+            <div>
+              <p class="eyebrow">Live local state</p>
+              <h2>Status</h2>
             </div>
-            <div class="avatar-stage" aria-label="RIN avatar presence panel">
-              <img src="{{ avatar_asset_path }}" alt="RIN character portrait" />
-            </div>
+            <span data-dashboard-field="serverMode">{{ dashboard.serverMode }}</span>
+          </header>
+
+          <section class="status-chip-grid">
+            <div><span>Model</span><b>{{ dashboard.model }}</b></div>
+            <div><span>Adapter</span><b>{{ dashboard.adapter }}</b></div>
+            <div><span>Ready</span><b data-dashboard-field="readiness.label">{{ dashboard.readiness.label }}</b></div>
+            <div><span>External</span><b data-dashboard-field="externalProviderCallCount">{{ dashboard.externalProviderCallCount }}</b></div>
           </section>
 
           <section class="metric-card memory-card">
@@ -142,7 +147,7 @@
 
           <section class="metric-card balance-card">
             <div class="metric-head">
-              <p class="eyebrow">Message balance</p>
+              <p class="eyebrow">Message flow</p>
               <span data-dashboard-field="activeConversation.messageCount">{{ dashboard.activeConversation.messageCount }}</span>
             </div>
             <div class="balance-row">
