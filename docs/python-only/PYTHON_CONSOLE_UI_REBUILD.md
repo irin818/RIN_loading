@@ -27,13 +27,16 @@ python/src/rin/server/
 
 ## UI Shape
 
-The console is now a character-centered glass HUD with:
+The console is now the RIN Control Console with:
 
 - a thin system bar with adapter/model/readiness/external-call chips;
-- a central static RIN character/presence layer;
-- a translucent left message terminal with recent conversation shortcuts;
-- a composer dock attached inside the left chat panel;
-- a translucent right read-only status, memory, and profile panel;
+- left navigation pages for Overview, Chat / Test, Model, Memory, Context,
+  Database, Conversations, Profiles, Body / Live2D, Logs / Events, and
+  Developer Checks;
+- a strong Chat / Test page with recent conversation shortcuts, message history,
+  and composer;
+- read-only diagnostics pages for internal systems;
+- a refined static RIN character/presence panel;
 - a Memory V2 trace ring, message balance bars, and runtime health grid;
 - a local RIN static presence using `public/live2d/rin/rin-front-fullbody.png`;
 - visible notice and structured error states.
@@ -47,6 +50,8 @@ The rebuild preserves:
 - `POST /ui/chat`
 - `GET /readiness`
 - `GET /api/local-state`
+- `GET /api/status-dashboard`
+- `GET /api/diagnostics/*`
 - `GET /api/readiness`
 - conversation endpoints;
 - profile/status and memory/context trace endpoints.

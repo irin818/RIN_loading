@@ -30,10 +30,11 @@ The active local console uses FastAPI, Jinja2 templates, static CSS, and minimal
 vanilla JavaScript. It has no TypeScript, React, Vite, Node, npm, or frontend
 build chain.
 
-The console uses a character-centered black-green glass HUD layout: a central
-static RIN presence, a translucent left message terminal with attached composer,
-and a translucent right status/memory/profile panel with compact live metrics
-and local visualizations.
+The console is now the RIN Control Console: a black-green diagnostics UI for
+observing, testing, and understanding RIN. It includes Overview, Chat / Test,
+Model, Memory, Context, Database, Conversations, Profiles, Body / Live2D,
+Logs / Events, and Developer Checks pages. Chat remains a first-class manual
+runtime test interface, not a deprecated surface.
 
 ## Install
 

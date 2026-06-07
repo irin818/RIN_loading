@@ -159,6 +159,62 @@ def create_app(
             selected_conversation_id=conversationId,
         )
 
+    @app.get("/api/diagnostics/overview")
+    def diagnostics_overview(
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> dict[str, object]:
+        return build_diagnostics_payload(current_layout, current_adapter, "overview")
+
+    @app.get("/api/diagnostics/model")
+    def diagnostics_model(
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> dict[str, object]:
+        return build_diagnostics_payload(current_layout, current_adapter, "model")
+
+    @app.get("/api/diagnostics/memory")
+    def diagnostics_memory(
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> dict[str, object]:
+        return build_diagnostics_payload(current_layout, current_adapter, "memory")
+
+    @app.get("/api/diagnostics/context")
+    def diagnostics_context(
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> dict[str, object]:
+        return build_diagnostics_payload(current_layout, current_adapter, "context")
+
+    @app.get("/api/diagnostics/database")
+    def diagnostics_database(
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> dict[str, object]:
+        return build_diagnostics_payload(current_layout, current_adapter, "database")
+
+    @app.get("/api/diagnostics/profiles")
+    def diagnostics_profiles(
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> dict[str, object]:
+        return build_diagnostics_payload(current_layout, current_adapter, "profiles")
+
+    @app.get("/api/diagnostics/body")
+    def diagnostics_body(
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> dict[str, object]:
+        return build_diagnostics_payload(current_layout, current_adapter, "body")
+
+    @app.get("/api/diagnostics/events")
+    def diagnostics_events(
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> dict[str, object]:
+        return build_diagnostics_payload(current_layout, current_adapter, "events")
+
     @app.get("/api/readiness")
     def api_readiness() -> dict[str, object]:
         return {"ok": True, "readiness": build_python_readiness_report().to_dict()}
@@ -429,6 +485,19 @@ def build_console_view_model(
         selected_conversation_id=selected,
         messages=messages,
     )
+    diagnostics = {
+        section: build_diagnostics_payload(layout, adapter, section)
+        for section in (
+            "overview",
+            "model",
+            "memory",
+            "context",
+            "database",
+            "profiles",
+            "body",
+            "events",
+        )
+    }
     return {
         "title": "RIN Python Local Console",
         "identity": "Python-primary local RIN runtime.",
@@ -448,6 +517,7 @@ def build_console_view_model(
         "model_name": model_name,
         "local_model_status": local_model_status,
         "dashboard": dashboard,
+        "diagnostics": diagnostics,
         "notice": notice,
         "error": error,
     }
@@ -556,6 +626,145 @@ def build_status_dashboard_summary(
             "memory": "ok" if memory_available else "warning",
             "local": "ok" if snapshot["localOnly"] is True else "warning",
         },
+    }
+
+
+def build_diagnostics_payload(
+    layout: RinDataLayout,
+    adapter: ModelAdapterProtocol,
+    section: str,
+) -> dict[str, object]:
+    dashboard = build_status_dashboard_summary(layout, adapter)
+    snapshot = local_console_snapshot(layout)
+    database = cast(dict[str, object], snapshot["database"])
+    memory_context = cast(dict[str, object], snapshot["memoryContext"])
+    profile = snapshot["profile"]
+    profile_status = (
+        profile.get("status", "unknown") if isinstance(profile, dict) else "unknown"
+    )
+    profile_files = profile.get("files", []) if isinstance(profile, dict) else []
+    profile_file_count = len(profile_files) if isinstance(profile_files, list) else 0
+    body_report = build_body_report().to_dict()
+    conversations = list_conversations(layout, limit=8)
+    conversation_summaries = []
+    for conversation in conversations:
+        messages = list_messages(layout, conversation.id)
+        owner_count = sum(1 for message in messages if message.role == "owner")
+        rin_count = sum(1 for message in messages if message.role == "rin")
+        conversation_summaries.append(
+            {
+                "id": conversation.id,
+                "title": conversation.title,
+                "messageCount": len(messages),
+                "ownerMessages": owner_count,
+                "rinMessages": rin_count,
+                "createdAt": getattr(conversation, "createdAt", "n/a"),
+                "updatedAt": getattr(conversation, "updatedAt", "n/a"),
+            }
+        )
+    model_name = str(dashboard["model"])
+    adapter_id = adapter.id
+    ollama_base_url = (
+        os.environ.get("RIN_OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+        if adapter_id == "rin-ollama-local"
+        else "n/a"
+    )
+    payloads: dict[str, dict[str, object]] = {
+        "overview": {
+            "mode": "diagnostics-overview",
+            "readOnly": True,
+            "localOnly": True,
+            "fullTextIncluded": False,
+            "dashboard": dashboard,
+            "lastKnownError": "n/a",
+        },
+        "model": {
+            "mode": "diagnostics-model",
+            "readOnly": True,
+            "providerCallsMade": 0,
+            "adapter": adapter_id,
+            "provider": "local",
+            "model": model_name,
+            "baseUrl": ollama_base_url,
+            "timeoutMs": os.environ.get("RIN_OLLAMA_TIMEOUT_MS", "180000"),
+            "numPredict": os.environ.get("RIN_OLLAMA_NUM_PREDICT", "1024"),
+            "temperature": os.environ.get("RIN_OLLAMA_TEMPERATURE", "n/a"),
+            "topP": os.environ.get("RIN_OLLAMA_TOP_P", "n/a"),
+            "externalApiDisabled": True,
+            "smokeStatus": "not run automatically",
+            "sanitizerStatus": "thinking output is guarded by adapter tests",
+        },
+        "memory": {
+            "mode": "diagnostics-memory",
+            "readOnly": True,
+            "fullTextIncluded": False,
+            "memoryV2Traces": database["memoryV2Traces"],
+            "messageMemoryContexts": database.get("messageMemoryContexts", "n/a"),
+            "available": memory_context.get("available") is True,
+            "privacy": "counts and metadata only; no full memory text",
+            "retentionSummary": (
+                "Memory V2 traces are inspected by count only in this console."
+            ),
+        },
+        "context": {
+            "mode": "diagnostics-context",
+            "readOnly": True,
+            "fullPromptIncluded": False,
+            "fullTextIncluded": False,
+            "recentWindowPolicy": "short-term recent context window",
+            "profileInjection": "available" if profile_status == "valid" else "warning",
+            "memoryInjection": "available"
+            if memory_context.get("available") is True
+            else "warning",
+            "deduplication": "managed by Context V2 algorithms",
+            "budgetPolicy": "no raw prompt dump exposed by diagnostics",
+            "droppedItemCount": "n/a",
+        },
+        "database": {
+            "mode": "diagnostics-database",
+            "readOnly": True,
+            "dataDirName": Path(str(layout.rootDir)).name,
+            "manifestPresent": layout.manifestPath.is_file(),
+            "databaseSchemaVersion": database["schemaVersion"],
+            "conversationCount": database["conversations"],
+            "messageCount": database["messages"],
+            "profileFileCount": profile_file_count,
+            "backupDirPresent": (REPO_ROOT / ".rin-python-backups").is_dir(),
+            "pythonCutoverMarkerPresent": (
+                Path(str(layout.rootDir)) / "config" / "python_cutover_marker.json"
+            ).is_file(),
+        },
+        "profiles": {
+            "mode": "diagnostics-profiles",
+            "readOnly": True,
+            "fullTextIncluded": False,
+            "status": profile_status,
+            "fileCount": profile_file_count,
+            "summary": "profile validation status and file counts only",
+        },
+        "body": {
+            "mode": "diagnostics-body",
+            "readOnly": True,
+            "status": body_report["status"],
+            "adapterId": body_report["adapterId"],
+            "staticPresenceAsset": "/live2d/rin/rin-front-fullbody.png",
+            "cubismRuntimeActive": False,
+            "futureDesktopBody": "future Live2D body may run separately",
+        },
+        "events": {
+            "mode": "diagnostics-events",
+            "readOnly": True,
+            "fullPayloadIncluded": False,
+            "recentAuditEventCount": "n/a",
+            "errorCount": "n/a",
+            "lastErrorCode": "n/a",
+            "notes": "safe diagnostics only; no raw prompts or hidden reasoning",
+        },
+    }
+    return payloads[section] | {
+        "section": section,
+        "externalProviderCallCount": snapshot["externalProviderCallCount"],
+        "conversations": conversation_summaries,
     }
 
 

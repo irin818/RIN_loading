@@ -110,14 +110,27 @@ def test_python_ui_renders_local_status_and_profile_summary() -> None:
         response = client.get("/")
 
         assert response.status_code == 200
-        assert "RIN Local Interface" in response.text
-        assert 'class="glass-hud-shell"' in response.text
-        assert 'class="hud-topbar"' in response.text
-        assert 'class="hud-stage"' in response.text
-        assert 'class="rin-presence-layer"' in response.text
+        assert "RIN Control Console" in response.text
+        assert "Observe, test, and understand RIN." in response.text
+        assert 'class="control-console-shell"' in response.text
+        assert 'class="console-topbar"' in response.text
+        assert 'class="console-nav glass-panel"' in response.text
+        assert 'data-console-tab="overview"' in response.text
+        assert 'data-console-tab="chat"' in response.text
+        assert 'data-console-tab="model"' in response.text
+        assert 'data-console-tab="memory"' in response.text
+        assert 'data-console-tab="context"' in response.text
+        assert 'data-console-tab="database"' in response.text
+        assert 'data-console-tab="conversations"' in response.text
+        assert 'data-console-tab="profiles"' in response.text
+        assert 'data-console-tab="body"' in response.text
+        assert 'data-console-tab="events"' in response.text
+        assert 'data-console-tab="developer"' in response.text
+        assert 'data-console-page="overview"' in response.text
+        assert 'data-console-page="chat"' in response.text
+        assert "Manual Runtime Test Chat" in response.text
         assert 'class="rin-character"' in response.text
-        assert 'class="left-glass-panel glass-panel"' in response.text
-        assert 'class="right-glass-panel glass-panel"' in response.text
+        assert 'class="presence-panel glass-panel"' in response.text
         assert 'class="composer-dock"' in response.text
         assert 'class="trace-ring"' in response.text
         assert 'class="metric-card balance-card"' in response.text
@@ -134,7 +147,7 @@ def test_python_ui_renders_local_status_and_profile_summary() -> None:
         assert "Body" in response.text
         assert "RIN PRESENCE" in response.text
         assert "/live2d/rin/rin-front-fullbody.png" in response.text
-        assert "static body / Live2D future" in response.text
+        assert "STATIC BODY / LIVE2D FUTURE" in response.text
         assert "external" in response.text
         assert "0" in response.text
         assert "Start a local conversation." in response.text
@@ -151,12 +164,12 @@ def test_python_ui_static_assets_are_served() -> None:
         fullbody = client.get("/live2d/rin/rin-front-fullbody.png")
 
         assert css.status_code == 200
-        assert "glass-hud-shell" in css.text
-        assert "hud-stage" in css.text
-        assert "rin-presence-layer" in css.text
+        assert "control-console-shell" in css.text
+        assert "console-grid" in css.text
+        assert "console-nav" in css.text
+        assert "console-page.active" in css.text
         assert "rin-character" in css.text
-        assert "left-glass-panel" in css.text
-        assert "right-glass-panel" in css.text
+        assert "presence-panel" in css.text
         assert "composer-dock" in css.text
         assert "trace-ring" in css.text
         assert "health-grid" in css.text
@@ -165,7 +178,8 @@ def test_python_ui_static_assets_are_served() -> None:
         assert "RIN console submit failed" in js.text
         assert "requestSubmit" in js.text
         assert "refreshDashboard" in js.text
-        assert "glass-hud-shell" in js.text
+        assert "activateConsolePage" in js.text
+        assert "control-console-shell" in js.text
         assert "/api/status-dashboard" not in js.text
         assert avatar.status_code == 200
         assert avatar.headers["content-type"] == "image/png"
@@ -236,7 +250,7 @@ def test_python_ui_error_rendering_is_visible() -> None:
         assert "Structured error" in response.text
         assert "error-box" in response.text
         assert "test adapter failure" in response.text
-        assert "RIN Local Interface" in response.text
+        assert "RIN Control Console" in response.text
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
@@ -280,6 +294,54 @@ def test_status_dashboard_endpoint_is_read_only_counts_only() -> None:
         assert "Python API mock reply." not in response.text
         assert state_after_dashboard["database"] == state_after_submit["database"]
         assert state_after_dashboard["externalProviderCallCount"] == 0
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_diagnostics_endpoints_are_safe_and_read_only() -> None:
+    client, layout = create_client()
+    try:
+        submitted = client.post(
+            "/ui/chat",
+            json={"content": "private diagnostic endpoint check"},
+        )
+        state_after_submit = client.get("/api/local-state").json()
+        endpoints = [
+            "/api/diagnostics/overview",
+            "/api/diagnostics/model",
+            "/api/diagnostics/memory",
+            "/api/diagnostics/context",
+            "/api/diagnostics/database",
+            "/api/diagnostics/profiles",
+            "/api/diagnostics/body",
+            "/api/diagnostics/events",
+        ]
+
+        assert submitted.status_code == 200
+        for endpoint in endpoints:
+            response = client.get(endpoint)
+            state_after_endpoint = client.get("/api/local-state").json()
+
+            assert response.status_code == 200
+            payload = response.json()
+            assert payload["readOnly"] is True
+            assert payload["externalProviderCallCount"] == 0
+            assert "private diagnostic endpoint check" not in response.text
+            assert "Python API mock reply." not in response.text
+            assert state_after_endpoint["database"] == state_after_submit["database"]
+            assert state_after_endpoint["externalProviderCallCount"] == 0
+
+        model = client.get("/api/diagnostics/model").json()
+        memory = client.get("/api/diagnostics/memory").json()
+        context = client.get("/api/diagnostics/context").json()
+        profiles = client.get("/api/diagnostics/profiles").json()
+        body = client.get("/api/diagnostics/body").json()
+
+        assert model["providerCallsMade"] == 0
+        assert memory["fullTextIncluded"] is False
+        assert context["fullPromptIncluded"] is False
+        assert profiles["fullTextIncluded"] is False
+        assert body["cubismRuntimeActive"] is False
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
