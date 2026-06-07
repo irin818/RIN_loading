@@ -21,6 +21,7 @@ from rin.database import (
     list_messages,
 )
 from rin.diagnostics.readiness import build_python_readiness_report
+from rin.diagnostics.runtime_trace import RUNTIME_TRACE_STORE, safe_trace_response
 from rin.diagnostics.safety import assert_safe_python_write_data_dir
 from rin.profiles import build_profile_report
 from rin.storage import RinDataLayout
@@ -214,6 +215,31 @@ def create_app(
         current_adapter: ModelAdapterProtocol = adapter_dependency,
     ) -> dict[str, object]:
         return build_diagnostics_payload(current_layout, current_adapter, "events")
+
+    @app.get("/api/diagnostics/runtime-trace")
+    def diagnostics_runtime_trace() -> dict[str, object]:
+        return safe_trace_response(RUNTIME_TRACE_STORE.list())
+
+    @app.get("/api/diagnostics/runtime-trace/latest")
+    def diagnostics_runtime_trace_latest() -> dict[str, object]:
+        latest = RUNTIME_TRACE_STORE.latest()
+        return safe_trace_response([latest] if latest else [])
+
+    @app.get("/api/diagnostics/runtime-trace/{turn_id}")
+    def diagnostics_runtime_trace_by_turn(turn_id: str) -> dict[str, object]:
+        trace = RUNTIME_TRACE_STORE.get(turn_id)
+        if trace is None:
+            raise HTTPException(status_code=404, detail="Runtime trace not found.")
+        return {
+            "privacyMode": "safe",
+            "readOnly": True,
+            "localOnly": True,
+            "externalProviderCallCount": 0,
+            "fullTextIncluded": False,
+            "rawModelOutputIncluded": False,
+            "rawPromptIncluded": False,
+            "trace": trace.to_safe_dict(),
+        }
 
     @app.get("/api/readiness")
     def api_readiness() -> dict[str, object]:
@@ -498,6 +524,7 @@ def build_console_view_model(
             "events",
         )
     }
+    latest_trace = RUNTIME_TRACE_STORE.latest()
     return {
         "title": "RIN Python Local Console",
         "identity": "Python-primary local RIN runtime.",
@@ -518,6 +545,7 @@ def build_console_view_model(
         "local_model_status": local_model_status,
         "dashboard": dashboard,
         "diagnostics": diagnostics,
+        "runtime_trace": latest_trace.to_safe_dict() if latest_trace else None,
         "notice": notice,
         "error": error,
     }
