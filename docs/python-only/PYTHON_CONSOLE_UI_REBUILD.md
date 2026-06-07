@@ -27,15 +27,15 @@ python/src/rin/server/
 
 ## UI Shape
 
-The console is now a minimal AI OS dashboard with:
+The console is now a character-centered glass HUD with:
 
 - a thin system bar with adapter/model/readiness/external-call chips;
-- a slim recent-conversation rail;
-- a dominant central chat plane with owner/RIN message bubbles;
-- a composer dock attached inside the central chat area;
-- a right-side read-only live status dashboard;
+- a central static RIN character/presence layer;
+- a translucent left message terminal with recent conversation shortcuts;
+- a composer dock attached inside the left chat panel;
+- a translucent right read-only status, memory, and profile panel;
 - a Memory V2 trace ring, message balance bars, and runtime health grid;
-- a local RIN avatar/presence panel using `public/live2d/rin/rin-bust-front.png`;
+- a local RIN static presence using `public/live2d/rin/rin-front-fullbody.png`;
 - visible notice and structured error states.
 
 ## Preserved Routes

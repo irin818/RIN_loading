@@ -443,7 +443,7 @@ def build_console_view_model(
         "profile_file_count": profile_file_count,
         "memory_context": memory_context,
         "body_report": body_report,
-        "avatar_asset_path": "/live2d/rin/rin-bust-front.png",
+        "avatar_asset_path": "/live2d/rin/rin-front-fullbody.png",
         "adapter_id": adapter_id,
         "model_name": model_name,
         "local_model_status": local_model_status,

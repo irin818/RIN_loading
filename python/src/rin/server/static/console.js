@@ -53,7 +53,7 @@ function updateDashboard(payload) {
 }
 
 async function refreshDashboard() {
-  const shell = document.querySelector(".ai-os-shell");
+  const shell = document.querySelector(".glass-hud-shell");
   if (!shell || !shell.dataset.dashboardUrl) {
     return;
   }

@@ -28,8 +28,8 @@ to Ollama `qwen3:4b`, and keeps external APIs disabled. The old
 launchers, plus the `打开RIN项目.command` alias, were removed intentionally to
 keep one normal launch path.
 
-The UI has no TypeScript, React, Vite, Node, npm, or frontend build chain.
-The RIN presence panel uses a local static asset from `public/live2d/` and the
+The UI has no TypeScript, React, Vite, Node, npm, or frontend build chain. The
+RIN presence layer uses a local static asset from `public/live2d/` and the
 Python body status boundary. Full Cubism runtime remains future work.
 
 ## Rollback

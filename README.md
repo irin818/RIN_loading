@@ -30,10 +30,10 @@ The active local console uses FastAPI, Jinja2 templates, static CSS, and minimal
 vanilla JavaScript. It has no TypeScript, React, Vite, Node, npm, or frontend
 build chain.
 
-The console uses a minimal black-green AI OS dashboard layout with a slim
-conversation rail, a dominant clean chat plane with an attached composer dock,
-compact live status metrics, local memory/message visualizations, a local RIN
-avatar/presence panel, and visible notice/error states.
+The console uses a character-centered black-green glass HUD layout: a central
+static RIN presence, a translucent left message terminal with attached composer,
+and a translucent right status/memory/profile panel with compact live metrics
+and local visualizations.
 
 ## Install
 
