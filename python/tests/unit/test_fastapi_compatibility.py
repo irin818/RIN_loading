@@ -132,7 +132,7 @@ def test_python_ui_renders_local_status_and_profile_summary() -> None:
         assert 'data-console-page="overview"' in response.text
         assert 'data-console-page="chat"' in response.text
         assert 'data-console-page="runtime-trace"' in response.text
-        assert "Runtime Dataflow Trace" in response.text
+        assert "Runtime Dataflow Analyzer" in response.text
         assert "Manual Runtime Test Chat" in response.text
         assert 'class="rin-character"' in response.text
         assert 'class="presence-panel glass-panel"' in response.text
@@ -174,7 +174,9 @@ def test_python_ui_static_assets_are_served() -> None:
         assert "console-nav" in css.text
         assert "console-page.active" in css.text
         assert "trace-timeline" in css.text
-        assert "trace-sanitizer" in css.text
+        assert "trace-detail-v2" in css.text
+        assert "trace-e2e" in css.text
+        assert "trace-v2-summary" in css.text
         assert "rin-character" in css.text
         assert "presence-panel" in css.text
         assert "composer-dock" in css.text
@@ -186,6 +188,7 @@ def test_python_ui_static_assets_are_served() -> None:
         assert "requestSubmit" in js.text
         assert "refreshDashboard" in js.text
         assert "activateConsolePage" in js.text
+        assert "activateTraceStage" in js.text
         assert "control-console-shell" in js.text
         assert "/api/status-dashboard" not in js.text
         assert avatar.status_code == 200
@@ -211,7 +214,9 @@ def test_python_ui_chat_submit_renders_conversation_history() -> None:
         assert 'class="message-bubble rin"' in response.text
         assert "Local conversation" in response.text
         assert "Latest Backend Turn Pipeline" in response.text
-        assert "sanitization_final_answer" in response.text
+        assert "Runtime Dataflow Analyzer" in response.text
+        assert "End-to-End Summary" in response.text
+        assert "Sanitizer raw" in response.text
         assert 'class="composer-dock"' in response.text
         assert state["externalProviderCallCount"] == 0
     finally:
@@ -383,6 +388,9 @@ def test_runtime_trace_api_is_safe_and_read_only() -> None:
         assert latest_payload["rawPromptIncluded"] is False
         assert latest_payload["rawModelOutputIncluded"] is False
         assert trace["status"] == "success"
+        assert trace["analysis"]["memorySkipReason"] == (
+            "runtime retrieval not wired into prompt assembly"
+        )
         assert [stage["name"] for stage in trace["stages"]] == [
             "input_received",
             "owner_message_persisted",
@@ -397,7 +405,59 @@ def test_runtime_trace_api_is_safe_and_read_only() -> None:
             "memory_update",
             "response_returned",
         ]
+        for stage in trace["stages"]:
+            assert "input" in stage
+            assert "operation" in stage
+            assert "output" in stage
+            assert "decision" in stage
+            assert "privacy" in stage
+            assert "durationMs" in stage
+
+        recent = next(
+            stage
+            for stage in trace["stages"]
+            if stage["name"] == "recent_history_selection"
+        )
+        memory = next(
+            stage for stage in trace["stages"] if stage["name"] == "memory_v2_retrieval"
+        )
+        context = next(
+            stage for stage in trace["stages"] if stage["name"] == "context_assembly"
+        )
+        request = next(
+            stage for stage in trace["stages"] if stage["name"] == "model_request"
+        )
+        raw = next(
+            stage for stage in trace["stages"] if stage["name"] == "raw_model_response"
+        )
+        sanitizer = next(
+            stage
+            for stage in trace["stages"]
+            if stage["name"] == "sanitization_final_answer"
+        )
+        reply = next(
+            stage for stage in trace["stages"] if stage["name"] == "rin_reply_persisted"
+        )
+        memory_update = next(
+            stage for stage in trace["stages"] if stage["name"] == "memory_update"
+        )
+
+        assert recent["output"]["selectedPriorMessages"] == 0
+        assert memory["status"] == "skipped"
+        assert memory["decision"]["skipReason"] == (
+            "runtime retrieval not wired into prompt assembly"
+        )
+        assert context["output"]["componentTable"]
+        assert request["output"]["requestOutline"]
+        assert raw["output"]["rawContentLength"] == len("Python API mock reply.")
+        assert raw["output"]["rawContentHash"]
+        assert sanitizer["output"]["rawLength"] == len("Python API mock reply.")
+        assert sanitizer["output"]["finalLength"] == len("Python API mock reply.")
+        assert reply["output"]["storedSanitizedAnswer"] is True
+        assert reply["output"]["storedRawThinking"] is False
+        assert memory_update["output"]["tracesCreatedCount"] == 1
         assert "private runtime trace owner message" not in latest.text
+        assert "private runtime tr..." in latest.text
         assert "Python API mock reply." not in latest.text
         assert state_after_trace["database"] == state_after_submit["database"]
         assert state_after_trace["externalProviderCallCount"] == 0

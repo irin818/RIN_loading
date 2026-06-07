@@ -22,10 +22,12 @@ and has existing cleanup/rejection for:
 Owner feedback says reasoning/thinking can still leak in live replies, so the
 existing guard is not sufficient for all Qwen3 outputs.
 
-The Runtime Trace page now makes this observable through safe metadata such as
-`thinkingTagDetected`, `thinkingLikePrefixDetected`, `thinkingRemoved`,
-`rawContentLength`, `finalAnswerLength`, and stored-sanitized-only status. It
-does not expose full raw model output or hidden reasoning by default.
+The Runtime Trace v2 page now makes this observable through safe metadata such
+as `thinkingTagDetected`, `thinkingLikePrefixDetected`, `thinkingTagRemoved`,
+`thinkingLikePrefixRemoved`, `rawLength`, `finalLength`,
+`removedCharacterCount`, and stored-sanitized-only status. The UI also shows a
+raw-to-final before/after length bar. It does not expose full raw model output or
+hidden reasoning by default.
 
 ## Dedicated Follow-Up Scope
 

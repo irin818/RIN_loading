@@ -87,6 +87,15 @@ function updateClock() {
   }
 }
 
+function activateTraceStage(stageName) {
+  document.querySelectorAll("[data-trace-stage]").forEach((stage) => {
+    stage.classList.toggle("active", stage.dataset.traceStage === stageName);
+  });
+  document.querySelectorAll("[data-trace-stage-panel]").forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.traceStagePanel === stageName);
+  });
+}
+
 async function submitChatForm(formElement) {
   const form = new FormData(formElement);
   const payload = {
@@ -130,6 +139,12 @@ document.addEventListener("DOMContentLoaded", () => {
       void refreshDashboard().catch((error) => {
         console.error("RIN dashboard refresh failed", error);
       });
+    });
+  });
+
+  document.querySelectorAll("[data-trace-stage]").forEach((stage) => {
+    stage.addEventListener("click", () => {
+      activateTraceStage(stage.dataset.traceStage);
     });
   });
 
