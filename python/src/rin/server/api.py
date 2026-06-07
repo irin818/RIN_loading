@@ -832,10 +832,8 @@ def build_diagnostics_payload(
             "conversationCount": database["conversations"],
             "messageCount": database["messages"],
             "profileFileCount": profile_file_count,
-            "backupDirPresent": (REPO_ROOT / ".rin-python-backups").is_dir(),
-            "pythonCutoverMarkerPresent": (
-                Path(str(layout.rootDir)) / "config" / "python_cutover_marker.json"
-            ).is_file(),
+            "backupDirPresent": False,
+            "pythonCutoverMarkerPresent": False,
         },
         "profiles": {
             "mode": "diagnostics-profiles",

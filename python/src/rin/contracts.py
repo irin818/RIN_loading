@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-StorageDirectoryName = Literal["config", "databases", "logs", "bundles", "attachments"]
+StorageDirectoryName = Literal["config", "databases", "logs", "attachments"]
 ConversationRole = Literal["owner", "rin", "system"]
 ConversationTurnStatus = Literal["started", "completed", "failed"]
 MemoryType = Literal[

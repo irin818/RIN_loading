@@ -32,7 +32,6 @@ DATABASE_TABLES: tuple[str, ...] = (
     "slow_variable_versions",
     "state_history",
     "tool_invocations",
-    "export_bundles",
 )
 
 
@@ -62,7 +61,6 @@ class DatabaseCounts(BaseModel):
     slowVariableVersions: int
     stateHistory: int
     toolInvocations: int
-    exportBundles: int
 
 
 class DatabaseStatus(BaseModel):
@@ -190,7 +188,6 @@ def inspect_database(layout: RinDataLayout) -> DatabaseStatus:
                 ),
                 stateHistory=count_rows_if_exists(connection, "state_history"),
                 toolInvocations=count_rows_if_exists(connection, "tool_invocations"),
-                exportBundles=count_rows_if_exists(connection, "export_bundles"),
             ),
         )
 

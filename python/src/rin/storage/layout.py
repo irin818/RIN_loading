@@ -11,7 +11,6 @@ STORAGE_DIRECTORIES: tuple[StorageDirectoryName, ...] = (
     "config",
     "databases",
     "logs",
-    "bundles",
     "attachments",
 )
 CORE_STATE_FILES: tuple[tuple[str, str, str, str], ...] = (
