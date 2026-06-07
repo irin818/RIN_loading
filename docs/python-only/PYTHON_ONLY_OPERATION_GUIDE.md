@@ -39,13 +39,19 @@ Runtime Trace is safe by default: it shows ids, counts, timestamps, lengths,
 short previews, hashes, and stage status, but not full prompts, profile text,
 memory text, hidden reasoning, or raw model output.
 
-The console preserves the active tab in the browser. Chat submissions return to
-the Chat / Test page instead of resetting to Overview.
+The console preserves the active tab in the browser. Chat submissions use a JSON
+Chat/Test endpoint and update the message stream in place instead of replacing
+the whole document, so the page avoids the old `document.write` jump.
 
 Response speed depends on local model cold start, Ollama/qwen3:4b inference
 speed, request size, `num_predict`, and whether the model attempts hidden
 reasoning despite `think=false`. Runtime Trace can be used to compare request
 characters, model duration, raw/final answer length, and sanitizer removal.
+
+Recent conversation context is active: the runtime sends bounded recent dialogue
+content to the local model while keeping the latest owner message last and
+untruncated. Long-term Memory V2 retrieval is still not wired into prompt
+assembly and is shown as skipped in Runtime Trace and Memory.
 
 ## Recommended Launcher
 

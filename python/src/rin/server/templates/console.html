@@ -128,6 +128,7 @@
               <textarea id="chat-input" name="content" placeholder="Send a local test message to RIN..." required></textarea>
               <button id="send-button" type="submit">Send</button>
               <p class="composer-hint">Chat is preserved for manual testing, debugging, model checks, and fallback use.</p>
+              <p id="chat-status" class="chat-status" aria-live="polite">{% if notice %}{{ notice }}{% elif error %}{{ error }}{% else %}Ready.{% endif %}</p>
             </form>
           </section>
 
@@ -239,6 +240,8 @@
                 <h3>Current Policy</h3>
                 <dl>
                   <div><dt>Short-term</dt><dd>{{ diagnostics.memory.algorithm.shortTermWindowPolicy }}</dd></div>
+                  <div><dt>Write policy</dt><dd>{{ diagnostics.memory.algorithm.memoryV2WritePolicy }}</dd></div>
+                  <div><dt>Retrieval</dt><dd>{{ diagnostics.memory.algorithm.retrievalStatus }}</dd></div>
                   <div><dt>Retention</dt><dd>{{ diagnostics.memory.algorithm.retentionFormula }}</dd></div>
                   <div><dt>Scoring</dt><dd>{{ diagnostics.memory.algorithm.scoringSummary }}</dd></div>
                   <div><dt>Privacy</dt><dd>{{ diagnostics.memory.algorithm.privacyPolicy }}</dd></div>
@@ -259,9 +262,20 @@
                 <h3>{% if diagnostics.memory.state.retrievalWiredIntoPrompt %}wired{% else %}not wired{% endif %}</h3>
                 <p>{{ diagnostics.memory.state.retrievalSkipReason }}</p>
               </article>
+              <article class="memory-console-card">
+                <p class="eyebrow">AI Memory State</p>
+                <dl>
+                  <div><dt>Short-term active</dt><dd>{{ diagnostics.memory.aiMemoryState.shortTermContextActive }}</dd></div>
+                  <div><dt>Long-term written</dt><dd>{{ diagnostics.memory.aiMemoryState.longTermTracesWritten }}</dd></div>
+                  <div><dt>Long-term retrieval</dt><dd>{{ diagnostics.memory.aiMemoryState.longTermRetrievalActive }}</dd></div>
+                  <div><dt>Memory used last request</dt><dd>{{ diagnostics.memory.aiMemoryState.memoryUsedInLastModelRequest }}</dd></div>
+                  <div><dt>Recent history used</dt><dd>{{ diagnostics.memory.aiMemoryState.recentHistoryUsedInLastModelRequest }}</dd></div>
+                </dl>
+              </article>
               <article class="memory-console-card memory-curve-card">
                 <p class="eyebrow">Memory Curve</p>
-                <h3>{{ diagnostics.memory.curve.formula }}</h3>
+                <h3>{{ diagnostics.memory.curve.status }} · {{ diagnostics.memory.curve.display }}</h3>
+                <p>{{ diagnostics.memory.curve.formula }}</p>
                 <div class="memory-curve">
                   {% for point in diagnostics.memory.curve.samplePoints %}
                     <div><span>{{ point.label }}</span><i></i><b>{{ point.retentionEstimate }}</b></div>
@@ -272,13 +286,16 @@
                 <p class="eyebrow">Safe Memory Trace Index</p>
                 {% if diagnostics.memory.contents %}
                   <table class="memory-trace-table">
-                    <thead><tr><th>trace</th><th>type</th><th>score</th><th>updated</th><th>safe preview</th></tr></thead>
+                    <thead><tr><th>trace</th><th>source</th><th>type</th><th>score</th><th>chars</th><th>raw</th><th>updated</th><th>safe preview</th></tr></thead>
                     <tbody>
                       {% for trace in diagnostics.memory.contents %}
                         <tr>
                           <td title="{{ trace.traceId }}">{{ trace.traceShortId }}</td>
+                          <td title="{{ trace.sourceMessageId }}">{{ trace.sourceShortId }}</td>
                           <td>{{ trace.traceType }}</td>
                           <td>{{ trace.salienceScore }}</td>
+                          <td>{{ trace.contentCharacterCount }}</td>
+                          <td>{{ trace.rawTextIncluded }}</td>
                           <td>{{ trace.updatedAt }}</td>
                           <td>{{ trace.safePreview }}</td>
                         </tr>

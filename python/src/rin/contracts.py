@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 StorageDirectoryName = Literal["config", "databases", "logs", "bundles", "attachments"]
 ConversationRole = Literal["owner", "rin", "system"]
@@ -329,6 +329,16 @@ class ModelResponseMetadata(RinBaseModel):
     externalProvider: bool
     memoryWriteRequested: bool
     toolCallRequested: bool
+    rawContentLength: int | None = Field(default=None, exclude=True)
+    rawContentHash: str | None = Field(default=None, exclude=True)
+    rawPreview: str | None = Field(default=None, exclude=True)
+    rawModelOutputIncluded: bool = Field(default=False, exclude=True)
+    thinkingTagDetected: bool | None = Field(default=None, exclude=True)
+    thinkingLikePrefixDetected: bool | None = Field(default=None, exclude=True)
+    adapterSanitized: bool | None = Field(default=None, exclude=True)
+    adapterRemovedCharacterCount: int | None = Field(default=None, exclude=True)
+    sanitizedContentLength: int | None = Field(default=None, exclude=True)
+    sanitizerRejectionReason: str | None = Field(default=None, exclude=True)
 
 
 class ModelResponse(RinBaseModel):

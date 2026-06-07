@@ -161,6 +161,7 @@ example, Context Assembly and Model Request side by side. Each window is appende
 to a global fixed-position layer near the end of the page, can be moved by its
 title bar, focused by clicking it, and closed independently. The Runtime Trace
 toolbar can close all inspector windows or reset their layout.
+`Esc` closes the topmost inspector. `Shift+Esc` closes all open inspectors.
 
 This global layer is deliberate: earlier inspector windows were rendered inside
 the scrollable glass console panel, where layout and clipping ancestors could
@@ -192,6 +193,19 @@ state and asks the owner to send a message in Chat / Test.
 
 ## Thinking Leak Observability
 
+Trace naming is intentionally conservative:
+
+- `Provider Response` records safe raw provider metadata when the adapter can
+  expose it, such as raw length, raw hash, thinking flags, and whether the
+  adapter sanitized content. It does not include full raw output.
+- `Sanitizer` records the runtime's final validation of the adapter content and
+  the final answer that may be stored.
+- `Store Reply` records only the sanitized answer storage result.
+
+For mock adapters that do not expose raw provider metadata, Runtime Trace marks
+`providerRawMetadataAvailable` as `false` instead of pretending the adapter
+content is true raw provider output.
+
 The trace records safe sanitizer fields:
 
 - `thinkingTagDetected`;
@@ -213,6 +227,11 @@ or exposing raw model output in the UI.
 
 The Model Request stage also records whether the current owner message is present
 and last in the request. A warning is added if that invariant ever fails.
+
+Recent history is injected into the model request as bounded short-term context:
+up to six prior messages, with each message capped and total recent-history
+context capped. Diagnostics expose only counts, truncation status, hashes, and
+short previews by default.
 
 ## Current Limitations
 

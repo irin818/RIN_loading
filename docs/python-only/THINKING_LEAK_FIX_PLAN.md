@@ -18,10 +18,11 @@ and now has cleanup/rejection for:
 - remaining `<think>`, `</think>`, `internal analysis`, and `hidden reasoning`
   markers;
 - Chinese internal-analysis prefaces such as `首先，用户问...`, `用户问...`,
-  `我需要分析...`, `根据系统...`, `响应策略...`, `最终响应思路...`, and
-  `完整响应草稿...`;
+  `我需要分析...`, `我们需要...`, `根据系统...`, `响应策略...`,
+  `检查是否...`, `最终响应思路...`, and `完整响应草稿...`;
 - English internal-analysis prefaces such as `the user asks...` and
-  `I need to analyze...`;
+  `I need to analyze...`, including Qwen3-style `Okay, the user is asking...`
+  / `Let me check...` drafts;
 - explicit final answer extraction from markers such as `最终答案：`,
   `最终回答：`, `直接回答：`, and `Final answer:`.
 
@@ -52,6 +53,11 @@ Runtime Trace records safe metadata for verification: raw/final lengths,
 removed character count, thinking tag detection/removal, thinking-like prefix
 removal, final-answer extraction, rejection reason, and stored-sanitized-only
 status. It does not expose full raw model output.
+
+The Ollama adapter now preserves safe raw provider metadata before sanitization
+while returning only sanitized final content to the conversation runtime. Runtime
+Trace separates provider metadata, adapter-sanitized content, runtime sanitizer
+checks, and stored final answer.
 
 ## Non-Goals For This UI Task
 

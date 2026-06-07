@@ -51,6 +51,37 @@ class FailingAdapter:
         )
 
 
+class RawMetadataAdapter:
+    id = "rin-ollama-local"
+    model = "qwen3:4b"
+    baseUrl = "http://127.0.0.1:11434"
+    timeoutMs = 180000
+
+    def __init__(self) -> None:
+        self.raw = "<think>private</think>\n\nFinal answer."
+        self.sanitized = "Final answer."
+
+    async def generate(self, request: ModelRequest) -> ModelResponse:
+        return ModelResponse(
+            content=self.sanitized,
+            adapterId=self.id,
+            metadata=ModelResponseMetadata(
+                externalProvider=False,
+                memoryWriteRequested=False,
+                toolCallRequested=False,
+                rawContentLength=len(self.raw),
+                rawContentHash="rawhash",
+                rawPreview="hidden_due_to_thinking_signal",
+                rawModelOutputIncluded=False,
+                thinkingTagDetected=True,
+                thinkingLikePrefixDetected=False,
+                adapterSanitized=True,
+                adapterRemovedCharacterCount=len(self.raw) - len(self.sanitized),
+                sanitizedContentLength=len(self.sanitized),
+            ),
+        )
+
+
 def create_layout() -> RinDataLayout:
     temp = create_temp_data_dir()
     return create_temp_layout_database(temp.path)
@@ -124,9 +155,118 @@ async def test_runtime_persists_owner_and_rin_reply_on_success() -> None:
         )
         assert context_stage.output["componentTable"]
         assert request_stage.output["requestOutline"]
+        assert request_stage.output["currentOwnerInputLast"] is True
         assert reply_stage.output["storedSanitizedAnswer"] is True
         assert reply_stage.output["storedRawThinking"] is False
         assert memory_update_stage.output["tracesCreatedCount"] == 1
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+@pytest.mark.asyncio
+async def test_runtime_injects_bounded_recent_history_content() -> None:
+    layout = create_layout()
+    try:
+        RUNTIME_TRACE_STORE.clear()
+        adapter = MockAdapter("ok")
+        first = await run_conversation_turn(
+            layout,
+            "上一句话是香蕉。",
+            adapter,
+            clock=RuntimeClock(NOW),
+        )
+        await run_conversation_turn(
+            layout,
+            "我说的上一句话是什么？",
+            adapter,
+            conversation_id=first.conversationId,
+            clock=RuntimeClock(NOW),
+        )
+
+        second_request = adapter.requests[-1]
+        system_message = second_request.messages[0]
+
+        assert second_request.messages[-1].content == "我说的上一句话是什么？"
+        assert "上一句话是香蕉" in system_message.content
+        assert "chars" not in system_message.content
+        trace = RUNTIME_TRACE_STORE.latest()
+        assert trace is not None
+        recent_stage = next(
+            stage for stage in trace.stages if stage.name == "recent_history_selection"
+        )
+        request_stage = next(
+            stage for stage in trace.stages if stage.name == "model_request"
+        )
+        assert (
+            cast(
+                int,
+                recent_stage.output["promptInjectedRecentHistoryCharacterCount"],
+            )
+            > 0
+        )
+        assert request_stage.output["currentOwnerInputLast"] is True
+        outline = request_stage.output["requestOutline"]
+        assert isinstance(outline, list)
+        assert "上一句话是香蕉" in str(outline[0]["recentHistoryPreview"])
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+@pytest.mark.asyncio
+async def test_runtime_records_large_removal_short_final_warning() -> None:
+    layout = create_layout()
+    try:
+        RUNTIME_TRACE_STORE.clear()
+        long_analysis = "首先，用户问晚饭吃什么。" + ("我需要分析。" * 30)
+        result = await run_conversation_turn(
+            layout,
+            "晚饭吃什么？",
+            MockAdapter(f"{long_analysis}\n最终答案：面。"),
+            clock=RuntimeClock(NOW),
+        )
+
+        assert result.status == "completed"
+        trace = RUNTIME_TRACE_STORE.latest()
+        assert trace is not None
+        sanitizer = next(
+            stage for stage in trace.stages if stage.name == "sanitization_final_answer"
+        )
+        assert sanitizer.output["largeRemovalShortFinalWarning"] is True
+        assert "large sanitizer removal with short final answer" in sanitizer.warnings
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+@pytest.mark.asyncio
+async def test_runtime_trace_distinguishes_raw_metadata_from_adapter_content() -> None:
+    layout = create_layout()
+    try:
+        RUNTIME_TRACE_STORE.clear()
+        adapter = RawMetadataAdapter()
+        result = await run_conversation_turn(
+            layout,
+            "hello",
+            adapter,
+            clock=RuntimeClock(NOW),
+        )
+
+        assert result.status == "completed"
+        trace = RUNTIME_TRACE_STORE.latest()
+        assert trace is not None
+        raw_stage = next(
+            stage for stage in trace.stages if stage.name == "raw_model_response"
+        )
+        sanitizer = next(
+            stage for stage in trace.stages if stage.name == "sanitization_final_answer"
+        )
+        assert raw_stage.displayName == "Provider Response"
+        assert raw_stage.output["providerRawMetadataAvailable"] is True
+        assert raw_stage.output["rawContentLength"] == len(adapter.raw)
+        assert raw_stage.output["adapterContentLength"] == len(adapter.sanitized)
+        assert raw_stage.output["adapterSanitized"] is True
+        assert sanitizer.input["rawContentLength"] == len(adapter.raw)
+        assert sanitizer.output["finalLength"] == len(adapter.sanitized)
+        assert sanitizer.output["storedSanitizedOnly"] is True
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 

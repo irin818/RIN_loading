@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
+from hashlib import sha256
 from typing import Any, Literal
 
 import httpx
@@ -132,14 +133,52 @@ class OllamaAdapter:
             )
             raise self.error(code, message)
 
-        content = read_ollama_assistant_content(self, payload)
+        raw_content = read_ollama_assistant_content(self, payload)
+        sanitized = sanitize_assistant_content_details(raw_content)
+        if not sanitized.content.strip() or sanitized.rejected:
+            raise self.error(
+                "MODEL_RESPONSE_INVALID",
+                "Ollama returned no final assistant content after removing "
+                "thinking artifacts.",
+                ModelErrorDetails(
+                    emptyContent=True,
+                    emptyAfterThinkingRemoval=not sanitized.content.strip(),
+                    possibleReasoningOnlyOutput=True,
+                    thinkingArtifactRemoved=sanitized.removed,
+                    responseFields=response_fields(payload),
+                ),
+            )
+        if has_unsafe_thinking_leak(sanitized.content):
+            raise self.error(
+                "MODEL_RESPONSE_INVALID",
+                "Ollama response included internal analysis text.",
+                ModelErrorDetails(
+                    possibleReasoningOnlyOutput=True,
+                    thinkingArtifactRemoved=sanitized.removed,
+                    unsafeContentIssue="internal_analysis",
+                    responseFields=response_fields(payload),
+                ),
+            )
         return ModelResponse(
-            content=content,
+            content=sanitized.content,
             adapterId=self.id,
             metadata=ModelResponseMetadata(
                 externalProvider=False,
                 memoryWriteRequested=False,
                 toolCallRequested=False,
+                rawContentLength=len(raw_content),
+                rawContentHash=short_hash(raw_content),
+                rawPreview=safe_raw_preview(raw_content),
+                rawModelOutputIncluded=False,
+                thinkingTagDetected=has_thinking_tag_text(raw_content),
+                thinkingLikePrefixDetected=has_thinking_like_prefix_text(raw_content),
+                adapterSanitized=sanitized.removed,
+                adapterRemovedCharacterCount=max(
+                    0,
+                    len(raw_content) - len(sanitized.content),
+                ),
+                sanitizedContentLength=len(sanitized.content),
+                sanitizerRejectionReason=sanitized.rejectionReason,
             ),
         )
 
@@ -216,32 +255,7 @@ def read_ollama_assistant_content(adapter: OllamaAdapter, payload: Any) -> str:
             ),
         )
 
-    sanitized = sanitize_assistant_content_details(content)
-    if not sanitized.content.strip() or sanitized.rejected:
-        raise adapter.error(
-            "MODEL_RESPONSE_INVALID",
-            "Ollama returned no final assistant content after removing "
-            "thinking artifacts.",
-            ModelErrorDetails(
-                emptyContent=True,
-                emptyAfterThinkingRemoval=not sanitized.content.strip(),
-                possibleReasoningOnlyOutput=True,
-                thinkingArtifactRemoved=sanitized.removed,
-                responseFields=response_fields(payload),
-            ),
-        )
-    if has_unsafe_thinking_leak(sanitized.content):
-        raise adapter.error(
-            "MODEL_RESPONSE_INVALID",
-            "Ollama response included internal analysis text.",
-            ModelErrorDetails(
-                possibleReasoningOnlyOutput=True,
-                thinkingArtifactRemoved=sanitized.removed,
-                unsafeContentIssue="internal_analysis",
-                responseFields=response_fields(payload),
-            ),
-        )
-    return sanitized.content
+    return content
 
 
 def sanitize_assistant_content(content: str) -> tuple[str, bool]:
@@ -252,10 +266,19 @@ def sanitize_assistant_content(content: str) -> tuple[str, bool]:
 THINKING_PREFIX_PATTERNS = (
     re.compile(r"^\s*(首先[，,]\s*)?用户(问|询问|想知道)", re.I),
     re.compile(r"^\s*我需要(分析|判断|考虑|先)", re.I),
+    re.compile(r"^\s*我们需要(分析|判断|考虑|先|检查)", re.I),
     re.compile(r"^\s*根据(系统|上下文|用户)", re.I),
-    re.compile(r"^\s*(响应策略|最终响应思路|完整响应草稿|分析|思路)\s*[:：]", re.I),
-    re.compile(r"^\s*(first,\s*)?the user (asks|asked|wants)", re.I),
+    re.compile(
+        r"^\s*(响应策略|最终响应思路|完整响应草稿|分析|思路|检查是否|为什么这样)\s*[:：]?",
+        re.I,
+    ),
+    re.compile(
+        r"^\s*(okay,?\s*)?(first,\s*)?(the user|user) "
+        r"(is )?(asking|asks|asked|wants)",
+        re.I,
+    ),
     re.compile(r"^\s*i need to (analy[sz]e|consider|determine)", re.I),
+    re.compile(r"^\s*let me (check|think|analy[sz]e|look)", re.I),
 )
 
 FINAL_ANSWER_MARKER_PATTERN = re.compile(
@@ -346,15 +369,36 @@ def has_unsafe_thinking_leak(content: str) -> bool:
         "用户问",
         "我需要分析",
         "根据系统",
+        "我们需要",
         "响应策略",
         "最终响应思路",
         "完整响应草稿",
+        "检查是否",
+        "the user is asking",
+        "let me check",
+        "let me think",
     )
     return any(
         marker in lowered for marker in markers
     ) or has_thinking_like_prefix_text(
         content,
     )
+
+
+def has_thinking_tag_text(content: str) -> bool:
+    lowered = content.lower()
+    return "<think>" in lowered or "</think>" in lowered
+
+
+def short_hash(content: str) -> str:
+    return sha256(content.encode("utf-8")).hexdigest()[:12]
+
+
+def safe_raw_preview(content: str) -> str:
+    if has_thinking_tag_text(content) or has_thinking_like_prefix_text(content):
+        return "hidden_due_to_thinking_signal"
+    stripped = " ".join(content.split())
+    return stripped[:18] + ("..." if len(stripped) > 18 else "")
 
 
 def response_fields(payload: dict[str, Any]) -> list[str]:

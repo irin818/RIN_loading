@@ -79,6 +79,11 @@ class ConversationRuntimeResult(BaseModel):
     retryable: bool | None
 
 
+RECENT_HISTORY_MESSAGE_LIMIT = 6
+RECENT_HISTORY_MESSAGE_MAX_CHARS = 500
+RECENT_HISTORY_TOTAL_MAX_CHARS = 2000
+
+
 @dataclass(frozen=True)
 class RuntimeClock:
     fixed_now: str | None = None
@@ -233,6 +238,7 @@ async def run_conversation_turn(
     selected_character_count = sum(
         len(message.content) for message in previous_messages
     )
+    recent_history_prompt = build_bounded_recent_history(previous_messages)
     recorder.record(
         "recent_history_selection",
         "ok",
@@ -267,6 +273,10 @@ async def run_conversation_turn(
             if previous_messages
             else "n/a",
             "selectedCharacterCount": selected_character_count,
+            "promptInjectedRecentHistoryCharacterCount": recent_history_prompt[
+                "characterCount"
+            ],
+            "promptInjectedRecentHistoryTruncated": recent_history_prompt["truncated"],
             "conversationIdsInvolved": sorted(
                 {message.conversationId for message in previous_messages}
             ),
@@ -452,12 +462,26 @@ async def run_conversation_turn(
         model_started_at = perf_counter()
         model_response = await adapter.generate(model_request)
         model_duration_ms = elapsed_ms(model_started_at)
-        raw_content = model_response.content
+        adapter_content = model_response.content
+        metadata = model_response.metadata
+        provider_raw_length = metadata.rawContentLength
+        provider_raw_hash = metadata.rawContentHash or "n/a"
+        provider_raw_preview = metadata.rawPreview or "n/a"
+        provider_raw_metadata_available = provider_raw_length is not None
+        trace_raw_length = (
+            provider_raw_length
+            if provider_raw_length is not None
+            else len(adapter_content)
+        )
         recorder.record(
             "raw_model_response",
             "ok",
-            display_name="Raw Response",
-            summary=f"{len(raw_content)} chars",
+            display_name="Provider Response",
+            summary=(
+                f"{trace_raw_length} raw chars"
+                if provider_raw_metadata_available
+                else "adapter content only"
+            ),
             input={
                 "adapter": adapter.id,
                 "requestMessageCount": len(model_request.messages),
@@ -465,26 +489,45 @@ async def run_conversation_turn(
             operation={"awaitedAdapterGenerate": True, "durationMs": model_duration_ms},
             output={
                 "providerReturned": True,
-                "rawContentLength": len(raw_content),
-                "rawContentHash": short_hash(raw_content),
-                "rawPreview": safe_raw_preview(raw_content),
-                "thinkingTagDetected": has_thinking_tag(raw_content),
-                "thinkingLikePrefixDetected": has_thinking_like_prefix(raw_content),
-                "emptyContent": not raw_content.strip(),
+                "providerRawMetadataAvailable": provider_raw_metadata_available,
+                "rawContentLength": provider_raw_length or "n/a",
+                "rawContentHash": provider_raw_hash,
+                "rawPreview": provider_raw_preview,
+                "adapterContentLength": len(adapter_content),
+                "adapterSanitized": metadata.adapterSanitized,
+                "adapterRemovedCharacterCount": metadata.adapterRemovedCharacterCount,
+                "adapterSanitizedContentLength": metadata.sanitizedContentLength,
+                "thinkingTagDetected": metadata.thinkingTagDetected
+                if metadata.thinkingTagDetected is not None
+                else has_thinking_tag(adapter_content),
+                "thinkingLikePrefixDetected": metadata.thinkingLikePrefixDetected
+                if metadata.thinkingLikePrefixDetected is not None
+                else has_thinking_like_prefix(adapter_content),
+                "emptyContent": not adapter_content.strip(),
                 "errorCode": None,
             },
             decision={
-                "acceptedForSanitizer": True,
-                "reason": "provider returned content",
+                "acceptedForRuntimeSanitizer": True,
+                "reason": (
+                    "provider raw metadata captured before adapter sanitization"
+                    if provider_raw_metadata_available
+                    else "adapter did not expose raw provider metadata"
+                ),
             },
             privacy={
                 "rawModelOutputIncluded": False,
                 "rawPreviewHiddenIfThinkingDetected": True,
             },
         )
-        sanitizer = sanitize_assistant_content_details(model_response.content)
+        sanitizer = sanitize_assistant_content_details(adapter_content)
         sanitized = sanitizer.content
         removed_thinking = sanitizer.removed
+        removed_from_provider = max(0, trace_raw_length - len(sanitized))
+        large_removal_short_final = (
+            trace_raw_length >= 80
+            and removed_from_provider / max(trace_raw_length, 1) > 0.8
+            and len(sanitized) < 24
+        )
         final_safe = (
             sanitized.strip()
             and not sanitizer.rejected
@@ -499,15 +542,23 @@ async def run_conversation_turn(
             else "error",
             display_name="Sanitizer",
             summary=(
-                f"{len(raw_content)}→{len(sanitized)} chars"
+                f"{trace_raw_length}→{len(sanitized)} chars"
                 if final_safe
                 else "rejected"
             ),
             input={
-                "rawContentLength": len(raw_content),
-                "rawContentHash": short_hash(raw_content),
-                "thinkingTagDetected": has_thinking_tag(raw_content),
-                "thinkingLikePrefixDetected": has_thinking_like_prefix(raw_content),
+                "providerRawMetadataAvailable": provider_raw_metadata_available,
+                "rawContentLength": trace_raw_length,
+                "rawContentHash": provider_raw_hash
+                if provider_raw_metadata_available
+                else short_hash(adapter_content),
+                "adapterContentLength": len(adapter_content),
+                "thinkingTagDetected": metadata.thinkingTagDetected
+                if metadata.thinkingTagDetected is not None
+                else has_thinking_tag(adapter_content),
+                "thinkingLikePrefixDetected": metadata.thinkingLikePrefixDetected
+                if metadata.thinkingLikePrefixDetected is not None
+                else has_thinking_like_prefix(adapter_content),
             },
             operation={
                 "sanitizerApplied": True,
@@ -515,15 +566,17 @@ async def run_conversation_turn(
                 "thinkingTagRemoved": sanitizer.thinkingTagRemoved,
                 "thinkingLikePrefixRemoved": sanitizer.thinkingLikePrefixRemoved,
                 "extractedFinalAnswer": sanitizer.extractedFinalAnswer,
+                "adapterAlreadySanitized": metadata.adapterSanitized,
             },
             output={
-                "removedCharacterCount": max(0, len(raw_content) - len(sanitized)),
-                "rawLength": len(raw_content),
+                "removedCharacterCount": removed_from_provider,
+                "rawLength": trace_raw_length,
                 "finalLength": len(sanitized),
                 "thinkingRemoved": removed_thinking,
                 "finalAnswerLength": len(sanitized),
                 "finalAnswerPreview": input_preview(sanitized),
                 "storedSanitizedOnly": True,
+                "largeRemovalShortFinalWarning": large_removal_short_final,
             },
             decision={
                 "rejected": not final_safe,
@@ -538,6 +591,9 @@ async def run_conversation_turn(
                     "thinking removed" if removed_thinking else "",
                     "thinking-like prefix detected"
                     if sanitizer.thinkingLikePrefixRemoved
+                    else "",
+                    "large sanitizer removal with short final answer"
+                    if large_removal_short_final
                     else "",
                 )
                 if item
@@ -885,16 +941,14 @@ def select_recent_messages(
         message
         for message in list_messages(layout, conversation_id)
         if message.content != owner_content
-    ][-6:]
+    ][-RECENT_HISTORY_MESSAGE_LIMIT:]
 
 
 def build_runtime_context_segments_from_messages(
     previous_messages: Sequence[ConversationMessageRecord],
     owner_content: str,
 ) -> list[ContextV2InputSegment]:
-    history = "\n".join(
-        f"{message.role}: {len(message.content)} chars" for message in previous_messages
-    )
+    history = str(build_bounded_recent_history(previous_messages)["content"])
     segments = [
         ContextV2InputSegment(
             id="system",
@@ -927,10 +981,38 @@ def build_runtime_context_segments_from_messages(
                 sourceId="short-term-window",
                 provenance="conversation-runtime",
                 protected=False,
-                content=history,
+                content=f"Recent conversation context (bounded):\n{history}",
             )
         )
     return segments
+
+
+def build_bounded_recent_history(
+    previous_messages: Sequence[ConversationMessageRecord],
+) -> dict[str, object]:
+    rows: list[str] = []
+    total_chars = 0
+    truncated = False
+    for message in previous_messages[-RECENT_HISTORY_MESSAGE_LIMIT:]:
+        prefix = f"{message.role}: "
+        remaining = RECENT_HISTORY_TOTAL_MAX_CHARS - total_chars - len(prefix)
+        if remaining <= 0:
+            truncated = True
+            break
+        content = " ".join(message.content.split())
+        clipped = content[: min(RECENT_HISTORY_MESSAGE_MAX_CHARS, remaining)]
+        if len(clipped) < len(content):
+            clipped += "..."
+            truncated = True
+        row = f"{prefix}{clipped}"
+        rows.append(row)
+        total_chars += len(row) + 1
+    content = "\n".join(rows)
+    return {
+        "content": content,
+        "characterCount": len(content),
+        "truncated": truncated,
+    }
 
 
 def model_messages_for(
@@ -998,12 +1080,22 @@ def model_request_outline(request: ModelRequest) -> list[dict[str, object]]:
             "role": message.role,
             "characterCount": len(message.content),
             "preview": input_preview(message.content),
+            "recentHistoryPreview": recent_history_preview(message.content)
+            if message.role == "system"
+            else "n/a",
             "sourceComponent": "assembled_context"
             if message.role == "system"
             else "current_owner_message",
         }
         for index, message in enumerate(request.messages)
     ]
+
+
+def recent_history_preview(content: str) -> str:
+    marker = "Recent conversation context (bounded):"
+    if marker not in content:
+        return "n/a"
+    return input_preview(content.split(marker, 1)[1], limit=80)
 
 
 def safe_raw_preview(raw_content: str) -> str:

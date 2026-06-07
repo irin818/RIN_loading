@@ -324,6 +324,66 @@ def create_app(
             "snapshot": local_console_snapshot(current_layout),
         }
 
+    @app.post("/api/chat-test/send")
+    async def api_chat_test_send(
+        body: ConversationSendBody,
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+        current_clock: RuntimeClock = clock_dependency,
+    ) -> dict[str, object]:
+        target_conversation_id = body.conversationId
+        if target_conversation_id is None:
+            reject_unsafe_write_layout(current_layout)
+            conversation = create_conversation(
+                current_layout,
+                "Python UI conversation",
+                current_clock.now(),
+            )
+            target_conversation_id = conversation.id
+        reject_unsafe_write_layout(current_layout)
+        if not body.content.strip():
+            raise HTTPException(status_code=400, detail="Message content is required.")
+        result = await run_conversation_turn(
+            current_layout,
+            body.content,
+            current_adapter,
+            conversation_id=target_conversation_id,
+            clock=current_clock,
+        )
+        messages = list_messages(current_layout, target_conversation_id)
+        owner_message = next(
+            (message for message in messages if message.id == result.ownerMessageId),
+            None,
+        )
+        rin_message = (
+            next(
+                (message for message in messages if message.id == result.rinMessageId),
+                None,
+            )
+            if result.rinMessageId
+            else None
+        )
+        return {
+            "ok": result.status == "completed",
+            "status": result.status,
+            "conversationId": target_conversation_id,
+            "turnId": result.turnId,
+            "elapsedMs": result.elapsedMs,
+            "errorCode": result.errorCode,
+            "ownerMessage": safe_chat_message(owner_message),
+            "rinMessage": safe_chat_message(rin_message),
+            "finalAnswer": rin_message.content if rin_message else "",
+            "externalProviderCallCount": 0,
+            "rawThinkingStored": False,
+            "rawModelOutputIncluded": False,
+            "hiddenReasoningIncluded": False,
+            "dashboard": build_status_dashboard_summary(
+                current_layout,
+                current_adapter,
+                selected_conversation_id=target_conversation_id,
+            ),
+        }
+
     @app.post("/ui/chat", response_class=HTMLResponse)
     async def ui_chat(
         request: Request,
@@ -449,6 +509,19 @@ def create_app(
         return result.model_dump(mode="json")
 
     return app
+
+
+def safe_chat_message(message: object | None) -> dict[str, object] | None:
+    if message is None:
+        return None
+    return {
+        "id": getattr(message, "id", "n/a"),
+        "shortId": short_id(str(getattr(message, "id", ""))),
+        "role": getattr(message, "role", "n/a"),
+        "content": getattr(message, "content", ""),
+        "createdAt": getattr(message, "createdAt", "n/a"),
+        "fullTextIncluded": True,
+    }
 
 
 def render_console_page(
@@ -822,11 +895,33 @@ def build_memory_diagnostics_payload(layout: RinDataLayout) -> dict[str, object]
         if latest_trace
         else None
     )
+    context_stage = (
+        next(
+            (
+                stage
+                for stage in latest_trace.stages
+                if stage.name == "context_assembly"
+            ),
+            None,
+        )
+        if latest_trace
+        else None
+    )
     retrieval_wired = False
     retrieval_skip_reason = (
         str(memory_retrieval_stage.decision.get("skipReason", "n/a"))
         if memory_retrieval_stage
         else "runtime retrieval not wired into prompt assembly"
+    )
+    memory_used_in_last_request = (
+        context_stage.output.get("memoryTracesIncludedCount", 0) != 0
+        if context_stage is not None
+        else False
+    )
+    recent_history_used_in_last_request = (
+        context_stage.output.get("recentHistoryIncludedCount", 0) != 0
+        if context_stage is not None
+        else False
     )
     return {
         "mode": "diagnostics-memory",
@@ -835,6 +930,10 @@ def build_memory_diagnostics_payload(layout: RinDataLayout) -> dict[str, object]
         "fullTextIncluded": False,
         "algorithm": {
             "shortTermWindowPolicy": "last six prior messages in active conversation",
+            "memoryV2WritePolicy": (
+                "successful turns write safe long-term candidate trace summaries"
+            ),
+            "retrievalStatus": "skipped",
             "retentionFormula": (
                 "n/a - Memory V2 retention curve is not parameterized yet"
             ),
@@ -867,9 +966,18 @@ def build_memory_diagnostics_payload(layout: RinDataLayout) -> dict[str, object]
             else {},
             "lastTraceIds": [short_id(trace.id) for trace in traces[:5]],
         },
+        "aiMemoryState": {
+            "shortTermContextActive": True,
+            "longTermTracesWritten": status.counts.memoryV2Traces > 0,
+            "longTermRetrievalActive": retrieval_wired,
+            "memoryUsedInLastModelRequest": memory_used_in_last_request,
+            "recentHistoryUsedInLastModelRequest": recent_history_used_in_last_request,
+        },
         "contents": [safe_memory_trace_item(trace) for trace in traces],
         "curve": {
             "formula": "n/a - no decay/stability parameter is active in runtime yet",
+            "status": "not parameterized yet",
+            "display": "design placeholder only",
             "samplePoints": [
                 {"label": "now", "retentionEstimate": "n/a"},
                 {"label": "1h", "retentionEstimate": "n/a"},
@@ -894,6 +1002,7 @@ def build_memory_diagnostics_payload(layout: RinDataLayout) -> dict[str, object]
             "privacySafe": True,
         },
         "warnings": [
+            "Short-term conversation context is active and separate from Memory V2.",
             "Memory V2 retrieval is not wired into prompt assembly yet.",
             "Memory curve is not parameterized yet; retention estimates are n/a.",
         ],
@@ -928,6 +1037,7 @@ def safe_memory_trace_item(trace: object) -> dict[str, object]:
     return {
         "traceId": getattr(trace, "id", "n/a"),
         "traceShortId": short_id(str(getattr(trace, "id", ""))),
+        "sourceMessageId": getattr(trace, "sourceId", "n/a"),
         "sourceShortId": short_id(str(getattr(trace, "sourceId", ""))),
         "traceType": getattr(trace, "traceType", "n/a"),
         "createdAt": getattr(trace, "createdAt", "n/a"),
@@ -938,6 +1048,8 @@ def safe_memory_trace_item(trace: object) -> dict[str, object]:
         "signalKeys": sorted(signal_summary.keys())
         if isinstance(signal_summary, dict)
         else [],
+        "rawTextIncluded": raw_included,
+        "contentCharacterCount": content_length,
         "safePreview": input_preview(
             f"{source}; {content_length} chars; rawTextIncluded={raw_included}",
             limit=72,
