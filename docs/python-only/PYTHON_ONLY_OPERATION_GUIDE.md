@@ -27,10 +27,15 @@ The Python web UI covers the active owner-facing Console path:
 - selected adapter and local-model status;
 - profile summary;
 - memory/context trace summary;
+- runtime dataflow trace page for the latest real backend chat turn;
 - local RIN avatar/presence panel;
 - visible error rendering;
 - read-only reload of persisted history;
 - clear Python-primary runtime identity.
+
+Runtime Trace is safe by default: it shows ids, counts, timestamps, lengths,
+short previews, hashes, and stage status, but not full prompts, profile text,
+memory text, hidden reasoning, or raw model output.
 
 ## Recommended Launcher
 

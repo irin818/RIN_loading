@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from rin.contracts import ModelRequest, ModelResponse, ModelResponseMetadata
 from rin.conversation import ModelAdapterProtocol
 from rin.database import create_temp_layout_database
+from rin.diagnostics.runtime_trace import RUNTIME_TRACE_STORE
 from rin.diagnostics.safety import create_temp_data_dir
 from rin.server import create_app
 from rin.storage import RinDataLayout, create_data_layout
@@ -15,6 +16,7 @@ from rin.storage import RinDataLayout, create_data_layout
 def create_client(
     adapter: ModelAdapterProtocol | None = None,
 ) -> tuple[TestClient, RinDataLayout]:
+    RUNTIME_TRACE_STORE.clear()
     temp = create_temp_data_dir()
     layout = create_temp_layout_database(temp.path)
     return TestClient(create_app(layout, adapter=adapter)), layout
@@ -117,6 +119,7 @@ def test_python_ui_renders_local_status_and_profile_summary() -> None:
         assert 'class="console-nav glass-panel"' in response.text
         assert 'data-console-tab="overview"' in response.text
         assert 'data-console-tab="chat"' in response.text
+        assert 'data-console-tab="runtime-trace"' in response.text
         assert 'data-console-tab="model"' in response.text
         assert 'data-console-tab="memory"' in response.text
         assert 'data-console-tab="context"' in response.text
@@ -128,6 +131,8 @@ def test_python_ui_renders_local_status_and_profile_summary() -> None:
         assert 'data-console-tab="developer"' in response.text
         assert 'data-console-page="overview"' in response.text
         assert 'data-console-page="chat"' in response.text
+        assert 'data-console-page="runtime-trace"' in response.text
+        assert "Runtime Dataflow Trace" in response.text
         assert "Manual Runtime Test Chat" in response.text
         assert 'class="rin-character"' in response.text
         assert 'class="presence-panel glass-panel"' in response.text
@@ -168,6 +173,8 @@ def test_python_ui_static_assets_are_served() -> None:
         assert "console-grid" in css.text
         assert "console-nav" in css.text
         assert "console-page.active" in css.text
+        assert "trace-timeline" in css.text
+        assert "trace-sanitizer" in css.text
         assert "rin-character" in css.text
         assert "presence-panel" in css.text
         assert "composer-dock" in css.text
@@ -192,6 +199,7 @@ def test_python_ui_static_assets_are_served() -> None:
 def test_python_ui_chat_submit_renders_conversation_history() -> None:
     client, layout = create_client()
     try:
+        RUNTIME_TRACE_STORE.clear()
         response = client.post("/ui/chat", json={"content": "hello from UI"})
         state = client.get("/api/local-state").json()
 
@@ -202,6 +210,8 @@ def test_python_ui_chat_submit_renders_conversation_history() -> None:
         assert 'class="message-bubble owner"' in response.text
         assert 'class="message-bubble rin"' in response.text
         assert "Local conversation" in response.text
+        assert "Latest Backend Turn Pipeline" in response.text
+        assert "sanitization_final_answer" in response.text
         assert 'class="composer-dock"' in response.text
         assert state["externalProviderCallCount"] == 0
     finally:
@@ -301,6 +311,7 @@ def test_status_dashboard_endpoint_is_read_only_counts_only() -> None:
 def test_diagnostics_endpoints_are_safe_and_read_only() -> None:
     client, layout = create_client()
     try:
+        RUNTIME_TRACE_STORE.clear()
         submitted = client.post(
             "/ui/chat",
             json={"content": "private diagnostic endpoint check"},
@@ -342,6 +353,58 @@ def test_diagnostics_endpoints_are_safe_and_read_only() -> None:
         assert context["fullPromptIncluded"] is False
         assert profiles["fullTextIncluded"] is False
         assert body["cubismRuntimeActive"] is False
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_runtime_trace_api_is_safe_and_read_only() -> None:
+    client, layout = create_client()
+    try:
+        RUNTIME_TRACE_STORE.clear()
+        private_owner_text = (
+            "private runtime trace owner message that must not be exposed in full"
+        )
+        submitted = client.post("/ui/chat", json={"content": private_owner_text})
+        state_after_submit = client.get("/api/local-state").json()
+
+        latest = client.get("/api/diagnostics/runtime-trace/latest")
+        listing = client.get("/api/diagnostics/runtime-trace")
+        state_after_trace = client.get("/api/local-state").json()
+
+        assert submitted.status_code == 200
+        assert latest.status_code == 200
+        assert listing.status_code == 200
+        latest_payload = latest.json()
+        trace = latest_payload["traces"][0]
+        assert latest_payload["privacyMode"] == "safe"
+        assert latest_payload["readOnly"] is True
+        assert latest_payload["externalProviderCallCount"] == 0
+        assert latest_payload["fullTextIncluded"] is False
+        assert latest_payload["rawPromptIncluded"] is False
+        assert latest_payload["rawModelOutputIncluded"] is False
+        assert trace["status"] == "success"
+        assert [stage["name"] for stage in trace["stages"]] == [
+            "input_received",
+            "owner_message_persisted",
+            "profile_loading",
+            "recent_history_selection",
+            "memory_v2_retrieval",
+            "context_assembly",
+            "model_request",
+            "raw_model_response",
+            "sanitization_final_answer",
+            "rin_reply_persisted",
+            "memory_update",
+            "response_returned",
+        ]
+        assert "private runtime trace owner message" not in latest.text
+        assert "Python API mock reply." not in latest.text
+        assert state_after_trace["database"] == state_after_submit["database"]
+        assert state_after_trace["externalProviderCallCount"] == 0
+
+        by_id = client.get(f"/api/diagnostics/runtime-trace/{trace['turnId']}")
+        assert by_id.status_code == 200
+        assert by_id.json()["trace"]["turnId"] == trace["turnId"]
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 

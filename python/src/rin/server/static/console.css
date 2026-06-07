@@ -369,7 +369,8 @@ p {
 }
 
 .visual-grid,
-.split-panel {
+.split-panel,
+.trace-panels {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.6rem;
@@ -677,6 +678,144 @@ p {
   color: var(--green);
   font-size: 0.76rem;
   white-space: normal;
+}
+
+.trace-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.trace-summary div,
+.trace-stage,
+.trace-detail details,
+.safe-json {
+  border: 1px solid rgba(80, 255, 169, 0.14);
+  border-radius: 13px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.trace-summary div {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.54rem;
+}
+
+.trace-summary span,
+.trace-stage em,
+.trace-detail dt {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.trace-summary b,
+.trace-stage strong,
+.trace-detail dd {
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+}
+
+.trace-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 310px) minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.trace-timeline,
+.trace-detail {
+  display: grid;
+  align-content: start;
+  gap: 0.42rem;
+}
+
+.trace-stage {
+  display: grid;
+  grid-template-columns: 1.7rem minmax(0, 1fr);
+  gap: 0.48rem;
+  padding: 0.48rem;
+}
+
+.trace-stage > span {
+  display: grid;
+  place-items: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--green);
+  font-size: 0.7rem;
+}
+
+.trace-stage.ok > span {
+  border-color: var(--line-hot);
+  box-shadow: 0 0 12px rgba(0, 255, 157, 0.14);
+}
+
+.trace-stage.warning > span,
+.trace-stage.skipped > span {
+  color: var(--amber);
+}
+
+.trace-stage.error > span {
+  color: var(--danger);
+  border-color: rgba(255, 120, 149, 0.45);
+}
+
+.trace-stage div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.trace-detail h3 {
+  color: var(--green);
+  font-size: 0.88rem;
+}
+
+.trace-detail details,
+.safe-json {
+  padding: 0.55rem;
+}
+
+.trace-detail summary,
+.safe-json summary {
+  color: var(--cyan);
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.trace-detail dl {
+  display: grid;
+  gap: 0.28rem;
+  margin: 0.5rem 0 0;
+}
+
+.trace-detail dl div {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.trace-detail dt,
+.trace-detail dd {
+  margin: 0;
+  font-size: 0.72rem;
+}
+
+.trace-detail dd {
+  word-break: break-word;
+}
+
+.trace-sanitizer {
+  border-color: rgba(0, 255, 157, 0.24);
+}
+
+.safe-json pre {
+  max-height: 18rem;
+  overflow: auto;
+  color: var(--muted);
+  font-size: 0.72rem;
+  white-space: pre-wrap;
 }
 
 .presence-panel {

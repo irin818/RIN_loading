@@ -32,9 +32,11 @@ build chain.
 
 The console is now the RIN Control Console: a black-green diagnostics UI for
 observing, testing, and understanding RIN. It includes Overview, Chat / Test,
-Model, Memory, Context, Database, Conversations, Profiles, Body / Live2D,
-Logs / Events, and Developer Checks pages. Chat remains a first-class manual
-runtime test interface, not a deprecated surface.
+Runtime Trace, Model, Memory, Context, Database, Conversations, Profiles, Body /
+Live2D, Logs / Events, and Developer Checks pages. Chat remains a first-class
+manual runtime test interface, not a deprecated surface. Runtime Trace shows safe
+metadata from the real backend chat-turn pipeline without exposing full prompts,
+profile text, memory text, or raw model output by default.
 
 ## Install
 
@@ -113,3 +115,4 @@ Important Python-only transition docs:
 - `docs/python-only/OPERATIONAL_SURFACE_RETIREMENT_REPORT.md`
 - `docs/python-only/TYPESCRIPT_FALLBACK_GUIDE.md`
 - `docs/python-only/PYTHON_CONSOLE_UI_REBUILD.md`
+- `docs/python-only/RUNTIME_DATAFLOW_TRACE.md`

@@ -9,6 +9,7 @@ from rin.database import (
     inspect_database,
     list_messages,
 )
+from rin.diagnostics.runtime_trace import RUNTIME_TRACE_STORE
 from rin.diagnostics.safety import create_temp_data_dir
 from rin.model.ollama import ModelError, ModelErrorDetails
 from rin.storage import RinDataLayout
@@ -58,6 +59,7 @@ def create_layout() -> RinDataLayout:
 async def test_runtime_persists_owner_and_rin_reply_on_success() -> None:
     layout = create_layout()
     try:
+        RUNTIME_TRACE_STORE.clear()
         adapter = MockAdapter("Final answer.")
 
         result = await run_conversation_turn(
@@ -79,6 +81,23 @@ async def test_runtime_persists_owner_and_rin_reply_on_success() -> None:
         assert status.counts.conversationTurns == 1
         assert status.counts.memoryV2Traces == 1
         assert adapter.requests[0].messages[-1].content == "hello"
+        trace = RUNTIME_TRACE_STORE.latest()
+        assert trace is not None
+        assert trace.turnId == result.turnId
+        assert [stage.name for stage in trace.stages] == [
+            "input_received",
+            "owner_message_persisted",
+            "profile_loading",
+            "recent_history_selection",
+            "memory_v2_retrieval",
+            "context_assembly",
+            "model_request",
+            "raw_model_response",
+            "sanitization_final_answer",
+            "rin_reply_persisted",
+            "memory_update",
+            "response_returned",
+        ]
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
@@ -87,6 +106,7 @@ async def test_runtime_persists_owner_and_rin_reply_on_success() -> None:
 async def test_runtime_preserves_owner_without_fake_reply_on_model_failure() -> None:
     layout = create_layout()
     try:
+        RUNTIME_TRACE_STORE.clear()
         result = await run_conversation_turn(
             layout,
             "hello",
@@ -106,6 +126,12 @@ async def test_runtime_preserves_owner_without_fake_reply_on_model_failure() -> 
         assert status.counts.conversationTurns == 1
         assert status.counts.messages == 1
         assert status.counts.memoryV2Traces == 0
+        trace = RUNTIME_TRACE_STORE.latest()
+        assert trace is not None
+        assert trace.status == "failed"
+        assert trace.errorCode == "MODEL_RESPONSE_INVALID"
+        assert trace.stages[-1].name == "response_returned"
+        assert trace.stages[-1].status == "error"
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
@@ -114,6 +140,7 @@ async def test_runtime_preserves_owner_without_fake_reply_on_model_failure() -> 
 async def test_runtime_strips_thinking_before_persistence() -> None:
     layout = create_layout()
     try:
+        RUNTIME_TRACE_STORE.clear()
         result = await run_conversation_turn(
             layout,
             "dinner",
@@ -127,6 +154,14 @@ async def test_runtime_strips_thinking_before_persistence() -> None:
         assert messages[-1].content == "Eat noodles."
         assert "private" not in messages[-1].content
         assert result.thinkingIncluded is True
+        trace = RUNTIME_TRACE_STORE.latest()
+        assert trace is not None
+        sanitizer = next(
+            stage for stage in trace.stages if stage.name == "sanitization_final_answer"
+        )
+        assert sanitizer.metadata["thinkingTagDetected"] is True
+        assert sanitizer.metadata["thinkingRemoved"] is True
+        assert sanitizer.metadata["finalAnswerLength"] == len("Eat noodles.")
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 

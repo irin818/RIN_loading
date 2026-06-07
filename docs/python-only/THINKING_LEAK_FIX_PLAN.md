@@ -22,12 +22,19 @@ and has existing cleanup/rejection for:
 Owner feedback says reasoning/thinking can still leak in live replies, so the
 existing guard is not sufficient for all Qwen3 outputs.
 
+The Runtime Trace page now makes this observable through safe metadata such as
+`thinkingTagDetected`, `thinkingLikePrefixDetected`, `thinkingRemoved`,
+`rawContentLength`, `finalAnswerLength`, and stored-sanitized-only status. It
+does not expose full raw model output or hidden reasoning by default.
+
 ## Dedicated Follow-Up Scope
 
 Handle this in a separate model/runtime task:
 
 - verify Ollama receives `think=false` for qwen3:4b in live requests;
 - collect safe, redacted examples of leaked patterns;
+- use Runtime Trace sanitizer metadata to confirm which patterns were detected
+  or missed;
 - broaden post-generation sanitizer tests for Qwen3-specific output;
 - strip or reject additional `<think>...</think>` variants;
 - reject Chinese internal-analysis phrasing and reasoning preambles;
