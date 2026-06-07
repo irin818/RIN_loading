@@ -1,4 +1,4 @@
-"""Provider-free readiness report for the Python RIN candidate."""
+"""Provider-free readiness report for the Python RIN runtime."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from rin.version import __version__
 
 @dataclass(frozen=True)
 class PythonReadinessReport:
-    """Safe readiness summary for the Python migration foundation."""
+    """Safe readiness summary for the Python runtime foundation."""
 
     ok: bool
     package: str

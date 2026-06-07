@@ -17,7 +17,7 @@ class UnsafeDataPathError(ValueError):
 
 @dataclass(frozen=True)
 class TempDataDirectory:
-    """A verified temporary data directory for migration tests."""
+    """A verified temporary data directory for safe tests."""
 
     path: Path
 

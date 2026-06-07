@@ -1,1 +1,1 @@
-"""FastAPI compatibility layer for the Python RIN candidate."""
+"""FastAPI compatibility layer for the Python RIN runtime."""

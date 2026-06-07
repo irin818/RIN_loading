@@ -17,4 +17,4 @@ __all__ = [
     "validate_owner_profile",
     "validate_rin_profile",
 ]
-"""Profile model and validation helpers for the Python RIN candidate."""
+"""Profile model and validation helpers for the Python RIN runtime."""

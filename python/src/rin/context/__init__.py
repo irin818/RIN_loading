@@ -13,4 +13,4 @@ __all__ = [
     "priority_for",
     "segment",
 ]
-"""Context V2 assembly helpers for the Python RIN candidate."""
+"""Context V2 assembly helpers for the Python RIN runtime."""

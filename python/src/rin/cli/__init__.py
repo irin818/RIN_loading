@@ -1,1 +1,1 @@
-"""Command-line entry points for the Python RIN candidate."""
+"""Command-line entry points for the Python RIN runtime."""

@@ -1,4 +1,4 @@
-"""Run Python parity tests against the TypeScript reference fixtures."""
+"""Run Python foundation parity tests."""
 
 from __future__ import annotations
 

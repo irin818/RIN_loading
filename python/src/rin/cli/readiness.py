@@ -1,4 +1,4 @@
-"""CLI entry point for Python migration readiness."""
+"""CLI entry point for Python runtime readiness."""
 
 from __future__ import annotations
 

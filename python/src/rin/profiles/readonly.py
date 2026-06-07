@@ -210,7 +210,7 @@ def estimate_context_character_count(
 ) -> int:
     if issues or rin_profile is None or owner_profile is None:
         return 0
-    # Mirrors the TypeScript report's intent without exposing full profile text.
+    # Compact profile summary — no full profile text exposed.
     compact = {
         "rin": summary_counts(rin_profile),
         "owner": summary_counts(owner_profile),

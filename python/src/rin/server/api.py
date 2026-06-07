@@ -832,8 +832,6 @@ def build_diagnostics_payload(
             "conversationCount": database["conversations"],
             "messageCount": database["messages"],
             "profileFileCount": profile_file_count,
-            "backupDirPresent": False,
-            "pythonCutoverMarkerPresent": False,
         },
         "profiles": {
             "mode": "diagnostics-profiles",
@@ -1095,8 +1093,8 @@ def reject_unsafe_write_layout(layout: RinDataLayout) -> None:
             detail={
                 "code": "UNSAFE_DATA_PATH",
                 "message": (
-                    "Python compatibility API writes require /tmp/rin-python-* "
-                    "or the approved persistent sandbox."
+                    "Python API writes require /tmp/rin-python-* "
+                    "or the production .rin-data directory."
                 ),
             },
         ) from error

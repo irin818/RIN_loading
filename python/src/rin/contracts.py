@@ -1,7 +1,6 @@
-"""Pydantic data contracts for the Python RIN candidate.
+"""Pydantic data contracts for the RIN Python runtime.
 
-These models mirror the TypeScript RIN v2 JSON/data shapes. They intentionally
-contain no database access, provider calls, or production runtime behavior.
+These models contain no database access, provider calls, or side effects.
 """
 
 from __future__ import annotations

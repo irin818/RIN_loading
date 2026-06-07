@@ -1,1 +1,1 @@
-"""Configuration helpers for the Python RIN candidate."""
+"""Configuration helpers for the Python RIN runtime."""

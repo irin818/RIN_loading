@@ -1,4 +1,4 @@
-"""Candidate check for the current Python migration stage."""
+"""Aggregate candidate check for the Python RIN runtime."""
 
 from __future__ import annotations
 

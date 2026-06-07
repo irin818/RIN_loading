@@ -19,4 +19,4 @@ __all__ = [
     "normalize_latin_token",
     "preprocess_text",
 ]
-"""Memory V2 algorithms and repositories for the Python RIN candidate."""
+"""Memory V2 algorithms and repositories for the Python RIN runtime."""

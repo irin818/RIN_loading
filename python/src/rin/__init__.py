@@ -1,9 +1,4 @@
-"""Python candidate core for RIN.
-
-The TypeScript implementation remains the production reference until an
-owner-approved cutover. Python modules must default to provider-free behavior and
-must not write to the owner's production `.rin-data`.
-"""
+"""Python core runtime for RIN, the local-first personal agent system."""
 
 from rin.version import __version__
 

@@ -17,4 +17,4 @@ __all__ = [
     "inspect_core_state_files",
     "load_manifest",
 ]
-"""Storage and local data layout helpers for the Python RIN candidate."""
+"""Storage and local data layout helpers for the Python RIN runtime."""

@@ -51,4 +51,4 @@ __all__ = [
     "record_completed_turn",
     "record_failed_turn",
 ]
-"""SQLite database helpers for the Python RIN candidate."""
+"""SQLite database helpers for the Python RIN runtime."""

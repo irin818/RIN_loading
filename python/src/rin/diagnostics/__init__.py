@@ -1,1 +1,1 @@
-"""Diagnostics and migration safety helpers for the Python RIN candidate."""
+"""Diagnostics and safety helpers for the Python RIN runtime."""

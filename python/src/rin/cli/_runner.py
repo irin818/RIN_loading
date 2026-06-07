@@ -1,4 +1,4 @@
-"""Shared subprocess helpers for Python migration CLI checks."""
+"""Shared subprocess helpers for Python CLI checks."""
 
 from __future__ import annotations
 

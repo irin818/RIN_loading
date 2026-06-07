@@ -25,4 +25,4 @@ __all__ = [
     "OllamaGenerationOptions",
     "create_ollama_adapter_from_env",
 ]
-"""Model adapter interfaces for the Python RIN candidate."""
+"""Model adapter interfaces for the Python RIN runtime."""
