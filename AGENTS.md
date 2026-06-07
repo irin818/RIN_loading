@@ -223,15 +223,29 @@ Run checks relevant to the changed files.
 
 For Python runtime changes, prefer:
 
-sh cd python python -m pytest python -m ruff check . python -m ruff format --check . python -m mypy src rin-python-candidate-check rin-python-production-check 
+```sh
+cd python
+python -m pytest
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy src
+rin-python-candidate-check
+rin-python-production-check
+```
 
 For local model adapter changes, also run when available:
 
-sh RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke 
+```sh
+RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check
+RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke
+```
 
 For docs/governance-only changes, at minimum run when possible:
 
-sh git diff --check git status --short 
+```sh
+git diff --check
+git status --short
+```
 
 Never claim a check passed if it was not run.
 
@@ -265,4 +279,26 @@ For high-risk areas, inspect relevant tests, make small changes, preserve invari
 
 End each development task with:
 
-md ### Summary - What was done.  ### Changed Files - `path`: reason.  ### Tests / Checks - `command`: result. - Skipped checks, if any, with reason.  ### Git / GitHub - Branch: - Commit: - Push status: - PR status:  ### Risks - Remaining risks, assumptions, or uncertainty.  ### Next Step - Recommended next action. 
+```md
+### Summary
+- What was done.
+
+### Changed Files
+- `path`: reason.
+
+### Tests / Checks
+- `command`: result.
+- Skipped checks, if any, with reason.
+
+### Git / GitHub
+- Branch:
+- Commit:
+- Push status:
+- PR status:
+
+### Risks
+- Remaining risks, assumptions, or uncertainty.
+
+### Next Step
+- Recommended next action.
+```

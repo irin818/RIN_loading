@@ -74,11 +74,15 @@ Deferred features are listed in AGENTS.md.
 
 From the repository root:
 
-sh ./Start_RIN.command 
+```sh
+./Start_RIN.command
+```
 
 Default local URL:
 
-text http://127.0.0.1:8765/ 
+```text
+http://127.0.0.1:8765/
+```
 
 The launcher expects the Python environment and local model runtime to be prepared.
 
@@ -88,7 +92,12 @@ The launcher expects the Python environment and local model runtime to be prepar
 
 Create and install the Python environment:
 
-sh cd python python3.12 -m venv .venv . .venv/bin/activate python -m pip install -e ".[dev]" 
+```sh
+cd python
+python3.12 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e ".[dev]"
+```
 
 If python3.12 is not available, use another compatible Python 3.12+ executable.
 
@@ -98,11 +107,21 @@ If python3.12 is not available, use another compatible Python 3.12+ executable.
 
 Run from python/ after activating the virtual environment:
 
-sh python -m pytest python -m ruff check . python -m ruff format --check . python -m mypy src rin-python-candidate-check rin-python-production-check 
+```sh
+python -m pytest
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy src
+rin-python-candidate-check
+rin-python-production-check
+```
 
 Optional local-model checks:
 
-sh RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke 
+```sh
+RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check
+RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke
+```
 
 ---
 
@@ -123,7 +142,9 @@ sh RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check RIN_MODEL_ADAPTER=
 
 Local runtime data may exist under:
 
-text .rin-data/ 
+```text
+.rin-data/
+```
 
 Do not commit local data, databases, logs, exports, backups, or secrets.
 

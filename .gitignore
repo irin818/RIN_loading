@@ -7,6 +7,12 @@
 # logs
 *.log
 
+# build / dist
+build/
+dist/
+*.egg-info/
+.eggs/
+
 # cache
 .cache/
 coverage/
@@ -15,6 +21,15 @@ coverage/
 .ruff_cache/
 __pycache__/
 *.py[cod]
+
+# scratch / generated
+scratch/
+artifacts/
+generated/
+exports/
+local-exports/
+task-output/
+agent-output/
 
 # OS / editor
 .DS_Store
@@ -28,6 +43,8 @@ python/.venv/
 # local data
 .rin-data/
 .rin-imported-data/
+.rin-python-backups/
+.rin-python-cutover-state/
 *.db
 *.sqlite
 *.sqlite3
@@ -38,3 +55,11 @@ python/.venv/
 # temporary
 tmp/
 temp/
+*.tmp
+*.temp
+
+# backup / patch artifacts
+*.bak
+*.backup
+*.orig
+*.rej

@@ -34,13 +34,23 @@ Do not perform unrelated cleanup or broad rewrites.
 
 Before editing:
 
-sh git status --short git branch --show-current 
+```sh
+git status --short
+git branch --show-current
+```
 
 Use a scoped branch unless the owner explicitly requests direct work on main.
 
 Recommended branch prefixes:
 
-text governance/ docs/ fix/ feature/ codex/ cursor/ 
+```text
+governance/
+docs/
+fix/
+feature/
+codex/
+cursor/
+```
 
 Commit rules:
 
@@ -70,13 +80,23 @@ Owner edits are valid project state, not errors.
 
 For Python runtime changes, run from python/ when available:
 
-sh python -m pytest python -m ruff check . python -m ruff format --check . python -m mypy src rin-python-candidate-check rin-python-production-check 
+```sh
+python -m pytest
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy src
+rin-python-candidate-check
+rin-python-production-check
+```
 
 For targeted changes, targeted tests are acceptable when full checks are expensive.
 
 For local model adapter changes, also run when available:
 
-sh RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke 
+```sh
+RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check
+RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke
+```
 
 Never claim a check passed if it was not run.
 
@@ -86,7 +106,10 @@ Never claim a check passed if it was not run.
 
 For documentation-only or governance-only changes, run when possible:
 
-sh git diff --check git status --short 
+```sh
+git diff --check
+git status --short
+```
 
 Do not run expensive runtime checks unless the documentation change affects commands, runtime assumptions, or architecture.
 
@@ -111,7 +134,11 @@ Temporary files should be created only when necessary.
 
 Preferred locations:
 
-text /tmp/rin-* tmp/ temp/ 
+```text
+/tmp/rin-*
+tmp/
+temp/
+```
 
 Before finishing:
 

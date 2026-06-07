@@ -45,7 +45,16 @@ There is no active TypeScript/React/Vite runtime.
 
 Current runtime flow:
 
-text Browser UI   -> FastAPI server   -> conversation runtime   -> context assembly   -> model adapter   -> response validation   -> persistence   -> diagnostics / trace 
+```text
+Browser UI
+  -> FastAPI server
+  -> conversation runtime
+  -> context assembly
+  -> model adapter
+  -> response validation
+  -> persistence
+  -> diagnostics / trace
+```
 
 Key rule:
 
@@ -61,6 +70,7 @@ The UI must not directly call model providers or directly write long-term memory
 | python/src/rin/conversation/ | Chat-turn orchestration and conversation runtime |
 | python/src/rin/model/ | Provider-neutral model interfaces and adapters |
 | python/src/rin/memory/ | Memory proposal, review, retrieval, and memory context |
+| python/src/rin/context/ | Context assembly, context budgeting, and context reports |
 | python/src/rin/database/ | SQLite schema and persistence |
 | python/src/rin/storage/ | Local data layout and file handling |
 | python/src/rin/profiles/ | Owner model and AI identity model handling |

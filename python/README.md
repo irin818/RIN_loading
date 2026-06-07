@@ -11,7 +11,7 @@ The Python package covers:
 - Local Ollama model adapter (Qwen3 4B recommended)
 - SQLite conversation and memory storage
 - Profile validation, diagnostics, and readiness checks
-- Migration, backup, sandbox, and rollback tooling
+- Data safety checks, diagnostics, and provider-neutral runtime tooling
 - Provider-neutral model abstraction layer
 
 ## Dependencies
@@ -61,15 +61,9 @@ credentials.
 
 ## Data Safety
 
-The Python runtime writes production data only after the cutover marker exists:
-
-```text
-.rin-data/config/python_cutover_marker.json
-```
-
-Migration write tests use `/tmp/rin-python-*` paths only. The safety guard
-rejects writes to the production `.rin-data` directory during migration dry
-runs.
+The Python runtime only writes to the production `.rin-data` directory
+through gated safety checks. Temporary write tests use `/tmp/rin-python-*`
+paths only.
 
 ## Production Launch
 
