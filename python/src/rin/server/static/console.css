@@ -687,6 +687,31 @@ p {
   gap: 0.42rem;
 }
 
+.trace-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.trace-toolbar span {
+  margin-right: auto;
+}
+
+.trace-toolbar button {
+  min-height: 1.55rem;
+  padding: 0.18rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--green);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.68rem;
+}
+
 .trace-v2-summary div,
 .trace-flow-metrics article,
 .trace-stage,
@@ -934,7 +959,8 @@ p {
 .trace-window-layer {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 10000;
+  overflow: visible;
   pointer-events: none;
 }
 
@@ -943,7 +969,7 @@ p {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   width: min(520px, calc(100vw - 24px));
-  max-height: min(72vh, 680px);
+  max-height: min(78vh, 720px);
   overflow: hidden;
   background:
     linear-gradient(135deg, rgba(0, 255, 157, 0.08), rgba(255, 255, 255, 0.025)),
@@ -953,6 +979,7 @@ p {
     0 0 30px rgba(0, 255, 157, 0.08);
   backdrop-filter: blur(18px) saturate(1.2);
   pointer-events: auto;
+  resize: both;
 }
 
 .trace-window-titlebar {
@@ -966,6 +993,7 @@ p {
   color: var(--green);
   cursor: grab;
   user-select: none;
+  touch-action: none;
 }
 
 .trace-window-titlebar:active {
@@ -999,11 +1027,68 @@ p {
   min-height: 0;
   padding: 0.55rem;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .trace-window-summary {
   color: var(--cyan);
   font-size: 0.78rem;
+}
+
+.trace-window-purpose {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.trace-window-primary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.34rem;
+}
+
+.trace-window-primary div,
+.trace-window-visual {
+  border: 1px solid rgba(80, 255, 169, 0.12);
+  border-radius: 10px;
+  padding: 0.38rem;
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.trace-window-primary span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+.trace-window-primary b {
+  display: block;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+}
+
+.trace-window-table {
+  overflow: auto;
+}
+
+.trace-window-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.64rem;
+}
+
+.trace-window-table th,
+.trace-window-table td {
+  padding: 0.24rem 0.28rem;
+  border-bottom: 1px solid rgba(80, 255, 169, 0.1);
+  color: var(--muted);
+  text-align: left;
+  vertical-align: top;
+}
+
+.trace-window-table td {
+  color: var(--text);
 }
 
 .trace-window-json summary {

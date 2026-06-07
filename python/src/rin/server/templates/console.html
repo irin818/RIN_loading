@@ -137,6 +137,11 @@
               <div class="inline-chips"><span>Safe Mode</span><span>prompt hidden</span><span>raw output hidden</span></div>
             </header>
             {% if runtime_trace %}
+              <section class="trace-toolbar">
+                <span>Click any stage to open a free floating inspector.</span>
+                <button type="button" data-trace-reset-windows>Reset windows</button>
+                <button type="button" data-trace-close-windows>Close all windows</button>
+              </section>
               <section class="trace-v2-summary">
                 <div><span>Status</span><b>{{ runtime_trace.status }}</b></div>
                 <div><span>Duration</span><b>{{ runtime_trace.totalDurationMs }} ms</b></div>
@@ -203,16 +208,6 @@
                 <summary>Safe trace JSON</summary>
                 <pre>{{ runtime_trace }}</pre>
               </details>
-              <div id="trace-window-layer" class="trace-window-layer" aria-live="polite"></div>
-              <template id="trace-stage-window-template">
-                <section class="trace-window" role="dialog" aria-label="Runtime trace stage detail">
-                  <header class="trace-window-titlebar">
-                    <span class="trace-window-title"></span>
-                    <button type="button" class="trace-window-close" aria-label="Close stage window">x</button>
-                  </header>
-                  <div class="trace-window-body"></div>
-                </section>
-              </template>
             {% else %}
               <section class="empty-state">
                 <p class="eyebrow">No trace yet</p>
@@ -341,5 +336,15 @@
         </aside>
       </section>
     </main>
+    <div id="trace-window-layer" class="trace-window-layer" aria-live="polite"></div>
+    <template id="trace-stage-window-template">
+      <section class="trace-window" role="dialog" aria-label="Runtime trace stage detail">
+        <header class="trace-window-titlebar">
+          <span class="trace-window-title"></span>
+          <button type="button" class="trace-window-close" aria-label="Close stage window">x</button>
+        </header>
+        <div class="trace-window-body"></div>
+      </section>
+    </template>
   </body>
 </html>

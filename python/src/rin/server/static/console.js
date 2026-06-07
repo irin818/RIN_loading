@@ -136,8 +136,8 @@ function openTraceStageWindow(stageId, stages) {
 
   const offset = traceWindowOffset % 140;
   traceWindowOffset += 28;
-  element.style.left = `${Math.min(window.innerWidth - 360, 260 + offset)}px`;
-  element.style.top = `${Math.min(window.innerHeight - 260, 120 + offset)}px`;
+  element.style.left = `${Math.max(16, Math.min(window.innerWidth - 120, 220 + offset))}px`;
+  element.style.top = `${Math.max(16, Math.min(window.innerHeight - 52, 96 + offset))}px`;
 
   const close = element.querySelector(".trace-window-close");
   close.addEventListener("click", () => {
@@ -154,14 +154,29 @@ function openTraceStageWindow(stageId, stages) {
 
 function renderStageDetails(stage) {
   const fragment = document.createDocumentFragment();
+  const purpose = document.createElement("p");
+  purpose.className = "trace-window-purpose";
+  purpose.textContent = stagePurpose(stage.name);
+  fragment.appendChild(purpose);
+
   const summary = document.createElement("p");
   summary.className = "trace-window-summary";
   summary.textContent = stage.summary || "n/a";
   fragment.appendChild(summary);
 
-  ["input", "operation", "output", "decision", "privacy"].forEach((sectionName) => {
-    fragment.appendChild(renderObjectSection(sectionName, stage[sectionName] || {}));
-  });
+  fragment.appendChild(renderPrimaryFields(stage));
+  renderStageSpecificSections(stage).forEach((section) => fragment.appendChild(section));
+  fragment.appendChild(
+    renderObjectSection("Diagnostics", {
+      status: stage.status,
+      skipReason: readTracePath(stage, "decision.skipReason", "n/a"),
+      rejectionReason: readTracePath(stage, "decision.rejectionReason", "n/a"),
+      errors: stage.errors && stage.errors.length ? stage.errors.join(", ") : "n/a",
+      warnings:
+        stage.warnings && stage.warnings.length ? stage.warnings.join(", ") : "n/a",
+    }),
+  );
+  fragment.appendChild(renderObjectSection("Privacy", stage.privacy || {}));
   if (stage.warnings && stage.warnings.length) {
     fragment.appendChild(renderListSection("warnings", stage.warnings));
   }
@@ -178,6 +193,279 @@ function renderStageDetails(stage) {
   details.append(summaryNode, pre);
   fragment.appendChild(details);
   return fragment;
+}
+
+function stagePurpose(stageName) {
+  return {
+    input_received: "Owner message entered the runtime.",
+    owner_message_persisted: "Owner message was stored before model execution.",
+    profile_loading: "Slow-variable profile context loaded.",
+    recent_history_selection: "Short-term conversation context selected.",
+    memory_v2_retrieval: "Long-term memory retrieval status.",
+    context_assembly: "Runtime context assembled for model request.",
+    model_request: "Structured request prepared for local model.",
+    raw_model_response: "Raw model output received from provider.",
+    sanitization_final_answer: "Raw model output cleaned before display/storage.",
+    rin_reply_persisted: "Final answer saved to conversation history.",
+    memory_update: "Conversation turn contributed to Memory V2.",
+    response_returned: "Final response returned to UI.",
+  }[stageName] || "Runtime trace stage.";
+}
+
+function renderPrimaryFields(stage) {
+  const section = document.createElement("section");
+  section.className = "trace-window-primary";
+  curatedPrimaryFields(stage).forEach(([label, value]) => {
+    const item = document.createElement("div");
+    const key = document.createElement("span");
+    const body = document.createElement("b");
+    key.textContent = label;
+    body.textContent = formatTraceValue(value);
+    item.append(key, body);
+    section.appendChild(item);
+  });
+  return section;
+}
+
+function curatedPrimaryFields(stage) {
+  const name = stage.name;
+  if (name === "input_received") {
+    return [
+      ["preview", readTracePath(stage, "output.inputPreview")],
+      ["length", readTracePath(stage, "output.inputLength")],
+      ["hash", readTracePath(stage, "output.inputHash")],
+      ["conversation", readTracePath(stage, "input.conversationShortId")],
+      ["timestamp", readTracePath(stage, "input.timestamp")],
+      ["normalized", readTracePath(stage, "operation.normalizationApplied")],
+    ];
+  }
+  if (name === "owner_message_persisted") {
+    return [
+      ["message", readTracePath(stage, "output.messageShortId")],
+      ["conversation", readTracePath(stage, "input.conversationId")],
+      ["role", readTracePath(stage, "output.role")],
+      ["length", readTracePath(stage, "output.storedContentLength")],
+      ["hash", readTracePath(stage, "output.storedContentHash")],
+      ["written", readTracePath(stage, "output.databaseWriteSuccess")],
+    ];
+  }
+  if (name === "profile_loading") {
+    return [
+      ["RIN profile", readTracePath(stage, "output.rinProfilePresent")],
+      ["Owner profile", readTracePath(stage, "output.ownerProfilePresent")],
+      ["files", readTracePath(stage, "output.profileFilesLoaded", []).length],
+      ["status", readTracePath(stage, "output.profileValidationStatus")],
+      ["in context", readTracePath(stage, "decision.profileContextInjected")],
+      ["context chars", readTracePath(stage, "output.profileCharacterCountAvailable")],
+    ];
+  }
+  if (name === "recent_history_selection") {
+    return [
+      ["policy", readTracePath(stage, "input.selectionPolicy")],
+      ["available", readTracePath(stage, "input.availablePriorMessages")],
+      ["selected", readTracePath(stage, "output.selectedPriorMessages")],
+      ["owner", readTracePath(stage, "output.selectedOwnerCount")],
+      ["RIN", readTracePath(stage, "output.selectedRinCount")],
+      ["excluded", readTracePath(stage, "output.excludedMessagesCount")],
+    ];
+  }
+  if (name === "memory_v2_retrieval") {
+    return [
+      ["enabled", readTracePath(stage, "operation.retrievalEnabled")],
+      ["status", stage.status],
+      ["available traces", readTracePath(stage, "input.availableMemoryV2TraceCount")],
+      ["candidates", readTracePath(stage, "operation.candidateCount")],
+      ["selected", readTracePath(stage, "output.selectedTraceCount")],
+      ["injected", readTracePath(stage, "output.injectedIntoContext")],
+    ];
+  }
+  if (name === "context_assembly") {
+    return [
+      ["builder", readTracePath(stage, "operation.contextBuilderVersion")],
+      ["request messages", readTracePath(stage, "output.finalRequestMessageCount")],
+      ["context chars", readTracePath(stage, "output.finalContextCharacterCount")],
+      ["recent", readTracePath(stage, "output.recentHistoryIncludedCount")],
+      ["memory", readTracePath(stage, "output.memoryTracesIncludedCount")],
+      ["dropped", readTracePath(stage, "output.droppedCount")],
+    ];
+  }
+  if (name === "model_request") {
+    return [
+      ["adapter", readTracePath(stage, "operation.adapter")],
+      ["model", readTracePath(stage, "operation.model")],
+      ["timeout", readTracePath(stage, "operation.timeoutMs")],
+      ["think false", readTracePath(stage, "operation.thinkFalse")],
+      ["messages", readTracePath(stage, "output.requestMessageCount")],
+      ["chars", readTracePath(stage, "output.requestCharacterCount")],
+    ];
+  }
+  if (name === "raw_model_response") {
+    return [
+      ["duration", readTracePath(stage, "operation.durationMs")],
+      ["returned", readTracePath(stage, "output.providerReturned")],
+      ["length", readTracePath(stage, "output.rawContentLength")],
+      ["hash", readTracePath(stage, "output.rawContentHash")],
+      ["thinking tag", readTracePath(stage, "output.thinkingTagDetected")],
+      ["error", readTracePath(stage, "output.errorCode")],
+    ];
+  }
+  if (name === "sanitization_final_answer") {
+    return [
+      ["applied", readTracePath(stage, "operation.sanitizerApplied")],
+      ["tag removed", readTracePath(stage, "operation.thinkingTagRemoved")],
+      ["raw length", readTracePath(stage, "output.rawLength")],
+      ["final length", readTracePath(stage, "output.finalLength")],
+      ["removed", readTracePath(stage, "output.removedCharacterCount")],
+      ["rejected", readTracePath(stage, "decision.rejected")],
+    ];
+  }
+  if (name === "rin_reply_persisted") {
+    return [
+      ["message", readTracePath(stage, "output.messageShortId")],
+      ["role", readTracePath(stage, "output.role")],
+      ["length", readTracePath(stage, "output.storedContentLength")],
+      ["hash", readTracePath(stage, "output.storedContentHash")],
+      ["sanitized", readTracePath(stage, "output.storedSanitizedAnswer")],
+      ["raw thinking", readTracePath(stage, "output.storedRawThinking")],
+    ];
+  }
+  if (name === "memory_update") {
+    return [
+      ["attempted", readTracePath(stage, "operation.memoryV2UpdateAttempted")],
+      ["signals", readTracePath(stage, "output.signalsCreatedCount")],
+      ["traces created", readTracePath(stage, "output.tracesCreatedCount")],
+      ["traces updated", readTracePath(stage, "output.tracesUpdatedCount")],
+      ["source", readTracePath(stage, "input.sourceMessageId")],
+      ["full text stored", readTracePath(stage, "output.fullTextStoredInTrace")],
+    ];
+  }
+  if (name === "response_returned") {
+    return [
+      ["status", readTracePath(stage, "output.uiApiStatus")],
+      ["duration", readTracePath(stage, "output.totalDurationMs")],
+      ["final length", readTracePath(stage, "output.finalAnswerLength")],
+      ["conversation", readTracePath(stage, "output.conversationId")],
+      ["message", readTracePath(stage, "output.messageShortId")],
+      ["error", readTracePath(stage, "output.errorCode")],
+    ];
+  }
+  return [["status", stage.status], ["summary", stage.summary]];
+}
+
+function renderStageSpecificSections(stage) {
+  const sections = [];
+  if (stage.name === "recent_history_selection") {
+    sections.push(
+      renderTableSection("Selected messages", readTracePath(stage, "output.selectedMessages", []), [
+        "messageShortId",
+        "role",
+        "timestamp",
+        "length",
+        "preview",
+        "reason",
+      ]),
+    );
+  }
+  if (stage.name === "context_assembly") {
+    sections.push(
+      renderTableSection("Components", readTracePath(stage, "output.componentTable", []), [
+        "component",
+        "included",
+        "characterCount",
+        "sourceId",
+        "privacyStatus",
+      ]),
+    );
+  }
+  if (stage.name === "model_request") {
+    sections.push(
+      renderTableSection("Request outline", readTracePath(stage, "output.requestOutline", []), [
+        "index",
+        "role",
+        "characterCount",
+        "sourceComponent",
+        "preview",
+      ]),
+    );
+    sections.push(renderObjectSection("Model options", stage.operation || {}));
+  }
+  if (stage.name === "sanitization_final_answer") {
+    sections.push(renderSanitizerVisual(stage));
+    sections.push(
+      renderObjectSection("Rules", {
+        rulesApplied: readTracePath(stage, "operation.rulesApplied", []),
+        finalPreview: readTracePath(stage, "output.finalAnswerPreview"),
+        storedSanitizedOnly: readTracePath(stage, "output.storedSanitizedOnly"),
+      }),
+    );
+  }
+  if (stage.name === "memory_v2_retrieval") {
+    sections.push(
+      renderObjectSection("Integration gap", {
+        skipReason: readTracePath(stage, "decision.skipReason"),
+        explanation: readTracePath(stage, "decision.explanation"),
+        topTraceIds: readTracePath(stage, "output.topSelectedTraceIds", []),
+      }),
+    );
+  }
+  return sections;
+}
+
+function renderTableSection(title, rows, columns) {
+  const section = document.createElement("section");
+  section.className = "trace-window-section trace-window-table";
+  const heading = document.createElement("h4");
+  heading.textContent = title;
+  const table = document.createElement("table");
+  const head = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  columns.forEach((column) => {
+    const th = document.createElement("th");
+    th.textContent = column;
+    headRow.appendChild(th);
+  });
+  head.appendChild(headRow);
+  const body = document.createElement("tbody");
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    const tr = document.createElement("tr");
+    columns.forEach((column) => {
+      const td = document.createElement("td");
+      td.textContent = formatTraceValue(row[column]);
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  });
+  table.append(head, body);
+  section.append(heading, table);
+  return section;
+}
+
+function renderSanitizerVisual(stage) {
+  const raw = Number(readTracePath(stage, "output.rawLength", 0)) || 0;
+  const final = Number(readTracePath(stage, "output.finalLength", 0)) || 0;
+  const removed = Number(readTracePath(stage, "output.removedCharacterCount", 0)) || 0;
+  const finalPercent = raw > 0 ? Math.max(0, Math.min(100, Math.round((final / raw) * 100))) : 0;
+  const removedPercent = raw > 0
+    ? Math.max(0, Math.min(100, Math.round((removed / raw) * 100)))
+    : 0;
+  const section = document.createElement("section");
+  section.className = "trace-window-visual";
+  section.innerHTML = `
+    <h4>Raw → Final</h4>
+    <div class="trace-bar"><i style="width: ${finalPercent}%"></i><em style="width: ${removedPercent}%"></em></div>
+    <small>${raw} raw / ${final} final / ${removed} removed</small>
+  `;
+  return section;
+}
+
+function readTracePath(object, path, fallback = "n/a") {
+  const value = path.split(".").reduce((current, key) => {
+    if (current && Object.prototype.hasOwnProperty.call(current, key)) {
+      return current[key];
+    }
+    return undefined;
+  }, object);
+  return value === undefined || value === null ? fallback : value;
 }
 
 function renderObjectSection(title, data) {
@@ -233,23 +521,39 @@ function makeDraggable(element, handle) {
     handle.setPointerCapture(event.pointerId);
 
     function move(moveEvent) {
-      const maxLeft = Math.max(8, window.innerWidth - element.offsetWidth - 8);
-      const maxTop = Math.max(8, window.innerHeight - element.offsetHeight - 8);
-      const left = Math.min(Math.max(8, moveEvent.clientX - offsetX), maxLeft);
+      const maxLeft = Math.max(80 - element.offsetWidth, window.innerWidth - 80);
+      const maxTop = Math.max(8, window.innerHeight - 34);
+      const left = Math.min(Math.max(80 - element.offsetWidth, moveEvent.clientX - offsetX), maxLeft);
       const top = Math.min(Math.max(8, moveEvent.clientY - offsetY), maxTop);
       element.style.left = `${left}px`;
       element.style.top = `${top}px`;
     }
 
     function stop() {
-      handle.removeEventListener("pointermove", move);
-      handle.removeEventListener("pointerup", stop);
-      handle.removeEventListener("pointercancel", stop);
+      handle.releasePointerCapture(event.pointerId);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
     }
 
-    handle.addEventListener("pointermove", move);
-    handle.addEventListener("pointerup", stop);
-    handle.addEventListener("pointercancel", stop);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
+  });
+}
+
+function closeAllTraceWindows() {
+  openTraceWindows.forEach((element) => element.remove());
+  openTraceWindows.clear();
+}
+
+function resetTraceWindows() {
+  let index = 0;
+  openTraceWindows.forEach((element) => {
+    element.style.left = `${220 + index * 28}px`;
+    element.style.top = `${96 + index * 28}px`;
+    focusWindow(element);
+    index += 1;
   });
 }
 
@@ -326,6 +630,12 @@ document.addEventListener("DOMContentLoaded", () => {
       event.preventDefault();
       openTraceStageWindow(stage.dataset.traceStage, traceStages);
     });
+  });
+  document.querySelectorAll("[data-trace-close-windows]").forEach((button) => {
+    button.addEventListener("click", closeAllTraceWindows);
+  });
+  document.querySelectorAll("[data-trace-reset-windows]").forEach((button) => {
+    button.addEventListener("click", resetTraceWindows);
   });
 
   const formElement = document.getElementById("chat-form");
