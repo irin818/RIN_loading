@@ -1,141 +1,168 @@
-# Development Protocol
+# DEVELOPMENT_PROTOCOL.md
 
-For branch naming conventions and Git workflow, see the Git and GitHub
-Workflow section in `AGENTS.md`.
+## 1. Purpose
 
-## Commit Policy
+This file defines practical development procedures for RIN.
 
-- Commit minimal coherent changes.
-- Keep governance changes separate from runtime behavior changes when practical.
-- Do not include generated output, dependency folders, local data, secrets, or
-  unrelated formatting churn.
-- Use descriptive commit messages that identify the purpose of the change.
+It does not define project identity, long-term goals, architecture, or agent startup order.
 
-## Governance and Implementation Separation
+For those, use:
 
-- Keep strategic governance changes separate from runtime implementation
-  changes when practical.
-- Document local-model-first strategy changes before implementing new model
-  provider behavior.
-- Preserve branch, commit, PR, testing, and protected-file policies when
-  changing model strategy.
-- Do not use documentation-only strategy changes to imply that an adapter,
-  provider, or model runtime has already been implemented.
+- AGENTS.md for agent execution rules;
+- PROJECT_CHARTER.md for project principles;
+- ARCHITECTURE.md for runtime structure.
 
-## Pull Request Policy
+---
 
-- Prefer PRs for reviewable work once the GitHub repository exists.
-- PR descriptions should summarize behavior changes, risks, and checks.
-- Do not merge PRs or rewrite shared history unless explicitly requested.
+## 2. Basic Workflow
 
-## Codex Task Policy
+For each task:
 
-Multiple Codex conversations may work in this repository. Each task must:
+1. Confirm task scope.
+2. Inspect only relevant files.
+3. Check Git status.
+4. Make minimal coherent changes.
+5. Run relevant checks.
+6. Clean task-created temporary files.
+7. Report results using the format in AGENTS.md.
 
-- Inspect relevant files before editing.
-- Keep scope explicit and narrow.
-- Avoid unrelated cleanup.
-- Avoid broad rewrites.
-- Preserve runtime behavior unless behavior change is requested.
-- Avoid moving Live2D files or source modules without an explicit migration task.
-- Report changed files, checks, Git status, and unresolved risks.
+Do not perform unrelated cleanup or broad rewrites.
 
-If unexpected user or agent changes are present, work with them and do not
-revert them unless explicitly instructed.
+---
 
-For the RIN v2.0 continuation workflow (startup reads, stop checklist, handoff
-source of truth), see the RIN v2.0 Codex Continuation Protocol section in `AGENTS.md`.
+## 3. Git Procedure
 
-## Testing and Check Policy
+Before editing:
 
-Use the Python package under `python/`.
+sh git status --short git branch --show-current 
 
-Recommended aggregate check before final reports or PRs when practical:
+Use a scoped branch unless the owner explicitly requests direct work on main.
 
-- `python -m pytest`
-- `python -m ruff check .`
-- `python -m ruff format --check .`
-- `python -m mypy src`
-- `rin-python-candidate-check`
-- `rin-python-production-check`
+Recommended branch prefixes:
 
-Run these from `python/` after activating `.venv`.
+text governance/ docs/ fix/ feature/ codex/ cursor/ 
 
-For local-model work, also use the optional local model checks when Ollama is
-available:
+Commit rules:
 
-- `RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check`
-- `RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke`
+- commit small coherent changes;
+- use clear commit messages;
+- keep governance changes separate from runtime changes when practical;
+- do not commit generated files, local data, logs, dependencies, or secrets.
 
-Task-specific checks still apply. For example, Live2D, CLI, import/export,
-storage, or provider-specific changes may require additional targeted commands.
+Do not force-push, rewrite shared history, merge PRs, or delete active branches unless explicitly requested.
 
-Local Ollama readiness remains a separate optional check; the command shown
-above under local-model work (`RIN_PYTHON_CHECK_LOCAL_MODEL=1
-rin-python-production-check`) doubles as the readiness gate when Ollama is
-available.
+---
 
-Individual diagnosis or narrow verification:
+## 4. Handling Existing Changes
 
-- `python -m pytest tests/unit/test_memory_v2_algorithms.py -v` (targeted test file)
-- `python -m ruff check src/rin/memory/` (single-module lint)
-- `python -m mypy src/rin/memory/` (single-module type check)
+If there are unexpected existing changes:
 
-For documentation-only or governance-only changes, run available checks as a
-sanity pass when practical and report any skipped checks. If a check fails due
-to unrelated pre-existing issues, report the failure without attempting broad
-unrelated fixes.
+1. Do not overwrite them.
+2. Inspect them only if relevant.
+3. Adapt the task to avoid conflict.
+4. Report them in the final report.
 
-## Memory Retrieval Evaluation Policy
+Owner edits are valid project state, not errors.
 
-A Python memory retrieval evaluation harness is pending implementation. Once
-available, it should be run for any change to:
+---
 
-- `python/src/rin/memory/*`
-- `python/src/rin/context/*`
-- `python/src/rin/conversation/runtime.py`
-- memory context traceability, persistence, or reload logic
-- retrieval scoring, tokenization, trace, or fixture expectations
+## 5. Python Checks
 
-Same invariants apply: the harness must be deterministic, local, provider-free,
-and real-data-free — no model providers, no Ollama requirement, no real owner
-data. Failures should block merge unless the task intentionally updates
-retrieval behavior or fixture expectations with a documented explanation of how
-accepted-only, budget, privacy, and traceability constraints are preserved.
+For Python runtime changes, run from python/ when available:
 
-For the list of protected governance files and their rules, see the Protected
-Governance Files section in `AGENTS.md`.
+sh python -m pytest python -m ruff check . python -m ruff format --check . python -m mypy src rin-python-candidate-check rin-python-production-check 
 
-## Secret Handling Policy
+For targeted changes, targeted tests are acceptable when full checks are expensive.
+
+For local model adapter changes, also run when available:
+
+sh RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke 
+
+Never claim a check passed if it was not run.
+
+---
+
+## 6. Documentation / Governance Checks
+
+For documentation-only or governance-only changes, run when possible:
+
+sh git diff --check git status --short 
+
+Do not run expensive runtime checks unless the documentation change affects commands, runtime assumptions, or architecture.
+
+---
+
+## 7. Failure Handling
+
+When a check fails:
+
+1. Identify whether the failure is caused by the current task.
+2. Fix it only if it is in scope.
+3. Do not perform broad unrelated fixes.
+4. Report the exact failed command and a short failure summary.
+
+If the environment is missing or a check cannot run, report the reason.
+
+---
+
+## 8. Temporary Files
+
+Temporary files should be created only when necessary.
+
+Preferred locations:
+
+text /tmp/rin-* tmp/ temp/ 
+
+Before finishing:
+
+- remove task-created temporary files unless needed;
+- report any temporary files intentionally kept;
+- do not commit temporary outputs.
+
+---
+
+## 9. Local Data and Secret Safety
+
+Before committing, ensure no private or local-only files are included.
 
 Never commit:
 
-- `.env` or `.env.*`
+- .env
+- .env.*
 - API keys
 - tokens
 - credentials
-- private keys
-- certificates
-- logs containing private data
 - local databases
-- `.rin-data/`
+- .rin-data/
+- private logs
+- local conversation data
+- local memory data
+- backups
+- exports
 - dependency folders
-- caches
-- build output
+- cache folders
+- .DS_Store
 
-`.env.example` may be committed only when it contains safe placeholders.
+If a secret appears in tracked files, stop and report it.
 
-Do not print secrets in summaries, logs, commits, or PR descriptions.
+---
 
-## Live2D Development Safety Policy
+## 10. Data-Sensitive Changes
 
-- Preserve `live2d-development/` organization unless a task explicitly targets
-  Live2D development structure.
-- Keep runtime assets under `public/live2d/`.
-- Keep Live2D control code under `python/src/rin/body/`.
-- Do not mix source art, Cubism project files, exported runtime assets, and
-  control code.
-- Do not disrupt ongoing Live2D model/asset work from other conversations.
-- Do not change runtime asset paths without updating and testing all consumers.
+For changes touching local data, database schema, memory, identity, profile, context assembly, or persistence:
 
-For task completion report format, see the Final Report Format section in `AGENTS.md`.
+- inspect relevant tests first;
+- keep the change small;
+- preserve existing data;
+- add or update tests when behavior changes;
+- report remaining risk clearly.
+
+Do not delete, migrate, overwrite, or transform local owner data unless explicitly requested and safe.
+
+---
+
+## 11. Completion
+
+Use the final report format defined in AGENTS.md.
+
+Do not duplicate the report template here.

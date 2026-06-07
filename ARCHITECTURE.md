@@ -1,76 +1,228 @@
-# Architecture
+# ARCHITECTURE.md
 
-## Current Project Type
+## 1. Purpose
 
-`RIN-loading` is now a Python-first local runtime for the RIN personal agent
-system. Active runtime code lives under `python/src/rin`, with tests under
-`python/tests`.
+This file describes RIN's current implementation architecture.
 
-The project remains local-first, single-owner, and local-model-first. External
-APIs are not required for active operation.
+It should answer:
 
-## Active Runtime
+- what the active runtime is;
+- where core modules live;
+- how data flows through the system;
+- which module boundaries must be preserved.
 
-Active launcher:
-
-- `Start_RIN.command`
-
-It runs the Python FastAPI application on `127.0.0.1:8765`, defaults to local
-Ollama `qwen3:4b`, disables external API use, and serves the local Python web
-UI. The old `Start_RIN_Python.command`,
-`Start_RIN_Python_Local_Model.command`, and `打开RIN项目.command` launchers were
-removed intentionally to leave one owner-facing root launcher.
-
-The active UI is rendered with Jinja2 templates plus static CSS and minimal
-vanilla JavaScript from `python/src/rin/server/`. There is no frontend build
-chain. The console is a black-green RIN Control Console with navigation pages
-for overview, manual Chat / Test, model runtime, memory, context, database,
-conversations, profiles, body/Live2D, logs/events, and developer checks. It
-keeps a refined static RIN presence using local assets under `public/live2d/`
-and does not claim full Cubism runtime support.
-
-## Runtime Boundaries
-
-- `rin.server`: FastAPI API, Jinja2 templates, static CSS/JS, and local web UI.
-- `rin.conversation`: conversation runtime and model adapter boundary.
-- `rin.database`: SQLite schema inspection and writes.
-- `rin.storage`: local data layout and manifest handling.
-- `rin.profiles`: local profile validation and summaries.
-- `rin.model`: provider-neutral model adapters, including local Ollama.
-- `rin.diagnostics`: safety, readiness, cutover, and production checks.
-- `rin.body`: minimal replaceable body status boundary.
-
-## Data Safety
-
-Production data remains local under `.rin-data/`. Python production writes are
-allowed only after the cutover marker exists:
-
-```text
-.rin-data/config/python_cutover_marker.json
-```
-
-Backups under `.rin-python-backups/` must be preserved.
-
-## TypeScript Rollback
-
-The active tree no longer contains TypeScript Core, React/Vite UI, Node
-configuration, or runnable TypeScript fallback scripts.
-
-Rollback is preserved through Git:
-
-```text
-typescript-final-fallback
-```
+It should not define project identity, long-term goals, Git workflow, task protocol, or final report format.
 
 Use:
 
-```sh
-git checkout typescript-final-fallback
-```
+- AGENTS.md for agent execution rules;
+- PROJECT_CHARTER.md for long-term principles;
+- DEVELOPMENT_PROTOCOL.md for development procedures;
+- README.md for owner-facing usage instructions.
 
-## Live2D
+---
 
-Active Python production does not depend on Live2D rendering. Previous
-TypeScript body/Live2D runtime surfaces were retired for current production.
-Future Live2D work should be reintroduced as explicit Python-compatible work
-with new tests and docs.
+## 2. Current Runtime
+
+RIN is currently a Python-first local runtime.
+
+Active runtime stack:
+
+- Python package: python/src/rin/
+- Tests: python/tests/
+- Local server: FastAPI
+- Templates: Jinja2
+- UI assets: static CSS/JavaScript
+- Persistence: local SQLite and local files
+- Model access: provider-neutral adapter layer
+- Launcher: Start_RIN.command
+
+There is no active TypeScript/React/Vite runtime.
+
+---
+
+## 3. High-Level Data Flow
+
+Current runtime flow:
+
+text Browser UI   -> FastAPI server   -> conversation runtime   -> context assembly   -> model adapter   -> response validation   -> persistence   -> diagnostics / trace 
+
+Key rule:
+
+The UI must not directly call model providers or directly write long-term memory.
+
+---
+
+## 4. Module Boundaries
+
+| Path | Responsibility |
+|---|---|
+| python/src/rin/server/ | FastAPI routes, local UI, templates, static files |
+| python/src/rin/conversation/ | Chat-turn orchestration and conversation runtime |
+| python/src/rin/model/ | Provider-neutral model interfaces and adapters |
+| python/src/rin/memory/ | Memory proposal, review, retrieval, and memory context |
+| python/src/rin/database/ | SQLite schema and persistence |
+| python/src/rin/storage/ | Local data layout and file handling |
+| python/src/rin/profiles/ | Owner model and AI identity model handling |
+| python/src/rin/policy/ | Local policy checks, if present |
+| python/src/rin/diagnostics/ | Readiness checks, reports, runtime diagnostics |
+| python/src/rin/body/ | Minimal body / Live2D boundary |
+| python/tests/ | Active test suite |
+
+Do not mix these responsibilities without explicit architecture work.
+
+---
+
+## 5. Server and UI Layer
+
+The server/UI layer presents local runtime state and accepts owner interaction.
+
+It may:
+
+- serve local pages;
+- expose safe runtime status;
+- submit chat/test requests;
+- display diagnostics;
+- call internal server routes.
+
+It must not:
+
+- call model providers directly;
+- write long-term memory directly;
+- own identity, policy, or persistence logic;
+- expose secrets or private raw data by default.
+
+---
+
+## 6. Conversation Runtime
+
+The conversation runtime coordinates one chat turn.
+
+It may handle:
+
+- input normalization;
+- conversation selection;
+- context assembly;
+- model adapter invocation;
+- response validation;
+- error classification;
+- persistence;
+- safe trace metadata.
+
+It must not hard-code a specific model provider.
+
+---
+
+## 7. Model Layer
+
+The model layer isolates provider-specific behavior.
+
+Model providers must be accessed through adapters.
+
+The rest of the runtime should depend on stable model interfaces, not on one provider implementation.
+
+Model output is data. It must not directly update memory, identity, policy, or local data.
+
+---
+
+## 8. Memory and Context
+
+Memory is a slow-variable system.
+
+Memory-related code must preserve:
+
+- review before long-term acceptance;
+- bounded context injection;
+- accepted-memory filtering;
+- privacy;
+- traceability;
+- deterministic tests where practical.
+
+Context assembly is high-risk because it controls what the model sees.
+
+---
+
+## 9. Profiles and Identity
+
+Profile and identity records represent slow variables.
+
+They may include:
+
+- owner model;
+- AI identity model;
+- state-related records;
+- communication preferences;
+- long-term project context.
+
+They must not be overwritten directly by model output.
+
+---
+
+## 10. Storage and Database
+
+Local persistence may include:
+
+- conversation records;
+- memory records;
+- profile files;
+- identity files;
+- state files;
+- diagnostic records;
+- local configuration.
+
+Local data must remain untracked by Git.
+
+Schema changes must preserve existing owner data.
+
+---
+
+## 11. Diagnostics and Trace
+
+Diagnostics should make runtime behavior understandable without exposing private data.
+
+Diagnostics may expose:
+
+- adapter status;
+- safe metadata;
+- check results;
+- database status;
+- memory status;
+- context budget metadata;
+- error categories.
+
+Diagnostics must not expose secrets, API keys, full private prompts, raw memory content, or private local data by default.
+
+---
+
+## 12. Body / Live2D Boundary
+
+The body layer is a replaceable future embodiment boundary.
+
+Live2D is not:
+
+- identity;
+- memory;
+- reasoning;
+- policy;
+- persistence.
+
+Core runtime must not depend on Live2D.
+
+Real Cubism .moc3 loading and complete Live2D behavior are not active scope unless explicitly reopened.
+
+---
+
+## 13. Architecture Invariants
+
+Do not violate these invariants:
+
+- RIN remains local-first.
+- RIN remains single-owner.
+- Model providers remain replaceable.
+- UI does not directly call model providers.
+- Model output does not directly write memory, identity, policy, or local data.
+- Slow variables remain locally governed.
+- Local data remains protected.
+- Secrets are never committed.
+- Module boundaries remain clear.
+- Deferred systems remain deferred unless explicitly reopened.

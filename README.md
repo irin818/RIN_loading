@@ -1,119 +1,152 @@
-# RIN Loading
+# RIN
 
-RIN is a local-first, single-owner personal agent system. This repository is now
-Python-first for active runtime and development.
+## 1. Purpose
 
-## Active Runtime
+This README is the owner/developer usage guide for the current RIN repository.
 
-Use the default launcher from the repository root:
+It should answer:
 
-```sh
-./Start_RIN.command
-```
+- what the project currently is;
+- how to install it;
+- how to run it;
+- what the current runtime can do;
+- where the main code lives.
 
-It starts local Ollama/Qwen3 mode and opens the local FastAPI web UI at:
+It should not define agent rules, long-term project authority, Git workflow, or detailed architecture policy.
 
-```text
-http://127.0.0.1:8765/
-```
+Use:
 
-`Start_RIN.command` is the only normal owner-facing root launcher. It checks the
-Python venv, verifies Ollama and `qwen3:4b`, starts the server, opens the
-browser once, and keeps the terminal open so Ctrl-C stops the server. The old
-`Start_RIN_Python.command`, `Start_RIN_Python_Local_Model.command`, and
-`打开RIN项目.command` aliases were removed intentionally to reduce launcher
-confusion.
+- AGENTS.md for AI agent execution rules;
+- PROJECT_CHARTER.md for long-term goals and principles;
+- DEVELOPMENT_PROTOCOL.md for development workflow;
+- ARCHITECTURE.md for runtime structure.
 
-## Python Console UI
+---
 
-The active local console uses FastAPI, Jinja2 templates, static CSS, and minimal
-vanilla JavaScript. It has no TypeScript, React, Vite, Node, npm, or frontend
-build chain.
+## 2. What RIN Is
 
-The console is now the RIN Control Console: a black-green diagnostics UI for
-observing, testing, and understanding RIN. It includes Overview, Chat / Test,
-Runtime Trace, Model, Memory, Context, Database, Conversations, Profiles, Body /
-Live2D, Logs / Events, and Developer Checks pages. Chat remains a first-class
-manual runtime test interface, not a deprecated surface. Runtime Trace shows safe
-metadata from the real backend chat-turn pipeline without exposing full prompts,
-profile text, memory text, or raw model output by default.
+RIN is a local-first, single-owner personal AI runtime.
 
-## Install
+The current repository is the Python-first local runtime for RIN.
 
-Create the Python environment:
+RIN is not a generic chatbot, SaaS product, Live2D toy, or simple API wrapper.
 
-```sh
-cd python
-python3.12 -m venv .venv
-.venv/bin/python -m pip install -e ".[dev]"
-```
+---
 
-No external API key is required for the active runtime.
+## 3. Current Status
 
-## Production Safety
+Current active stack:
 
-Python production launchers require the migration marker:
+- Python package under python/src/rin/
+- tests under python/tests/
+- FastAPI local server
+- Jinja2 templates
+- static CSS/JavaScript
+- SQLite and local-file persistence
+- provider-neutral model adapter layer
+- local-model-first runtime strategy
+- launcher: Start_RIN.command
 
-```text
-.rin-data/config/python_cutover_marker.json
-```
+There is no active TypeScript/React/Vite runtime.
 
-Do not delete:
+---
 
-- `.rin-data/`
-- `.rin-python-backups/`
-- `.rin-python-cutover-state/`
+## 4. Current Capabilities
 
-These local data and backup directories are ignored by Git.
+The current runtime focuses on:
 
-## Checks
+- local web console;
+- manual Chat/Test interface;
+- conversation runtime;
+- model adapter boundary;
+- local conversation persistence;
+- memory proposal/review foundations;
+- profile and identity file handling;
+- runtime trace and diagnostics;
+- developer checks;
+- minimal body/Live2D boundary placeholder.
 
-Run active Python checks:
+Deferred features are listed in AGENTS.md.
 
-```sh
-cd python
-. .venv/bin/activate
-python -m pytest
-python -m ruff check .
-python -m ruff format --check .
-python -m mypy src
-rin-python-candidate-check
-rin-python-production-check
-```
+---
 
-Optional local-model readiness:
+## 5. Run
 
-```sh
-RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check
-RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke
-```
+From the repository root:
 
-## Rollback
+sh ./Start_RIN.command 
 
-The final TypeScript fallback tag is:
+Default local URL:
 
-```text
-typescript-final-fallback
-```
+text http://127.0.0.1:8765/ 
 
-Rollback requires checking out that tag:
+The launcher expects the Python environment and local model runtime to be prepared.
 
-```sh
-git checkout typescript-final-fallback
-```
+---
 
-The current tree no longer keeps runnable TypeScript fallback scripts because the
-TypeScript source and Node configuration have been removed.
+## 6. Development Setup
 
-## Documentation
+Create and install the Python environment:
 
-Important Python-only transition docs:
+sh cd python python3.12 -m venv .venv . .venv/bin/activate python -m pip install -e ".[dev]" 
 
-- `docs/python-only/TYPESCRIPT_DELETION_BLOCKER_INVENTORY.md`
-- `docs/python-only/PYTHON_UI_COMPLETION_REPORT.md`
-- `docs/python-only/BODY_LIVE2D_RETIREMENT_OR_REPLACEMENT.md`
-- `docs/python-only/OPERATIONAL_SURFACE_RETIREMENT_REPORT.md`
-- `docs/python-only/TYPESCRIPT_FALLBACK_GUIDE.md`
-- `docs/python-only/PYTHON_CONSOLE_UI_REBUILD.md`
-- `docs/python-only/RUNTIME_DATAFLOW_TRACE.md`
+If python3.12 is not available, use another compatible Python 3.12+ executable.
 
+---
+
+## 7. Checks
+
+Run from python/ after activating the virtual environment:
+
+sh python -m pytest python -m ruff check . python -m ruff format --check . python -m mypy src rin-python-candidate-check rin-python-production-check 
+
+Optional local-model checks:
+
+sh RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke 
+
+---
+
+## 8. Main Directories
+
+| Path | Purpose |
+|---|---|
+| python/src/rin/ | Active Python runtime |
+| python/tests/ | Active Python tests |
+| python/pyproject.toml | Python package and tool configuration |
+| public/ | Public static assets when used |
+| live2d-development/ | Live2D authoring workspace, not core runtime |
+| .rin-data/ | Local runtime data, not committed |
+
+---
+
+## 9. Local Data
+
+Local runtime data may exist under:
+
+text .rin-data/ 
+
+Do not commit local data, databases, logs, exports, backups, or secrets.
+
+---
+
+## 10. Governance Files
+
+| File | Role |
+|---|---|
+| AGENTS.md | First-read file for AI development agents |
+| PROJECT_CHARTER.md | Long-term project principles |
+| DEVELOPMENT_PROTOCOL.md | Practical development workflow |
+| ARCHITECTURE.md | Current runtime architecture |
+| README.md | Human usage guide |
+
+AI agents should not use this README as their default startup context. They should read AGENTS.md first.
+
+---
+
+## 11. Development Principle
+
+Develop RIN in small, testable, reviewable steps.
+
+Do not damage long-term architecture for short-term convenience.
+
+Slow variables control fast variables.
