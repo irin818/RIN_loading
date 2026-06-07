@@ -11,6 +11,7 @@
     <main
       class="control-console-shell"
       data-selected-conversation="{{ selected_conversation_id or '' }}"
+      data-active-tab="{{ active_tab }}"
       data-dashboard-url="/api/status-dashboard{% if selected_conversation_id %}?conversationId={{ selected_conversation_id }}{% endif %}"
     >
       <div class="ambient-grid" aria-hidden="true"></div>
@@ -48,22 +49,22 @@
 
       <section class="console-grid">
         <nav class="console-nav glass-panel" aria-label="Console pages">
-          <button class="nav-tab active" type="button" data-console-tab="overview">Overview</button>
-          <button class="nav-tab" type="button" data-console-tab="chat">Chat / Test</button>
-          <button class="nav-tab" type="button" data-console-tab="runtime-trace">Runtime Trace</button>
-          <button class="nav-tab" type="button" data-console-tab="model">Model</button>
-          <button class="nav-tab" type="button" data-console-tab="memory">Memory</button>
-          <button class="nav-tab" type="button" data-console-tab="context">Context</button>
-          <button class="nav-tab" type="button" data-console-tab="database">Database</button>
-          <button class="nav-tab" type="button" data-console-tab="conversations">Conversations</button>
-          <button class="nav-tab" type="button" data-console-tab="profiles">Profiles</button>
-          <button class="nav-tab" type="button" data-console-tab="body">Body / Live2D</button>
-          <button class="nav-tab" type="button" data-console-tab="events">Logs / Events</button>
-          <button class="nav-tab" type="button" data-console-tab="developer">Developer Checks</button>
+          <button class="nav-tab{% if active_tab == 'overview' %} active{% endif %}" type="button" data-console-tab="overview">Overview</button>
+          <button class="nav-tab{% if active_tab == 'chat' %} active{% endif %}" type="button" data-console-tab="chat">Chat / Test</button>
+          <button class="nav-tab{% if active_tab == 'runtime-trace' %} active{% endif %}" type="button" data-console-tab="runtime-trace">Runtime Trace</button>
+          <button class="nav-tab{% if active_tab == 'model' %} active{% endif %}" type="button" data-console-tab="model">Model</button>
+          <button class="nav-tab{% if active_tab == 'memory' %} active{% endif %}" type="button" data-console-tab="memory">Memory</button>
+          <button class="nav-tab{% if active_tab == 'context' %} active{% endif %}" type="button" data-console-tab="context">Context</button>
+          <button class="nav-tab{% if active_tab == 'database' %} active{% endif %}" type="button" data-console-tab="database">Database</button>
+          <button class="nav-tab{% if active_tab == 'conversations' %} active{% endif %}" type="button" data-console-tab="conversations">Conversations</button>
+          <button class="nav-tab{% if active_tab == 'profiles' %} active{% endif %}" type="button" data-console-tab="profiles">Profiles</button>
+          <button class="nav-tab{% if active_tab == 'body' %} active{% endif %}" type="button" data-console-tab="body">Body / Live2D</button>
+          <button class="nav-tab{% if active_tab == 'events' %} active{% endif %}" type="button" data-console-tab="events">Logs / Events</button>
+          <button class="nav-tab{% if active_tab == 'developer' %} active{% endif %}" type="button" data-console-tab="developer">Developer Checks</button>
         </nav>
 
         <section class="console-main glass-panel" aria-label="Selected console page">
-          <section class="console-page active" data-console-page="overview">
+          <section class="console-page{% if active_tab == 'overview' %} active{% endif %}" data-console-page="overview">
             <header class="page-heading">
               <div><p class="eyebrow">Overview</p><h2>Kernel State</h2></div>
               <button class="ghost-button" type="button" data-refresh-dashboard>Refresh</button>
@@ -96,7 +97,7 @@
             </section>
           </section>
 
-          <section class="console-page" data-console-page="chat">
+          <section class="console-page{% if active_tab == 'chat' %} active{% endif %}" data-console-page="chat">
             <header class="page-heading">
               <div><p class="eyebrow">Manual Runtime Test Chat</p><h2>Chat / Test Interface · Local conversation</h2></div>
               <div class="inline-chips"><span>{{ adapter_id }}</span><span>{{ model_name }}</span><span>{{ local_model_status }}</span></div>
@@ -130,7 +131,7 @@
             </form>
           </section>
 
-          <section class="console-page" data-console-page="runtime-trace">
+          <section class="console-page{% if active_tab == 'runtime-trace' %} active{% endif %}" data-console-page="runtime-trace">
             <header class="page-heading">
               <div><p class="eyebrow">Runtime Dataflow Analyzer</p><h2>Latest Backend Turn Pipeline</h2></div>
               <div class="inline-chips"><span>Safe Mode</span><span>prompt hidden</span><span>raw output hidden</span></div>
@@ -156,10 +157,11 @@
                 <article><span>Stored sanitized</span><b>{{ runtime_trace.analysis.storedSanitizedOnly }}</b></article>
               </section>
 
-              <section class="trace-analyzer">
+              <script id="trace-stage-data" type="application/json">{{ runtime_trace.stages | tojson }}</script>
+              <section class="trace-analyzer trace-analyzer-compact">
                 <nav class="trace-timeline compact" aria-label="Runtime pipeline timeline">
                   {% for stage in runtime_trace.stages %}
-                    <button class="trace-stage {{ stage.status }}{% if loop.first %} active{% endif %}" type="button" data-trace-stage="{{ stage.name }}">
+                    <button class="trace-stage {{ stage.status }}" type="button" data-trace-stage="{{ stage.name }}" data-stage-id="{{ stage.name }}">
                       <span>{{ loop.index }}</span>
                       <strong>{{ stage.displayName }}</strong>
                       <em>{{ stage.status }}</em>
@@ -167,34 +169,6 @@
                     </button>
                   {% endfor %}
                 </nav>
-
-                <section class="trace-detail-v2">
-                  {% for stage in runtime_trace.stages %}
-                    <article class="trace-stage-panel{% if loop.first %} active{% endif %}" data-trace-stage-panel="{{ stage.name }}">
-                      <header>
-                        <div><p class="eyebrow">{{ stage.name }}</p><h3>{{ stage.displayName }}</h3></div>
-                        <div class="inline-chips"><span>{{ stage.status }}</span><span>{{ stage.durationMs }} ms</span><span>{{ stage.summary }}</span></div>
-                      </header>
-                      {% for section_name, section in [("Input", stage.input), ("Operation", stage.operation), ("Output", stage.output), ("Decision", stage.decision), ("Privacy", stage.privacy)] %}
-                        <section class="trace-section">
-                          <h4>{{ section_name }}</h4>
-                          <dl>
-                            {% for key, value in section.items() %}
-                              <div><dt>{{ key }}</dt><dd>{{ value }}</dd></div>
-                            {% endfor %}
-                          </dl>
-                        </section>
-                      {% endfor %}
-                      {% if stage.warnings %}
-                        <section class="trace-section warning"><h4>Warnings</h4><p>{{ stage.warnings | join(", ") }}</p></section>
-                      {% endif %}
-                      {% if stage.errors %}
-                        <section class="trace-section error"><h4>Errors</h4><p>{{ stage.errors | join(", ") }}</p></section>
-                      {% endif %}
-                    </article>
-                  {% endfor %}
-                </section>
-
                 <aside class="trace-e2e">
                   <h3>End-to-End Summary</h3>
                   <div class="trace-bar-block">
@@ -229,6 +203,16 @@
                 <summary>Safe trace JSON</summary>
                 <pre>{{ runtime_trace }}</pre>
               </details>
+              <div id="trace-window-layer" class="trace-window-layer" aria-live="polite"></div>
+              <template id="trace-stage-window-template">
+                <section class="trace-window" role="dialog" aria-label="Runtime trace stage detail">
+                  <header class="trace-window-titlebar">
+                    <span class="trace-window-title"></span>
+                    <button type="button" class="trace-window-close" aria-label="Close stage window">x</button>
+                  </header>
+                  <div class="trace-window-body"></div>
+                </section>
+              </template>
             {% else %}
               <section class="empty-state">
                 <p class="eyebrow">No trace yet</p>
@@ -238,7 +222,7 @@
             {% endif %}
           </section>
 
-          <section class="console-page" data-console-page="model">
+          <section class="console-page{% if active_tab == 'model' %} active{% endif %}" data-console-page="model">
             <header class="page-heading"><div><p class="eyebrow">Model Runtime</p><h2>Adapter and Local Model</h2></div></header>
             <section class="data-list">
               <div><span>Adapter</span><b>{{ diagnostics.model.adapter }}</b></div>
@@ -252,7 +236,7 @@
             </section>
           </section>
 
-          <section class="console-page" data-console-page="memory">
+          <section class="console-page{% if active_tab == 'memory' %} active{% endif %}" data-console-page="memory">
             <header class="page-heading"><div><p class="eyebrow">Memory System</p><h2>Memory V2</h2></div></header>
             <section class="split-panel">
               <div class="metric-card memory-card"><div><p class="eyebrow">Trace count</p><strong>{{ diagnostics.memory.memoryV2Traces }}</strong><span>Trace full text: {{ diagnostics.memory.fullTextIncluded }}</span></div><div class="trace-ring" style="--ring-fill: {{ dashboard.memoryContext.ringFillPercent }}%"><span>{{ diagnostics.memory.memoryV2Traces }}</span></div></div>
@@ -260,7 +244,7 @@
             </section>
           </section>
 
-          <section class="console-page" data-console-page="context">
+          <section class="console-page{% if active_tab == 'context' %} active{% endif %}" data-console-page="context">
             <header class="page-heading"><div><p class="eyebrow">Context Builder</p><h2>Context V2</h2></div></header>
             <section class="data-list">
               <div><span>Recent window</span><b>{{ diagnostics.context.recentWindowPolicy }}</b></div>
@@ -272,7 +256,7 @@
             </section>
           </section>
 
-          <section class="console-page" data-console-page="database">
+          <section class="console-page{% if active_tab == 'database' %} active{% endif %}" data-console-page="database">
             <header class="page-heading"><div><p class="eyebrow">Database / Storage</p><h2>Read-Only Storage Diagnostics</h2></div></header>
             <section class="data-list">
               <div><span>Data dir</span><b>{{ diagnostics.database.dataDirName }}</b></div>
@@ -286,7 +270,7 @@
             </section>
           </section>
 
-          <section class="console-page" data-console-page="conversations">
+          <section class="console-page{% if active_tab == 'conversations' %} active{% endif %}" data-console-page="conversations">
             <header class="page-heading"><div><p class="eyebrow">Conversations</p><h2>Recent Conversation Index</h2></div></header>
             <section class="conversation-table">
               {% for item in diagnostics.overview.conversations %}
@@ -297,7 +281,7 @@
             </section>
           </section>
 
-          <section class="console-page" data-console-page="profiles">
+          <section class="console-page{% if active_tab == 'profiles' %} active{% endif %}" data-console-page="profiles">
             <header class="page-heading"><div><p class="eyebrow">Profiles</p><h2>Safe Profile Status</h2></div></header>
             <section class="data-list">
               <div><span>Status</span><b>{{ diagnostics.profiles.status }}</b></div>
@@ -307,7 +291,7 @@
             </section>
           </section>
 
-          <section class="console-page" data-console-page="body">
+          <section class="console-page{% if active_tab == 'body' %} active{% endif %}" data-console-page="body">
             <header class="page-heading"><div><p class="eyebrow">Body / Live2D</p><h2>Static Web Presence</h2></div></header>
             <section class="data-list">
               <div><span>Status</span><b>{{ diagnostics.body.status }}</b></div>
@@ -318,7 +302,7 @@
             </section>
           </section>
 
-          <section class="console-page" data-console-page="events">
+          <section class="console-page{% if active_tab == 'events' %} active{% endif %}" data-console-page="events">
             <header class="page-heading"><div><p class="eyebrow">Logs / Events</p><h2>Safe Diagnostics</h2></div></header>
             <section class="data-list">
               <div><span>Audit events</span><b>{{ diagnostics.events.recentAuditEventCount }}</b></div>
@@ -329,7 +313,7 @@
             </section>
           </section>
 
-          <section class="console-page" data-console-page="developer">
+          <section class="console-page{% if active_tab == 'developer' %} active{% endif %}" data-console-page="developer">
             <header class="page-heading"><div><p class="eyebrow">Developer Checks</p><h2>Command Guidance</h2></div></header>
             <section class="command-list">
               <code>python -m pytest</code>

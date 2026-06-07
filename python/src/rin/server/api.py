@@ -348,6 +348,7 @@ def create_app(
                 current_layout,
                 current_adapter,
                 selected_conversation_id=target_conversation_id,
+                active_tab="chat",
                 notice=f"Reply stored with turn {result['turnId']}.",
             )
         except Exception as error:
@@ -356,6 +357,7 @@ def create_app(
                 current_layout,
                 current_adapter,
                 selected_conversation_id=body.conversationId,
+                active_tab="chat",
                 error=f"{type(error).__name__}: {error}",
             )
 
@@ -450,6 +452,7 @@ def render_console_page(
     *,
     selected_conversation_id: str | None = None,
     force_new_chat: bool = False,
+    active_tab: str = "overview",
     notice: str | None = None,
     error: str | None = None,
 ) -> Response:
@@ -461,6 +464,7 @@ def render_console_page(
             adapter,
             selected_conversation_id=selected_conversation_id,
             force_new_chat=force_new_chat,
+            active_tab=active_tab,
             notice=notice,
             error=error,
         ),
@@ -473,6 +477,7 @@ def build_console_view_model(
     *,
     selected_conversation_id: str | None = None,
     force_new_chat: bool = False,
+    active_tab: str = "overview",
     notice: str | None = None,
     error: str | None = None,
 ) -> dict[str, object]:
@@ -546,6 +551,7 @@ def build_console_view_model(
         "dashboard": dashboard,
         "diagnostics": diagnostics,
         "runtime_trace": latest_trace.to_safe_dict() if latest_trace else None,
+        "active_tab": active_tab,
         "notice": notice,
         "error": error,
     }

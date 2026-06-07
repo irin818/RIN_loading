@@ -690,12 +690,12 @@ p {
 .trace-v2-summary div,
 .trace-flow-metrics article,
 .trace-stage,
-.trace-stage-panel,
 .trace-e2e,
-.trace-section,
 .trace-privacy-box,
 .trace-diagnostic-note,
-.safe-json {
+.safe-json,
+.trace-window,
+.trace-window-section {
   border: 1px solid rgba(80, 255, 169, 0.14);
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.16);
@@ -731,13 +731,12 @@ p {
 
 .trace-analyzer {
   display: grid;
-  grid-template-columns: minmax(210px, 270px) minmax(0, 1fr) minmax(230px, 280px);
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   gap: 0.58rem;
   min-height: 0;
 }
 
 .trace-timeline.compact,
-.trace-detail-v2,
 .trace-e2e,
 .trace-duration-bars {
   display: grid;
@@ -782,6 +781,8 @@ p {
 
 .trace-stage b {
   grid-column: 2 / 4;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -799,72 +800,53 @@ p {
   border-color: rgba(255, 120, 149, 0.45);
 }
 
-.trace-stage-panel {
-  display: none;
-  gap: 0.48rem;
-  padding: 0.58rem;
-}
-
-.trace-stage-panel.active {
-  display: grid;
-}
-
-.trace-stage-panel header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-}
-
-.trace-stage-panel h3,
 .trace-e2e h3,
-.trace-section h4 {
+.trace-window-section h4 {
   color: var(--green);
 }
 
-.trace-stage-panel h3 {
-  font-size: 1rem;
-}
-
-.trace-section {
+.trace-window-section {
   padding: 0.46rem;
 }
 
-.trace-section h4 {
+.trace-window-section h4 {
   margin: 0 0 0.32rem;
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.trace-section dl {
+.trace-window-section dl {
   display: grid;
   gap: 0.22rem;
   margin: 0;
 }
 
-.trace-section dl div {
+.trace-window-section dl div {
   display: grid;
   grid-template-columns: minmax(108px, 165px) minmax(0, 1fr);
   gap: 0.42rem;
 }
 
-.trace-section dt,
-.trace-section dd {
+.trace-window-section dt,
+.trace-window-section dd {
   margin: 0;
   font-size: 0.68rem;
   word-break: break-word;
 }
 
-.trace-section.warning {
+.trace-window-section.warning,
+.trace-window-section.warnings {
   border-color: rgba(216, 216, 120, 0.28);
 }
 
-.trace-section.error {
+.trace-window-section.error,
+.trace-window-section.errors {
   border-color: rgba(255, 120, 149, 0.32);
 }
 
 .trace-e2e {
+  min-width: 0;
   padding: 0.56rem;
 }
 
@@ -946,6 +928,95 @@ p {
   overflow: auto;
   color: var(--muted);
   font-size: 0.68rem;
+  white-space: pre-wrap;
+}
+
+.trace-window-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+}
+
+.trace-window {
+  position: fixed;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(520px, calc(100vw - 24px));
+  max-height: min(72vh, 680px);
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(0, 255, 157, 0.08), rgba(255, 255, 255, 0.025)),
+    rgba(2, 9, 6, 0.9);
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.56),
+    0 0 30px rgba(0, 255, 157, 0.08);
+  backdrop-filter: blur(18px) saturate(1.2);
+  pointer-events: auto;
+}
+
+.trace-window-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  min-height: 2.1rem;
+  padding: 0.42rem 0.52rem;
+  border-bottom: 1px solid rgba(80, 255, 169, 0.16);
+  color: var(--green);
+  cursor: grab;
+  user-select: none;
+}
+
+.trace-window-titlebar:active {
+  cursor: grabbing;
+}
+
+.trace-window-title {
+  overflow: hidden;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trace-window-close {
+  display: grid;
+  place-items: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border: 1px solid rgba(80, 255, 169, 0.22);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--green);
+  cursor: pointer;
+}
+
+.trace-window-body {
+  display: grid;
+  gap: 0.46rem;
+  min-height: 0;
+  padding: 0.55rem;
+  overflow: auto;
+}
+
+.trace-window-summary {
+  color: var(--cyan);
+  font-size: 0.78rem;
+}
+
+.trace-window-json summary {
+  color: var(--cyan);
+  cursor: pointer;
+  font-size: 0.72rem;
+}
+
+.trace-window-json pre {
+  max-height: 12rem;
+  overflow: auto;
+  color: var(--muted);
+  font-size: 0.65rem;
   white-space: pre-wrap;
 }
 
