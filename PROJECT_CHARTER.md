@@ -131,7 +131,6 @@ Cloud services may only be:
 
 - optional expert or fallback reasoning providers;
 - optional encrypted transport layers;
-- optional encrypted backup storage;
 - optional external tool providers.
 
 Cloud services must never become RIN's identity source.
@@ -376,9 +375,10 @@ Rules:
 
 ---
 
-## 18. Deferred Systems
+## 18. Removed or Inactive Systems
 
-The following are not active development scope unless explicitly reopened by the owner:
+The following are removed from current active product scope unless
+explicitly reopened by the owner:
 
 - backup;
 - restore;
@@ -393,7 +393,10 @@ The following are not active development scope unless explicitly reopened by the
 - TypeScript/React/Vite runtime restoration;
 - complete Live2D behavior.
 
-Preserve future compatibility where practical, but do not let deferred systems distort current core development.
+Safety-critical data guards, schema protections, and local data integrity
+checks may remain when they protect existing owner data.
+
+Do not let removed or inactive systems distort current core development.
 
 ---
 

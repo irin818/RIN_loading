@@ -1,7 +1,7 @@
 # RIN Python Core
 
 This directory contains the Python runtime for RIN, the local-first personal
-agent system. It is the active production runtime as of the Python cutover.
+agent system. It is the active Python runtime for the current RIN project.
 
 ## Scope
 
@@ -10,7 +10,7 @@ The Python package covers:
 - FastAPI web server with Jinja2 console UI
 - Local Ollama model adapter (Qwen3 4B recommended)
 - SQLite conversation and memory storage
-- Profile validation, diagnostics, and readiness checks
+- Profile validation and readiness checks
 - Data safety checks, diagnostics, and provider-neutral runtime tooling
 - Provider-neutral model abstraction layer
 

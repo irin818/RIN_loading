@@ -235,4 +235,4 @@ Do not violate these invariants:
 - Local data remains protected.
 - Secrets are never committed.
 - Module boundaries remain clear.
-- Deferred systems remain deferred unless explicitly reopened.
+- Removed or inactive systems remain out of active scope unless explicitly reopened.

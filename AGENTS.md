@@ -25,7 +25,7 @@ If another file conflicts with this file, follow AGENTS.md first and report the 
 For development tasks, read only what is necessary:
 
 1. AGENTS.md
-2. PROJECT_CHARTER.md
+2. PROJECT_CHARTER.md only for governance, architecture, identity, memory, policy, model layer, storage, data safety, Live2D/body, integration, or high-risk work
 3. DEVELOPMENT_PROTOCOL.md
 4. ARCHITECTURE.md only for architecture, runtime, module-boundary, or data-flow work
 5. task-relevant source files
@@ -131,6 +131,7 @@ Use these boundaries unless existing local structure is more specific:
 - python/src/rin/conversation/: conversation runtime
 - python/src/rin/model/: provider-neutral model adapters
 - python/src/rin/memory/: memory proposal, review, retrieval
+- python/src/rin/context/: context assembly, context budgeting, and context reports
 - python/src/rin/storage/: local file layout
 - python/src/rin/database/: SQLite persistence
 - python/src/rin/profiles/: user model and AI identity model
@@ -206,6 +207,7 @@ Suggested branch prefixes:
 
 - codex/
 - cursor/
+- claude/
 - governance/
 - docs/
 - fix/
@@ -217,7 +219,20 @@ If unexpected user changes exist, do not overwrite them. Inspect if relevant and
 
 ---
 
-## 12. Checks
+## 12. Low-Cost Agent Policy
+
+For Claude Code / DeepSeek usage, prefer these defaults:
+
+- keep tasks small and file-scoped;
+- do not scan the whole repo by default;
+- read only files required by the task;
+- prefer targeted shell checks over full tests unless runtime behavior changed;
+- do not run expensive checks without a concrete reason;
+- do not push, merge, or create PRs unless requested.
+
+---
+
+## 13. Checks
 
 Run checks relevant to the changed files.
 
@@ -251,7 +266,7 @@ Never claim a check passed if it was not run.
 
 ---
 
-## 13. High-Risk Areas
+## 14. High-Risk Areas
 
 Treat these as high-risk:
 
@@ -275,7 +290,7 @@ For high-risk areas, inspect relevant tests, make small changes, preserve invari
 
 ---
 
-## 14. Final Report Format
+## 15. Final Report Format
 
 End each development task with:
 

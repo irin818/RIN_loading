@@ -66,7 +66,7 @@ The current runtime focuses on:
 - developer checks;
 - minimal body/Live2D boundary placeholder.
 
-Deferred features are listed in AGENTS.md.
+Inactive and forbidden-by-default features are listed in AGENTS.md.
 
 ---
 
@@ -83,6 +83,8 @@ Default local URL:
 ```text
 http://127.0.0.1:8765/
 ```
+
+Before running the launcher, make sure Ollama is running and `qwen3:4b` is available locally.
 
 The launcher expects the Python environment and local model runtime to be prepared.
 
