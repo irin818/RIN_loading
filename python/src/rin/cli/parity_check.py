@@ -8,6 +8,7 @@ from rin.cli._runner import run_steps
 
 
 def main() -> int:
+    """Run the parity test suite (tests/parity) via pytest."""
     return run_steps(
         [
             (

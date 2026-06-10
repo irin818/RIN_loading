@@ -1,3 +1,5 @@
+"""CLI entry point: start the production FastAPI server on 127.0.0.1:8765."""
+
 from __future__ import annotations
 
 import os
@@ -16,10 +18,12 @@ _PORT = 8765
 
 
 def _local_url(host: str = _HOST, port: int = _PORT) -> str:
+    """Return the local server URL string."""
     return f"http://{host}:{port}"
 
 
 def main() -> None:
+    """Start the production FastAPI server on 127.0.0.1:8765 with the configured model adapter."""
     layout = create_data_layout(str(PRODUCTION_RIN_DATA_DIR), cwd="/")
     adapter: ModelAdapterProtocol | None = None
     if os.environ.get("RIN_MODEL_ADAPTER") == OLLAMA_ADAPTER_ID:
