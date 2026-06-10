@@ -1,3 +1,10 @@
+"""FastAPI application factory with UI, API, and diagnostics routes.
+
+Creates a FastAPI app wired to a RinDataLayout, optional model adapter, and optional clock.
+Routes are grouped into: UI rendering, readiness/state, diagnostics, conversation/chat,
+profile/memory status, and safe serialization helpers.
+"""
+
 from __future__ import annotations
 
 import os
@@ -40,12 +47,16 @@ PUBLIC_LIVE2D_DIR = REPO_ROOT / "public" / "live2d"
 
 
 class ConversationCreateBody(BaseModel):
+    """Request body for POST /conversations — create a new conversation."""
+
     model_config = ConfigDict(extra="forbid")
 
     title: str = "Python API conversation"
 
 
 class ConversationSendBody(BaseModel):
+    """Request body for chat send endpoints — message content with optional conversation/turn ids."""
+
     model_config = ConfigDict(extra="forbid")
 
     content: str
@@ -54,6 +65,8 @@ class ConversationSendBody(BaseModel):
 
 
 class ApiState(BaseModel):
+    """Snapshot of the API server state: mode, counts, protection flags."""
+
     model_config = ConfigDict(extra="forbid")
 
     mode: str
@@ -65,6 +78,8 @@ class ApiState(BaseModel):
 
 
 class MockApiAdapter:
+    """Fallback adapter that returns a static mock reply when no real model is configured."""
+
     id = "rin-mock-local"
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
@@ -84,6 +99,11 @@ def create_app(
     adapter: ModelAdapterProtocol | None = None,
     clock: RuntimeClock | None = None,
 ) -> FastAPI:
+    """Build and return a FastAPI app wired to the given layout, adapter, and clock.
+
+    If no adapter is provided, a MockApiAdapter is used. Routes are grouped by concern:
+    UI, diagnostics, chat/conversation, profiles, and memory status.
+    """
     app = FastAPI(title="RIN Python Compatibility API", version="0.0.0")
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     if PUBLIC_LIVE2D_DIR.is_dir():
@@ -108,6 +128,7 @@ def create_app(
     adapter_dependency = Depends(get_adapter)
     clock_dependency = Depends(get_clock)
 
+    # ---- UI rendering ----
     @app.get("/", response_class=HTMLResponse)
     def ui_root(
         request: Request,
@@ -140,6 +161,7 @@ def create_app(
             force_new_chat=new,
         )
 
+    # ---- Readiness and state ----
     @app.get("/readiness")
     def readiness() -> dict[str, object]:
         return build_python_readiness_report().to_dict()
@@ -154,6 +176,7 @@ def create_app(
     ) -> dict[str, object]:
         return local_console_snapshot(current_layout)
 
+    # ---- Status dashboard ----
     @app.get("/api/status-dashboard")
     def api_status_dashboard(
         conversationId: str | None = None,
@@ -166,6 +189,7 @@ def create_app(
             selected_conversation_id=conversationId,
         )
 
+    # ---- Diagnostics endpoints ----
     @app.get("/api/diagnostics/overview")
     def diagnostics_overview(
         current_layout: RinDataLayout = layout_dependency,
@@ -222,6 +246,7 @@ def create_app(
     ) -> dict[str, object]:
         return build_diagnostics_payload(current_layout, current_adapter, "events")
 
+    # ---- Runtime trace endpoints ----
     @app.get("/api/diagnostics/runtime-trace")
     def diagnostics_runtime_trace() -> dict[str, object]:
         return safe_trace_response(RUNTIME_TRACE_STORE.list())
@@ -262,6 +287,7 @@ def create_app(
             messages=status.counts.messages,
         ).model_dump(mode="json")
 
+    # ---- Profile and memory status ----
     @app.get("/profile/status")
     def profile_status(
         current_layout: RinDataLayout = layout_dependency,
@@ -281,6 +307,7 @@ def create_app(
             "fullTextIncluded": False,
         }
 
+    # ---- Conversation and chat endpoints ----
     @app.post("/conversations")
     def create_conversation_endpoint(
         body: ConversationCreateBody,
@@ -512,6 +539,7 @@ def create_app(
 
 
 def safe_chat_message(message: object | None) -> dict[str, object] | None:
+    """Serialize a message for the chat test response, including full text (trusted local context)."""
     if message is None:
         return None
     return {
@@ -535,6 +563,7 @@ def render_console_page(
     notice: str | None = None,
     error: str | None = None,
 ) -> Response:
+    """Render the Jinja2 console.html template with the full console view model."""
     return TEMPLATES.TemplateResponse(
         request,
         "console.html",
@@ -560,6 +589,11 @@ def build_console_view_model(
     notice: str | None = None,
     error: str | None = None,
 ) -> dict[str, object]:
+    """Assemble the full data dictionary for the Jinja2 console template.
+
+    Aggregates snapshot, readiness, conversations, messages, profiles, body, dashboard,
+    diagnostics, and runtime trace into one view model.
+    """
     snapshot = local_console_snapshot(layout)
     database = cast(dict[str, object], snapshot["database"])
     memory_context = cast(dict[str, object], snapshot["memoryContext"])
@@ -643,6 +677,10 @@ def build_status_dashboard_summary(
     selected_conversation_id: str | None = None,
     messages: Sequence[object] | None = None,
 ) -> dict[str, object]:
+    """Build a structured dashboard summary with readiness, adapter, database, profile, memory, and health.
+
+    Used by both the console page and the /api/status-dashboard endpoint.
+    """
     snapshot = local_console_snapshot(layout)
     database = cast(dict[str, object], snapshot["database"])
     memory_context = cast(dict[str, object], snapshot["memoryContext"])
@@ -747,6 +785,7 @@ def build_diagnostics_payload(
     adapter: ModelAdapterProtocol,
     section: str,
 ) -> dict[str, object]:
+    """Build a detailed diagnostics payload for one section (overview, model, memory, etc.)."""
     dashboard = build_status_dashboard_summary(layout, adapter)
     snapshot = local_console_snapshot(layout)
     database = cast(dict[str, object], snapshot["database"])
@@ -868,6 +907,7 @@ def build_diagnostics_payload(
 
 
 def build_memory_diagnostics_payload(layout: RinDataLayout) -> dict[str, object]:
+    """Build the detailed memory diagnostics payload: algorithm, state, AI memory state, contents, curve, health."""
     status = inspect_database(layout)
     traces = list_memory_v2_traces(layout, limit=12)
     latest_trace = RUNTIME_TRACE_STORE.latest()
@@ -1014,6 +1054,7 @@ def build_memory_diagnostics_payload(layout: RinDataLayout) -> dict[str, object]
 
 
 def safe_memory_trace_item(trace: object) -> dict[str, object]:
+    """Serialize one memory trace for the diagnostics view (no raw text — counts, hashes, previews only)."""
     signal_summary = getattr(trace, "signalSummary", {})
     content_length = (
         signal_summary.get("contentCharacterCount", "n/a")
@@ -1055,6 +1096,7 @@ def safe_memory_trace_item(trace: object) -> dict[str, object]:
 
 
 def local_console_snapshot(layout: RinDataLayout) -> dict[str, object]:
+    """Build a lightweight snapshot of the local console state (database counts, profile, model runtime)."""
     status = inspect_database(layout)
     profile = build_profile_report(layout).model_dump(mode="json")
     return {
@@ -1085,6 +1127,7 @@ def local_console_snapshot(layout: RinDataLayout) -> dict[str, object]:
 
 
 def reject_unsafe_write_layout(layout: RinDataLayout) -> None:
+    """Raise HTTP 403 if the layout's root directory is not safe for writes."""
     try:
         assert_safe_python_write_data_dir(layout.rootDir)
     except Exception as error:
