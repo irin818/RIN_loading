@@ -1,3 +1,5 @@
+"""Context V2 assembly: order segments by priority, apply budget, and produce a ContextV2Report."""
+
 from __future__ import annotations
 
 from typing import Literal
@@ -10,6 +12,8 @@ DEFAULT_CONTEXT_V2_MAX_CHARACTERS = 2400
 
 
 class ContextV2InputSegment(BaseModel):
+    """One piece of context to consider for injection (system prompt, profile, history, memory trace, etc.)."""
+
     model_config = ConfigDict(extra="forbid")
 
     id: str
@@ -32,6 +36,11 @@ def build_context_v2_report(
     segments: list[ContextV2InputSegment],
     max_characters: int = DEFAULT_CONTEXT_V2_MAX_CHARACTERS,
 ) -> ContextV2Report:
+    """Order segments by priority, apply the character budget, and produce a report.
+
+    Protected segments always pass. Non-protected segments are skipped if they duplicate
+    a source that was already included or if they would exceed the budget.
+    """
     max_chars = max(1, max_characters)
     ordered = order_segments(segments)
     seen_sources: set[str] = set()
@@ -93,10 +102,12 @@ def build_context_v2_report(
 def order_segments(
     segments: list[ContextV2InputSegment],
 ) -> list[ContextV2InputSegment]:
+    """Sort segments by type priority, then by id for deterministic ordering."""
     return sorted(segments, key=lambda item: (priority_for(item.type), item.id))
 
 
 def priority_for(segment_type: ContextV2SegmentType) -> int:
+    """Return the ordering priority for a context segment type (lower = earlier in the prompt)."""
     priorities: dict[ContextV2SegmentType, int] = {
         "system": 0,
         "rin_profile": 1,
@@ -116,6 +127,7 @@ def segment(
     content: str,
     protected: bool,
 ) -> ContextV2InputSegment:
+    """Convenience constructor that auto-generates the provenance string."""
     return ContextV2InputSegment(
         id=segment_id,
         type=segment_type,

@@ -1,3 +1,5 @@
+"""Read-only SQLite helpers: inspect, list, and map database rows to Pydantic models."""
+
 from __future__ import annotations
 
 import json
@@ -36,6 +38,8 @@ DATABASE_TABLES: tuple[str, ...] = (
 
 
 class DatabaseTableStatus(BaseModel):
+    """Status of a single database table: name, existence, and row count."""
+
     model_config = ConfigDict(extra="forbid")
 
     name: str
@@ -44,6 +48,8 @@ class DatabaseTableStatus(BaseModel):
 
 
 class DatabaseCounts(BaseModel):
+    """Row counts for every known database table."""
+
     model_config = ConfigDict(extra="forbid")
 
     auditEvents: int
@@ -64,6 +70,8 @@ class DatabaseCounts(BaseModel):
 
 
 class DatabaseStatus(BaseModel):
+    """Full snapshot of the database: path, schema version, table statuses, and row counts."""
+
     model_config = ConfigDict(extra="forbid")
 
     path: str
@@ -74,6 +82,8 @@ class DatabaseStatus(BaseModel):
 
 
 class MemoryMetadata(BaseModel):
+    """Metadata for a legacy memory item: tags, importance, confidence, source, review timestamps."""
+
     model_config = ConfigDict(extra="forbid")
 
     tags: list[str]
@@ -85,6 +95,8 @@ class MemoryMetadata(BaseModel):
 
 
 class MemoryRecord(BaseModel):
+    """A legacy memory item with typed content, metadata, and status."""
+
     model_config = ConfigDict(extra="forbid")
 
     id: str
@@ -98,6 +110,8 @@ class MemoryRecord(BaseModel):
 
 
 class MemoryV2TraceRecord(BaseModel):
+    """A Memory V2 trace record: source, signal summary, salience score, and timestamps."""
+
     model_config = ConfigDict(extra="forbid")
 
     id: str
@@ -110,6 +124,8 @@ class MemoryV2TraceRecord(BaseModel):
 
 
 class AuditEventSummary(BaseModel):
+    """Privacy-safe summary of an audit event (type, payload keys, timestamp; no full payload text)."""
+
     model_config = ConfigDict(extra="forbid")
 
     id: str
@@ -120,10 +136,12 @@ class AuditEventSummary(BaseModel):
 
 
 def database_path_for(layout: RinDataLayout) -> Path:
+    """Return the full path to the SQLite database file for the given layout."""
     return layout.directories["databases"] / DATABASE_FILENAME
 
 
 def open_readonly_database(path: Path) -> sqlite3.Connection:
+    """Open the SQLite database in read-only mode with row factory enabled."""
     uri = f"file:{path.resolve()}?mode=ro"
     connection = sqlite3.connect(uri, uri=True)
     connection.row_factory = sqlite3.Row
@@ -131,6 +149,7 @@ def open_readonly_database(path: Path) -> sqlite3.Connection:
 
 
 def inspect_database(layout: RinDataLayout) -> DatabaseStatus:
+    """Return a full snapshot of the database: schema version, table existence, and row counts."""
     path = database_path_for(layout)
     with open_readonly_database(path) as connection:
         applied_migrations = [
@@ -196,6 +215,7 @@ def list_conversations(
     layout: RinDataLayout,
     limit: int = 10,
 ) -> list[ConversationRecord]:
+    """List recent conversations ordered by update time (capped at 100)."""
     safe_limit = max(1, min(limit, 100))
     with open_readonly_database(database_path_for(layout)) as connection:
         rows = connection.execute(
@@ -213,6 +233,7 @@ def get_conversation(
     layout: RinDataLayout,
     conversation_id: str,
 ) -> ConversationRecord | None:
+    """Look up a single conversation by ID, returning None if not found."""
     with open_readonly_database(database_path_for(layout)) as connection:
         row = connection.execute(
             "SELECT * FROM conversations WHERE id = ?",
@@ -225,6 +246,7 @@ def list_messages(
     layout: RinDataLayout,
     conversation_id: str,
 ) -> list[ConversationMessageRecord]:
+    """List all messages in a conversation, ordered by creation time, with optional memory context."""
     with open_readonly_database(database_path_for(layout)) as connection:
         rows = connection.execute(
             """
@@ -241,6 +263,7 @@ def list_messages(
 
 
 def list_legacy_memories(layout: RinDataLayout, limit: int = 20) -> list[MemoryRecord]:
+    """List recent legacy memory items with their metadata (capped at 100)."""
     safe_limit = max(1, min(limit, 100))
     with open_readonly_database(database_path_for(layout)) as connection:
         rows = connection.execute(
@@ -261,6 +284,7 @@ def list_memory_v2_traces(
     layout: RinDataLayout,
     limit: int = 50,
 ) -> list[MemoryV2TraceRecord]:
+    """List recent Memory V2 traces ordered by update time (capped at 100)."""
     safe_limit = max(1, min(limit, 100))
     with open_readonly_database(database_path_for(layout)) as connection:
         rows = connection.execute(
@@ -278,6 +302,7 @@ def list_audit_summaries(
     layout: RinDataLayout,
     limit: int = 20,
 ) -> list[AuditEventSummary]:
+    """List recent audit event summaries (capped at 100)."""
     safe_limit = max(1, min(limit, 100))
     with open_readonly_database(database_path_for(layout)) as connection:
         rows = connection.execute(
@@ -292,6 +317,7 @@ def list_audit_summaries(
 
 
 def table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
+    """Check whether a table exists in the connected database."""
     row = connection.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
         (table_name,),
@@ -300,6 +326,7 @@ def table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
 
 
 def count_rows_if_exists(connection: sqlite3.Connection, table_name: str) -> int:
+    """Count rows in a table, returning 0 if the table does not exist."""
     return (
         count_rows(connection, table_name)
         if table_exists(connection, table_name)
@@ -308,6 +335,7 @@ def count_rows_if_exists(connection: sqlite3.Connection, table_name: str) -> int
 
 
 def count_rows(connection: sqlite3.Connection, table_name: str) -> int:
+    """Count rows in a known table (raises ValueError for unsupported table names)."""
     if table_name not in DATABASE_TABLES:
         raise ValueError(f"Unsupported table name: {table_name}")
     row = connection.execute(f"SELECT COUNT(*) AS count FROM {table_name}").fetchone()

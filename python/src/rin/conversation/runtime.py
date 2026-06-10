@@ -1,3 +1,5 @@
+"""Conversation turn runtime: context assembly, model call, sanitization, persistence."""
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -46,12 +48,16 @@ from rin.storage import RinDataLayout
 
 
 class ModelAdapterProtocol(Protocol):
+    """Protocol that any model adapter must satisfy: an id and an async generate method."""
+
     id: str
 
     async def generate(self, request: ModelRequest) -> ModelResponse: ...
 
 
 class ConversationRuntimeError(RuntimeError):
+    """Raised when the conversation runtime cannot complete a turn (model error, invalid response, etc.)."""
+
     def __init__(self, code: str, message: str, retryable: bool = True) -> None:
         super().__init__(message)
         self.code = code
@@ -59,6 +65,8 @@ class ConversationRuntimeError(RuntimeError):
 
 
 class ConversationRuntimeResult(BaseModel):
+    """Structured result returned after each conversation turn completes or fails."""
+
     model_config = ConfigDict(extra="forbid")
 
     status: str
@@ -79,6 +87,7 @@ class ConversationRuntimeResult(BaseModel):
     retryable: bool | None
 
 
+# Budget caps for recent conversation history injected into the model prompt.
 RECENT_HISTORY_MESSAGE_LIMIT = 6
 RECENT_HISTORY_MESSAGE_MAX_CHARS = 500
 RECENT_HISTORY_TOTAL_MAX_CHARS = 2000
@@ -86,6 +95,8 @@ RECENT_HISTORY_TOTAL_MAX_CHARS = 2000
 
 @dataclass(frozen=True)
 class RuntimeClock:
+    """Provides ISO 8601 timestamps; set fixed_now for deterministic tests."""
+
     fixed_now: str | None = None
 
     def now(self) -> str:
@@ -108,6 +119,12 @@ async def run_conversation_turn(
     conversation_id: str | None = None,
     clock: RuntimeClock | None = None,
 ) -> ConversationRuntimeResult:
+    """Run one full conversation turn: persist owner message, assemble context, call the model,
+    sanitize the response, persist the reply, and write a memory trace.
+
+    Returns a structured result whether the turn succeeds or fails.
+    """
+    # --- Setup ---
     started_at = perf_counter()
     assert_safe_python_write_data_dir(layout.rootDir)
     runtime_clock = clock or RuntimeClock()
@@ -144,6 +161,7 @@ async def run_conversation_turn(
         decision={"accepted": True, "reason": "owner message entered runtime"},
         privacy={"fullOwnerInputIncluded": False, "previewOnly": True},
     )
+    # --- Persist owner message ---
     owner_message = append_message(
         layout,
         conversation_id,
@@ -181,6 +199,7 @@ async def run_conversation_turn(
         },
         privacy={"fullStoredContentIncluded": False, "hashOnly": True},
     )
+    # --- Load profiles ---
     profile_report = build_profile_report(layout)
     profile_files = [
         {
@@ -229,6 +248,7 @@ async def run_conversation_turn(
         if profile_report.status == "valid"
         else ["profile validation warning"],
     )
+    # --- Select recent history for prompt ---
     previous_messages = select_recent_messages(layout, conversation_id, owner_content)
     available_prior_messages = [
         message
@@ -321,6 +341,7 @@ async def run_conversation_turn(
         privacy={"fullMemoryTextIncluded": False},
         warnings=["Memory V2 retrieval integration gap"],
     )
+    # --- Assemble context and build model request ---
     context_segments = build_runtime_context_segments_from_messages(
         previous_messages,
         owner_content,
@@ -458,6 +479,7 @@ async def run_conversation_turn(
         warnings=[] if current_owner_input_last else ["current owner input not last"],
     )
 
+    # --- Call model adapter ---
     try:
         model_started_at = perf_counter()
         model_response = await adapter.generate(model_request)
@@ -609,6 +631,7 @@ async def run_conversation_turn(
                 "MODEL_RESPONSE_INVALID",
                 "Model reply contained unsafe thinking artifacts.",
             )
+    # --- Handle errors ---
     except ModelError as error:
         recorder.record(
             "raw_model_response",
@@ -784,6 +807,7 @@ async def run_conversation_turn(
             error.retryable,
         )
 
+    # --- Persist rin reply ---
     rin_message = append_message(
         layout,
         conversation_id,
@@ -821,6 +845,7 @@ async def run_conversation_turn(
         decision={"stored": True, "reason": "sanitized final answer persisted"},
         privacy={"fullStoredContentIncluded": False, "hashOnly": True},
     )
+    # --- Write turn record and memory trace ---
     record_completed_turn(
         layout,
         turn_id,
@@ -925,6 +950,7 @@ def build_runtime_context_segments(
     conversation_id: str,
     owner_content: str,
 ) -> list[ContextV2InputSegment]:
+    """Select recent messages and build context segments for a turn (convenience wrapper)."""
     previous_messages = select_recent_messages(layout, conversation_id, owner_content)
     return build_runtime_context_segments_from_messages(
         previous_messages,
@@ -937,6 +963,7 @@ def select_recent_messages(
     conversation_id: str,
     owner_content: str,
 ) -> list[ConversationMessageRecord]:
+    """Return up to RECENT_HISTORY_MESSAGE_LIMIT prior messages, excluding the current owner message by content match."""
     return [
         message
         for message in list_messages(layout, conversation_id)
@@ -948,6 +975,7 @@ def build_runtime_context_segments_from_messages(
     previous_messages: Sequence[ConversationMessageRecord],
     owner_content: str,
 ) -> list[ContextV2InputSegment]:
+    """Build context segments: system prompt, current owner message, and bounded recent history."""
     history = str(build_bounded_recent_history(previous_messages)["content"])
     segments = [
         ContextV2InputSegment(
@@ -990,6 +1018,7 @@ def build_runtime_context_segments_from_messages(
 def build_bounded_recent_history(
     previous_messages: Sequence[ConversationMessageRecord],
 ) -> dict[str, object]:
+    """Build a truncated recent-history string for prompt injection, respecting per-message and total char caps."""
     rows: list[str] = []
     total_chars = 0
     truncated = False
@@ -1019,6 +1048,7 @@ def model_messages_for(
     context_segments: list[ContextV2InputSegment],
     owner_content: str,
 ) -> list[ModelMessage]:
+    """Pack context segments into a system message plus the current owner message for the model request."""
     context_text = "\n".join(
         item.content
         for item in context_segments
@@ -1036,6 +1066,7 @@ def message_trace_summary(
     included: bool,
     reason: str,
 ) -> dict[str, object]:
+    """Produce a privacy-safe trace summary for a single message (id, role, length, preview, hash)."""
     return {
         "messageId": message.id,
         "messageShortId": short_id(message.id),
@@ -1054,6 +1085,7 @@ def context_component_table(
     context_segments: list[ContextV2InputSegment],
     context_report: ContextV2Report,
 ) -> list[dict[str, object]]:
+    """Build a trace-friendly table describing each context component and its inclusion status."""
     rows: list[dict[str, object]] = []
     segment_by_id = {segment.id: segment for segment in context_segments}
     for report_segment in context_report.segments:
@@ -1074,6 +1106,7 @@ def context_component_table(
 
 
 def model_request_outline(request: ModelRequest) -> list[dict[str, object]]:
+    """Produce a privacy-safe summary of each message in the model request."""
     return [
         {
             "index": index,
@@ -1092,6 +1125,7 @@ def model_request_outline(request: ModelRequest) -> list[dict[str, object]]:
 
 
 def recent_history_preview(content: str) -> str:
+    """Extract a short preview of the recent-history portion from the system prompt."""
     marker = "Recent conversation context (bounded):"
     if marker not in content:
         return "n/a"
@@ -1099,6 +1133,7 @@ def recent_history_preview(content: str) -> str:
 
 
 def safe_raw_preview(raw_content: str) -> str:
+    """Return a short preview of raw model output, hiding content that looks like thinking."""
     if has_thinking_tag(raw_content) or has_thinking_like_prefix(raw_content):
         return "hidden_due_to_thinking_signal"
     return input_preview(raw_content)
@@ -1115,6 +1150,7 @@ def failed_result(
     error_code: str,
     retryable: bool,
 ) -> ConversationRuntimeResult:
+    """Build a ConversationRuntimeResult representing a failed turn."""
     return ConversationRuntimeResult(
         status="failed",
         conversationId=conversation_id,
@@ -1136,4 +1172,5 @@ def failed_result(
 
 
 def elapsed_ms(started_at: float) -> int:
+    """Return elapsed milliseconds since the given perf_counter timestamp."""
     return max(0, round((perf_counter() - started_at) * 1000))
