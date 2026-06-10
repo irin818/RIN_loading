@@ -1,3 +1,10 @@
+"""Memory V2 signal extraction and trace analysis.
+
+Analyzes owner messages for preference, project, contradiction, daily, and low signals.
+Computes retention scores with exponential decay and decides whether to promote,
+reinforce, weaken, or ignore a memory trace.
+"""
+
 from __future__ import annotations
 
 import math
@@ -9,12 +16,15 @@ from typing import Literal
 
 from rin.contracts import MemoryV2Signal, MemoryV2SignalEvidence, MemoryV2TraceAnalysis
 
+# Possible outcomes of trace analysis.
 MemoryV2Decision = Literal["promoted", "reinforced", "weakened", "ignored"]
 
-PROMOTION_THRESHOLD = 0.45
-LOW_SIGNAL_MAX_CHARACTERS = 18
-DEFAULT_NOW = "2026-06-05T12:00:00.000Z"
+# ---- Tuning constants ----
+PROMOTION_THRESHOLD = 0.45  # retention score must reach this to promote/reinforce
+LOW_SIGNAL_MAX_CHARACTERS = 18  # messages shorter than this get "low_signal" if no other signal fires
+DEFAULT_NOW = "2026-06-05T12:00:00.000Z"  # fixed reference timestamp for deterministic tests
 
+# Stopwords excluded during token extraction (English and Chinese).
 EN_STOPWORDS = {
     "the",
     "a",
@@ -33,6 +43,7 @@ EN_STOPWORDS = {
     "that",
 }
 ZH_STOPWORDS = {"的", "了", "是", "我", "你", "他", "她", "它", "和", "与", "在", "对"}
+# Domain tokens that are never treated as stopwords regardless of language.
 PROTECTED_TOKENS = {
     "api",
     "model",
@@ -46,6 +57,7 @@ PROTECTED_TOKENS = {
     "semantic",
     "sqlite",
 }
+# Known plural→singular mappings for Latin token normalization.
 EXPLICIT_PLURALS = {
     "models": "model",
     "memories": "memory",
@@ -57,6 +69,8 @@ EXPLICIT_PLURALS = {
 
 @dataclass(frozen=True)
 class MemoryV2SourceMessage:
+    """Minimal message representation passed to Memory V2 analysis (id, role, content, timestamps)."""
+
     messageId: str
     conversationId: str
     role: str
@@ -66,6 +80,8 @@ class MemoryV2SourceMessage:
 
 @dataclass(frozen=True)
 class RetrievalTokenProfile:
+    """Token profile for retrieval matching: Latin tokens, CJK bigrams, total count."""
+
     latinTokens: frozenset[str]
     cjkBigrams: frozenset[str]
     normalizedTokenCount: int
@@ -76,6 +92,10 @@ def analyze_memory_v2_source(
     now: str = DEFAULT_NOW,
     existing_trace: bool = False,
 ) -> MemoryV2TraceAnalysis:
+    """Extract signals from a message, compute retention score with decay, and decide trace fate.
+
+    Returns a MemoryV2TraceAnalysis with the decision (promoted/reinforced/weakened/ignored).
+    """
     content_character_count = len(message.content)
     age_hours = age_in_hours(message.createdAt, now)
     reasons, signals = extract_signals(message.content, content_character_count)
@@ -128,6 +148,7 @@ def build_retrieval_token_profile(
     text: str,
     extra: str | None = None,
 ) -> RetrievalTokenProfile:
+    """Build a token profile from text for later retrieval matching (Latin tokens + CJK bigrams)."""
     source = f"{text} {extra}" if extra else text
     prepared = preprocess_text(source)
     latin_tokens = frozenset(extract_latin_tokens(prepared))
@@ -143,6 +164,7 @@ def extract_signals(
     content: str,
     content_character_count: int,
 ) -> tuple[list[str], list[MemoryV2Signal]]:
+    """Scan message content for preference, project, contradiction, daily, and low signals."""
     normalized = content.lower()
     reasons: list[str] = []
     signals: list[MemoryV2Signal] = []
@@ -232,6 +254,7 @@ def decide_trace(
     retention_score: float,
     existing_trace: bool,
 ) -> MemoryV2Decision:
+    """Decide trace fate: promoted (new), reinforced (existing), weakened (decayed), or ignored."""
     if retention_score >= PROMOTION_THRESHOLD:
         return "reinforced" if existing_trace else "promoted"
     if base_score >= PROMOTION_THRESHOLD:
@@ -326,16 +349,19 @@ def is_cjk_bigram_stopword(bigram: str) -> bool:
 
 
 def has_preference_signal(content: str) -> bool:
+    """Check for owner preference keywords (English and Chinese)."""
     return bool(re.search(r"\b(prefer|preference|like|want|希望|偏好|喜欢)\b", content))
 
 
 def has_project_signal(content: str) -> bool:
+    """Check for active-project keywords (English and Chinese)."""
     return bool(
         re.search(r"\b(project|package|rin_loading|memory v2|计划|项目)\b", content)
     )
 
 
 def has_contradiction_signal(content: str) -> bool:
+    """Check for contradiction/change-of-mind keywords (English and Chinese)."""
     return bool(
         re.search(
             r"\b(actually|no longer|not anymore|instead|不要|不再|改为)\b",
@@ -345,6 +371,7 @@ def has_contradiction_signal(content: str) -> bool:
 
 
 def age_in_hours(created_at: str, now: str) -> float:
+    """Compute the age of a message in hours from its ISO 8601 timestamp."""
     created = parse_iso(created_at)
     current = parse_iso(now)
     return max(0, (current - created).total_seconds() / 3600)

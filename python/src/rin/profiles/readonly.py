@@ -1,3 +1,5 @@
+"""Profile loading and validation: load RIN and owner profiles from disk, validate, build reports."""
+
 from __future__ import annotations
 
 import json
@@ -21,14 +23,17 @@ OWNER_PROFILE_FILE: ProfileFile = "owner_profile.json"
 
 
 def load_rin_profile(layout: RinDataLayout) -> RinProfile:
+    """Load and validate the RIN profile JSON file from the config directory."""
     return RinProfile.model_validate(read_profile_json(layout, RIN_PROFILE_FILE))
 
 
 def load_owner_profile(layout: RinDataLayout) -> OwnerProfile:
+    """Load and validate the owner profile JSON file from the config directory."""
     return OwnerProfile.model_validate(read_profile_json(layout, OWNER_PROFILE_FILE))
 
 
 def build_profile_report(layout: RinDataLayout) -> ProfileReport:
+    """Load both profiles, validate them, and build a ProfileReport with issue diagnostics."""
     rin_profile, rin_issues = validate_rin_profile(layout)
     owner_profile, owner_issues = validate_owner_profile(layout)
     issues = [*rin_issues, *owner_issues]

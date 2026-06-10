@@ -9,6 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# ---- Domain type aliases ----
 StorageDirectoryName = Literal["config", "databases", "logs", "attachments"]
 ConversationRole = Literal["owner", "rin", "system"]
 ConversationTurnStatus = Literal["started", "completed", "failed"]
@@ -68,11 +69,15 @@ class RinDataManifest(RinBaseModel):
 
 
 class ModelRuntimeNote(RinBaseModel):
+    """Bilingual note attached to the model runtime config."""
+
     english: str
     chinese: str
 
 
 class ModelAdapterConfig(RinBaseModel):
+    """Descriptor for one model adapter (Ollama, mock, or future external provider)."""
+
     id: str
     displayName: str
     provider: ModelProvider
@@ -84,6 +89,8 @@ class ModelAdapterConfig(RinBaseModel):
 
 
 class ModelRuntimeConfig(RinBaseModel):
+    """Top-level model config: active adapter selection and adapter list."""
+
     schemaVersion: Literal[1]
     kind: Literal["model_config"]
     updatedAt: str
@@ -94,6 +101,8 @@ class ModelRuntimeConfig(RinBaseModel):
 
 
 class RinProfile(RinBaseModel):
+    """Manually editable local RIN profile: display name, communication style, boundaries."""
+
     schemaVersion: Literal[1]
     kind: Literal["rin_profile"]
     updatedAt: str
@@ -105,6 +114,8 @@ class RinProfile(RinBaseModel):
 
 
 class OwnerProfile(RinBaseModel):
+    """Manually editable local owner profile: preferences, projects, context notes."""
+
     schemaVersion: Literal[1]
     kind: Literal["owner_profile"]
     ownerId: str
@@ -164,6 +175,8 @@ class MemoryInjectionExplanation(RinBaseModel):
 
 
 class MemoryInjectionTrace(RinBaseModel):
+    """Trace of which memories were injected into a message's context and why."""
+
     injectedMemoryCount: int
     injectedMemoryIds: list[str]
     deterministicInjectedMemoryIds: list[str]
@@ -255,6 +268,8 @@ class MemoryV2Signal(RinBaseModel):
 
 
 class MemoryV2TraceAnalysis(RinBaseModel):
+    """Result of analyzing a message for Memory V2 trace promotion, reinforcement, or decay."""
+
     sourceMessageId: str
     sourceCreatedAt: str
     conversationId: str
@@ -296,6 +311,8 @@ class ContextV2ReportSegment(RinBaseModel):
 
 
 class ContextV2Report(RinBaseModel):
+    """Report produced by the Context V2 assembler: what was included, skipped, and why."""
+
     mode: Literal["context-v2-report"]
     status: Literal["ready"]
     shadowOnly: Literal[True]
@@ -325,6 +342,8 @@ class ModelRequest(RinBaseModel):
 
 
 class ModelResponseMetadata(RinBaseModel):
+    """Metadata attached to a model response: raw content stats, sanitization flags, thinking detection."""
+
     externalProvider: bool
     memoryWriteRequested: bool
     toolCallRequested: bool

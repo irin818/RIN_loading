@@ -1,3 +1,5 @@
+"""Placeholder body/embodiment state for future 3D avatar or robot integration."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
@@ -8,6 +10,8 @@ MouthSync = Literal["idle", "speaking"]
 
 @dataclass(frozen=True)
 class BodyState:
+    """Current body/avatar state: emotion, expression, motion, voice, attention."""
+
     emotion: str
     expression: str
     motion: str
@@ -22,6 +26,8 @@ class BodyState:
 
 @dataclass(frozen=True)
 class BodyReport:
+    """Report on the body adapter: placeholder status, what's stored in-body vs. in RIN core."""
+
     mode: str
     status: str
     adapterId: str
@@ -41,6 +47,7 @@ class BodyReport:
 
 
 def build_body_report() -> BodyReport:
+    """Build a placeholder body report (no real avatar/robot connected yet)."""
     return BodyReport(
         mode="body-state-report",
         status="ready",

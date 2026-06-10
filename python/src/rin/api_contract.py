@@ -1,3 +1,5 @@
+"""API contract smoke test: spin up the FastAPI app, hit key endpoints, report pass/fail."""
+
 from __future__ import annotations
 
 import shutil
@@ -12,6 +14,8 @@ from rin.server import create_app
 
 @dataclass(frozen=True)
 class ApiContractCheckReport:
+    """Result of the API contract check: per-endpoint pass/fail flags and summary status."""
+
     mode: str
     status: str
     localState: bool
@@ -27,6 +31,7 @@ class ApiContractCheckReport:
 
 
 def run_api_contract_check() -> ApiContractCheckReport:
+    """Create a temp database, spin up the FastAPI app, hit every key endpoint, and report results."""
     temp = create_temp_data_dir("rin-python-api-contract-")
     layout = create_temp_layout_database(temp.path)
     try:
@@ -77,6 +82,7 @@ def run_api_contract_check() -> ApiContractCheckReport:
 
 
 def format_api_contract_check_report(report: ApiContractCheckReport) -> str:
+    """Render an ApiContractCheckReport as a human-readable multi-line string."""
     return "\n".join(
         [
             "RIN Python API contract check.",
