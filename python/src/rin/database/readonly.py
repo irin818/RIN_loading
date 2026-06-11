@@ -314,6 +314,24 @@ def list_memory_v2_traces(
         return [map_memory_v2_trace(row) for row in rows]
 
 
+def list_top_memory_v2_traces(
+    layout: RinDataLayout,
+    limit: int = 3,
+) -> list[MemoryV2TraceRecord]:
+    """List top Memory V2 traces ordered by salience score (capped at 10)."""
+    safe_limit = max(1, min(limit, 10))
+    with open_readonly_database(database_path_for(layout)) as connection:
+        rows = connection.execute(
+            """
+            SELECT * FROM memory_v2_traces
+            ORDER BY salience_score DESC, updated_at DESC, id ASC
+            LIMIT ?
+            """,
+            (safe_limit,),
+        ).fetchall()
+        return [map_memory_v2_trace(row) for row in rows]
+
+
 def list_audit_summaries(
     layout: RinDataLayout,
     limit: int = 20,

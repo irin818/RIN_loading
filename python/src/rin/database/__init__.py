@@ -12,6 +12,7 @@ from rin.database.readonly import (
     list_legacy_memories,
     list_memory_v2_traces,
     list_messages,
+    list_top_memory_v2_traces,
     open_readonly_database,
 )
 from rin.database.writes import (
@@ -40,6 +41,7 @@ __all__ = [
     "list_legacy_memories",
     "list_memory_v2_traces",
     "list_messages",
+    "list_top_memory_v2_traces",
     "open_readonly_database",
     "append_audit_event",
     "append_message",

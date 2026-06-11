@@ -40,7 +40,7 @@ def test_candidate_api_runtime_and_readonly_reports_on_synthetic_data() -> None:
         assert sent.json()["status"] == "completed"
         assert state.json()["conversations"] == 1
         assert state.json()["messages"] == 2
-        assert trace.json()["memoryV2Traces"] == 1
+        assert trace.json()["memoryV2Traces"] == 0
         assert trace.json()["providerCallCount"] == 0
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)

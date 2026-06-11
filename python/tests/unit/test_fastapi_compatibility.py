@@ -84,7 +84,7 @@ def test_conversation_create_send_and_history_contract() -> None:
             "rin",
         ]
         assert trace.status_code == 200
-        assert trace.json()["memoryV2Traces"] == 1
+        assert trace.json()["memoryV2Traces"] == 0
         assert trace.json()["fullTextIncluded"] is False
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
@@ -447,11 +447,11 @@ def test_diagnostics_endpoints_are_safe_and_read_only() -> None:
         assert model["providerCallsMade"] == 0
         assert memory["fullTextIncluded"] is False
         assert memory["algorithm"]["fullTextIncluded"] is False
-        assert memory["state"]["retrievalWiredIntoPrompt"] is False
-        assert memory["health"]["retrievalStatus"] == "skipped"
+        assert memory["state"]["retrievalWiredIntoPrompt"] is True
+        assert memory["health"]["retrievalStatus"] == "active"
         assert memory["algorithm"]["memoryV2WritePolicy"]
         assert memory["aiMemoryState"]["shortTermContextActive"] is True
-        assert memory["aiMemoryState"]["longTermRetrievalActive"] is False
+        assert memory["aiMemoryState"]["longTermRetrievalActive"] is True
         assert memory["curve"]["samplePoints"]
         assert memory["curve"]["status"] == "not parameterized yet"
         assert memory["contents"]
@@ -479,10 +479,7 @@ def test_memory_page_renders_useful_safe_console_sections() -> None:
         assert "Memory used last request" in response.text
         assert "Last Turn Memory Update" in response.text
         assert "Gaps / Warnings" in response.text
-        assert (
-            "Memory V2 retrieval is not wired into prompt assembly yet."
-            in response.text
-        )
+        assert "No Memory V2 traces available for retrieval." in response.text
         assert "memory page private text" in response.text
 
         memory = client.get("/api/diagnostics/memory")
@@ -522,9 +519,7 @@ def test_runtime_trace_api_is_safe_and_read_only() -> None:
         assert latest_payload["rawPromptIncluded"] is False
         assert latest_payload["rawModelOutputIncluded"] is False
         assert trace["status"] == "success"
-        assert trace["analysis"]["memorySkipReason"] == (
-            "runtime retrieval not wired into prompt assembly"
-        )
+        assert trace["analysis"]["memorySkipReason"] == "no_memory_v2_traces"
         assert [stage["name"] for stage in trace["stages"]] == [
             "input_received",
             "owner_message_persisted",
@@ -578,9 +573,7 @@ def test_runtime_trace_api_is_safe_and_read_only() -> None:
 
         assert recent["output"]["selectedPriorMessages"] == 0
         assert memory["status"] == "skipped"
-        assert memory["decision"]["skipReason"] == (
-            "runtime retrieval not wired into prompt assembly"
-        )
+        assert memory["decision"]["skipReason"] == "no_memory_v2_traces"
         assert context["output"]["componentTable"]
         assert request["output"]["requestOutline"]
         assert raw["output"]["providerRawMetadataAvailable"] is False

@@ -959,11 +959,15 @@ def build_memory_diagnostics_payload(layout: RinDataLayout) -> dict[str, object]
         if latest_trace
         else None
     )
-    retrieval_wired = False
+    retrieval_wired = (
+        bool(memory_retrieval_stage.operation.get("retrievalEnabled"))
+        if memory_retrieval_stage
+        else False
+    )
     retrieval_skip_reason = (
         str(memory_retrieval_stage.decision.get("skipReason", "n/a"))
         if memory_retrieval_stage
-        else "runtime retrieval not wired into prompt assembly"
+        else "no_runtime_trace_available"
     )
     memory_used_in_last_request = (
         context_stage.output.get("memoryTracesIncludedCount", 0) != 0
@@ -985,13 +989,13 @@ def build_memory_diagnostics_payload(layout: RinDataLayout) -> dict[str, object]
             "memoryV2WritePolicy": (
                 "successful turns write safe long-term candidate trace summaries"
             ),
-            "retrievalStatus": "skipped",
+            "retrievalStatus": "active" if retrieval_wired else "skipped",
             "retentionFormula": (
                 "n/a - Memory V2 retention curve is not parameterized yet"
             ),
             "scoringSummary": (
                 "current writes create safe long-term candidate traces with a "
-                "salience score; runtime retrieval ranking is not wired yet"
+                "salience score; runtime retrieval selects top traces by score"
             ),
             "privacyPolicy": (
                 "safe counts, hashes, ids, scores, and short previews only"
@@ -1055,7 +1059,9 @@ def build_memory_diagnostics_payload(layout: RinDataLayout) -> dict[str, object]
         },
         "warnings": [
             "Short-term conversation context is active and separate from Memory V2.",
-            "Memory V2 retrieval is not wired into prompt assembly yet.",
+            "No Memory V2 traces available for retrieval."
+            if retrieval_skip_reason == "no_memory_v2_traces"
+            else "Memory V2 retrieval is active with safe trace summaries.",
             "Memory curve is not parameterized yet; retention estimates are n/a.",
         ],
         "memoryV2Traces": status.counts.memoryV2Traces,
@@ -1063,8 +1069,8 @@ def build_memory_diagnostics_payload(layout: RinDataLayout) -> dict[str, object]
         "available": True,
         "privacy": "counts and metadata only; no full memory text",
         "retentionSummary": (
-            "Memory V2 writes safe candidate traces; retrieval and retention "
-            "curve are visible as gaps until implemented."
+            "Memory V2 writes safe candidate traces and retrieves top trace "
+            "summaries; retention curve visualization remains a placeholder."
         ),
     }
 

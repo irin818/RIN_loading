@@ -17,16 +17,19 @@ from rin.context import ContextV2InputSegment, build_context_v2_report
 from rin.contracts import (
     ContextV2Report,
     ConversationMessageRecord,
+    MemoryV2TraceAnalysis,
     ModelMessage,
     ModelRequest,
     ModelResponse,
 )
 from rin.database import (
+    MemoryV2TraceRecord,
     append_message,
     create_conversation,
     create_memory_trace,
     inspect_database,
     list_messages,
+    list_top_memory_v2_traces,
     record_completed_turn,
     record_failed_turn,
 )
@@ -40,12 +43,13 @@ from rin.diagnostics.runtime_trace import (
     short_id,
 )
 from rin.diagnostics.safety import assert_safe_python_write_data_dir
+from rin.memory import MemoryV2SourceMessage, analyze_memory_v2_source
 from rin.model.ollama import (
     ModelError,
     has_unsafe_thinking_leak,
     sanitize_assistant_content_details,
 )
-from rin.profiles import build_profile_report
+from rin.profiles import build_profile_report, load_owner_profile, load_rin_profile
 from rin.storage import RinDataLayout
 
 
@@ -210,6 +214,11 @@ async def run_conversation_turn(
     )
     # --- Load profiles ---
     profile_report = build_profile_report(layout)
+    profile_context_segments = (
+        build_profile_context_segments(layout)
+        if profile_report.status == "valid"
+        else []
+    )
     profile_files = [
         {
             "file": item.file,
@@ -243,14 +252,15 @@ async def run_conversation_turn(
             ),
             "profileValidationStatus": profile_report.status,
             "profileIssueCount": profile_report.issueCount,
-            "profileContextIncluded": False,
+            "profileContextIncluded": bool(profile_context_segments),
             "profileCharacterCountAvailable": profile_report.contextCharacterCount,
+            "profileSegmentTypes": [item.type for item in profile_context_segments],
         },
         decision={
-            "profileContextInjected": False,
-            "reason": (
-                "current runtime reports profiles but does not inject profile text"
-            ),
+            "profileContextInjected": bool(profile_context_segments),
+            "reason": "selected profile fields injected"
+            if profile_context_segments
+            else "profile validation failed or profile files unavailable",
         },
         privacy={"fullProfileTextIncluded": False, "summaryCountsOnly": True},
         warnings=[]
@@ -321,45 +331,52 @@ async def run_conversation_turn(
         privacy={"fullMessageTextIncluded": False, "previewsOnly": True},
     )
     status_before_memory = inspect_database(layout)
+    selected_memory_traces = list_top_memory_v2_traces(layout, limit=3)
+    memory_context_segments = build_memory_context_segments(selected_memory_traces)
     recorder.record(
         "memory_v2_retrieval",
-        "skipped",
+        "ok" if selected_memory_traces else "skipped",
         display_name="Memory Retrieval",
-        summary="not wired",
+        summary=f"{len(selected_memory_traces)} selected",
         input={
             "availableMemoryV2TraceCount": status_before_memory.counts.memoryV2Traces,
-            "runtimeRetrievalConfigured": False,
+            "runtimeRetrievalConfigured": True,
         },
         operation={
-            "retrievalEnabled": False,
-            "selectionPolicy": "n/a",
-            "candidateCount": 0,
+            "retrievalEnabled": True,
+            "selectionPolicy": "top salience score, max 3",
+            "candidateCount": status_before_memory.counts.memoryV2Traces,
         },
         output={
-            "selectedTraceCount": 0,
-            "topSelectedTraceIds": [],
-            "injectedIntoContext": False,
+            "selectedTraceCount": len(selected_memory_traces),
+            "topSelectedTraceIds": [trace.id for trace in selected_memory_traces],
+            "topSelectedTraceShortIds": [
+                short_id(trace.id) for trace in selected_memory_traces
+            ],
+            "selectedScores": [trace.salienceScore for trace in selected_memory_traces],
+            "injectedIntoContext": bool(memory_context_segments),
         },
         decision={
-            "skipReason": "runtime retrieval not wired into prompt assembly",
+            "skipReason": None if selected_memory_traces else "no_memory_v2_traces",
             "explanation": (
-                "Memory V2 exists but runtime prompt assembly does not yet retrieve "
-                "traces."
+                "Memory V2 traces are injected as safe summaries without raw text."
             ),
         },
         privacy={"fullMemoryTextIncluded": False},
-        warnings=["Memory V2 retrieval integration gap"],
+        warnings=[] if selected_memory_traces else ["No Memory V2 traces available"],
     )
     # --- Assemble context and build model request ---
     context_segments = build_runtime_context_segments_from_messages(
         previous_messages,
         owner_content,
+        profile_context_segments=profile_context_segments,
+        memory_context_segments=memory_context_segments,
     )
     context_report = build_context_v2_report(context_segments)
     model_request = ModelRequest(
         ownerId="local-owner",
         conversationId=conversation_id,
-        messages=model_messages_for(context_segments, owner_content),
+        messages=model_messages_for(context_segments, context_report, owner_content),
     )
     request_character_count = sum(
         len(message.content) for message in model_request.messages
@@ -868,19 +885,28 @@ async def run_conversation_turn(
         rin_message.id,
         now,
     )
-    memory_trace_id = str(uuid4())
-    create_memory_trace(
-        layout,
-        memory_trace_id,
-        owner_message.id,
-        {
-            "source": "conversation_runtime_candidate",
-            "contentCharacterCount": len(owner_content),
-            "rawTextIncluded": False,
-        },
-        0.5,
-        now,
+    memory_analysis = analyze_memory_v2_source(
+        MemoryV2SourceMessage(
+            messageId=owner_message.id,
+            conversationId=conversation_id,
+            role="owner",
+            content=owner_content,
+            createdAt=owner_message.createdAt,
+        ),
+        now=now,
     )
+    memory_trace_id: str | None = None
+    memory_update_supported = memory_analysis.decision == "promoted"
+    if memory_update_supported:
+        memory_trace_id = str(uuid4())
+        create_memory_trace(
+            layout,
+            memory_trace_id,
+            owner_message.id,
+            memory_trace_signal_summary(memory_analysis),
+            memory_analysis.retentionScore,
+            now,
+        )
     status_after_memory = inspect_database(layout)
     traces_created = max(
         0,
@@ -903,20 +929,39 @@ async def run_conversation_turn(
         },
         operation={
             "memoryV2UpdateAttempted": True,
-            "writeType": "create_memory_trace",
+            "analyzer": "analyze_memory_v2_source",
+            "writeType": "create_memory_trace"
+            if memory_update_supported
+            else "no_write",
         },
         output={
             "signalsCreatedCount": signals_created,
             "tracesCreatedCount": traces_created,
-            "tracesUpdatedCount": traces_created,
-            "createdTraceId": memory_trace_id,
+            "tracesUpdatedCount": 0,
+            "createdTraceId": memory_trace_id or "n/a",
             "createdTraceShortId": short_id(memory_trace_id),
             "totalMemoryV2Traces": status_after_memory.counts.memoryV2Traces,
             "shortTermStateUpdated": False,
             "fullTextStoredInTrace": False,
+            "analysisDecision": memory_analysis.decision,
+            "analysisRetentionScore": memory_analysis.retentionScore,
+            "analysisReasons": memory_analysis.reasons,
+            "analysisSignalKeys": [
+                signal.signalKey for signal in memory_analysis.signals
+            ],
         },
-        decision={"skipReason": None, "reason": "safe Memory V2 trace summary written"},
+        decision={
+            "skipReason": None
+            if memory_update_supported
+            else f"{memory_analysis.decision}_does_not_create_trace",
+            "reason": "safe Memory V2 trace summary written"
+            if memory_update_supported
+            else "memory analysis did not promote a new trace",
+        },
         privacy={"noFullTextStoredInTrace": True},
+        warnings=[]
+        if memory_update_supported or memory_analysis.decision == "ignored"
+        else [f"{memory_analysis.decision} update path not implemented"],
     )
     total_elapsed = elapsed_ms(started_at)
     recorder.record(
@@ -949,7 +994,7 @@ async def run_conversation_turn(
         contextIncludedSegments=context_report.includedSegments,
         contextCharacterCount=context_report.characterCount,
         elapsedMs=total_elapsed,
-        memoryTraceWritten=True,
+        memoryTraceWritten=memory_update_supported,
         ownerMessagePreserved=True,
         fakeReplyWritten=False,
         duplicateRetry=False,
@@ -974,6 +1019,111 @@ def build_runtime_context_segments(
     )
 
 
+def build_profile_context_segments(
+    layout: RinDataLayout,
+) -> list[ContextV2InputSegment]:
+    """Build prompt segments from approved profile fields only."""
+    rin_profile = load_rin_profile(layout)
+    owner_profile = load_owner_profile(layout)
+    return [
+        ContextV2InputSegment(
+            id="rin-profile",
+            type="rin_profile",
+            sourceId="config:rin_profile",
+            provenance="profiles:readonly:selected_fields",
+            protected=False,
+            content="\n".join(
+                [
+                    "RIN profile:",
+                    f"displayName: {rin_profile.displayName}",
+                    f"role: {rin_profile.role}",
+                    f"communicationStyle: {'; '.join(rin_profile.communicationStyle)}",
+                ]
+            ),
+        ),
+        ContextV2InputSegment(
+            id="owner-profile",
+            type="owner_profile",
+            sourceId="config:owner_profile",
+            provenance="profiles:readonly:selected_fields",
+            protected=False,
+            content="\n".join(
+                [
+                    "Owner profile:",
+                    f"displayName: {owner_profile.displayName}",
+                    "communicationPreferences: "
+                    f"{'; '.join(owner_profile.communicationPreferences)}",
+                    f"stablePreferences: {'; '.join(owner_profile.stablePreferences)}",
+                ]
+            ),
+        ),
+    ]
+
+
+def build_memory_context_segments(
+    traces: Sequence[MemoryV2TraceRecord],
+) -> list[ContextV2InputSegment]:
+    """Build prompt segments from safe Memory V2 trace summaries."""
+    return [
+        ContextV2InputSegment(
+            id=f"memory-v2-trace-{index + 1}",
+            type="memory_v2_trace",
+            sourceId=f"memory-v2:{trace.id}",
+            provenance="memory:v2:top_salience_safe_summary",
+            protected=False,
+            content=safe_memory_trace_context(trace),
+        )
+        for index, trace in enumerate(traces)
+    ]
+
+
+def safe_memory_trace_context(trace: MemoryV2TraceRecord) -> str:
+    """Render one Memory V2 trace without raw source text."""
+    signal_summary = getattr(trace, "signalSummary", {})
+    reasons = signal_summary.get("reasons", [])
+    signal_keys = signal_summary.get("signalKeys", [])
+    decision = signal_summary.get("decision", "n/a")
+    content_length = signal_summary.get("contentCharacterCount", "n/a")
+    return "\n".join(
+        [
+            f"Memory V2 trace {short_id(trace.id)}:",
+            f"retentionScore: {trace.salienceScore}",
+            f"decision: {decision}",
+            f"sourceLength: {content_length}",
+            f"reasons: {safe_join(reasons)}",
+            f"signalKeys: {safe_join(signal_keys)}",
+        ]
+    )
+
+
+def safe_join(value: object) -> str:
+    """Join simple list values for safe context summaries."""
+    if not isinstance(value, list):
+        return "n/a"
+    simple_values = [str(item) for item in value if isinstance(item, str)]
+    return ", ".join(simple_values) if simple_values else "n/a"
+
+
+def memory_trace_signal_summary(
+    analysis: MemoryV2TraceAnalysis,
+) -> dict[str, object]:
+    """Build the stored Memory V2 trace summary without raw text."""
+    return {
+        "schemaVersion": 1,
+        "rawTextIncluded": False,
+        "sourceMessageId": analysis.sourceMessageId,
+        "conversationId": analysis.conversationId,
+        "role": analysis.role,
+        "contentCharacterCount": analysis.contentCharacterCount,
+        "decision": analysis.decision,
+        "reasons": analysis.reasons,
+        "baseScore": analysis.baseScore,
+        "retentionScore": analysis.retentionScore,
+        "signalKeys": [signal.signalKey for signal in analysis.signals],
+        "signalTypes": [signal.signalType for signal in analysis.signals],
+    }
+
+
 def select_recent_messages(
     layout: RinDataLayout,
     conversation_id: str,
@@ -993,6 +1143,9 @@ def select_recent_messages(
 def build_runtime_context_segments_from_messages(
     previous_messages: Sequence[ConversationMessageRecord],
     owner_content: str,
+    *,
+    profile_context_segments: Sequence[ContextV2InputSegment] = (),
+    memory_context_segments: Sequence[ContextV2InputSegment] = (),
 ) -> list[ContextV2InputSegment]:
     """
     Build context segments: system prompt, current owner message, and bounded recent
@@ -1034,6 +1187,8 @@ def build_runtime_context_segments_from_messages(
                 content=f"Recent conversation context (bounded):\n{history}",
             )
         )
+    segments.extend(profile_context_segments)
+    segments.extend(memory_context_segments)
     return segments
 
 
@@ -1071,16 +1226,19 @@ def build_bounded_recent_history(
 
 def model_messages_for(
     context_segments: list[ContextV2InputSegment],
+    context_report: ContextV2Report,
     owner_content: str,
 ) -> list[ModelMessage]:
     """
     Pack context segments into a system message plus the current owner message for the
     model request.
     """
+    segment_by_id = {item.id: item for item in context_segments}
     context_text = "\n".join(
-        item.content
-        for item in context_segments
-        if item.type != "current_owner_message"
+        segment.content
+        for report_segment in context_report.segments
+        if report_segment.included and report_segment.type != "current_owner_message"
+        for segment in [segment_by_id[report_segment.id]]
     )
     return [
         ModelMessage(role="system", content=context_text),
@@ -1132,11 +1290,32 @@ def context_component_table(
                 "itemCount": 1,
                 "characterCount": report_segment.characterCount,
                 "skipReason": report_segment.skipReason,
-                "privacyStatus": "preview_only",
-                "preview": input_preview(segment.content) if segment else "n/a",
+                "privacyStatus": segment_privacy_status(report_segment.type),
+                "preview": segment_safe_preview(report_segment.type, segment),
             }
         )
     return rows
+
+
+def segment_privacy_status(segment_type: str) -> str:
+    """Return the trace privacy label for a context segment type."""
+    if segment_type in {"rin_profile", "owner_profile", "memory_v2_trace"}:
+        return "metadata_only"
+    return "preview_only"
+
+
+def segment_safe_preview(
+    segment_type: str,
+    segment: ContextV2InputSegment | None,
+) -> str:
+    """Return a privacy-safe preview for trace component tables."""
+    if segment is None:
+        return "n/a"
+    if segment_type in {"rin_profile", "owner_profile"}:
+        return "hidden_profile_context"
+    if segment_type == "memory_v2_trace":
+        return "hidden_memory_summary"
+    return input_preview(segment.content)
 
 
 def model_request_outline(request: ModelRequest) -> list[dict[str, object]]:

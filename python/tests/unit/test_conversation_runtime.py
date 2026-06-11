@@ -1,3 +1,4 @@
+import json
 import shutil
 from typing import cast
 
@@ -6,8 +7,10 @@ import pytest
 from rin.contracts import ModelRequest, ModelResponse, ModelResponseMetadata
 from rin.conversation import RuntimeClock, run_conversation_turn
 from rin.database import (
+    create_memory_trace,
     create_temp_layout_database,
     inspect_database,
+    list_memory_v2_traces,
     list_messages,
 )
 from rin.diagnostics.runtime_trace import RUNTIME_TRACE_STORE
@@ -87,6 +90,42 @@ def create_layout() -> RinDataLayout:
     return create_temp_layout_database(temp.path)
 
 
+def write_profiles(layout: RinDataLayout) -> None:
+    config = layout.directories["config"]
+    config.mkdir(parents=True, exist_ok=True)
+    (config / "rin_profile.json").write_text(
+        json.dumps(
+            {
+                "schemaVersion": 1,
+                "kind": "rin_profile",
+                "updatedAt": NOW,
+                "displayName": "RIN",
+                "role": "local-first personal AI companion",
+                "communicationStyle": ["concise", "Chinese-friendly"],
+                "behaviorBoundaries": ["DO_NOT_INJECT_BOUNDARY"],
+                "contextNotes": ["DO_NOT_INJECT_RIN_NOTE"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (config / "owner_profile.json").write_text(
+        json.dumps(
+            {
+                "schemaVersion": 1,
+                "kind": "owner_profile",
+                "ownerId": "local-owner",
+                "updatedAt": NOW,
+                "displayName": "Owner",
+                "communicationPreferences": ["direct"],
+                "stablePreferences": ["prefers local-first systems"],
+                "activeProjects": ["DO_NOT_INJECT_PROJECT"],
+                "contextNotes": ["DO_NOT_INJECT_OWNER_NOTE"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 @pytest.mark.asyncio
 async def test_runtime_persists_owner_and_rin_reply_on_success() -> None:
     layout = create_layout()
@@ -109,9 +148,9 @@ async def test_runtime_persists_owner_and_rin_reply_on_success() -> None:
         assert messages[1].content == "Final answer."
         assert result.fakeReplyWritten is False
         assert result.elapsedMs >= 0
-        assert result.memoryTraceWritten is True
+        assert result.memoryTraceWritten is False
         assert status.counts.conversationTurns == 1
-        assert status.counts.memoryV2Traces == 1
+        assert status.counts.memoryV2Traces == 0
         assert adapter.requests[0].messages[-1].content == "hello"
         trace = RUNTIME_TRACE_STORE.latest()
         assert trace is not None
@@ -150,15 +189,149 @@ async def test_runtime_persists_owner_and_rin_reply_on_success() -> None:
         assert input_stage.output["inputLength"] == len("hello")
         assert input_stage.output["inputHash"]
         assert memory_stage.status == "skipped"
-        assert memory_stage.decision["skipReason"] == (
-            "runtime retrieval not wired into prompt assembly"
-        )
+        assert memory_stage.decision["skipReason"] == "no_memory_v2_traces"
         assert context_stage.output["componentTable"]
         assert request_stage.output["requestOutline"]
         assert request_stage.output["currentOwnerInputLast"] is True
         assert reply_stage.output["storedSanitizedAnswer"] is True
         assert reply_stage.output["storedRawThinking"] is False
+        assert memory_update_stage.output["analysisDecision"] == "ignored"
+        assert memory_update_stage.output["tracesCreatedCount"] == 0
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+@pytest.mark.asyncio
+async def test_runtime_promotes_memory_trace_from_owner_signal() -> None:
+    layout = create_layout()
+    try:
+        RUNTIME_TRACE_STORE.clear()
+        result = await run_conversation_turn(
+            layout,
+            "I prefer concise RIN progress reports.",
+            MockAdapter("Noted."),
+            clock=RuntimeClock(NOW),
+        )
+
+        status = inspect_database(layout)
+        traces = list_memory_v2_traces(layout)
+        trace = RUNTIME_TRACE_STORE.latest()
+        assert trace is not None
+        memory_update_stage = next(
+            stage for stage in trace.stages if stage.name == "memory_update"
+        )
+
+        assert result.status == "completed"
+        assert result.memoryTraceWritten is True
+        assert status.counts.memoryV2Traces == 1
+        assert traces[0].signalSummary["rawTextIncluded"] is False
+        assert traces[0].signalSummary["decision"] == "promoted"
+        assert traces[0].signalSummary["contentCharacterCount"] == len(
+            "I prefer concise RIN progress reports."
+        )
+        assert "I prefer" not in str(traces[0].signalSummary)
+        assert memory_update_stage.output["analysisDecision"] == "promoted"
         assert memory_update_stage.output["tracesCreatedCount"] == 1
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+@pytest.mark.asyncio
+async def test_runtime_injects_selected_profile_fields_only() -> None:
+    layout = create_layout()
+    try:
+        write_profiles(layout)
+        RUNTIME_TRACE_STORE.clear()
+        adapter = MockAdapter("Profile-aware reply.")
+        await run_conversation_turn(
+            layout,
+            "hello",
+            adapter,
+            clock=RuntimeClock(NOW),
+        )
+
+        system_context = adapter.requests[0].messages[0].content
+        trace = RUNTIME_TRACE_STORE.latest()
+        assert trace is not None
+        profile_stage = next(
+            stage for stage in trace.stages if stage.name == "profile_loading"
+        )
+        context_stage = next(
+            stage for stage in trace.stages if stage.name == "context_assembly"
+        )
+        component_table = context_stage.output["componentTable"]
+
+        assert "displayName: RIN" in system_context
+        assert "communicationStyle: concise; Chinese-friendly" in system_context
+        assert "communicationPreferences: direct" in system_context
+        assert "stablePreferences: prefers local-first systems" in system_context
+        assert "DO_NOT_INJECT" not in system_context
+        assert profile_stage.decision["profileContextInjected"] is True
+        assert any(
+            item["component"] == "owner_profile"
+            and item["preview"] == "hidden_profile_context"
+            for item in component_table
+        )
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+@pytest.mark.asyncio
+async def test_runtime_injects_top_memory_trace_summaries_only() -> None:
+    layout = create_layout()
+    try:
+        for trace_id, score in (
+            ("trace-low", 0.1),
+            ("trace-high", 0.9),
+            ("trace-mid", 0.7),
+            ("trace-second", 0.8),
+        ):
+            create_memory_trace(
+                layout,
+                trace_id,
+                f"source-{trace_id}",
+                {
+                    "rawTextIncluded": False,
+                    "decision": "promoted",
+                    "reasons": [f"reason-{trace_id}"],
+                    "signalKeys": [f"signal-{trace_id}"],
+                    "contentCharacterCount": 42,
+                },
+                score,
+                NOW,
+            )
+        RUNTIME_TRACE_STORE.clear()
+        adapter = MockAdapter("Memory-aware reply.")
+        await run_conversation_turn(
+            layout,
+            "What context matters?",
+            adapter,
+            clock=RuntimeClock(NOW),
+        )
+
+        system_context = adapter.requests[0].messages[0].content
+        trace = RUNTIME_TRACE_STORE.latest()
+        assert trace is not None
+        memory_stage = next(
+            stage for stage in trace.stages if stage.name == "memory_v2_retrieval"
+        )
+        context_stage = next(
+            stage for stage in trace.stages if stage.name == "context_assembly"
+        )
+
+        assert memory_stage.output["selectedTraceCount"] == 3
+        assert memory_stage.output["selectedScores"] == [0.9, 0.8, 0.7]
+        assert "reason-trace-high" in system_context
+        assert "reason-trace-second" in system_context
+        assert "reason-trace-mid" in system_context
+        assert "reason-trace-low" not in system_context
+        assert "source-trace-high" not in system_context
+        assert any(
+            item["component"] == "memory_v2_trace"
+            and item["privacyStatus"] == "metadata_only"
+            and item["preview"] == "hidden_memory_summary"
+            for item in context_stage.output["componentTable"]
+        )
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
