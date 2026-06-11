@@ -182,6 +182,7 @@ class OllamaAdapter:
                     emptyAfterThinkingRemoval=not sanitized.content.strip(),
                     possibleReasoningOnlyOutput=True,
                     thinkingArtifactRemoved=sanitized.removed,
+                    unsafeContentIssue=sanitized.rejectionReason,
                     responseFields=response_fields(payload),
                 ),
             )
@@ -311,7 +312,7 @@ def read_ollama_assistant_content(adapter: OllamaAdapter, payload: Any) -> str:
 def sanitize_assistant_content(content: str) -> tuple[str, bool]:
     """Convenience wrapper: return (sanitized_text, was_anything_removed)."""
     sanitized = sanitize_assistant_content_details(content)
-    return sanitized.content, sanitized.removed
+    return "" if sanitized.rejected else sanitized.content, sanitized.removed
 
 
 # Regex patterns that detect thinking-like prefaces in Chinese and English.
@@ -364,6 +365,18 @@ def sanitize_assistant_content_details(content: str) -> SanitizedAssistantConten
     thinking_tag_removed = False
     thinking_prefix_removed = False
     extracted_final_answer = False
+
+    if has_unclosed_thinking_tag(working):
+        return SanitizedAssistantContent(
+            content="",
+            removed=False,
+            thinkingTagRemoved=False,
+            thinkingLikePrefixRemoved=False,
+            extractedFinalAnswer=False,
+            rejected=True,
+            rejectionReason="unclosed_thinking_tag",
+            rulesApplied=rules,
+        )
 
     # Step 1: Remove paired <think>…</think> blocks.
     without_pairs = re.sub(r"<think>.*?</think>", "", working, flags=re.DOTALL | re.I)
@@ -423,6 +436,16 @@ def sanitize_assistant_content_details(content: str) -> SanitizedAssistantConten
 def has_thinking_like_prefix_text(content: str) -> bool:
     """Check whether the text starts with a known thinking-like preface pattern."""
     return any(pattern.search(content) for pattern in THINKING_PREFIX_PATTERNS)
+
+
+def has_unclosed_thinking_tag(content: str) -> bool:
+    """Check whether the last opening <think> tag has no later closing tag."""
+    lowered = content.lower()
+    last_open = lowered.rfind("<think>")
+    if last_open == -1:
+        return False
+    last_close = lowered.rfind("</think>")
+    return last_close < last_open
 
 
 def has_unsafe_thinking_leak(content: str) -> bool:

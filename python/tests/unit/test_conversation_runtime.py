@@ -397,6 +397,36 @@ async def test_runtime_rejects_chinese_thinking_only_output() -> None:
 
 
 @pytest.mark.asyncio
+async def test_runtime_rejects_nonempty_sanitizer_rejection() -> None:
+    layout = create_layout()
+    try:
+        RUNTIME_TRACE_STORE.clear()
+        result = await run_conversation_turn(
+            layout,
+            "dinner",
+            MockAdapter("最终答案：Eat noodles.\ninternal analysis: hidden"),
+            clock=RuntimeClock(NOW),
+        )
+
+        messages = list_messages(layout, result.conversationId)
+        trace = RUNTIME_TRACE_STORE.latest()
+        assert trace is not None
+        sanitizer = next(
+            stage for stage in trace.stages if stage.name == "sanitization_final_answer"
+        )
+
+        assert result.status == "failed"
+        assert result.errorCode == "MODEL_RESPONSE_INVALID"
+        assert [message.role for message in messages] == ["owner"]
+        assert sanitizer.decision["rejected"] is True
+        assert sanitizer.decision["rejectionReason"] == (
+            "unsafe_thinking_marker_remaining"
+        )
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+@pytest.mark.asyncio
 async def test_runtime_rejects_empty_after_thinking_removal() -> None:
     layout = create_layout()
     try:

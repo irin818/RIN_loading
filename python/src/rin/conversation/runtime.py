@@ -635,6 +635,11 @@ async def run_conversation_turn(
                 "MODEL_RESPONSE_INVALID",
                 "Empty model reply.",
             )
+        if sanitizer.rejected:
+            raise ConversationRuntimeError(
+                "MODEL_RESPONSE_INVALID",
+                "Model reply failed sanitizer validation.",
+            )
         if has_unsafe_thinking_leak(sanitized):
             raise ConversationRuntimeError(
                 "MODEL_RESPONSE_INVALID",
