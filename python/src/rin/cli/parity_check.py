@@ -13,7 +13,7 @@ def main() -> int:
         [
             (
                 "pytest parity",
-                [sys.executable, "-m", "pytest", "tests/parity"],
+                [sys.executable, "-m", "pytest", "tests/parity", "--no-cov"],
             ),
         ],
     )
