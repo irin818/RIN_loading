@@ -15,7 +15,9 @@ from rin.model.ollama import (
 
 @dataclass(frozen=True)
 class LocalChatSmokeReport:
-    """Result of a local chat smoke test: status, model info, timing, and error details."""
+    """
+    Result of a local chat smoke test: status, model info, timing, and error details.
+    """
 
     mode: str
     status: str
@@ -34,7 +36,8 @@ class LocalChatSmokeReport:
 
 
 async def run_local_chat_smoke() -> LocalChatSmokeReport:
-    """Send a simple Chinese dinner-suggestion prompt to the Ollama adapter and report the outcome.
+    """
+    Send a simple Chinese dinner-suggestion prompt to the Ollama adapter.
 
     Skips if the active adapter is not the Ollama adapter.
     """

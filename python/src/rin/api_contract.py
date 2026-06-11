@@ -1,4 +1,6 @@
-"""API contract smoke test: spin up the FastAPI app, hit key endpoints, report pass/fail."""
+"""
+API contract smoke test: spin up the FastAPI app, hit key endpoints, report pass/fail.
+"""
 
 from __future__ import annotations
 
@@ -14,7 +16,9 @@ from rin.server import create_app
 
 @dataclass(frozen=True)
 class ApiContractCheckReport:
-    """Result of the API contract check: per-endpoint pass/fail flags and summary status."""
+    """
+    Result of the API contract check: per-endpoint pass/fail flags and summary status.
+    """
 
     mode: str
     status: str
@@ -31,7 +35,10 @@ class ApiContractCheckReport:
 
 
 def run_api_contract_check() -> ApiContractCheckReport:
-    """Create a temp database, spin up the FastAPI app, hit every key endpoint, and report results."""
+    """
+    Create a temp database, spin up the FastAPI app, hit every key endpoint, and report
+    results.
+    """
     temp = create_temp_data_dir("rin-python-api-contract-")
     layout = create_temp_layout_database(temp.path)
     try:

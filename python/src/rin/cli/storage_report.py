@@ -8,7 +8,9 @@ from rin.storage import build_storage_report, create_data_layout
 
 
 def main() -> None:
-    """Inspect the data directory layout from RIN_DATA_DIR and print a storage report."""
+    """
+    Inspect the data directory layout from RIN_DATA_DIR and print a storage report.
+    """
     data_dir = os.environ.get("RIN_DATA_DIR", ".rin-data")
     report = build_storage_report(create_data_layout(data_dir))
     print(f"RIN Python storage report.\nMode: {report.mode}")

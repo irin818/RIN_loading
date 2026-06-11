@@ -10,6 +10,7 @@ from rin.database import (
     create_conversation,
     create_memory_trace,
     create_temp_layout_database,
+    initialize_temp_database,
     inspect_database,
     list_audit_summaries,
     list_conversations,
@@ -27,7 +28,7 @@ def create_layout() -> RinDataLayout:
     return create_temp_layout_database(temp.path)
 
 
-def test_rejects_unmarked_production_data_path(
+def test_allows_initialized_production_root_but_rejects_children(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -36,9 +37,17 @@ def test_rejects_unmarked_production_data_path(
     production = tmp_path / ".rin-data"
     monkeypatch.setattr(safety, "PRODUCTION_RIN_DATA_DIR", production)
     layout = create_data_layout(str(production), cwd="/")
+    initialize_temp_database(layout)
 
+    conversation = create_conversation(layout, "allowed", NOW, "conv-prod-test")
+
+    assert conversation.id == "conv-prod-test"
     with pytest.raises(UnsafeDataPathError):
-        create_conversation(layout, "blocked", NOW)
+        create_conversation(
+            create_data_layout(str(production / "databases"), cwd="/"),
+            "blocked child",
+            NOW,
+        )
 
 
 def test_creates_conversation_and_messages_transactionally() -> None:

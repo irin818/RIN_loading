@@ -1,4 +1,6 @@
-"""Conversation turn runtime: context assembly, model call, sanitization, persistence."""
+"""
+Conversation turn runtime: context assembly, model call, sanitization, persistence.
+"""
 
 from __future__ import annotations
 
@@ -48,7 +50,9 @@ from rin.storage import RinDataLayout
 
 
 class ModelAdapterProtocol(Protocol):
-    """Protocol that any model adapter must satisfy: an id and an async generate method."""
+    """
+    Protocol that any model adapter must satisfy: an id and an async generate method.
+    """
 
     id: str
 
@@ -56,7 +60,10 @@ class ModelAdapterProtocol(Protocol):
 
 
 class ConversationRuntimeError(RuntimeError):
-    """Raised when the conversation runtime cannot complete a turn (model error, invalid response, etc.)."""
+    """
+    Raised when the conversation runtime cannot complete a turn (model error, invalid
+    response, etc.).
+    """
 
     def __init__(self, code: str, message: str, retryable: bool = True) -> None:
         super().__init__(message)
@@ -119,10 +126,12 @@ async def run_conversation_turn(
     conversation_id: str | None = None,
     clock: RuntimeClock | None = None,
 ) -> ConversationRuntimeResult:
-    """Run one full conversation turn: persist owner message, assemble context, call the model,
-    sanitize the response, persist the reply, and write a memory trace.
+    """
+    Run one full conversation turn.
 
-    Returns a structured result whether the turn succeeds or fails.
+    Persists the owner message, assembles context, calls the model, sanitizes the
+    response, persists the reply, and writes a memory trace. Returns a structured
+    result whether the turn succeeds or fails.
     """
     # --- Setup ---
     started_at = perf_counter()
@@ -950,7 +959,9 @@ def build_runtime_context_segments(
     conversation_id: str,
     owner_content: str,
 ) -> list[ContextV2InputSegment]:
-    """Select recent messages and build context segments for a turn (convenience wrapper)."""
+    """
+    Select recent messages and build context segments for a turn (convenience wrapper).
+    """
     previous_messages = select_recent_messages(layout, conversation_id, owner_content)
     return build_runtime_context_segments_from_messages(
         previous_messages,
@@ -963,7 +974,10 @@ def select_recent_messages(
     conversation_id: str,
     owner_content: str,
 ) -> list[ConversationMessageRecord]:
-    """Return up to RECENT_HISTORY_MESSAGE_LIMIT prior messages, excluding the current owner message by content match."""
+    """
+    Return up to RECENT_HISTORY_MESSAGE_LIMIT prior messages, excluding the current
+    owner message by content match.
+    """
     return [
         message
         for message in list_messages(layout, conversation_id)
@@ -975,7 +989,10 @@ def build_runtime_context_segments_from_messages(
     previous_messages: Sequence[ConversationMessageRecord],
     owner_content: str,
 ) -> list[ContextV2InputSegment]:
-    """Build context segments: system prompt, current owner message, and bounded recent history."""
+    """
+    Build context segments: system prompt, current owner message, and bounded recent
+    history.
+    """
     history = str(build_bounded_recent_history(previous_messages)["content"])
     segments = [
         ContextV2InputSegment(
@@ -1018,7 +1035,10 @@ def build_runtime_context_segments_from_messages(
 def build_bounded_recent_history(
     previous_messages: Sequence[ConversationMessageRecord],
 ) -> dict[str, object]:
-    """Build a truncated recent-history string for prompt injection, respecting per-message and total char caps."""
+    """
+    Build a truncated recent-history string for prompt injection, respecting per-message
+    and total char caps.
+    """
     rows: list[str] = []
     total_chars = 0
     truncated = False
@@ -1048,7 +1068,10 @@ def model_messages_for(
     context_segments: list[ContextV2InputSegment],
     owner_content: str,
 ) -> list[ModelMessage]:
-    """Pack context segments into a system message plus the current owner message for the model request."""
+    """
+    Pack context segments into a system message plus the current owner message for the
+    model request.
+    """
     context_text = "\n".join(
         item.content
         for item in context_segments
@@ -1066,7 +1089,10 @@ def message_trace_summary(
     included: bool,
     reason: str,
 ) -> dict[str, object]:
-    """Produce a privacy-safe trace summary for a single message (id, role, length, preview, hash)."""
+    """
+    Produce a privacy-safe trace summary for a single message (id, role, length,
+    preview, hash).
+    """
     return {
         "messageId": message.id,
         "messageShortId": short_id(message.id),
@@ -1085,7 +1111,10 @@ def context_component_table(
     context_segments: list[ContextV2InputSegment],
     context_report: ContextV2Report,
 ) -> list[dict[str, object]]:
-    """Build a trace-friendly table describing each context component and its inclusion status."""
+    """
+    Build a trace-friendly table describing each context component and its inclusion
+    status.
+    """
     rows: list[dict[str, object]] = []
     segment_by_id = {segment.id: segment for segment in context_segments}
     for report_segment in context_report.segments:
@@ -1133,7 +1162,9 @@ def recent_history_preview(content: str) -> str:
 
 
 def safe_raw_preview(raw_content: str) -> str:
-    """Return a short preview of raw model output, hiding content that looks like thinking."""
+    """
+    Return a short preview of raw model output, hiding content that looks like thinking.
+    """
     if has_thinking_tag(raw_content) or has_thinking_like_prefix(raw_content):
         return "hidden_due_to_thinking_signal"
     return input_preview(raw_content)

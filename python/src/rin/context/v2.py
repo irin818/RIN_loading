@@ -1,4 +1,7 @@
-"""Context V2 assembly: order segments by priority, apply budget, and produce a ContextV2Report."""
+"""
+Context V2 assembly: order segments by priority, apply budget, and produce a
+ContextV2Report.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +15,10 @@ DEFAULT_CONTEXT_V2_MAX_CHARACTERS = 2400
 
 
 class ContextV2InputSegment(BaseModel):
-    """One piece of context to consider for injection (system prompt, profile, history, memory trace, etc.)."""
+    """
+    One piece of context to consider for injection (system prompt, profile, history,
+    memory trace, etc.).
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -107,7 +113,10 @@ def order_segments(
 
 
 def priority_for(segment_type: ContextV2SegmentType) -> int:
-    """Return the ordering priority for a context segment type (lower = earlier in the prompt)."""
+    """
+    Return the ordering priority for a context segment type (lower = earlier in the
+    prompt).
+    """
     priorities: dict[ContextV2SegmentType, int] = {
         "system": 0,
         "rin_profile": 1,

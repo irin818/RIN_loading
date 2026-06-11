@@ -1,6 +1,7 @@
 """FastAPI application factory with UI, API, and diagnostics routes.
 
-Creates a FastAPI app wired to a RinDataLayout, optional model adapter, and optional clock.
+Creates a FastAPI app wired to a RinDataLayout, optional model adapter, and optional
+clock.
 Routes are grouped into: UI rendering, readiness/state, diagnostics, conversation/chat,
 profile/memory status, and safe serialization helpers.
 """
@@ -55,7 +56,10 @@ class ConversationCreateBody(BaseModel):
 
 
 class ConversationSendBody(BaseModel):
-    """Request body for chat send endpoints — message content with optional conversation/turn ids."""
+    """
+    Request body for chat send endpoints — message content with optional
+    conversation/turn ids.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -78,7 +82,9 @@ class ApiState(BaseModel):
 
 
 class MockApiAdapter:
-    """Fallback adapter that returns a static mock reply when no real model is configured."""
+    """
+    Fallback adapter that returns a static mock reply when no real model is configured.
+    """
 
     id = "rin-mock-local"
 
@@ -539,7 +545,10 @@ def create_app(
 
 
 def safe_chat_message(message: object | None) -> dict[str, object] | None:
-    """Serialize a message for the chat test response, including full text (trusted local context)."""
+    """
+    Serialize a message for the chat test response, including full text (trusted local
+    context).
+    """
     if message is None:
         return None
     return {
@@ -677,7 +686,8 @@ def build_status_dashboard_summary(
     selected_conversation_id: str | None = None,
     messages: Sequence[object] | None = None,
 ) -> dict[str, object]:
-    """Build a structured dashboard summary with readiness, adapter, database, profile, memory, and health.
+    """
+    Build a structured dashboard summary.
 
     Used by both the console page and the /api/status-dashboard endpoint.
     """
@@ -785,7 +795,10 @@ def build_diagnostics_payload(
     adapter: ModelAdapterProtocol,
     section: str,
 ) -> dict[str, object]:
-    """Build a detailed diagnostics payload for one section (overview, model, memory, etc.)."""
+    """
+    Build a detailed diagnostics payload for one section (overview, model, memory,
+    etc.).
+    """
     dashboard = build_status_dashboard_summary(layout, adapter)
     snapshot = local_console_snapshot(layout)
     database = cast(dict[str, object], snapshot["database"])
@@ -907,7 +920,10 @@ def build_diagnostics_payload(
 
 
 def build_memory_diagnostics_payload(layout: RinDataLayout) -> dict[str, object]:
-    """Build the detailed memory diagnostics payload: algorithm, state, AI memory state, contents, curve, health."""
+    """
+    Build the detailed memory diagnostics payload: algorithm, state, AI memory state,
+    contents, curve, health.
+    """
     status = inspect_database(layout)
     traces = list_memory_v2_traces(layout, limit=12)
     latest_trace = RUNTIME_TRACE_STORE.latest()
@@ -1054,7 +1070,10 @@ def build_memory_diagnostics_payload(layout: RinDataLayout) -> dict[str, object]
 
 
 def safe_memory_trace_item(trace: object) -> dict[str, object]:
-    """Serialize one memory trace for the diagnostics view (no raw text — counts, hashes, previews only)."""
+    """
+    Serialize one memory trace for the diagnostics view (no raw text — counts, hashes,
+    previews only).
+    """
     signal_summary = getattr(trace, "signalSummary", {})
     content_length = (
         signal_summary.get("contentCharacterCount", "n/a")
@@ -1096,7 +1115,10 @@ def safe_memory_trace_item(trace: object) -> dict[str, object]:
 
 
 def local_console_snapshot(layout: RinDataLayout) -> dict[str, object]:
-    """Build a lightweight snapshot of the local console state (database counts, profile, model runtime)."""
+    """
+    Build a lightweight snapshot of the local console state (database counts, profile,
+    model runtime).
+    """
     status = inspect_database(layout)
     profile = build_profile_report(layout).model_dump(mode="json")
     return {

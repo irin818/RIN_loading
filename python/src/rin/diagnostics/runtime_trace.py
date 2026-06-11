@@ -1,4 +1,5 @@
-"""Privacy-safe runtime tracing: record per-stage diagnostics for each conversation turn.
+"""
+Privacy-safe runtime tracing for per-stage conversation diagnostics.
 
 Traces are stored in-memory only (deque of last N turns). No raw prompt or model
 output text is ever included — only hashes, previews, and character counts.
@@ -19,7 +20,9 @@ TraceStatus = Literal["running", "success", "failed"]
 
 @dataclass(frozen=True)
 class RuntimeTraceStage:
-    """One stage in a turn trace: input, operation, output, decision, privacy metadata."""
+    """
+    One stage in a turn trace: input, operation, output, decision, privacy metadata.
+    """
 
     name: str
     displayName: str
@@ -42,7 +45,9 @@ class RuntimeTraceStage:
 
 @dataclass
 class RuntimeTrace:
-    """A full trace for one conversation turn: ordered stages with privacy-safe summaries."""
+    """
+    A full trace for one conversation turn: ordered stages with privacy-safe summaries.
+    """
 
     turnId: str
     conversationId: str
@@ -72,7 +77,9 @@ class RuntimeTrace:
 
 
 class RuntimeTraceRecorder:
-    """Records trace stages for a single turn. Call record() at each step, then finish()."""
+    """
+    Records trace stages for a single turn. Call record() at each step, then finish().
+    """
 
     def __init__(self, turn_id: str, conversation_id: str, created_at: str) -> None:
         self.trace = RuntimeTrace(
@@ -198,12 +205,16 @@ def input_preview(value: str, limit: int = 18) -> str:
 
 
 def short_hash(value: str) -> str:
-    """Return the first 12 hex chars of SHA-256 (for trace-safe content fingerprinting)."""
+    """
+    Return the first 12 hex chars of SHA-256 (for trace-safe content fingerprinting).
+    """
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
 
 
 def short_id(value: str | None, limit: int = 8) -> str:
-    """Truncate a UUID/id to a short prefix for display (returns 'n/a' for None/empty)."""
+    """
+    Truncate a UUID/id to a short prefix for display (returns 'n/a' for None/empty).
+    """
     if not value:
         return "n/a"
     return value[:limit] + ("..." if len(value) > limit else "")

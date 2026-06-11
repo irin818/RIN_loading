@@ -21,8 +21,12 @@ MemoryV2Decision = Literal["promoted", "reinforced", "weakened", "ignored"]
 
 # ---- Tuning constants ----
 PROMOTION_THRESHOLD = 0.45  # retention score must reach this to promote/reinforce
-LOW_SIGNAL_MAX_CHARACTERS = 18  # messages shorter than this get "low_signal" if no other signal fires
-DEFAULT_NOW = "2026-06-05T12:00:00.000Z"  # fixed reference timestamp for deterministic tests
+LOW_SIGNAL_MAX_CHARACTERS = (
+    18  # messages shorter than this get "low_signal" if no other signal fires
+)
+DEFAULT_NOW = (
+    "2026-06-05T12:00:00.000Z"  # fixed reference timestamp for deterministic tests
+)
 
 # Stopwords excluded during token extraction (English and Chinese).
 EN_STOPWORDS = {
@@ -69,7 +73,10 @@ EXPLICIT_PLURALS = {
 
 @dataclass(frozen=True)
 class MemoryV2SourceMessage:
-    """Minimal message representation passed to Memory V2 analysis (id, role, content, timestamps)."""
+    """
+    Minimal message representation passed to Memory V2 analysis (id, role, content,
+    timestamps).
+    """
 
     messageId: str
     conversationId: str
@@ -92,9 +99,11 @@ def analyze_memory_v2_source(
     now: str = DEFAULT_NOW,
     existing_trace: bool = False,
 ) -> MemoryV2TraceAnalysis:
-    """Extract signals from a message, compute retention score with decay, and decide trace fate.
+    """
+    Extract signals, compute retention score, and decide trace fate.
 
-    Returns a MemoryV2TraceAnalysis with the decision (promoted/reinforced/weakened/ignored).
+    Returns a MemoryV2TraceAnalysis with the decision
+    (promoted/reinforced/weakened/ignored).
     """
     content_character_count = len(message.content)
     age_hours = age_in_hours(message.createdAt, now)
@@ -148,7 +157,10 @@ def build_retrieval_token_profile(
     text: str,
     extra: str | None = None,
 ) -> RetrievalTokenProfile:
-    """Build a token profile from text for later retrieval matching (Latin tokens + CJK bigrams)."""
+    """
+    Build a token profile from text for later retrieval matching (Latin tokens + CJK
+    bigrams).
+    """
     source = f"{text} {extra}" if extra else text
     prepared = preprocess_text(source)
     latin_tokens = frozenset(extract_latin_tokens(prepared))
@@ -164,7 +176,9 @@ def extract_signals(
     content: str,
     content_character_count: int,
 ) -> tuple[list[str], list[MemoryV2Signal]]:
-    """Scan message content for preference, project, contradiction, daily, and low signals."""
+    """
+    Scan message content for preference, project, contradiction, daily, and low signals.
+    """
     normalized = content.lower()
     reasons: list[str] = []
     signals: list[MemoryV2Signal] = []
@@ -254,7 +268,10 @@ def decide_trace(
     retention_score: float,
     existing_trace: bool,
 ) -> MemoryV2Decision:
-    """Decide trace fate: promoted (new), reinforced (existing), weakened (decayed), or ignored."""
+    """
+    Decide trace fate: promoted (new), reinforced (existing), weakened (decayed), or
+    ignored.
+    """
     if retention_score >= PROMOTION_THRESHOLD:
         return "reinforced" if existing_trace else "promoted"
     if base_score >= PROMOTION_THRESHOLD:

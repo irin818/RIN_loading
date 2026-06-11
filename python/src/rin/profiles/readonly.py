@@ -1,4 +1,7 @@
-"""Profile loading and validation: load RIN and owner profiles from disk, validate, build reports."""
+"""
+Profile loading and validation: load RIN and owner profiles from disk, validate, build
+reports.
+"""
 
 from __future__ import annotations
 
@@ -33,7 +36,9 @@ def load_owner_profile(layout: RinDataLayout) -> OwnerProfile:
 
 
 def build_profile_report(layout: RinDataLayout) -> ProfileReport:
-    """Load both profiles, validate them, and build a ProfileReport with issue diagnostics."""
+    """
+    Load both profiles, validate them, and build a ProfileReport with issue diagnostics.
+    """
     rin_profile, rin_issues = validate_rin_profile(layout)
     owner_profile, owner_issues = validate_owner_profile(layout)
     issues = [*rin_issues, *owner_issues]

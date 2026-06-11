@@ -90,21 +90,23 @@ def test_conversation_create_send_and_history_contract() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
-def test_write_routes_reject_unmarked_production_data_path(
+def test_write_routes_allow_initialized_production_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import rin.diagnostics.safety as safety
+    from rin.database import initialize_temp_database
 
     production = tmp_path / ".rin-data"
     monkeypatch.setattr(safety, "PRODUCTION_RIN_DATA_DIR", production)
     layout = create_data_layout(str(production), cwd="/")
+    initialize_temp_database(layout)
     client = TestClient(create_app(layout))
 
-    response = client.post("/conversations", json={"title": "blocked"})
+    response = client.post("/conversations", json={"title": "allowed"})
 
-    assert response.status_code == 403
-    assert response.json()["detail"]["code"] == "UNSAFE_DATA_PATH"
+    assert response.status_code == 200
+    assert response.json()["title"] == "allowed"
 
 
 def test_python_ui_renders_local_status_and_profile_summary() -> None:
@@ -640,12 +642,12 @@ def test_default_launcher_is_local_model_and_browser_open() -> None:
     assert not (root / "Start_RIN_Python.command").exists()
     assert not (root / "打开RIN项目.command").exists()
     assert sorted(path.name for path in root.glob("*.command")) == ["Start_RIN.command"]
-    assert 'RIN_MODEL_ADAPTER="rin-ollama-local"' in launcher_text
+    assert 'MODEL_ADAPTER="${RIN_MODEL_ADAPTER:-rin-ollama-local}"' in launcher_text
     assert "http://127.0.0.1:11434" in launcher_text
     assert "qwen3:4b" in launcher_text
     assert 'RIN_OLLAMA_MODEL="$OLLAMA_MODEL"' in launcher_text
     assert "RIN_OLLAMA_TIMEOUT_MS" in launcher_text
     assert "RIN_OLLAMA_NUM_PREDICT" in launcher_text
-    assert 'LOCAL_URL="http://127.0.0.1:8765/"' in launcher_text
+    assert 'LOCAL_URL="http://127.0.0.1:8765"' in launcher_text
     assert 'open "$LOCAL_URL"' in launcher_text
-    assert "for _ in {1..60}" in launcher_text
+    assert 'MAX_WAIT="${RIN_STARTUP_TIMEOUT_SEC:-60}"' in launcher_text

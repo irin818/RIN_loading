@@ -26,7 +26,10 @@ class BodyState:
 
 @dataclass(frozen=True)
 class BodyReport:
-    """Report on the body adapter: placeholder status, what's stored in-body vs. in RIN core."""
+    """
+    Report on the body adapter: placeholder status, what's stored in-body vs. in RIN
+    core.
+    """
 
     mode: str
     status: str

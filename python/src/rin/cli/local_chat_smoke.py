@@ -1,4 +1,7 @@
-"""CLI entry point: run a local chat smoke test against the Ollama model and print the report."""
+"""
+CLI entry point: run a local chat smoke test against the Ollama model and print the
+report.
+"""
 
 from __future__ import annotations
 

@@ -70,7 +70,9 @@ class DatabaseCounts(BaseModel):
 
 
 class DatabaseStatus(BaseModel):
-    """Full snapshot of the database: path, schema version, table statuses, and row counts."""
+    """
+    Full snapshot of the database: path, schema version, table statuses, and row counts.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -82,7 +84,10 @@ class DatabaseStatus(BaseModel):
 
 
 class MemoryMetadata(BaseModel):
-    """Metadata for a legacy memory item: tags, importance, confidence, source, review timestamps."""
+    """
+    Metadata for a legacy memory item: tags, importance, confidence, source, review
+    timestamps.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -110,7 +115,9 @@ class MemoryRecord(BaseModel):
 
 
 class MemoryV2TraceRecord(BaseModel):
-    """A Memory V2 trace record: source, signal summary, salience score, and timestamps."""
+    """
+    A Memory V2 trace record: source, signal summary, salience score, and timestamps.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -124,7 +131,10 @@ class MemoryV2TraceRecord(BaseModel):
 
 
 class AuditEventSummary(BaseModel):
-    """Privacy-safe summary of an audit event (type, payload keys, timestamp; no full payload text)."""
+    """
+    Privacy-safe summary of an audit event (type, payload keys, timestamp; no full
+    payload text).
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -149,7 +159,10 @@ def open_readonly_database(path: Path) -> sqlite3.Connection:
 
 
 def inspect_database(layout: RinDataLayout) -> DatabaseStatus:
-    """Return a full snapshot of the database: schema version, table existence, and row counts."""
+    """
+    Return a full snapshot of the database: schema version, table existence, and row
+    counts.
+    """
     path = database_path_for(layout)
     with open_readonly_database(path) as connection:
         applied_migrations = [
@@ -246,7 +259,10 @@ def list_messages(
     layout: RinDataLayout,
     conversation_id: str,
 ) -> list[ConversationMessageRecord]:
-    """List all messages in a conversation, ordered by creation time, with optional memory context."""
+    """
+    List all messages in a conversation, ordered by creation time, with optional memory
+    context.
+    """
     with open_readonly_database(database_path_for(layout)) as connection:
         rows = connection.execute(
             """

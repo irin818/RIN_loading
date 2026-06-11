@@ -43,7 +43,9 @@ ModelErrorCode = Literal[
 
 @dataclass(frozen=True)
 class OllamaGenerationOptions:
-    """Generation parameters forwarded to the Ollama API (num_predict, temperature, top_p)."""
+    """
+    Generation parameters forwarded to the Ollama API (num_predict, temperature, top_p).
+    """
 
     numPredict: int = OLLAMA_DEFAULT_NUM_PREDICT
     temperature: float = OLLAMA_DEFAULT_TEMPERATURE
@@ -52,7 +54,10 @@ class OllamaGenerationOptions:
 
 @dataclass(frozen=True)
 class ModelErrorDetails:
-    """Structured diagnostics attached to a ModelError (empty content, reasoning-only output, etc.)."""
+    """
+    Structured diagnostics attached to a ModelError (empty content, reasoning-only
+    output, etc.).
+    """
 
     baseUrl: str | None = None
     model: str | None = None
@@ -66,7 +71,10 @@ class ModelErrorDetails:
 
 @dataclass(frozen=True)
 class SanitizedAssistantContent:
-    """Result of sanitizing raw model output: final text plus flags for what was removed/rejected."""
+    """
+    Result of sanitizing raw model output: final text plus flags for what was
+    removed/rejected.
+    """
 
     content: str
     removed: bool
@@ -79,7 +87,10 @@ class SanitizedAssistantContent:
 
 
 class ModelError(RuntimeError):
-    """Raised when the Ollama adapter cannot produce a valid response (timeout, unavailable, invalid, etc.)."""
+    """
+    Raised when the Ollama adapter cannot produce a valid response (timeout,
+    unavailable, invalid, etc.).
+    """
 
     def __init__(
         self,
@@ -115,7 +126,10 @@ class OllamaAdapter:
     client: httpx.AsyncClient | None = None
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
-        """Send a chat request to Ollama, sanitize the response, and return a ModelResponse."""
+        """
+        Send a chat request to Ollama, sanitize the response, and return a
+        ModelResponse.
+        """
         endpoint = f"{self.baseUrl.rstrip('/')}/api/chat"
         body = {
             "model": self.model,
@@ -218,7 +232,10 @@ class OllamaAdapter:
 
 
 def create_ollama_adapter_from_env() -> OllamaAdapter:
-    """Build an OllamaAdapter from RIN_OLLAMA_* environment variables, falling back to defaults."""
+    """
+    Build an OllamaAdapter from RIN_OLLAMA_* environment variables, falling back to
+    defaults.
+    """
     return OllamaAdapter(
         baseUrl=os.environ.get("RIN_OLLAMA_BASE_URL", OLLAMA_DEFAULT_BASE_URL),
         model=os.environ.get("RIN_OLLAMA_MODEL", OLLAMA_DEFAULT_MODEL),
@@ -238,7 +255,9 @@ def create_ollama_adapter_from_env() -> OllamaAdapter:
 
 
 def to_ollama_chat_message(message: ModelMessage) -> dict[str, str]:
-    """Map RIN's internal roles (owner/rin) to Ollama's expected roles (user/assistant)."""
+    """
+    Map RIN's internal roles (owner/rin) to Ollama's expected roles (user/assistant).
+    """
     role = {"system": "system", "owner": "user", "rin": "assistant"}[message.role]
     return {"role": role, "content": message.content}
 
@@ -257,7 +276,10 @@ def read_json_response(adapter: OllamaAdapter, response: httpx.Response) -> Any:
 
 
 def read_ollama_assistant_content(adapter: OllamaAdapter, payload: Any) -> str:
-    """Extract the assistant's text content from the Ollama response payload, validating structure."""
+    """
+    Extract the assistant's text content from the Ollama response payload, validating
+    structure.
+    """
     if not isinstance(payload, dict) or not isinstance(payload.get("message"), dict):
         raise adapter.error(
             "MODEL_RESPONSE_INVALID",
@@ -327,7 +349,8 @@ def sanitize_assistant_content_details(content: str) -> SanitizedAssistantConten
     1. Remove paired <think>…</think> blocks.
     2. Drop everything before the last </think> tag.
     3. Extract text after an explicit final-answer marker.
-    4. Reject if the remainder starts with a thinking-like preface (no safe answer follows).
+    4. Reject if the remainder starts with a thinking-like preface (no safe answer
+    follows).
     5. Reject if unsafe thinking markers remain.
     """
     rules = [
@@ -403,7 +426,10 @@ def has_thinking_like_prefix_text(content: str) -> bool:
 
 
 def has_unsafe_thinking_leak(content: str) -> bool:
-    """Check for known unsafe thinking markers (<think>, internal analysis, etc.) in the text."""
+    """
+    Check for known unsafe thinking markers (<think>, internal analysis, etc.) in the
+    text.
+    """
     lowered = content.lower()
     markers = (
         "<think>",
@@ -438,12 +464,18 @@ def has_thinking_tag_text(content: str) -> bool:
 
 
 def short_hash(content: str) -> str:
-    """Return the first 12 hex characters of the SHA-256 hash (for trace-safe content identification)."""
+    """
+    Return the first 12 hex characters of the SHA-256 hash (for trace-safe content
+    identification).
+    """
     return sha256(content.encode("utf-8")).hexdigest()[:12]
 
 
 def safe_raw_preview(content: str) -> str:
-    """Return a short preview of raw model output, hiding content that looks like thinking/reasoning."""
+    """
+    Return a short preview of raw model output, hiding content that looks like
+    thinking/reasoning.
+    """
     if has_thinking_tag_text(content) or has_thinking_like_prefix_text(content):
         return "hidden_due_to_thinking_signal"
     stripped = " ".join(content.split())
@@ -451,7 +483,10 @@ def safe_raw_preview(content: str) -> str:
 
 
 def response_fields(payload: dict[str, Any]) -> list[str]:
-    """List top-level and message.* keys in the Ollama response payload (for error diagnostics)."""
+    """
+    List top-level and message.* keys in the Ollama response payload (for error
+    diagnostics).
+    """
     fields = sorted(payload.keys())
     message = payload.get("message")
     if isinstance(message, dict):
@@ -460,7 +495,10 @@ def response_fields(payload: dict[str, Any]) -> list[str]:
 
 
 def has_reasoning_like_field(payload: dict[str, Any]) -> bool:
-    """Check whether any top-level or message.* key in the payload looks like a reasoning field."""
+    """
+    Check whether any top-level or message.* key in the payload looks like a reasoning
+    field.
+    """
     if any(key.lower() in REASONING_KEYS for key in payload):
         return True
     message = payload.get("message")
@@ -474,7 +512,9 @@ def classify_ollama_error(
     status: int,
     model: str,
 ) -> tuple[ModelErrorCode, str]:
-    """Classify an Ollama HTTP error into a ModelErrorCode and human-readable message."""
+    """
+    Classify an Ollama HTTP error into a ModelErrorCode and human-readable message.
+    """
     error_text = ""
     if isinstance(payload, dict) and isinstance(payload.get("error"), str):
         error_text = payload["error"].strip()
@@ -489,7 +529,10 @@ def classify_ollama_error(
 
 
 def default_retryable(code: ModelErrorCode) -> bool:
-    """Most errors are retryable except when the model is not installed (LOCAL_MODEL_MISSING)."""
+    """
+    Most errors are retryable except when the model is not installed
+    (LOCAL_MODEL_MISSING).
+    """
     return code != "LOCAL_MODEL_MISSING"
 
 
@@ -513,7 +556,9 @@ def merge_details(
 
 
 def read_int_env(name: str, default: int) -> int:
-    """Read a positive integer from the environment, returning default on missing/invalid."""
+    """
+    Read a positive integer from the environment, returning default on missing/invalid.
+    """
     try:
         value = int(os.environ.get(name, ""))
         return value if value > 0 else default

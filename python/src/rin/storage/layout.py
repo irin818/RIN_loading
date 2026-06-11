@@ -1,4 +1,6 @@
-"""Local data layout: directory structure, manifest, core state files, and storage reports."""
+"""
+Local data layout: directory structure, manifest, core state files, and storage reports.
+"""
 
 from __future__ import annotations
 
@@ -68,7 +70,10 @@ CORE_STATE_FILES: tuple[tuple[str, str, str, str], ...] = (
 
 
 class RinDataLayout(BaseModel):
-    """Resolved paths for the RIN data directory: root, manifest, and per-purpose subdirectories."""
+    """
+    Resolved paths for the RIN data directory: root, manifest, and per-purpose
+    subdirectories.
+    """
 
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
@@ -78,7 +83,10 @@ class RinDataLayout(BaseModel):
 
 
 class CoreStateFileStatus(BaseModel):
-    """Status of one core state file: whether it exists on disk, with bilingual descriptions."""
+    """
+    Status of one core state file: whether it exists on disk, with bilingual
+    descriptions.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -91,7 +99,10 @@ class CoreStateFileStatus(BaseModel):
 
 
 class StorageReport(BaseModel):
-    """Full storage health report: manifest validity, directory existence, and core file statuses."""
+    """
+    Full storage health report: manifest validity, directory existence, and core file
+    statuses.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -112,7 +123,10 @@ def create_data_layout(
     data_dir: str = ".rin-data",
     cwd: Path | str | None = None,
 ) -> RinDataLayout:
-    """Resolve the RIN data directory and build a RinDataLayout with standard subdirectories."""
+    """
+    Resolve the RIN data directory and build a RinDataLayout with standard
+    subdirectories.
+    """
     base = Path.cwd() if cwd is None else Path(cwd)
     root_dir = (base / data_dir).resolve()
     directories = {name: root_dir / name for name in STORAGE_DIRECTORIES}
@@ -124,7 +138,9 @@ def create_data_layout(
 
 
 def load_manifest(layout: RinDataLayout) -> RinDataManifest:
-    """Load and validate the RIN data manifest JSON file. Raises ValueError on any failure."""
+    """
+    Load and validate the RIN data manifest JSON file. Raises ValueError on any failure.
+    """
     try:
         raw = layout.manifestPath.read_text(encoding="utf-8")
         return RinDataManifest.model_validate(json.loads(raw))
@@ -148,7 +164,10 @@ def inspect_core_state_files(layout: RinDataLayout) -> list[CoreStateFileStatus]
 
 
 def build_storage_report(layout: RinDataLayout) -> StorageReport:
-    """Validate manifest, check directories, inspect core files, and return a StorageReport."""
+    """
+    Validate manifest, check directories, inspect core files, and return a
+    StorageReport.
+    """
     manifest_issue: str | None = None
     manifest_valid = True
     try:
