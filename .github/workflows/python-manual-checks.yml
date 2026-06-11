@@ -1,0 +1,51 @@
+name: Python Manual Checks
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_local_model_smoke:
+        description: "Run optional Ollama local model smoke check"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dev package
+        run: python -m pip install -e ".[dev]"
+
+      - name: Ruff check
+        run: python -m ruff check .
+
+      - name: Ruff format check
+        run: python -m ruff format --check .
+
+      - name: Mypy
+        run: python -m mypy src
+
+      - name: Pytest with coverage
+        run: python -m pytest
+
+      - name: Focused coverage thresholds
+        run: python scripts/check_coverage_thresholds.py coverage.json
+
+      - name: Optional local model smoke
+        if: ${{ inputs.run_local_model_smoke }}
+        run: |
+          RIN_MODEL_ADAPTER=rin-ollama-local \
+          RIN_OLLAMA_MODEL=qwen3:4b \
+          RIN_OLLAMA_TIMEOUT_MS=180000 \
+          rin-python-local-chat-smoke

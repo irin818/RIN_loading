@@ -16,6 +16,9 @@ dist/
 # cache
 .cache/
 coverage/
+coverage.json
+.coverage
+htmlcov/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
