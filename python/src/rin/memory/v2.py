@@ -367,24 +367,23 @@ def is_cjk_bigram_stopword(bigram: str) -> bool:
 
 def has_preference_signal(content: str) -> bool:
     """Check for owner preference keywords (English and Chinese)."""
-    return bool(re.search(r"\b(prefer|preference|like|want|希望|偏好|喜欢)\b", content))
+    return bool(re.search(r"\b(prefer|preference|like|want)\b", content)) or any(
+        term in content for term in ("希望", "偏好", "喜欢")
+    )
 
 
 def has_project_signal(content: str) -> bool:
     """Check for active-project keywords (English and Chinese)."""
-    return bool(
-        re.search(r"\b(project|package|rin_loading|memory v2|计划|项目)\b", content)
+    return bool(re.search(r"\b(project|package|rin_loading|memory v2)\b", content)) or (
+        "计划" in content or "项目" in content
     )
 
 
 def has_contradiction_signal(content: str) -> bool:
     """Check for contradiction/change-of-mind keywords (English and Chinese)."""
     return bool(
-        re.search(
-            r"\b(actually|no longer|not anymore|instead|不要|不再|改为)\b",
-            content,
-        )
-    )
+        re.search(r"\b(actually|no longer|not anymore|instead)\b", content)
+    ) or ("不要" in content or "不再" in content or "改为" in content)
 
 
 def age_in_hours(created_at: str, now: str) -> float:

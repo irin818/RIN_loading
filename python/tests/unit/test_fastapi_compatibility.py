@@ -302,6 +302,47 @@ def test_chat_test_json_endpoint_updates_without_raw_thinking() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
+def test_chat_test_endpoint_rejects_missing_conversation_without_writes() -> None:
+    client, layout = create_client()
+    try:
+        response = client.post(
+            "/api/chat-test/send",
+            json={
+                "content": "should not create orphan message",
+                "conversationId": "missing-conversation",
+            },
+        )
+        state = client.get("/api/local-state").json()
+
+        assert response.status_code == 404
+        assert response.json()["detail"]["code"] == "CONVERSATION_NOT_FOUND"
+        assert state["database"]["conversations"] == 0
+        assert state["database"]["messages"] == 0
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_empty_chat_requests_do_not_create_conversations() -> None:
+    client, layout = create_client()
+    try:
+        conversations_response = client.post(
+            "/api/conversations",
+            json={"content": "   "},
+        )
+        chat_test_response = client.post(
+            "/api/chat-test/send",
+            json={"content": "\n\t"},
+        )
+        state = client.get("/api/local-state").json()
+
+        assert conversations_response.status_code == 400
+        assert chat_test_response.status_code == 400
+        assert state["database"]["conversations"] == 0
+        assert state["database"]["messages"] == 0
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
 def test_console_tab_buttons_are_explicit_button_type() -> None:
     client, layout = create_client()
     try:

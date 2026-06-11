@@ -268,7 +268,12 @@ async def run_conversation_turn(
         else ["profile validation warning"],
     )
     # --- Select recent history for prompt ---
-    previous_messages = select_recent_messages(layout, conversation_id, owner_content)
+    previous_messages = select_recent_messages(
+        layout,
+        conversation_id,
+        owner_content,
+        current_message_id=owner_message.id,
+    )
     available_prior_messages = [
         message
         for message in list_messages(layout, conversation_id)
@@ -1128,16 +1133,21 @@ def select_recent_messages(
     layout: RinDataLayout,
     conversation_id: str,
     owner_content: str,
+    *,
+    current_message_id: str | None = None,
 ) -> list[ConversationMessageRecord]:
     """
     Return up to RECENT_HISTORY_MESSAGE_LIMIT prior messages, excluding the current
-    owner message by content match.
+    owner message by id when available.
     """
-    return [
-        message
-        for message in list_messages(layout, conversation_id)
-        if message.content != owner_content
-    ][-RECENT_HISTORY_MESSAGE_LIMIT:]
+    messages = []
+    for message in list_messages(layout, conversation_id):
+        if current_message_id is not None:
+            if message.id != current_message_id:
+                messages.append(message)
+        elif message.content != owner_content:
+            messages.append(message)
+    return messages[-RECENT_HISTORY_MESSAGE_LIMIT:]
 
 
 def build_runtime_context_segments_from_messages(

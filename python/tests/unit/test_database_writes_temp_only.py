@@ -92,6 +92,20 @@ def test_duplicate_write_fails_without_overwrite() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
+def test_append_message_rejects_missing_conversation_without_orphan_write() -> None:
+    layout = create_layout()
+    try:
+        with pytest.raises(ValueError, match="Conversation not found"):
+            append_message(layout, "missing-conv", "owner", "hello", NOW, "msg-orphan")
+
+        status = inspect_database(layout)
+        assert status.counts.messages == 0
+        assert status.counts.auditEvents == 0
+        assert list_messages(layout, "missing-conv") == []
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
 def test_failed_turn_audit_and_memory_trace_writes_are_temp_only() -> None:
     layout = create_layout()
     try:

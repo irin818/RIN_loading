@@ -24,6 +24,7 @@ from rin.contracts import ModelRequest, ModelResponse, ModelResponseMetadata
 from rin.conversation import ModelAdapterProtocol, RuntimeClock, run_conversation_turn
 from rin.database import (
     create_conversation,
+    get_conversation,
     inspect_database,
     list_conversations,
     list_memory_v2_traces,
@@ -335,6 +336,7 @@ def create_app(
         current_adapter: ModelAdapterProtocol = adapter_dependency,
         current_clock: RuntimeClock = clock_dependency,
     ) -> dict[str, object]:
+        require_message_content(body.content)
         target_conversation_id = body.conversationId
         if target_conversation_id is None:
             reject_unsafe_write_layout(current_layout)
@@ -364,6 +366,7 @@ def create_app(
         current_adapter: ModelAdapterProtocol = adapter_dependency,
         current_clock: RuntimeClock = clock_dependency,
     ) -> dict[str, object]:
+        require_message_content(body.content)
         target_conversation_id = body.conversationId
         if target_conversation_id is None:
             reject_unsafe_write_layout(current_layout)
@@ -373,9 +376,8 @@ def create_app(
                 current_clock.now(),
             )
             target_conversation_id = conversation.id
+        require_existing_conversation(current_layout, target_conversation_id)
         reject_unsafe_write_layout(current_layout)
-        if not body.content.strip():
-            raise HTTPException(status_code=400, detail="Message content is required.")
         result = await run_conversation_turn(
             current_layout,
             body.content,
@@ -426,6 +428,7 @@ def create_app(
         current_clock: RuntimeClock = clock_dependency,
     ) -> Response:
         try:
+            require_message_content(body.content)
             target_conversation_id = body.conversationId
             if target_conversation_id is None:
                 reject_unsafe_write_layout(current_layout)
@@ -527,8 +530,8 @@ def create_app(
         current_clock: RuntimeClock = clock_dependency,
     ) -> dict[str, object]:
         reject_unsafe_write_layout(current_layout)
-        if not body.content.strip():
-            raise HTTPException(status_code=400, detail="Message content is required.")
+        require_message_content(body.content)
+        require_existing_conversation(current_layout, conversation_id)
         result = await run_conversation_turn(
             current_layout,
             body.content,
@@ -1169,3 +1172,21 @@ def reject_unsafe_write_layout(layout: RinDataLayout) -> None:
                 ),
             },
         ) from error
+
+
+def require_message_content(content: str) -> None:
+    """Raise HTTP 400 when a write request has no message body."""
+    if not content.strip():
+        raise HTTPException(status_code=400, detail="Message content is required.")
+
+
+def require_existing_conversation(layout: RinDataLayout, conversation_id: str) -> None:
+    """Raise HTTP 404 when a write targets a missing conversation."""
+    if get_conversation(layout, conversation_id) is None:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "CONVERSATION_NOT_FOUND",
+                "message": "Conversation not found.",
+            },
+        )

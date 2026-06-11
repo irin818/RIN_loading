@@ -111,10 +111,13 @@ def append_message(
                 "VALUES (?, ?, ?, ?, ?, ?)",
                 (message_id, conversation_id, role, content, model_adapter, now),
             )
-            connection.execute(
+            update_result = connection.execute(
                 "UPDATE conversations SET updated_at = ? WHERE id = ?",
                 (now, conversation_id),
             )
+            if update_result.rowcount != 1:
+                msg = f"Conversation not found: {conversation_id}"
+                raise ValueError(msg)
             append_audit_event_in_transaction(
                 connection,
                 "conversation.message_appended",

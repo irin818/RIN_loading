@@ -386,6 +386,47 @@ async def test_runtime_injects_bounded_recent_history_content() -> None:
 
 
 @pytest.mark.asyncio
+async def test_runtime_keeps_prior_repeated_owner_message_in_history() -> None:
+    layout = create_layout()
+    try:
+        RUNTIME_TRACE_STORE.clear()
+        adapter = MockAdapter("ok")
+        first = await run_conversation_turn(
+            layout,
+            "repeatable owner phrase",
+            adapter,
+            clock=RuntimeClock(NOW),
+        )
+        await run_conversation_turn(
+            layout,
+            "different middle phrase",
+            adapter,
+            conversation_id=first.conversationId,
+            clock=RuntimeClock(NOW),
+        )
+        await run_conversation_turn(
+            layout,
+            "repeatable owner phrase",
+            adapter,
+            conversation_id=first.conversationId,
+            clock=RuntimeClock(NOW),
+        )
+
+        system_message = adapter.requests[-1].messages[0]
+        trace = RUNTIME_TRACE_STORE.latest()
+        assert trace is not None
+        recent_stage = next(
+            stage for stage in trace.stages if stage.name == "recent_history_selection"
+        )
+
+        assert adapter.requests[-1].messages[-1].content == "repeatable owner phrase"
+        assert "owner: repeatable owner phrase" in system_message.content
+        assert recent_stage.output["selectedPriorMessages"] == 4
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+@pytest.mark.asyncio
 async def test_runtime_records_large_removal_short_final_warning() -> None:
     layout = create_layout()
     try:
