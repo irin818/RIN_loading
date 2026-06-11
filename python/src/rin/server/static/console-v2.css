@@ -104,6 +104,7 @@ textarea {
 .v2-particles i:nth-child(5) { left: 91%; animation-delay: 5s; }
 
 .v2-panel,
+.v2-glass-panel,
 .v2-center-panel,
 .v2-metric-card,
 .v2-chart-panel,
@@ -118,6 +119,14 @@ textarea {
     var(--v2-panel);
   box-shadow: var(--v2-shadow), var(--v2-glow);
   backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.v2-neon-border {
+  border-color: var(--v2-line-hot);
+  box-shadow:
+    var(--v2-shadow),
+    0 0 22px rgba(0, 255, 100, 0.16),
+    inset 0 0 0 1px rgba(0, 255, 100, 0.05);
 }
 
 .v2-avatar-panel,
@@ -165,7 +174,8 @@ textarea {
   color: var(--v2-muted);
 }
 
-.v2-status-dot {
+.v2-status-dot,
+.v2-status-indicator {
   width: 10px;
   height: 10px;
   border-radius: 999px;
@@ -234,6 +244,7 @@ textarea {
 .v2-actions a,
 .v2-actions button,
 .v2-tabs button,
+.v2-tab-button,
 .v2-composer button,
 .v2-new-link {
   min-height: 34px;
@@ -302,7 +313,8 @@ textarea {
   gap: 6px;
 }
 
-.v2-tabs button {
+.v2-tabs button,
+.v2-tab-button {
   padding: 0 6px;
   color: var(--v2-muted);
   white-space: nowrap;
@@ -310,6 +322,8 @@ textarea {
 
 .v2-tabs button.active,
 .v2-tabs button:hover,
+.v2-tab-button.active,
+.v2-tab-button:hover,
 .v2-actions a:hover,
 .v2-actions button:hover,
 .v2-composer button:hover,
@@ -329,6 +343,7 @@ textarea {
   display: block;
 }
 
+.v2-page-grid,
 .v2-metric-grid,
 .v2-data-grid,
 .v2-chart-grid {

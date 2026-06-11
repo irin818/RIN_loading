@@ -17,9 +17,9 @@
       <div class="v2-grid-bg" aria-hidden="true"></div>
       <div class="v2-particles" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
 
-      <aside class="v2-panel v2-avatar-panel" aria-label="RIN avatar and runtime identity">
+      <aside class="v2-panel v2-glass-panel v2-neon-border v2-avatar-panel" aria-label="RIN avatar and runtime identity">
         <header class="v2-brand">
-          <span class="v2-status-dot"></span>
+          <span class="v2-status-dot v2-status-indicator"></span>
           <div>
             <h1>RIN</h1>
             <p>{{ identity }}</p>
@@ -54,24 +54,24 @@
         {% if error %}<aside class="v2-error">{{ error }}</aside>{% endif %}
 
         <nav class="v2-tabs" aria-label="Console V2 pages">
-          <button type="button" class="active" data-v2-tab="dashboard">Dashboard</button>
-          <button type="button" data-v2-tab="conversations">Conversations</button>
-          <button type="button" data-v2-tab="memory">Memory</button>
-          <button type="button" data-v2-tab="context">Context</button>
-          <button type="button" data-v2-tab="model">Model</button>
-          <button type="button" data-v2-tab="data-flow">Data Flow</button>
-          <button type="button" data-v2-tab="diagnostics">Diagnostics</button>
-          <button type="button" data-v2-tab="storage">Storage</button>
+          <button type="button" class="v2-tab-button active" data-v2-tab="dashboard">Dashboard</button>
+          <button type="button" class="v2-tab-button" data-v2-tab="conversations">Conversations</button>
+          <button type="button" class="v2-tab-button" data-v2-tab="memory">Memory</button>
+          <button type="button" class="v2-tab-button" data-v2-tab="context">Context</button>
+          <button type="button" class="v2-tab-button" data-v2-tab="model">Model</button>
+          <button type="button" class="v2-tab-button" data-v2-tab="data-flow">Data Flow</button>
+          <button type="button" class="v2-tab-button" data-v2-tab="diagnostics">Diagnostics</button>
+          <button type="button" class="v2-tab-button" data-v2-tab="storage">Storage</button>
         </nav>
 
         <section class="v2-page active" data-v2-page="dashboard">
-          <section class="v2-metric-grid">
+          <section class="v2-page-grid v2-metric-grid">
             <article class="v2-metric-card"><span>Conversations</span><b data-v2-field="dashboard.database.conversations">{{ dashboard.database.conversations }}</b></article>
             <article class="v2-metric-card"><span>Messages</span><b data-v2-field="dashboard.database.messages">{{ dashboard.database.messages }}</b></article>
             <article class="v2-metric-card"><span>Memory traces</span><b data-v2-field="dashboard.memoryContext.memoryV2Traces">{{ dashboard.memoryContext.memoryV2Traces }}</b></article>
             <article class="v2-metric-card"><span>Schema</span><b data-v2-field="dashboard.database.schemaVersion">{{ dashboard.database.schemaVersion }}</b></article>
           </section>
-          <section class="v2-chart-grid">
+          <section class="v2-page-grid v2-chart-grid">
             <article class="v2-chart-panel">
               <h3>Message Balance</h3>
               <div class="v2-bar"><i data-v2-style-width="dashboard.activeConversation.ownerMessagePercent" style="width: {{ dashboard.activeConversation.ownerMessagePercent }}%"></i></div>
@@ -123,7 +123,7 @@
         </section>
 
         <section class="v2-page" data-v2-page="memory">
-          <section class="v2-data-grid">
+          <section class="v2-page-grid v2-data-grid">
             <article class="v2-data-card"><span>Trace count</span><b data-v2-field="diagnostics.memory.state.traceCount">{{ diagnostics.memory.state.traceCount }}</b></article>
             <article class="v2-data-card"><span>Retrieval</span><b data-v2-field="diagnostics.memory.health.retrievalStatus">{{ diagnostics.memory.health.retrievalStatus }}</b></article>
             <article class="v2-data-card"><span>Used last request</span><b data-v2-field="diagnostics.memory.aiMemoryState.memoryUsedInLastModelRequest">{{ diagnostics.memory.aiMemoryState.memoryUsedInLastModelRequest }}</b></article>
@@ -143,7 +143,7 @@
         </section>
 
         <section class="v2-page" data-v2-page="context">
-          <section class="v2-data-grid">
+          <section class="v2-page-grid v2-data-grid">
             <article class="v2-data-card"><span>Profile injection</span><b>{{ diagnostics.context.profileInjection }}</b></article>
             <article class="v2-data-card"><span>Memory injection</span><b>{{ diagnostics.context.memoryInjection }}</b></article>
             <article class="v2-data-card"><span>Recent window</span><b>{{ diagnostics.context.recentWindowPolicy }}</b></article>
@@ -154,7 +154,7 @@ budgetPolicy={{ diagnostics.context.budgetPolicy }}</pre>
         </section>
 
         <section class="v2-page" data-v2-page="model">
-          <section class="v2-data-grid">
+          <section class="v2-page-grid v2-data-grid">
             <article class="v2-data-card"><span>Adapter</span><b data-v2-field="diagnostics.model.adapter">{{ diagnostics.model.adapter }}</b></article>
             <article class="v2-data-card"><span>Model</span><b data-v2-field="diagnostics.model.model">{{ diagnostics.model.model }}</b></article>
             <article class="v2-data-card"><span>Timeout</span><b>{{ diagnostics.model.timeoutMs }}</b></article>
@@ -179,7 +179,7 @@ smokeStatus={{ diagnostics.model.smokeStatus }}</pre>
         </section>
 
         <section class="v2-page" data-v2-page="diagnostics">
-          <section class="v2-data-grid">
+          <section class="v2-page-grid v2-data-grid">
             <article class="v2-data-card"><span>Overview</span><b>{{ diagnostics.overview.mode }}</b></article>
             <article class="v2-data-card"><span>Profiles</span><b>{{ diagnostics.profiles.status }}</b></article>
             <article class="v2-data-card"><span>Body</span><b>{{ diagnostics.body.status }}</b></article>
@@ -193,7 +193,7 @@ rawModelOutputIncluded=false</pre>
         </section>
 
         <section class="v2-page" data-v2-page="storage">
-          <section class="v2-data-grid">
+          <section class="v2-page-grid v2-data-grid">
             <article class="v2-data-card"><span>Data dir</span><b>{{ snapshot.storage.dataDirName }}</b></article>
             <article class="v2-data-card"><span>Manifest</span><b>{{ snapshot.storage.manifestPresent }}</b></article>
             <article class="v2-data-card"><span>Schema</span><b>{{ diagnostics.database.databaseSchemaVersion }}</b></article>
@@ -202,7 +202,7 @@ rawModelOutputIncluded=false</pre>
         </section>
       </section>
 
-      <aside class="v2-panel v2-right-panel" aria-label="Latest turn and quick actions">
+      <aside class="v2-panel v2-glass-panel v2-neon-border v2-right-panel" aria-label="Latest turn and quick actions">
         <header>
           <p class="v2-kicker">Latest Turn</p>
           <h2 data-v2-field="runtimeTrace.status">{{ runtime_trace.status if runtime_trace else "none" }}</h2>

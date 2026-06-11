@@ -245,6 +245,8 @@ def test_console_v2_route_assets_and_snapshot_are_safe() -> None:
         assert page.status_code == 200
         assert "RIN Console V2" in page.text
         assert 'data-v2-tab="dashboard"' in page.text
+        assert "v2-tab-button" in page.text
+        assert "v2-page-grid" in page.text
         assert 'data-v2-page="data-flow"' in page.text
         assert "v2-avatar-panel" in page.text
         assert "console-v2.css" in page.text
@@ -253,6 +255,11 @@ def test_console_v2_route_assets_and_snapshot_are_safe() -> None:
         assert "/api/chat-test/send" in page.text
         assert css.status_code == 200
         assert "--v2-green: #00ff64" in css.text
+        assert ".v2-glass-panel" in css.text
+        assert ".v2-neon-border" in css.text
+        assert ".v2-status-indicator" in css.text
+        assert ".v2-tab-button" in css.text
+        assert ".v2-page-grid" in css.text
         assert ".v2-avatar-panel" in css.text
         assert ".v2-metric-card" in css.text
         assert js.status_code == 200
