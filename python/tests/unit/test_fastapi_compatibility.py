@@ -196,6 +196,10 @@ def test_python_ui_static_assets_are_served() -> None:
         assert "RIN console submit failed" in js.text
         assert "requestSubmit" in js.text
         assert "refreshDashboard" in js.text
+        assert "refreshLatestRuntimeTrace" in js.text
+        assert "renderLatestRuntimeTrace" in js.text
+        assert "/api/diagnostics/runtime-trace/latest" in js.text
+        assert "await refreshLatestRuntimeTrace()" in js.text
         assert "/api/chat-test/send" in js.text
         assert "document.write" not in js.text
         assert "document.open" not in js.text
