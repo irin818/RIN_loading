@@ -231,6 +231,47 @@ def test_python_ui_static_assets_are_served() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
+def test_console_v2_route_assets_and_snapshot_are_safe() -> None:
+    client, layout = create_client()
+    try:
+        old_console = client.get("/ui")
+        page = client.get("/ui-v2")
+        css = client.get("/static/console-v2.css")
+        js = client.get("/static/console-v2.js")
+        snapshot = client.get("/api/console-v2/snapshot")
+
+        assert old_console.status_code == 200
+        assert "RIN Control Console" in old_console.text
+        assert page.status_code == 200
+        assert "RIN Console V2" in page.text
+        assert 'data-v2-tab="dashboard"' in page.text
+        assert 'data-v2-page="data-flow"' in page.text
+        assert "v2-avatar-panel" in page.text
+        assert "console-v2.css" in page.text
+        assert "console-v2.js" in page.text
+        assert "/api/console-v2/snapshot" in page.text
+        assert "/api/chat-test/send" in page.text
+        assert css.status_code == 200
+        assert "--v2-green: #00ff64" in css.text
+        assert ".v2-avatar-panel" in css.text
+        assert ".v2-metric-card" in css.text
+        assert js.status_code == 200
+        assert "refreshSnapshot" in js.text
+        assert "submitChat" in js.text
+        assert "document.write" not in js.text
+        assert snapshot.status_code == 200
+        payload = snapshot.json()
+        assert payload["readOnly"] is True
+        assert payload["fullTextIncluded"] is False
+        assert payload["rawPromptIncluded"] is False
+        assert payload["rawModelOutputIncluded"] is False
+        assert payload["externalProviderCallCount"] == 0
+        assert payload["dashboard"]["serverMode"] == "local-only"
+        assert payload["storage"]["fullPathIncluded"] is False
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
 def test_python_ui_chat_submit_renders_conversation_history() -> None:
     client, layout = create_client()
     try:

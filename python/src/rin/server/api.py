@@ -40,6 +40,7 @@ from rin.diagnostics.runtime_trace import (
 from rin.diagnostics.safety import assert_safe_python_write_data_dir
 from rin.profiles import build_profile_report
 from rin.storage import RinDataLayout
+from rin.version import __version__
 
 SERVER_DIR = Path(__file__).parent
 REPO_ROOT = SERVER_DIR.parents[3]
@@ -168,6 +169,22 @@ def create_app(
             force_new_chat=new,
         )
 
+    @app.get("/ui-v2", response_class=HTMLResponse)
+    def ui_v2(
+        request: Request,
+        conversationId: str | None = None,
+        new: bool = False,
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> Response:
+        return render_console_v2_page(
+            request,
+            current_layout,
+            current_adapter,
+            selected_conversation_id=conversationId,
+            force_new_chat=new,
+        )
+
     # ---- Readiness and state ----
     @app.get("/readiness")
     def readiness() -> dict[str, object]:
@@ -191,6 +208,18 @@ def create_app(
         current_adapter: ModelAdapterProtocol = adapter_dependency,
     ) -> dict[str, object]:
         return build_status_dashboard_summary(
+            current_layout,
+            current_adapter,
+            selected_conversation_id=conversationId,
+        )
+
+    @app.get("/api/console-v2/snapshot")
+    def api_console_v2_snapshot(
+        conversationId: str | None = None,
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> dict[str, object]:
+        return build_console_v2_snapshot(
             current_layout,
             current_adapter,
             selected_conversation_id=conversationId,
@@ -591,6 +620,31 @@ def render_console_page(
     )
 
 
+def render_console_v2_page(
+    request: Request,
+    layout: RinDataLayout,
+    adapter: ModelAdapterProtocol,
+    *,
+    selected_conversation_id: str | None = None,
+    force_new_chat: bool = False,
+    notice: str | None = None,
+    error: str | None = None,
+) -> Response:
+    """Render Console V2 with the safe combined view model."""
+    return TEMPLATES.TemplateResponse(
+        request,
+        "console-v2.html",
+        build_console_v2_view_model(
+            layout,
+            adapter,
+            selected_conversation_id=selected_conversation_id,
+            force_new_chat=force_new_chat,
+            notice=notice,
+            error=error,
+        ),
+    )
+
+
 def build_console_view_model(
     layout: RinDataLayout,
     adapter: ModelAdapterProtocol,
@@ -679,6 +733,111 @@ def build_console_view_model(
         "active_tab": active_tab,
         "notice": notice,
         "error": error,
+    }
+
+
+def build_console_v2_view_model(
+    layout: RinDataLayout,
+    adapter: ModelAdapterProtocol,
+    *,
+    selected_conversation_id: str | None = None,
+    force_new_chat: bool = False,
+    notice: str | None = None,
+    error: str | None = None,
+) -> dict[str, object]:
+    """Assemble Console V2 template data while preserving safe diagnostics."""
+    conversations = list_conversations(layout, limit=20)
+    selected = (
+        None
+        if force_new_chat
+        else (
+            selected_conversation_id or (conversations[0].id if conversations else None)
+        )
+    )
+    messages = list_messages(layout, selected) if selected else []
+    snapshot = build_console_v2_snapshot(
+        layout,
+        adapter,
+        selected_conversation_id=selected,
+        messages=messages,
+    )
+    return {
+        "title": "RIN Console V2",
+        "version": __version__,
+        "identity": "Python-first local RIN runtime.",
+        "selected_conversation_id": selected,
+        "conversations": conversations,
+        "messages": messages,
+        "snapshot": snapshot,
+        "dashboard": snapshot["dashboard"],
+        "diagnostics": snapshot["diagnostics"],
+        "runtime_trace": snapshot["runtimeTrace"],
+        "avatar_asset_path": "/live2d/rin/rin-front-fullbody.png",
+        "notice": notice,
+        "error": error,
+    }
+
+
+def build_console_v2_snapshot(
+    layout: RinDataLayout,
+    adapter: ModelAdapterProtocol,
+    *,
+    selected_conversation_id: str | None = None,
+    messages: Sequence[object] | None = None,
+) -> dict[str, object]:
+    """Return the safe combined data payload used by Console V2."""
+    dashboard = build_status_dashboard_summary(
+        layout,
+        adapter,
+        selected_conversation_id=selected_conversation_id,
+        messages=messages,
+    )
+    diagnostics = {
+        section: build_diagnostics_payload(layout, adapter, section)
+        for section in (
+            "overview",
+            "model",
+            "memory",
+            "context",
+            "database",
+            "profiles",
+            "body",
+            "events",
+        )
+    }
+    latest_trace = RUNTIME_TRACE_STORE.latest()
+    conversations = list_conversations(layout, limit=20)
+    return {
+        "ok": True,
+        "mode": "console-v2-snapshot",
+        "readOnly": True,
+        "localOnly": True,
+        "version": __version__,
+        "fullTextIncluded": False,
+        "rawPromptIncluded": False,
+        "rawModelOutputIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "externalProviderCallCount": 0,
+        "dashboard": dashboard,
+        "diagnostics": diagnostics,
+        "runtimeTrace": latest_trace.to_safe_dict() if latest_trace else None,
+        "conversations": [
+            {
+                "id": conversation.id,
+                "shortId": short_id(conversation.id),
+                "title": conversation.title,
+                "createdAt": conversation.createdAt,
+                "updatedAt": conversation.updatedAt,
+            }
+            for conversation in conversations
+        ],
+        "selectedConversationId": selected_conversation_id,
+        "storage": {
+            "dataDirName": layout.rootDir.name,
+            "manifestPresent": layout.manifestPath.is_file(),
+            "databaseReadable": True,
+            "fullPathIncluded": False,
+        },
     }
 
 
