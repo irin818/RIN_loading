@@ -91,6 +91,16 @@ rin-python-production-check
 
 For targeted changes, targeted tests are acceptable when full checks are expensive.
 
+## 6. Frontend Checks
+
+For frontend changes, run from frontend/ when applicable:
+
+```sh
+cd frontend
+npm run typecheck
+npm run build
+```
+
 For local model adapter changes, also run when available:
 
 ```sh
@@ -102,7 +112,7 @@ Never claim a check passed if it was not run.
 
 ---
 
-## 6. Documentation / Governance Checks
+## 7. Documentation / Governance Checks
 
 For documentation-only or governance-only changes, run when possible:
 
@@ -115,7 +125,7 @@ Do not run expensive runtime checks unless the documentation change affects comm
 
 ---
 
-## 7. Failure Handling
+## 8. Failure Handling
 
 When a check fails:
 
@@ -128,7 +138,7 @@ If the environment is missing or a check cannot run, report the reason.
 
 ---
 
-## 8. Temporary Files
+## 9. Temporary Files
 
 Temporary files should be created only when necessary.
 
@@ -148,7 +158,7 @@ Before finishing:
 
 ---
 
-## 9. Local Data and Secret Safety
+## 10. Local Data and Secret Safety
 
 Before committing, ensure no private or local-only files are included.
 
@@ -174,7 +184,7 @@ If a secret appears in tracked files, stop and report it.
 
 ---
 
-## 10. Data-Sensitive Changes
+## 11. Data-Sensitive Changes
 
 For changes touching local data, database schema, memory, identity, profile, context assembly, or persistence:
 
@@ -188,7 +198,7 @@ Do not delete, migrate, overwrite, or transform local owner data unless explicit
 
 ---
 
-## 11. Completion
+## 12. Completion
 
 Use the final report format defined in AGENTS.md.
 

@@ -85,7 +85,15 @@ Slow variables include:
 - feedback history;
 - reflection history;
 - local data integrity;
-- integration strategy.
+- integration strategy;
+- identity/profile policy;
+- memory system architecture;
+- storage schema;
+- provider abstraction boundaries;
+- sanitizer boundaries;
+- runtime trace integrity;
+- permissions and security assumptions;
+- governance documents.
 
 Fast variables include:
 
@@ -97,7 +105,14 @@ Fast variables include:
 - external tool output;
 - web content;
 - current model version;
-- transient runtime state.
+- transient runtime state;
+- frontend visual design;
+- external model choice;
+- UI layout;
+- provider selection;
+- tool adapters;
+- avatar/Live2D implementation;
+- desktop shell implementation.
 
 Rules:
 
@@ -390,8 +405,12 @@ explicitly reopened by the owner:
 - planner/task autonomy;
 - MCP runtime execution;
 - L0-L5 permission hierarchy;
-- TypeScript/React/Vite runtime restoration;
+- restoration of old deleted TypeScript/React/Vite runtime (not the current Glitch Core frontend);
 - complete Live2D behavior.
+
+Note: the current TypeScript/React/Vite frontend (Glitch Core Multi-Window
+Console under frontend/) is an active first-class project area, not a
+restoration of the old deleted TypeScript runtime.
 
 Safety-critical data guards, schema protections, and local data integrity
 checks may remain when they protect existing owner data.

@@ -24,20 +24,22 @@ Use:
 
 ## 2. Current Runtime
 
-RIN is currently a Python-first local runtime.
+RIN uses a Python backend/core with a TypeScript/React/Vite frontend.
 
 Active runtime stack:
 
-- Python package: python/src/rin/
-- Tests: python/tests/
-- Local server: FastAPI
-- Templates: Jinja2
-- UI assets: static CSS/JavaScript
+- Python backend/core: python/src/rin/
+- Python tests: python/tests/
+- Backend server: FastAPI (API routes)
+- Backend templates: Jinja2 (server-rendered pages)
+- Frontend: TypeScript/React/Vite (Glitch Core Multi-Window Console)
+- Frontend source: frontend/src/
 - Persistence: local SQLite and local files
 - Model access: provider-neutral adapter layer
 - Launcher: Start_RIN.command
 
-There is no active TypeScript/React/Vite runtime.
+Python is the protected backend/core layer. The React/Vite frontend
+is a first-class project area, not an experiment.
 
 ---
 
@@ -46,19 +48,25 @@ There is no active TypeScript/React/Vite runtime.
 Current runtime flow:
 
 ```text
-Browser UI
-  -> FastAPI server
+React Frontend (Glitch Core Console)
+  -> FastAPI routes (explicit API contracts)
   -> conversation runtime
   -> context assembly
   -> model adapter
   -> response validation
   -> persistence
   -> diagnostics / trace
+
+Server-rendered pages (Jinja2)
+  -> FastAPI server
+  -> (same backend pipeline)
 ```
 
-Key rule:
+Key rules:
 
-The UI must not directly call model providers or directly write long-term memory.
+- The UI (React or server-rendered) must not directly call model providers or directly write long-term memory.
+- The React frontend must communicate through explicit backend API routes, not internal Python modules.
+- API responses must be safe for display.
 
 ---
 
@@ -66,7 +74,8 @@ The UI must not directly call model providers or directly write long-term memory
 
 | Path | Responsibility |
 |---|---|
-| python/src/rin/server/ | FastAPI routes, local UI, templates, static files |
+| frontend/src/ | React/Vite Web UI, Glitch Core Console, API client |
+| python/src/rin/server/ | FastAPI routes, server-rendered pages, templates, static files |
 | python/src/rin/conversation/ | Chat-turn orchestration and conversation runtime |
 | python/src/rin/model/ | Provider-neutral model interfaces and adapters |
 | python/src/rin/memory/ | Memory proposal, review, retrieval, and memory context |
@@ -85,22 +94,29 @@ Do not mix these responsibilities without explicit architecture work.
 
 ## 5. Server and UI Layer
 
-The server/UI layer presents local runtime state and accepts owner interaction.
+RIN has two UI surfaces:
 
-It may:
+1. React/Vite frontend (Glitch Core Console) — the primary Web UI
+2. Server-rendered pages (Jinja2) — legacy/support UI
 
-- serve local pages;
+The React frontend is a first-class project area. It must communicate
+through explicit backend API routes.
+
+The UI layer (both surfaces) may:
+
+- present local runtime state;
 - expose safe runtime status;
 - submit chat/test requests;
 - display diagnostics;
-- call internal server routes.
+- call internal server routes (server-rendered) or API routes (React frontend).
 
-It must not:
+The UI layer must not:
 
 - call model providers directly;
 - write long-term memory directly;
 - own identity, policy, or persistence logic;
-- expose secrets or private raw data by default.
+- expose secrets or private raw data by default;
+- import or depend on internal Python modules (React frontend).
 
 ---
 

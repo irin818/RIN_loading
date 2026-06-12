@@ -27,7 +27,7 @@ Use:
 
 RIN is a local-first, single-owner personal AI runtime.
 
-The current repository is the Python-first local runtime for RIN.
+The current repository is the local runtime for RIN, with a Python backend/core and a TypeScript/React/Vite Web UI.
 
 RIN is not a generic chatbot, SaaS product, Live2D toy, or simple API wrapper.
 
@@ -37,17 +37,16 @@ RIN is not a generic chatbot, SaaS product, Live2D toy, or simple API wrapper.
 
 Current active stack:
 
-- Python package under python/src/rin/
-- tests under python/tests/
-- FastAPI local server
-- Jinja2 templates
-- static CSS/JavaScript
+- Python backend/core: python/src/rin/
+- Tests: python/tests/
+- FastAPI local server with API routes
+- Jinja2 templates for server-rendered pages
+- TypeScript/React/Vite frontend: frontend/
+- Glitch Core Multi-Window Console (Web UI)
 - SQLite and local-file persistence
-- provider-neutral model adapter layer
-- local-model-first runtime strategy
-- launcher: Start_RIN.command
-
-There is no active TypeScript/React/Vite runtime.
+- Provider-neutral model adapter layer
+- Local-model-first runtime strategy
+- Launcher: Start_RIN.command (starts both backend and frontend)
 
 ---
 
@@ -72,19 +71,54 @@ Inactive and forbidden-by-default features are listed in AGENTS.md.
 
 ## 5. Run
 
+### One-Click Launcher
+
 From the repository root:
 
 ```sh
 ./Start_RIN.command
 ```
 
-Default local URL:
+This starts both backend and frontend automatically.
 
-```text
-http://127.0.0.1:8765/
+### Manual Start
+
+Backend:
+
+```sh
+cd python
+.venv/bin/python -m rin.cli.production_server
 ```
 
-Before running the launcher, make sure Ollama is running and `qwen3:4b` is available locally.
+Frontend dev server:
+
+```sh
+cd frontend
+npm install
+npm run dev
+```
+
+### URLs
+
+Backend API:
+
+```text
+http://127.0.0.1:8765
+```
+
+Frontend dev (Vite):
+
+```text
+http://127.0.0.1:5173
+```
+
+Glitch Core production path (when frontend/dist exists):
+
+```text
+http://127.0.0.1:8765/glitch-core
+```
+
+Before running, make sure Ollama is running and `qwen3:4b` is available locally.
 
 The launcher expects the Python environment and local model runtime to be prepared.
 
@@ -131,9 +165,10 @@ RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_
 
 | Path | Purpose |
 |---|---|
-| python/src/rin/ | Active Python runtime |
+| python/src/rin/ | Active Python runtime (backend/core) |
 | python/tests/ | Active Python tests |
 | python/pyproject.toml | Python package and tool configuration |
+| frontend/ | TypeScript/React/Vite Web UI (Glitch Core Console) |
 | public/ | Public static assets when used |
 | live2d-development/ | Live2D authoring workspace, not core runtime |
 | .rin-data/ | Local runtime data, not committed |
