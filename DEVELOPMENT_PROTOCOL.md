@@ -101,12 +101,7 @@ npm run typecheck
 npm run build
 ```
 
-For local model adapter changes, also run when available:
-
-```sh
-RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check
-RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke
-```
+Local model chat checks are removed from the active development workflow. Local models are reserved for future non-chat features only.
 
 Never claim a check passed if it was not run.
 
@@ -184,7 +179,21 @@ If a secret appears in tracked files, stop and report it.
 
 ---
 
-## 11. Data-Sensitive Changes
+## 11. API Provider Work
+
+Future API implementation tasks must follow these rules:
+
+- Provider changes must preserve local-state governance.
+- API provider work must include secret handling, cost accounting, and context export policy.
+- Future API implementation tasks must not combine with unrelated memory, tool, or autonomy work.
+- Frontend must not call external API providers directly.
+- API keys and tokens must never be hard-coded or committed.
+- Context sent to external APIs must be curated by local context governance.
+- Model output must not directly write memory, identity, policy, or local state.
+
+---
+
+## 12. Data-Sensitive Changes
 
 For changes touching local data, database schema, memory, identity, profile, context assembly, or persistence:
 
@@ -198,7 +207,7 @@ Do not delete, migrate, overwrite, or transform local owner data unless explicit
 
 ---
 
-## 12. Completion
+## 13. Completion
 
 Use the final report format defined in AGENTS.md.
 

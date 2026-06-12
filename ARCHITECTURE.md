@@ -143,11 +143,17 @@ It must not hard-code a specific model provider.
 
 The model layer isolates provider-specific behavior.
 
-Model providers must be accessed through adapters.
+Chat reasoning is external API only. Local models are not part of the active chat dialogue path. They are reserved for future non-chat features only (OCR, vision, speech, classification, local preprocessing, offline utilities).
+
+Model providers must be accessed through adapters behind the backend boundary.
+
+The frontend must not call external API providers directly.
 
 The rest of the runtime should depend on stable model interfaces, not on one provider implementation.
 
-Model output is data. It must not directly update memory, identity, policy, or local data.
+Context sent to an external API must be curated by local context governance.
+
+Model output is data. It must not directly update memory, identity, policy, or local data. Model providers are replaceable fast variables.
 
 ---
 
@@ -242,10 +248,13 @@ Real Cubism .moc3 loading and complete Live2D behavior are not active scope unle
 
 Do not violate these invariants:
 
-- RIN remains local-first.
+- RIN remains local-state-first.
 - RIN remains single-owner.
-- Model providers remain replaceable.
-- UI does not directly call model providers.
+- Chat reasoning is external API only; local models are reserved for future non-chat features.
+- Model providers remain replaceable fast variables.
+- UI does not directly call model providers (local or external).
+- Frontend must not call external API providers directly.
+- Context sent to external APIs must be curated by local context governance.
 - Model output does not directly write memory, identity, policy, or local data.
 - Slow variables remain locally governed.
 - Local data remains protected.
