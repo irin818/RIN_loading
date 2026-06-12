@@ -168,6 +168,16 @@ ensure_frontend_runtime() {
     fi
 }
 
+verify_background_image() {
+    local bg_path="$FRONTEND_DIR/public/picture/rin-core-background.png"
+    if [[ -f "$bg_path" ]]; then
+        print_ok "Glitch Core background: frontend/public/picture/rin-core-background.png"
+    else
+        print_warn "Glitch Core background image not found: $bg_path"
+        echo "The Core background image is missing. Place rin-core-background.png in frontend/public/picture/"
+    fi
+}
+
 check_model_backend() {
     case "$MODEL_ADAPTER" in
         rin-ollama-local)
@@ -240,6 +250,7 @@ start_frontend() {
 print_banner
 ensure_python_runtime
 ensure_frontend_runtime
+verify_background_image
 check_model_backend
 export_runtime_env
 start_backend
