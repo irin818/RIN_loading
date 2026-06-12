@@ -766,6 +766,7 @@ function CoreBackground({
     <section className={`core-background core-visual-${visualState}`} aria-hidden="true">
       <div className="core-depth-layer far" />
       <div className="core-depth-layer near" />
+      <img src={assetPath} alt="" className="core-rin-background-image" />
       <div className="data-grid data-grid-primary" />
       <div className="data-grid data-grid-secondary" />
       <div className="core-ring outer" />
@@ -781,7 +782,6 @@ function CoreBackground({
       </div>
       <div className="core-eye-shell">
         <div className="core-eye-aperture" />
-        <img src={assetPath} alt="" className="core-rin-image core-eye-image" />
         <div className="core-eye-mask" />
         <div className="core-iris" />
         <div className="core-glitch-slice slice-a" />

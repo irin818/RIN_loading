@@ -51,6 +51,7 @@ PUBLIC_LIVE2D_DIR = REPO_ROOT / "public" / "live2d"
 FRONTEND_DIST_DIR = REPO_ROOT / "frontend" / "dist"
 FRONTEND_INDEX = FRONTEND_DIST_DIR / "index.html"
 FRONTEND_ASSETS_DIR = FRONTEND_DIST_DIR / "assets"
+FRONTEND_PUBLIC_PICTURE_DIR = REPO_ROOT / "frontend" / "public" / "picture"
 FRONTEND_DIST_PICTURE_DIR = FRONTEND_DIST_DIR / "picture"
 
 
@@ -131,10 +132,15 @@ def create_app(
             StaticFiles(directory=PUBLIC_LIVE2D_DIR),
             name="live2d",
         )
-    if FRONTEND_DIST_PICTURE_DIR.is_dir():
+    _picture_dir = (
+        FRONTEND_PUBLIC_PICTURE_DIR
+        if FRONTEND_PUBLIC_PICTURE_DIR.is_dir()
+        else FRONTEND_DIST_PICTURE_DIR
+    )
+    if _picture_dir.is_dir():
         app.mount(
             "/picture",
-            StaticFiles(directory=FRONTEND_DIST_PICTURE_DIR),
+            StaticFiles(directory=_picture_dir),
             name="picture",
         )
     selected_adapter = adapter or MockApiAdapter()

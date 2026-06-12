@@ -396,6 +396,32 @@ button {
   transform: translate(calc(var(--parallax-x) * 34px), calc(var(--parallax-y) * 26px));
 }
 
+.core-rin-background-image {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: min(92vw, 1280px);
+  height: min(86vh, 860px);
+  object-fit: cover;
+  object-position: 50% 38%;
+  transform:
+    translate(
+      calc(-50% + var(--parallax-x) * 28px),
+      calc(-50% + var(--parallax-y) * 20px)
+    );
+  opacity: 0.78;
+  filter:
+    saturate(1.18)
+    contrast(1.12)
+    brightness(0.72)
+    drop-shadow(0 0 38px rgba(0, 255, 100, 0.38))
+    drop-shadow(0 0 92px rgba(56, 248, 255, 0.16));
+  mix-blend-mode: screen;
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+}
+
 .data-grid {
   position: absolute;
   width: min(980px, 92vw);
@@ -403,6 +429,7 @@ button {
   border: 1px solid rgba(0, 255, 100, 0.18);
   transform: rotate(45deg);
   box-shadow: inset 0 0 54px rgba(0, 255, 100, 0.08);
+  z-index: 2;
 }
 
 .data-grid-primary {
@@ -421,6 +448,7 @@ button {
   border: 1px solid var(--rin-border);
   border-radius: 50%;
   box-shadow: inset 0 0 38px rgba(0, 255, 100, 0.18), 0 0 52px rgba(0, 255, 100, 0.16);
+  z-index: 2;
 }
 
 .core-ring.outer {
@@ -466,6 +494,7 @@ button {
 .foreground-trace-field {
   position: absolute;
   inset: 0;
+  z-index: 2;
 }
 
 .memory-fragment-field span,
@@ -498,6 +527,7 @@ button {
   isolation: isolate;
   transform: translate(calc(var(--parallax-x) * 42px), calc(var(--parallax-y) * 32px));
   filter: drop-shadow(0 0 34px rgba(0, 255, 100, 0.34));
+  z-index: 2;
 }
 
 .core-eye-aperture,
