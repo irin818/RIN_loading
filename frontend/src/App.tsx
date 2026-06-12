@@ -1035,17 +1035,29 @@ function ChatWindow(props: {
   openWindow: (type: WindowType, options?: { contextName?: string; payload?: WindowPayload }) => void;
 }) {
   const messages = props.snapshot?.messages ?? [];
+  const messageListRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = useCallback(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "instant" });
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
   return (
     <div className="chat-module">
       <div className="module-strip">
         CHAT LINK · {props.snapshot?.selectedConversationId ?? "new session"}
       </div>
-      <div className="message-list">
+      <div className="message-list" ref={messageListRef}>
         {messages.length ? (
           messages.map((message) => <MessageBubble key={message.id} message={message} />)
         ) : (
           <p className="empty-state">No active conversation messages.</p>
         )}
+        <div ref={bottomRef} />
       </div>
       <form
         className="composer"
@@ -1057,6 +1069,12 @@ function ChatWindow(props: {
         <textarea
           value={props.chatInput}
           onChange={(event) => props.setChatInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              void props.submitChat(props.chatInput);
+            }
+          }}
           placeholder="Send a local owner message..."
         />
         <div className="composer-actions">
