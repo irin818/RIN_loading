@@ -233,6 +233,10 @@ function compactError(error: unknown): GlitchErrorItem {
   };
 }
 
+function errorFingerprint(error: GlitchErrorItem): string {
+  return `${error.code}::${error.module}::${error.message}::${error.lastStep}`;
+}
+
 function safeDisplayJson(value: unknown) {
   return JSON.stringify(value, null, 2)
     .replaceAll("<think>", "[thinking-tag]")
@@ -392,12 +396,51 @@ export default function App() {
 
   const openErrorWindow = useCallback(
     (error: GlitchErrorItem) => {
+      const fingerprint = errorFingerprint(error);
+      const existing = windows.find(
+        (item) =>
+          item.type === "error" &&
+          item.payload?.error &&
+          errorFingerprint(item.payload.error as GlitchErrorItem) === fingerprint
+      );
+      if (existing) {
+        const existingError = existing.payload!.error as GlitchErrorItem;
+        const repeatCount = (existingError.repeatCount ?? 1) + 1;
+        zCounter.current += 1;
+        setWindows((items) =>
+          items.map((item) =>
+            item.id === existing.id
+              ? {
+                  ...item,
+                  zIndex: zCounter.current,
+                  minimized: false,
+                  visible: true,
+                  contextName: `${error.code} (×${repeatCount})`,
+                  title: windowTitle(
+                    item.type,
+                    item.instanceNumber,
+                    `${error.code} (×${repeatCount})`
+                  ),
+                  payload: {
+                    error: {
+                      ...existingError,
+                      id: error.id,
+                      repeatCount,
+                    } as GlitchErrorItem,
+                  },
+                }
+              : item
+          )
+        );
+        setActiveWindowId(existing.id);
+        return;
+      }
       openWindow("error", {
         contextName: error.code,
-        payload: { error }
+        payload: { error: { ...error, repeatCount: 1 } }
       });
     },
-    [openWindow]
+    [openWindow, windows]
   );
 
   const refreshSnapshot = useCallback(
@@ -1259,9 +1302,12 @@ function ErrorWindow(props: {
   if (!error) {
     return <p className="empty-state">No error selected.</p>;
   }
+  const repeatNote = error.repeatCount && error.repeatCount > 1
+    ? ` (repeated ${error.repeatCount}×)`
+    : "";
   return (
     <div className={`error-module ${error.severity}`}>
-      <div className="module-strip">ERROR · {error.severity}</div>
+      <div className="module-strip">ERROR · {error.severity}{repeatNote}</div>
       <dl className="detail-list">
         <div><dt>code</dt><dd>{error.code}</dd></div>
         <div><dt>severity</dt><dd>{error.severity}</dd></div>
