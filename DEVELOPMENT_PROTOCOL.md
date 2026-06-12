@@ -101,12 +101,7 @@ npm run typecheck
 npm run build
 ```
 
-For local model adapter changes, also run when available:
-
-```sh
-RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check
-RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke
-```
+Local model chat checks are removed from the active development workflow. Local models are reserved for future non-chat features only (OCR, vision, speech, classification, local preprocessing, offline utilities). These are not active scope unless explicitly reopened.
 
 Never claim a check passed if it was not run.
 

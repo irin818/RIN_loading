@@ -8,7 +8,7 @@ agent system. It is the active Python runtime for the current RIN project.
 The Python package covers:
 
 - FastAPI web server with Jinja2 console UI
-- Local Ollama model adapter (Qwen3 4B recommended)
+- Provider-neutral model adapter layer (external API chat only)
 - SQLite conversation and memory storage
 - Profile validation and readiness checks
 - Data safety checks, diagnostics, and provider-neutral runtime tooling
@@ -50,14 +50,14 @@ python -m ruff format --check .
 python -m mypy src
 rin-python-candidate-check
 rin-python-production-check
-
-# Optional local-model checks (requires Ollama + qwen3:4b)
-RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check
-RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke
 ```
 
-All base checks are provider-free and do not require Ollama or external API
+All base checks are provider-free and do not require external API
 credentials.
+
+Local model checks are reserved for future non-chat features (OCR, vision,
+speech, classification, local preprocessing, offline utilities). They are
+not part of the current active chat path.
 
 ## Data Safety
 
@@ -73,4 +73,6 @@ Use the root launcher from the repository root:
 ./Start_RIN.command
 ```
 
-It starts the FastAPI server on `http://127.0.0.1:8765/` with local Ollama.
+It starts the FastAPI server on `http://127.0.0.1:8765/`.
+
+Chat dialogue will require external API configuration in a future implementation step. RIN does not currently use a local model for chat.

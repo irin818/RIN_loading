@@ -83,13 +83,15 @@ Do not restore old deleted TypeScript runtime systems from earlier project phase
 
 Preserve these principles:
 
-- local-first
+- local-state-first
 - single-owner
 - slow variables control fast variables
 - model output is advice, not authority
-- model providers are replaceable
-- memory, identity, policy, state, and owner model are slow variables
-- external APIs are optional expert/fallback providers, not identity sources
+- model providers are replaceable fast variables
+- memory, identity, policy, state, and owner model are locally governed slow variables
+- external API models are the only active chat reasoning providers, not identity sources
+- local models are reserved for future non-chat features only (OCR, vision, speech, classification, local preprocessing, offline utilities)
+- Ollama is not part of the active runtime strategy and must not be described as a chat provider, fallback, startup requirement, or default path
 - UI, runtime, model, memory, storage, policy, diagnostics, and body/Live2D boundaries must stay clear
 - make small, coherent, testable changes
 - keep the project runnable
@@ -135,8 +137,17 @@ Do not implement, restore, or expand these unless the owner explicitly reopens t
 - hard-coded API keys
 - UI-direct model provider calls
 - automatic long-term memory writes without review
+- local model chat provider or local model chat fallback
+- frontend direct external API provider calls
+- local model inference for chat dialogue
 
 These are deferred, not permanently forbidden.
+
+Local models may be reserved for future non-chat features only:
+OCR, vision, speech, classification, local preprocessing, and offline
+utilities.  These are not active scope unless explicitly reopened.
+If reopened later, they require separate design and must not assume
+Ollama.
 
 ---
 
@@ -345,13 +356,6 @@ python -m ruff format --check .
 python -m mypy src
 rin-python-candidate-check
 rin-python-production-check
-```
-
-For local model adapter changes, also run when available:
-
-```sh
-RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check
-RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke
 ```
 
 For frontend changes, run when applicable:
