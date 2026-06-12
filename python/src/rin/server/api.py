@@ -51,6 +51,7 @@ PUBLIC_LIVE2D_DIR = REPO_ROOT / "public" / "live2d"
 FRONTEND_DIST_DIR = REPO_ROOT / "frontend" / "dist"
 FRONTEND_INDEX = FRONTEND_DIST_DIR / "index.html"
 FRONTEND_ASSETS_DIR = FRONTEND_DIST_DIR / "assets"
+FRONTEND_DIST_PICTURE_DIR = FRONTEND_DIST_DIR / "picture"
 
 
 class ConversationCreateBody(BaseModel):
@@ -129,6 +130,12 @@ def create_app(
             "/live2d",
             StaticFiles(directory=PUBLIC_LIVE2D_DIR),
             name="live2d",
+        )
+    if FRONTEND_DIST_PICTURE_DIR.is_dir():
+        app.mount(
+            "/picture",
+            StaticFiles(directory=FRONTEND_DIST_PICTURE_DIR),
+            name="picture",
         )
     selected_adapter = adapter or MockApiAdapter()
     selected_clock = clock or RuntimeClock()
@@ -819,7 +826,7 @@ def build_console_view_model(
         "profile_file_count": profile_file_count,
         "memory_context": memory_context,
         "body_report": body_report,
-        "avatar_asset_path": "/live2d/rin/rin-front-fullbody.png",
+        "avatar_asset_path": "/picture/rin-core-background.png",
         "adapter_id": adapter_id,
         "model_name": model_name,
         "local_model_status": local_model_status,
@@ -868,7 +875,7 @@ def build_console_v2_view_model(
         "dashboard": snapshot["dashboard"],
         "diagnostics": snapshot["diagnostics"],
         "runtime_trace": snapshot["runtimeTrace"],
-        "avatar_asset_path": "/live2d/rin/rin-front-fullbody.png",
+        "avatar_asset_path": "/picture/rin-core-background.png",
         "notice": notice,
         "error": error,
     }
@@ -978,9 +985,9 @@ def build_glitch_core_snapshot(
             "name": "RIN",
             "status": "online" if readiness["ok"] is True else "warning",
             "mode": "local-first",
-            "avatarAssetPath": "/live2d/rin/rin-front-fullbody.png",
+            "avatarAssetPath": "/picture/rin-core-background.png",
             "replaceableImageNote": (
-                "Replace public/live2d/rin/rin-front-fullbody.png later."
+                "Replace public/picture/rin-core-background.png later."
             ),
             "animationEnabledByDefault": True,
         },
@@ -1460,7 +1467,7 @@ def build_diagnostics_payload(
             "readOnly": True,
             "status": body_report["status"],
             "adapterId": body_report["adapterId"],
-            "staticPresenceAsset": "/live2d/rin/rin-front-fullbody.png",
+            "staticPresenceAsset": "/picture/rin-core-background.png",
             "cubismRuntimeActive": False,
             "futureDesktopBody": "future Live2D body may run separately",
         },

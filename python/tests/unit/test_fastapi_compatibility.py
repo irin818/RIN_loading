@@ -158,7 +158,7 @@ def test_python_ui_renders_local_status_and_profile_summary() -> None:
         assert "Trace full text" in page_text
         assert "Body" in page_text
         assert "RIN PRESENCE" in page_text
-        assert "/live2d/rin/rin-front-fullbody.png" in page_text
+        assert "/picture/rin-core-background.png" in page_text
         assert "STATIC BODY / LIVE2D FUTURE" in page_text
         assert "external" in page_text
         assert "0" in page_text
