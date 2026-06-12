@@ -120,6 +120,7 @@ export interface GlitchErrorItem {
   lastStep: string;
   turnId?: string;
   traceAvailable: boolean;
+  repeatCount?: number;
 }
 
 export interface GlitchSnapshot {
