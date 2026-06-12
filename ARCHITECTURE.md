@@ -143,7 +143,7 @@ It must not hard-code a specific model provider.
 
 The model layer isolates provider-specific behavior.
 
-Chat reasoning is external API only. Local models are not part of the active chat dialogue path. They are reserved for future non-chat features only (OCR, vision, speech, classification, local preprocessing, offline utilities).
+Chat reasoning is external API only. Local model capabilities are not active scope. If future non-chat AI capabilities such as OCR, vision, speech, classification, local preprocessing, or offline utilities are reopened, they require separate design and must not assume Ollama or any current local model path.
 
 Ollama is not part of the active runtime strategy and must not be described as a chat provider, fallback, startup requirement, or default path.
 
@@ -252,7 +252,7 @@ Do not violate these invariants:
 
 - RIN remains local-state-first.
 - RIN remains single-owner.
-- Chat reasoning is external API only; local models are reserved for future non-chat features.
+- Chat reasoning is external API only; local model capabilities are not active scope.
 - Model providers remain replaceable fast variables.
 - UI does not directly call model providers (local or external).
 - Frontend must not call external API providers directly.

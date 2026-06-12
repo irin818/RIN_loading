@@ -51,11 +51,11 @@ RIN architecture:
   - identity/profile policy
   - memory system
   - SQLite storage access
-  - runtime/agent loop
+  - conversation runtime / turn orchestration
   - provider-neutral model adapters
   - sanitizer
   - runtime trace
-  - tool orchestration
+  - future tool boundary, inactive unless explicitly reopened
   - API routes
 - TypeScript/React/Vite frontend (first-class):
   - Glitch Core Multi-Window Console
@@ -90,7 +90,7 @@ Preserve these principles:
 - model providers are replaceable fast variables
 - memory, identity, policy, state, and owner model are locally governed slow variables
 - external API models are the only active chat reasoning providers, not identity sources
-- local models are reserved for future non-chat features only (OCR, vision, speech, classification, local preprocessing, offline utilities)
+- local model capabilities are not active scope
 - Ollama is not part of the active runtime strategy and must not be described as a chat provider, fallback, startup requirement, or default path
 - UI, runtime, model, memory, storage, policy, diagnostics, and body/Live2D boundaries must stay clear
 - make small, coherent, testable changes
@@ -143,11 +143,12 @@ Do not implement, restore, or expand these unless the owner explicitly reopens t
 
 These are deferred, not permanently forbidden.
 
-Local models may be reserved for future non-chat features only:
-OCR, vision, speech, classification, local preprocessing, and offline
-utilities.  These are not active scope unless explicitly reopened.
-If reopened later, they require separate design and must not assume
-Ollama.
+Local model capabilities are not active scope.
+
+If future non-chat AI capabilities such as OCR, vision, speech,
+classification, local preprocessing, or offline utilities are
+reopened, they require separate design and must not assume
+Ollama or any current local model path.
 
 ---
 

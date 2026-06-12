@@ -213,7 +213,7 @@ For chat dialogue, RIN uses an external API model as the only active chat reason
 
 External API models are replaceable fast variables. They may generate responses from curated context, but they must not directly write memory, identity, policy, or local state.
 
-Local models are removed from the chat dialogue path. They are reserved for future non-chat capabilities only: OCR, vision, speech, classification, local preprocessing, and offline utilities. These are not active scope unless explicitly reopened.
+Local models are removed from the chat dialogue path. Local model capabilities are not active scope. If future non-chat AI capabilities such as OCR, vision, speech, classification, local preprocessing, or offline utilities are reopened, they require separate design and must not assume Ollama or any current local model path.
 
 Missing external API configuration is a setup issue for future implementation, not a reason to fall back to local chat.
 
