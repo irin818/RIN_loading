@@ -18,7 +18,7 @@ The Python package covers:
 
 - FastAPI + Uvicorn: local web API and console server
 - Jinja2: server-side HTML templates
-- httpx: HTTP client for local model adapter and API tests
+- httpx: HTTP client for external API provider adapters and API tests
 - Pydantic v2: data contracts and validation
 - pytest + pytest-asyncio: test runner
 - Ruff: lint and format

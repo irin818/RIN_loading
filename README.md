@@ -122,7 +122,9 @@ Before running, make sure the Python environment is prepared.
 
 The launcher expects the Python environment to be set up.
 
-Chat dialogue will require external API configuration in a future implementation step. RIN does not currently use a local model for chat.
+Governance now requires external-API-only chat. RIN does not currently use a local model for chat.
+
+Chat dialogue will require external API configuration in a future implementation step. Code-level provider replacement and removal of legacy local-model paths are pending a later implementation task. Do not claim an external API adapter or cost monitor is already implemented if it is not.
 
 ---
 

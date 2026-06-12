@@ -47,6 +47,6 @@ external model providers.
 ## Local Model Smoke
 
 Local model chat smoke checks are removed from the active development workflow.
-Local models are reserved for future non-chat features only (OCR, vision,
-speech, classification, local preprocessing, offline utilities). They are
-not part of the current active chat path.
+Local model capabilities are not active scope. If future non-chat AI
+capabilities are reopened, they require separate design and must not
+assume Ollama or any current local model path.

@@ -101,7 +101,7 @@ npm run typecheck
 npm run build
 ```
 
-Local model chat checks are removed from the active development workflow. Local models are reserved for future non-chat features only (OCR, vision, speech, classification, local preprocessing, offline utilities). These are not active scope unless explicitly reopened.
+Local model chat checks are removed from the active development workflow. Local model capabilities are not active scope. If future non-chat AI capabilities are reopened, they require separate design and must not assume Ollama or any current local model path.
 
 Never claim a check passed if it was not run.
 
@@ -179,7 +179,25 @@ If a secret appears in tracked files, stop and report it.
 
 ---
 
-## 11. Data-Sensitive Changes
+## 11. API Provider Work
+
+Future external API chat implementation must include:
+
+- secret handling (API keys, tokens — never hard-coded or committed);
+- context export policy (what leaves the local boundary);
+- token/cost accounting;
+- safe provider diagnostics (no key/token exposure);
+- no frontend direct external API provider calls;
+- no model-output direct memory, profile, or policy writes.
+
+Governance now requires external-API-only chat. Code-level provider
+replacement and removal of legacy local-model paths are pending a later
+implementation task. Do not claim an external API adapter or cost monitor
+is already implemented if it is not.
+
+---
+
+## 12. Data-Sensitive Changes
 
 For changes touching local data, database schema, memory, identity, profile, context assembly, or persistence:
 
@@ -193,7 +211,7 @@ Do not delete, migrate, overwrite, or transform local owner data unless explicit
 
 ---
 
-## 12. Completion
+## 13. Completion
 
 Use the final report format defined in AGENTS.md.
 
