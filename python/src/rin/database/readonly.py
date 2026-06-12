@@ -282,17 +282,29 @@ def list_legacy_memories(layout: RinDataLayout, limit: int = 20) -> list[MemoryR
     """List recent legacy memory items with their metadata (capped at 100)."""
     safe_limit = max(1, min(limit, 100))
     with open_readonly_database(database_path_for(layout)) as connection:
-        rows = connection.execute(
-            """
-            SELECT memory_items.*, memory_metadata.metadata_json
-            FROM memory_items
-            LEFT JOIN memory_metadata
-              ON memory_metadata.memory_item_id = memory_items.id
-            ORDER BY memory_items.updated_at DESC
-            LIMIT ?
-            """,
-            (safe_limit,),
-        ).fetchall()
+        join_column = memory_metadata_join_column(connection)
+        if join_column:
+            rows = connection.execute(
+                f"""
+                SELECT memory_items.*, memory_metadata.metadata_json
+                FROM memory_items
+                LEFT JOIN memory_metadata
+                  ON memory_metadata.{join_column} = memory_items.id
+                ORDER BY memory_items.updated_at DESC
+                LIMIT ?
+                """,
+                (safe_limit,),
+            ).fetchall()
+        else:
+            rows = connection.execute(
+                """
+                SELECT memory_items.*, NULL AS metadata_json
+                FROM memory_items
+                ORDER BY memory_items.updated_at DESC
+                LIMIT ?
+                """,
+                (safe_limit,),
+            ).fetchall()
         return [map_memory(row) for row in rows]
 
 
@@ -374,6 +386,19 @@ def count_rows(connection: sqlite3.Connection, table_name: str) -> int:
         raise ValueError(f"Unsupported table name: {table_name}")
     row = connection.execute(f"SELECT COUNT(*) AS count FROM {table_name}").fetchone()
     return int(row["count"])
+
+
+def memory_metadata_join_column(connection: sqlite3.Connection) -> str | None:
+    """Return the supported legacy memory metadata join column, if present."""
+    columns = {
+        str(row["name"])
+        for row in connection.execute("PRAGMA table_info(memory_metadata)").fetchall()
+    }
+    if "memory_item_id" in columns:
+        return "memory_item_id"
+    if "memory_id" in columns:
+        return "memory_id"
+    return None
 
 
 def map_conversation(row: sqlite3.Row) -> ConversationRecord:
