@@ -44,8 +44,8 @@ Current active stack:
 - TypeScript/React/Vite frontend: frontend/
 - Glitch Core Multi-Window Console (Web UI)
 - SQLite and local-file persistence
-- Provider-neutral model adapter layer
-- Local-model-first runtime strategy
+- Provider-neutral model adapter layer (external API chat only)
+- Local-state-first runtime strategy
 - Launcher: Start_RIN.command (starts both backend and frontend)
 
 ---
@@ -118,9 +118,11 @@ Glitch Core production path (when frontend/dist exists):
 http://127.0.0.1:8765/glitch-core
 ```
 
-Before running, make sure Ollama is running and `qwen3:4b` is available locally.
+Before running, make sure the Python environment is prepared.
 
-The launcher expects the Python environment and local model runtime to be prepared.
+The launcher expects the Python environment to be set up.
+
+Chat dialogue will require external API configuration in a future implementation step. RIN does not currently use a local model for chat.
 
 ---
 
@@ -152,12 +154,9 @@ rin-python-candidate-check
 rin-python-production-check
 ```
 
-Optional local-model checks:
-
-```sh
-RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check
-RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke
-```
+Local model checks are reserved for future non-chat features (OCR, vision, speech,
+classification, local preprocessing, offline utilities). They are not part of
+the current active chat path.
 
 ---
 
