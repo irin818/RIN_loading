@@ -761,7 +761,7 @@ function CoreBackground({
   snapshot: GlitchSnapshot | null;
   visualState: CoreVisualState;
 }) {
-  const assetPath = snapshot?.core.avatarAssetPath ?? "/live2d/rin/rin-front-fullbody.png";
+  const assetPath = snapshot?.core.avatarAssetPath ?? "/picture/rin-core-background.png";
   return (
     <section className={`core-background core-visual-${visualState}`} aria-hidden="true">
       <div className="core-depth-layer far" />
