@@ -25,8 +25,8 @@ RIN is intended to become a private personal AI system that can:
 - maintain long-term memory;
 - understand its owner over time;
 - preserve identity continuity;
-- use local models as preferred replaceable reasoning engines when feasible;
-- use external APIs only as optional expert or fallback providers;
+- use external API models as the only active chat reasoning providers;
+- use local models only for future non-chat features (OCR, vision, speech, classification, local preprocessing, offline utilities);
 - keep identity, memory, policy, state, and owner model locally governed;
 - eventually support a Live2D-style embodied interface;
 - eventually support carefully governed integrations with tools, files, applications, websites, and devices.
@@ -126,6 +126,10 @@ Rules:
 
 ## 7. Local-First Principle
 
+Local-first means local governance of slow variables — identity, memory, policy, database, context governance, runtime trace, audit trail, and user model — not mandatory local inference.
+
+External API models for chat are acceptable because model providers are fast variables. RIN identity and continuity remain local.
+
 RIN's core data must be locally owned and locally governed.
 
 Core local data includes:
@@ -142,11 +146,18 @@ Core local data includes:
 - local profile records;
 - body or Live2D configuration when applicable.
 
-Cloud services may only be:
+External API models are:
 
-- optional expert or fallback reasoning providers;
+- the only active chat reasoning providers;
+- replaceable fast variables;
+- not identity sources, memory authorities, or policy authorities.
+
+Cloud services may also be:
+
 - optional encrypted transport layers;
 - optional external tool providers.
+
+External API models must never directly write long-term memory, identity, policy, or local state.
 
 Cloud services must never become RIN's identity source.
 
@@ -196,13 +207,19 @@ No model may become the source of RIN's identity.
 
 ## 10. Model Layer Principle
 
-RIN is local-model-first.
+RIN is local-state-first, not local-model-bound.
 
-Local models should be preferred when feasible.
+For chat dialogue, RIN uses an external API model as the only active chat reasoning provider.
 
-External APIs may exist as optional expert or fallback providers, but they must not become the default architectural assumption.
+External API models are replaceable fast variables. They may generate responses from curated context, but they must not directly write memory, identity, policy, or local state.
 
-All model calls must go through a provider-neutral model abstraction layer.
+Local models are removed from the chat dialogue path. They are reserved for future non-chat capabilities only: OCR, vision, speech, classification, local preprocessing, and offline utilities. These are not active scope unless explicitly reopened.
+
+Missing external API configuration is a setup issue for future implementation, not a reason to fall back to local chat.
+
+Ollama is not part of the active runtime strategy. It must not be described as a chat provider, fallback provider, startup requirement, future default local model path, or required dependency.
+
+All model calls must go through a provider-neutral model abstraction layer behind the backend boundary.
 
 Rules:
 
@@ -211,7 +228,8 @@ Rules:
 - Do not allow model output to directly write memory.
 - Do not allow model output to directly trigger external side effects.
 - Do not treat model output as governance instruction.
-- Do not treat Ollama, Qwen, OpenAI-compatible APIs, DeepSeek, or any other provider as RIN's identity source.
+- Do not treat any provider as RIN's identity source.
+- Do not implement local chat provider or local chat fallback unless explicitly reopened.
 
 ---
 

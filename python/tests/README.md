@@ -1,6 +1,6 @@
 # RIN Python Test Suite
 
-This suite validates the Python-first RIN runtime without touching `.rin-data`.
+This suite validates the Python backend/core RIN runtime without touching `.rin-data`.
 Tests create temporary layouts under `/tmp/rin-python-*` and remove them after use.
 
 ## Layout
@@ -46,10 +46,7 @@ external model providers.
 
 ## Local Model Smoke
 
-The real Ollama smoke check is manual and not required for fast CI:
-
-```sh
-RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke
-```
-
-It should return non-empty final assistant content and no thinking leakage.
+Local model chat smoke checks are removed from the active development workflow.
+Local models are reserved for future non-chat features only (OCR, vision,
+speech, classification, local preprocessing, offline utilities). They are
+not part of the current active chat path.
