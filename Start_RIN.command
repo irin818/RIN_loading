@@ -19,8 +19,8 @@ LOCAL_HOST="127.0.0.1"
 LOCAL_PORT="8765"
 
 # ---- Load .env overrides (if present) ----
-# This lets you customise the adapter, model, ports, etc.
-# without editing this script.  Copy .env.example → .env to start.
+# This lets you customise the adapter, model, UI path, ports, etc.
+# without editing this script. Copy .env.example → .env to start.
 if [[ -f "$SCRIPT_DIR/.env" ]]; then
     set -a
     # shellcheck source=/dev/null
@@ -35,6 +35,13 @@ MODEL_ADAPTER="${RIN_MODEL_ADAPTER:-rin-ollama-local}"
 TIMEOUT_MS="${RIN_OLLAMA_TIMEOUT_MS:-180000}"
 NUM_PREDICT="${RIN_OLLAMA_NUM_PREDICT:-1024}"
 DATA_DIR="${RIN_PYTHON_DATA_DIR:-$DEFAULT_DATA_DIR}"
+
+# Default to Console V2. Override with RIN_STARTUP_UI_PATH=/ for old console.
+UI_PATH="${RIN_STARTUP_UI_PATH:-/ui-v2}"
+if [[ "$UI_PATH" != /* ]]; then
+    UI_PATH="/$UI_PATH"
+fi
+UI_URL="$LOCAL_URL$UI_PATH"
 
 # ---- Internal state ----
 SERVER_PID=""
@@ -57,12 +64,14 @@ print_ok()    { echo "  ✅  $*"; }
 print_warn()  { echo "  ⚠️   $*"; }
 print_err()   { echo "  ❌  $*"; }
 print_info()  { echo "  ℹ️   $*"; }
+
 print_banner() {
     echo ""
     echo "╔════════════════════════════════════════════╗"
     echo "║     RIN — Local Personal AI Runtime       ║"
     echo "╠════════════════════════════════════════════╣"
-    echo "║  URL:      $LOCAL_URL          ║"
+    printf "║  Console:  %-32s ║\n" "$UI_URL"
+    printf "║  Server:   %-32s ║\n" "$LOCAL_URL"
     printf "║  Adapter:  %-32s ║\n" "$MODEL_ADAPTER"
     echo "╚════════════════════════════════════════════╝"
     echo ""
@@ -70,17 +79,19 @@ print_banner() {
 
 # ---- Step 1: find a working Python ----
 find_python() {
-    # Prefer the venv python if it already exists; otherwise pick system python3
+    # Prefer the venv python if it already exists; otherwise pick system python3.
     if [[ -x "$VENV_PYTHON" ]]; then
         echo "$VENV_PYTHON"
         return
     fi
+
     for candidate in python3.12 python3.13 python3.11 python3; do
         if command -v "$candidate" >/dev/null 2>&1; then
             echo "$candidate"
             return
         fi
     done
+
     echo ""
 }
 
@@ -88,9 +99,10 @@ PYTHON_BIN="$(find_python)"
 if [[ -z "$PYTHON_BIN" ]]; then
     print_err "No Python 3 installation found."
     echo "  Install Python 3.12+ from https://www.python.org/downloads/"
-    echo "  or via Homebrew:  brew install python@3.12"
+    echo "  or via Homebrew: brew install python@3.12"
     exit 1
 fi
+
 print_ok "Python: $PYTHON_BIN ($($PYTHON_BIN --version 2>&1))"
 
 # ---- Step 2: ensure venv exists ----
@@ -116,11 +128,11 @@ fi
 
 # ---- Step 4: port conflict detection ----
 if lsof -i ":$LOCAL_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
-    # Something is listening on our port — check if it's RIN
+    # Something is listening on our port — check if it's RIN.
     if curl -fsS "$LOCAL_URL" >/dev/null 2>&1; then
         print_ok "RIN is already running at $LOCAL_URL"
-        print_info "Opening browser..."
-        open "$LOCAL_URL"
+        print_info "Opening browser at $UI_URL..."
+        open "$UI_URL"
         exit 0
     else
         print_err "Port $LOCAL_PORT is in use by another process:"
@@ -137,11 +149,12 @@ case "$MODEL_ADAPTER" in
     rin-ollama-local)
         if curl -fsS "$OLLAMA_URL/api/tags" >/dev/null 2>&1; then
             print_ok "Ollama reachable at $OLLAMA_URL"
+
             if curl -fsS "$OLLAMA_URL/api/tags" 2>/dev/null | grep -q "\"name\"[[:space:]]*:[[:space:]]*\"$OLLAMA_MODEL\""; then
                 print_ok "Model '$OLLAMA_MODEL' is available."
             else
                 print_warn "Model '$OLLAMA_MODEL' not pulled yet."
-                echo "         Pull it:  ollama pull $OLLAMA_MODEL"
+                echo "         Pull it: ollama pull $OLLAMA_MODEL"
                 echo "         Starting anyway — chat will fail until the model is ready."
             fi
         else
@@ -188,18 +201,19 @@ while [[ $WAITED -lt $MAX_WAIT ]]; do
         break
     fi
 
-    # Server died? bail out
+    # Server died? Bail out.
     if ! kill -0 "$SERVER_PID" >/dev/null 2>&1; then
         wait "$SERVER_PID" 2>/dev/null || true
         echo ""
-        print_err "RIN server exited before becoming ready (exit code ${PIPESTATUS[0]:-unknown})."
+        print_err "RIN server exited before becoming ready."
         echo "  Check the output above for Python traceback details."
         exit 1
     fi
 
     sleep 1
     WAITED=$((WAITED + 1))
-    # Print a dot every 2 s so the user sees progress
+
+    # Print a dot every 2 seconds so the user sees progress.
     if [[ $((WAITED % 2)) -eq 0 ]]; then
         echo -n "."
     fi
@@ -216,16 +230,19 @@ fi
 # ---- Step 10: open browser ----
 echo ""
 print_ok "RIN server is ready (took ${WAITED}s)."
-print_info "Opening $LOCAL_URL in your browser..."
+print_info "Opening $UI_URL in your browser..."
 sleep 0.5
 
-# Try the primary open method; fall back if needed
-if ! open "$LOCAL_URL" 2>/dev/null; then
+# Try the primary open method; fall back if needed.
+if ! open "$UI_URL" 2>/dev/null; then
     print_warn "'open' command failed — you can manually visit:"
-    echo "         $LOCAL_URL"
+    echo "         Console: $UI_URL"
+    echo "         Server:  $LOCAL_URL"
 fi
 
 echo ""
+echo "  Console: $UI_URL"
+echo "  Server:  $LOCAL_URL"
 echo "  Press Ctrl-C to stop the server."
 echo ""
 

@@ -12,6 +12,7 @@ build/
 dist/
 *.egg-info/
 .eggs/
+*.tsbuildinfo
 
 # cache
 .cache/
@@ -42,6 +43,9 @@ agent-output/
 # python
 .venv/
 python/.venv/
+
+# node / frontend
+node_modules/
 
 # local data
 .rin-data/
