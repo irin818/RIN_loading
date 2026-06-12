@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import cast
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict
@@ -147,24 +147,23 @@ def create_app(
     clock_dependency = Depends(get_clock)
 
     # ---- UI rendering ----
-    @app.get("/", response_class=HTMLResponse)
-    def ui_root(
-        request: Request,
-        conversationId: str | None = None,
-        new: bool = False,
-        current_layout: RinDataLayout = layout_dependency,
-        current_adapter: ModelAdapterProtocol = adapter_dependency,
-    ) -> Response:
-        return render_console_page(
-            request,
-            current_layout,
-            current_adapter,
-            selected_conversation_id=conversationId,
-            force_new_chat=new,
-        )
+    def redirect_to_glitch_core() -> Response:
+        return RedirectResponse(url="/glitch-core", status_code=307)
 
-    @app.get("/ui", response_class=HTMLResponse)
-    def ui(
+    @app.get("/")
+    def ui_root() -> Response:
+        return redirect_to_glitch_core()
+
+    @app.get("/ui")
+    def ui() -> Response:
+        return redirect_to_glitch_core()
+
+    @app.get("/ui-v2")
+    def ui_v2() -> Response:
+        return redirect_to_glitch_core()
+
+    @app.get("/legacy-ui", response_class=HTMLResponse)
+    def legacy_ui(
         request: Request,
         conversationId: str | None = None,
         new: bool = False,
@@ -187,8 +186,8 @@ def create_app(
     def glitch_core_spa(spa_path: str) -> Response:
         return render_glitch_core_entry()
 
-    @app.get("/ui-v2", response_class=HTMLResponse)
-    def ui_v2(
+    @app.get("/legacy-ui-v2", response_class=HTMLResponse)
+    def legacy_ui_v2(
         request: Request,
         conversationId: str | None = None,
         new: bool = False,

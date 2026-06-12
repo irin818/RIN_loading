@@ -35,7 +35,7 @@
           <div><span>Version</span><b data-v2-field="version">{{ version }}</b></div>
           <div><span>Mode</span><b data-v2-field="dashboard.serverMode">{{ dashboard.serverMode }}</b></div>
         </section>
-        <a class="v2-secondary-link" href="/ui">Old Console</a>
+        <a class="v2-secondary-link" href="/legacy-ui">Old Console</a>
       </aside>
 
       <section class="v2-center-panel">
@@ -90,9 +90,9 @@
         <section class="v2-page" data-v2-page="conversations">
           <section class="v2-conversation-layout">
             <nav class="v2-conversation-list" aria-label="Recent conversations">
-              <a class="v2-new-link" href="/ui-v2?new=1">New Conversation</a>
+              <a class="v2-new-link" href="/legacy-ui-v2?new=1">New Conversation</a>
               {% for conversation in conversations[:8] %}
-                <a class="{% if conversation.id == selected_conversation_id %}active{% endif %}" href="/ui-v2?conversationId={{ conversation.id }}">
+                <a class="{% if conversation.id == selected_conversation_id %}active{% endif %}" href="/legacy-ui-v2?conversationId={{ conversation.id }}">
                   <strong>{{ conversation.title }}</strong>
                   <span>{{ conversation.updatedAt }}</span>
                 </a>
@@ -214,7 +214,7 @@ rawModelOutputIncluded=false</pre>
           <div><span>Messages</span><b data-v2-field="dashboard.activeConversation.messageCount">{{ dashboard.activeConversation.messageCount }}</b></div>
         </section>
         <section class="v2-actions">
-          <a href="/ui-v2?new=1">New Conversation</a>
+          <a href="/legacy-ui-v2?new=1">New Conversation</a>
           <button type="button" data-v2-refresh>Refresh Dashboard</button>
         </section>
         <section class="v2-memory-pulse">

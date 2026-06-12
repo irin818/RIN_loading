@@ -17,21 +17,47 @@ import type {
   WindowType
 } from "./types";
 
-const LAYOUT_KEY = "rin.glitch-core.window-layout.v1";
+const LAYOUT_KEY = "rin.glitch-core.window-layout.v2";
 const PERSISTENT_TYPES = new Set<WindowType>(["chat", "memory", "trace"]);
+const REUSABLE_WINDOW_TYPES = new Set<WindowType>([
+  "core",
+  "chat",
+  "memory",
+  "trace",
+  "provider",
+  "tasks",
+  "tools",
+  "settings",
+  "system"
+]);
 
-const WINDOW_META: Record<WindowType, { label: string; context: string }> = {
-  core: { label: "Core Status", context: "RIN Core" },
-  chat: { label: "Chat", context: "Default Session" },
-  memory: { label: "Memory", context: "Recent Memories" },
-  memoryDetail: { label: "Memory Detail", context: "Memory Record" },
-  trace: { label: "Trace", context: "Runtime Trace" },
-  provider: { label: "Provider", context: "Local Provider" },
-  error: { label: "Error", context: "Runtime Error" },
-  tasks: { label: "Tasks", context: "Stub" },
-  tools: { label: "Tools", context: "Stub" },
-  settings: { label: "Settings", context: "Local UI" },
-  system: { label: "System", context: "Health" }
+type CoreVisualState =
+  | "idle"
+  | "thinking"
+  | "streaming"
+  | "memory"
+  | "warning"
+  | "error"
+  | "critical";
+
+type WindowMeta = {
+  label: string;
+  context: string;
+  code: string;
+};
+
+const WINDOW_META: Record<WindowType, WindowMeta> = {
+  core: { label: "Core Status", context: "RIN Core", code: "CORE" },
+  chat: { label: "Chat", context: "Default Session", code: "CHAT" },
+  memory: { label: "Memory", context: "Recent Memories", code: "MEM" },
+  memoryDetail: { label: "Memory Detail", context: "Memory Record", code: "MEM+" },
+  trace: { label: "Trace", context: "Runtime Trace", code: "TRC" },
+  provider: { label: "Provider", context: "Local Provider", code: "PRV" },
+  error: { label: "Error", context: "Runtime Error", code: "ERR" },
+  tasks: { label: "Tasks", context: "Mission Queue", code: "TASK" },
+  tools: { label: "Tools", context: "Tool Layer", code: "TOOL" },
+  settings: { label: "Settings", context: "Local UI", code: "SET" },
+  system: { label: "System", context: "Health", code: "SYS" }
 };
 
 const MENU_ITEMS: Array<{ label: string; type?: WindowType }> = [
@@ -47,19 +73,59 @@ const MENU_ITEMS: Array<{ label: string; type?: WindowType }> = [
   { label: "SYSTEM", type: "system" }
 ];
 
+const CENTER_MENU_ITEMS = MENU_ITEMS.filter((item) => item.label !== "RIN_CORE_OS");
+
 const DEFAULT_LAYOUT: Array<Pick<
   ConsoleWindow,
   "type" | "contextName" | "x" | "y" | "width" | "height"
 >> = [
-  { type: "core", contextName: "RIN Core", x: 420, y: 52, width: 420, height: 360 },
-  { type: "chat", contextName: "Default Session", x: 32, y: 64, width: 390, height: 520 },
-  { type: "memory", contextName: "Recent Memories", x: 858, y: 64, width: 390, height: 500 },
-  { type: "trace", contextName: "Latest Turn", x: 260, y: 400, width: 520, height: 250 },
-  { type: "provider", contextName: "Local Provider", x: 762, y: 420, width: 360, height: 230 }
+  { type: "core", contextName: "RIN Core", x: 440, y: 58, width: 410, height: 250 },
+  { type: "chat", contextName: "Default Session", x: 28, y: 76, width: 410, height: 516 },
+  { type: "memory", contextName: "Recent Memories", x: 850, y: 82, width: 406, height: 488 },
+  { type: "trace", contextName: "Latest Turn", x: 372, y: 432, width: 548, height: 236 },
+  { type: "provider", contextName: "Local Provider", x: 888, y: 492, width: 360, height: 200 }
 ];
+
+const SPAWN_LAYOUT: Record<WindowType, {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  offsetX: number;
+  offsetY: number;
+}> = {
+  core: { x: 440, y: 58, width: 410, height: 250, offsetX: 18, offsetY: 18 },
+  chat: { x: 44, y: 84, width: 430, height: 516, offsetX: 34, offsetY: 28 },
+  memory: { x: 828, y: 84, width: 420, height: 488, offsetX: -34, offsetY: 28 },
+  memoryDetail: { x: 520, y: 118, width: 430, height: 420, offsetX: 28, offsetY: 28 },
+  trace: { x: 346, y: 396, width: 570, height: 268, offsetX: 38, offsetY: -24 },
+  provider: { x: 838, y: 424, width: 390, height: 244, offsetX: -30, offsetY: -18 },
+  error: { x: 500, y: 124, width: 460, height: 340, offsetX: 28, offsetY: 30 },
+  tasks: { x: 96, y: 128, width: 420, height: 320, offsetX: 32, offsetY: 30 },
+  tools: { x: 744, y: 154, width: 410, height: 318, offsetX: -32, offsetY: 30 },
+  settings: { x: 510, y: 166, width: 430, height: 320, offsetX: 26, offsetY: 26 },
+  system: { x: 496, y: 96, width: 460, height: 360, offsetX: 24, offsetY: 26 }
+};
 
 function windowTitle(type: WindowType, instanceNumber: number, contextName: string) {
   return `${WINDOW_META[type].label} #${instanceNumber} · ${contextName}`;
+}
+
+function windowTypeClass(type: WindowType) {
+  return type.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+}
+
+function spawnRect(type: WindowType, instanceNumber: number) {
+  const base = SPAWN_LAYOUT[type];
+  const offsetIndex = Math.max(0, instanceNumber - 1);
+  const lane = offsetIndex % 6;
+  const stack = Math.floor(offsetIndex / 6);
+  return {
+    x: base.x + base.offsetX * lane + stack * 16,
+    y: base.y + base.offsetY * lane + stack * 18,
+    width: base.width,
+    height: base.height
+  };
 }
 
 function makeWindow(
@@ -68,12 +134,15 @@ function makeWindow(
   zIndex: number,
   overrides: Partial<ConsoleWindow> = {}
 ): ConsoleWindow {
-  const layout = DEFAULT_LAYOUT.find((item) => item.type === type);
+  const layout = instanceNumber === 1
+    ? DEFAULT_LAYOUT.find((item) => item.type === type)
+    : undefined;
+  const fallback = spawnRect(type, instanceNumber);
   const contextName = overrides.contextName ?? layout?.contextName ?? WINDOW_META[type].context;
-  const x = overrides.x ?? layout?.x ?? 140 + instanceNumber * 28;
-  const y = overrides.y ?? layout?.y ?? 96 + instanceNumber * 28;
-  const width = overrides.width ?? layout?.width ?? 420;
-  const height = overrides.height ?? layout?.height ?? 340;
+  const x = overrides.x ?? layout?.x ?? fallback.x;
+  const y = overrides.y ?? layout?.y ?? fallback.y;
+  const width = overrides.width ?? layout?.width ?? fallback.width;
+  const height = overrides.height ?? layout?.height ?? fallback.height;
   const fitted = fitWindowToViewport({ x, y, width, height });
   return {
     id: overrides.id ?? `${type}-${Date.now()}-${instanceNumber}`,
@@ -170,6 +239,54 @@ function safeDisplayJson(value: unknown) {
     .replaceAll("</think>", "[/thinking-tag]");
 }
 
+function topmostVisibleWindow(windows: ConsoleWindow[]) {
+  return windows
+    .filter((item) => item.visible && !item.minimized)
+    .reduce<ConsoleWindow | null>((top, item) => {
+      if (!top || item.zIndex > top.zIndex) {
+        return item;
+      }
+      return top;
+    }, null);
+}
+
+function isTextEntryElement(target: EventTarget | null): target is HTMLElement {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  const tag = target.tagName.toLowerCase();
+  return tag === "input" || tag === "textarea" || target.isContentEditable;
+}
+
+function deriveCoreVisualState(
+  snapshot: GlitchSnapshot | null,
+  chatBusy: boolean
+): CoreVisualState {
+  if (snapshot?.errors.some((item) => item.severity === "critical")) {
+    return "critical";
+  }
+  if (snapshot?.errors.some((item) => item.severity === "error")) {
+    return "error";
+  }
+  if (
+    snapshot?.errors.some((item) => item.severity === "warning") ||
+    snapshot?.core.status === "warning" ||
+    snapshot?.provider.health === "warning"
+  ) {
+    return "warning";
+  }
+  if (chatBusy) {
+    return "thinking";
+  }
+  if (snapshot?.trace.latest?.status === "running") {
+    return "streaming";
+  }
+  if ((snapshot?.memory.totalVisible ?? 0) > 0) {
+    return "memory";
+  }
+  return "idle";
+}
+
 export default function App() {
   const [snapshot, setSnapshot] = useState<GlitchSnapshot | null>(null);
   const [windows, setWindows] = useState<ConsoleWindow[]>(() => loadLayout());
@@ -183,6 +300,17 @@ export default function App() {
   const instanceCounts = useRef(initialInstanceCounts(windows));
   const zCounter = useRef(Math.max(40, ...windows.map((item) => item.zIndex)));
   const openedTraceErrorIds = useRef(new Set<string>());
+  const coreVisualState = deriveCoreVisualState(snapshot, chatBusy);
+  const handleBackgroundPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const x = (event.clientX - rect.left) / Math.max(1, rect.width) - 0.5;
+      const y = (event.clientY - rect.top) / Math.max(1, rect.height) - 0.5;
+      event.currentTarget.style.setProperty("--parallax-x", x.toFixed(4));
+      event.currentTarget.style.setProperty("--parallax-y", y.toFixed(4));
+    },
+    []
+  );
 
   useEffect(() => {
     localStorage.setItem(LAYOUT_KEY, JSON.stringify(windows));
@@ -237,6 +365,18 @@ export default function App() {
         focusWindow(options.focusExistingId);
         return;
       }
+      const reusable = REUSABLE_WINDOW_TYPES.has(type) && !options.payload
+        ? windows.find(
+            (item) =>
+              item.type === type &&
+              !item.payload &&
+              (!options.contextName || item.contextName === options.contextName)
+          )
+        : undefined;
+      if (reusable) {
+        focusWindow(reusable.id);
+        return;
+      }
       const next = (instanceCounts.current[type] ?? 0) + 1;
       instanceCounts.current[type] = next;
       zCounter.current += 1;
@@ -247,7 +387,7 @@ export default function App() {
       setWindows((items) => [...items, created]);
       setActiveWindowId(created.id);
     },
-    [focusWindow]
+    [focusWindow, windows]
   );
 
   const openErrorWindow = useCallback(
@@ -305,7 +445,41 @@ export default function App() {
         return [];
       })
     );
+    setActiveWindowId((current) => (current === id ? null : current));
   }, []);
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.isComposing) {
+        return;
+      }
+      if (isTextEntryElement(event.target)) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.target.blur();
+        return;
+      }
+      if (windowsMenuOpen) {
+        event.preventDefault();
+        event.stopPropagation();
+        setWindowsMenuOpen(false);
+        return;
+      }
+      const focused = windows.find(
+        (item) => item.id === activeWindowId && item.visible && !item.minimized
+      );
+      const top = focused ?? topmostVisibleWindow(windows);
+      if (!top) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      closeWindow(top.id);
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [activeWindowId, closeWindow, windows, windowsMenuOpen]);
 
   const minimizeWindow = useCallback((id: string) => {
     setWindows((items) =>
@@ -390,10 +564,15 @@ export default function App() {
   const errorCount = snapshot?.errors.length ?? 0;
 
   return (
-    <div className="rin-os">
+    <div
+      className={`rin-os core-state-${coreVisualState}`}
+      onPointerMove={handleBackgroundPointerMove}
+    >
       <div className="scanline-layer" />
       <div className="noise-layer" />
       <TopMenu
+        snapshot={snapshot}
+        coreVisualState={coreVisualState}
         errorCount={errorCount}
         windows={windows}
         minimizedWindows={minimizedWindows}
@@ -407,7 +586,7 @@ export default function App() {
         resetLayout={resetLayout}
       />
       <main className="workspace">
-        <CoreBackground snapshot={snapshot} />
+        <CoreBackground snapshot={snapshot} visualState={coreVisualState} />
         {visibleWindows.map((item) => (
           <WindowFrame
             key={item.id}
@@ -435,6 +614,7 @@ export default function App() {
               searchMemory={searchMemory}
               openWindow={openWindow}
               openErrorWindow={openErrorWindow}
+              closeWindow={closeWindow}
             />
           </WindowFrame>
         ))}
@@ -444,6 +624,8 @@ export default function App() {
 }
 
 function TopMenu(props: {
+  snapshot: GlitchSnapshot | null;
+  coreVisualState: CoreVisualState;
   errorCount: number;
   windows: ConsoleWindow[];
   minimizedWindows: ConsoleWindow[];
@@ -456,16 +638,30 @@ function TopMenu(props: {
   minimizeAll: () => void;
   resetLayout: () => void;
 }) {
+  const coreStatus = props.snapshot?.core.status ?? "booting";
+  const providerName = props.snapshot?.provider.activeProvider ?? "provider";
+  const providerHealth = props.snapshot?.provider.health ?? "loading";
+  const memoryCount = props.snapshot?.memory.totalVisible ?? 0;
+
   return (
     <header className="system-menu">
-      <div className="brand-chip">RIN // GLITCH CORE</div>
-      <nav>
-        {MENU_ITEMS.map((item) =>
+      <div className="menu-zone menu-left">
+        <button
+          type="button"
+          className="brand-chip command-chip"
+          onClick={() => props.openWindow("core")}
+        >
+          <span>RIN_CORE_OS</span>
+          <small className={`core-status-dot ${props.coreVisualState}`}>{coreStatus}</small>
+        </button>
+      </div>
+      <nav className="menu-zone menu-center" aria-label="RIN system menu">
+        {CENTER_MENU_ITEMS.map((item) =>
           item.label === "WINDOWS" ? (
             <button
               key={item.label}
               type="button"
-              className="menu-button"
+              className={`menu-button ${props.windowsMenuOpen ? "active" : ""}`}
               onClick={() => props.setWindowsMenuOpen(!props.windowsMenuOpen)}
             >
               WINDOWS
@@ -482,13 +678,33 @@ function TopMenu(props: {
           )
         )}
       </nav>
-      <button
-        type="button"
-        className={`status-badge ${props.errorCount ? "danger" : ""}`}
-        onClick={() => props.openWindow("error", { contextName: "Recent Errors" })}
-      >
-        ERR {props.errorCount}
-      </button>
+      <div className="menu-zone menu-right">
+        <button
+          type="button"
+          className="status-chip provider-chip"
+          onClick={() => props.openWindow("provider")}
+          title="Provider status"
+        >
+          <span>PRV</span>
+          <small>{providerName} / {providerHealth}</small>
+        </button>
+        <button
+          type="button"
+          className="status-chip memory-chip"
+          onClick={() => props.openWindow("memory")}
+          title="Visible memory cards"
+        >
+          <span>MEM</span>
+          <small>{memoryCount}</small>
+        </button>
+        <button
+          type="button"
+          className={`status-badge ${props.errorCount ? "danger" : ""}`}
+          onClick={() => props.openWindow("error", { contextName: "Recent Errors" })}
+        >
+          ERR {props.errorCount}
+        </button>
+      </div>
       {props.windowsMenuOpen ? (
         <section className="windows-menu">
           <div className="windows-menu-actions">
@@ -538,18 +754,50 @@ function WindowMenuList(props: {
   );
 }
 
-function CoreBackground({ snapshot }: { snapshot: GlitchSnapshot | null }) {
+function CoreBackground({
+  snapshot,
+  visualState
+}: {
+  snapshot: GlitchSnapshot | null;
+  visualState: CoreVisualState;
+}) {
+  const assetPath = snapshot?.core.avatarAssetPath ?? "/live2d/rin/rin-front-fullbody.png";
   return (
-    <section className="core-background" aria-hidden="true">
-      <div className="data-grid" />
+    <section className={`core-background core-visual-${visualState}`} aria-hidden="true">
+      <div className="core-depth-layer far" />
+      <div className="core-depth-layer near" />
+      <div className="data-grid data-grid-primary" />
+      <div className="data-grid data-grid-secondary" />
       <div className="core-ring outer" />
+      <div className="core-ring middle" />
       <div className="core-ring inner" />
-      <img
-        src={snapshot?.core.avatarAssetPath ?? "/live2d/rin/rin-front-fullbody.png"}
-        alt=""
-        className="core-rin-image"
-      />
-      <div className="core-label">RIN CORE</div>
+      <div className="memory-fragment-field">
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className="core-eye-shell">
+        <div className="core-eye-aperture" />
+        <img src={assetPath} alt="" className="core-rin-image core-eye-image" />
+        <div className="core-eye-mask" />
+        <div className="core-iris" />
+        <div className="core-glitch-slice slice-a" />
+        <div className="core-glitch-slice slice-b" />
+        <div className="core-glitch-slice slice-c" />
+      </div>
+      <div className="foreground-trace-field">
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className="core-label">
+        <span>RIN CORE</span>
+        <small>{snapshot?.core.status ?? "booting"} / {visualState}</small>
+      </div>
     </section>
   );
 }
@@ -622,7 +870,8 @@ function WindowFrame(props: {
 
   return (
     <section
-      className={`os-window ${props.active ? "focused" : ""} ${win.maximized ? "maximized" : ""}`}
+      className={`os-window window-${windowTypeClass(win.type)} ${props.active ? "focused" : ""} ${win.maximized ? "maximized" : ""}`}
+      data-window-type={win.type}
       style={style}
       onPointerDown={() => props.onFocus(win.id)}
     >
@@ -633,6 +882,7 @@ function WindowFrame(props: {
       >
         <div>
           <span className="window-led" />
+          <span className="window-type-badge">{WINDOW_META[win.type].code}</span>
           <strong>{win.title}</strong>
         </div>
         <div className="window-controls">
@@ -663,6 +913,7 @@ function WindowContent(props: {
   searchMemory: () => Promise<void>;
   openWindow: (type: WindowType, options?: { contextName?: string; payload?: WindowPayload; focusExistingId?: string }) => void;
   openErrorWindow: (error: GlitchErrorItem) => void;
+  closeWindow: (id: string) => void;
 }) {
   switch (props.win.type) {
     case "core":
@@ -683,6 +934,7 @@ function WindowContent(props: {
           error={props.win.payload?.error as GlitchErrorItem | undefined}
           trace={props.snapshot?.trace.latest ?? null}
           openWindow={props.openWindow}
+          onDismiss={() => props.closeWindow(props.win.id)}
         />
       );
     case "tasks":
@@ -1001,6 +1253,7 @@ function ErrorWindow(props: {
   error?: GlitchErrorItem;
   trace: RuntimeTrace | null;
   openWindow: (type: WindowType, options?: { contextName?: string; payload?: WindowPayload }) => void;
+  onDismiss: () => void;
 }) {
   const error = props.error;
   if (!error) {
@@ -1030,7 +1283,7 @@ function ErrorWindow(props: {
         >
           COPY ERROR
         </button>
-        <button type="button">DISMISS</button>
+        <button type="button" onClick={props.onDismiss}>DISMISS</button>
       </div>
     </div>
   );

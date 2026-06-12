@@ -112,53 +112,57 @@ def test_write_routes_allow_initialized_production_root(
 def test_python_ui_renders_local_status_and_profile_summary() -> None:
     client, layout = create_client()
     try:
-        response = client.get("/")
+        response = client.get("/", follow_redirects=False)
+        legacy = client.get("/legacy-ui")
+        page_text = legacy.text
 
-        assert response.status_code == 200
-        assert "RIN Control Console" in response.text
-        assert "Observe, test, and understand RIN." in response.text
-        assert 'class="control-console-shell"' in response.text
-        assert 'class="console-topbar"' in response.text
-        assert 'class="console-nav glass-panel"' in response.text
-        assert 'data-console-tab="overview"' in response.text
-        assert 'data-console-tab="chat"' in response.text
-        assert 'data-console-tab="runtime-trace"' in response.text
-        assert 'data-console-tab="model"' in response.text
-        assert 'data-console-tab="memory"' in response.text
-        assert 'data-console-tab="context"' in response.text
-        assert 'data-console-tab="database"' in response.text
-        assert 'data-console-tab="conversations"' in response.text
-        assert 'data-console-tab="profiles"' in response.text
-        assert 'data-console-tab="body"' in response.text
-        assert 'data-console-tab="events"' in response.text
-        assert 'data-console-tab="developer"' in response.text
-        assert 'data-console-page="overview"' in response.text
-        assert 'data-console-page="chat"' in response.text
-        assert 'data-console-page="runtime-trace"' in response.text
-        assert "Runtime Dataflow Analyzer" in response.text
-        assert "Manual Runtime Test Chat" in response.text
-        assert 'class="rin-character"' in response.text
-        assert 'class="presence-panel glass-panel"' in response.text
-        assert 'class="composer-dock"' in response.text
-        assert 'class="trace-ring"' in response.text
-        assert 'class="metric-card balance-card"' in response.text
-        assert 'class="health-grid"' in response.text
-        assert "/api/status-dashboard" in response.text
-        assert "console.css" in response.text
-        assert "console.js" in response.text
-        assert "Python-primary local RIN runtime." in response.text
-        assert "rin-mock-local" in response.text
-        assert "Memory V2" in response.text
-        assert "PROFILE" in response.text
-        assert "Profile files" in response.text
-        assert "Trace full text" in response.text
-        assert "Body" in response.text
-        assert "RIN PRESENCE" in response.text
-        assert "/live2d/rin/rin-front-fullbody.png" in response.text
-        assert "STATIC BODY / LIVE2D FUTURE" in response.text
-        assert "external" in response.text
-        assert "0" in response.text
-        assert "Start a local conversation." in response.text
+        assert response.status_code == 307
+        assert response.headers["location"] == "/glitch-core"
+        assert legacy.status_code == 200
+        assert "RIN Control Console" in page_text
+        assert "Observe, test, and understand RIN." in page_text
+        assert 'class="control-console-shell"' in page_text
+        assert 'class="console-topbar"' in page_text
+        assert 'class="console-nav glass-panel"' in page_text
+        assert 'data-console-tab="overview"' in page_text
+        assert 'data-console-tab="chat"' in page_text
+        assert 'data-console-tab="runtime-trace"' in page_text
+        assert 'data-console-tab="model"' in page_text
+        assert 'data-console-tab="memory"' in page_text
+        assert 'data-console-tab="context"' in page_text
+        assert 'data-console-tab="database"' in page_text
+        assert 'data-console-tab="conversations"' in page_text
+        assert 'data-console-tab="profiles"' in page_text
+        assert 'data-console-tab="body"' in page_text
+        assert 'data-console-tab="events"' in page_text
+        assert 'data-console-tab="developer"' in page_text
+        assert 'data-console-page="overview"' in page_text
+        assert 'data-console-page="chat"' in page_text
+        assert 'data-console-page="runtime-trace"' in page_text
+        assert "Runtime Dataflow Analyzer" in page_text
+        assert "Manual Runtime Test Chat" in page_text
+        assert 'class="rin-character"' in page_text
+        assert 'class="presence-panel glass-panel"' in page_text
+        assert 'class="composer-dock"' in page_text
+        assert 'class="trace-ring"' in page_text
+        assert 'class="metric-card balance-card"' in page_text
+        assert 'class="health-grid"' in page_text
+        assert "/api/status-dashboard" in page_text
+        assert "console.css" in page_text
+        assert "console.js" in page_text
+        assert "Python-primary local RIN runtime." in page_text
+        assert "rin-mock-local" in page_text
+        assert "Memory V2" in page_text
+        assert "PROFILE" in page_text
+        assert "Profile files" in page_text
+        assert "Trace full text" in page_text
+        assert "Body" in page_text
+        assert "RIN PRESENCE" in page_text
+        assert "/live2d/rin/rin-front-fullbody.png" in page_text
+        assert "STATIC BODY / LIVE2D FUTURE" in page_text
+        assert "external" in page_text
+        assert "0" in page_text
+        assert "Start a local conversation." in page_text
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
@@ -234,12 +238,18 @@ def test_python_ui_static_assets_are_served() -> None:
 def test_console_v2_route_assets_and_snapshot_are_safe() -> None:
     client, layout = create_client()
     try:
-        old_console = client.get("/ui")
-        page = client.get("/ui-v2")
+        old_redirect = client.get("/ui", follow_redirects=False)
+        v2_redirect = client.get("/ui-v2", follow_redirects=False)
+        old_console = client.get("/legacy-ui")
+        page = client.get("/legacy-ui-v2")
         css = client.get("/static/console-v2.css")
         js = client.get("/static/console-v2.js")
         snapshot = client.get("/api/console-v2/snapshot")
 
+        assert old_redirect.status_code == 307
+        assert old_redirect.headers["location"] == "/glitch-core"
+        assert v2_redirect.status_code == 307
+        assert v2_redirect.headers["location"] == "/glitch-core"
         assert old_console.status_code == 200
         assert "RIN Control Console" in old_console.text
         assert page.status_code == 200
@@ -448,7 +458,7 @@ def test_empty_chat_requests_do_not_create_conversations() -> None:
 def test_console_tab_buttons_are_explicit_button_type() -> None:
     client, layout = create_client()
     try:
-        response = client.get("/")
+        response = client.get("/legacy-ui")
 
         assert response.status_code == 200
         tab_buttons = re.findall(
@@ -466,7 +476,7 @@ def test_python_ui_reload_preserves_history_without_new_write() -> None:
     try:
         submitted = client.post("/ui/chat", json={"content": "reload-safe message"})
         state_after_submit = client.get("/api/local-state").json()
-        reloaded = client.get("/ui")
+        reloaded = client.get("/legacy-ui")
         state_after_reload = client.get("/api/local-state").json()
 
         assert submitted.status_code == 200
@@ -483,7 +493,7 @@ def test_python_ui_reload_preserves_history_without_new_write() -> None:
 def test_python_ui_renders_local_model_status() -> None:
     client, layout = create_client(adapter=LocalModelAdapter())
     try:
-        response = client.get("/")
+        response = client.get("/legacy-ui")
 
         assert response.status_code == 200
         assert "rin-ollama-local" in response.text
@@ -513,7 +523,7 @@ def test_python_ui_new_chat_view_does_not_create_writes() -> None:
     try:
         submitted = client.post("/ui/chat", json={"content": "existing chat"})
         state_after_submit = client.get("/api/local-state").json()
-        response = client.get("/ui?new=1")
+        response = client.get("/legacy-ui?new=1")
         state_after_new_view = client.get("/api/local-state").json()
 
         assert submitted.status_code == 200
