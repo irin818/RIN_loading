@@ -279,6 +279,60 @@ def test_console_v2_route_assets_and_snapshot_are_safe() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
+def test_glitch_core_snapshot_and_memory_api_are_safe_read_only() -> None:
+    client, layout = create_client()
+    try:
+        submitted = client.post(
+            "/api/chat-test/send",
+            json={"content": "glitch core memory preference signal"},
+        )
+        state_after_submit = client.get("/api/local-state").json()
+        snapshot = client.get("/api/glitch-core/snapshot")
+        memories = client.get("/api/glitch-core/memories?query=memory")
+        state_after_reads = client.get("/api/local-state").json()
+
+        assert submitted.status_code == 200
+        assert snapshot.status_code == 200
+        payload = snapshot.json()
+        assert payload["mode"] == "glitch-core-snapshot"
+        assert payload["readOnly"] is True
+        assert payload["localOnly"] is True
+        assert payload["fullTextIncluded"] is False
+        assert payload["rawPromptIncluded"] is False
+        assert payload["rawModelOutputIncluded"] is False
+        assert payload["hiddenReasoningIncluded"] is False
+        assert payload["secretValuesIncluded"] is False
+        assert payload["externalProviderCallCount"] == 0
+        assert payload["messages"][-1]["content"] == "Python API mock reply."
+        assert payload["memory"]["cards"]
+        assert payload["memory"]["cards"][0]["readOnly"] is True
+        assert payload["memory"]["cards"][0]["fullTextIncluded"] is False
+        assert payload["trace"]["latest"]["rawModelOutputIncluded"] is False
+        assert payload["provider"]["safeConfig"]["apiKeyIncluded"] is False
+        assert payload["provider"]["safeConfig"]["secretValuesIncluded"] is False
+        assert state_after_reads["database"] == state_after_submit["database"]
+        assert state_after_reads["externalProviderCallCount"] == 0
+
+        assert memories.status_code == 200
+        memory_payload = memories.json()
+        assert memory_payload["readOnly"] is True
+        assert memory_payload["fullTextIncluded"] is False
+        assert memory_payload["cards"]
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_glitch_core_entry_reports_frontend_build_state() -> None:
+    client, layout = create_client()
+    try:
+        response = client.get("/glitch-core")
+
+        assert response.status_code in {200, 503}
+        assert "RIN Glitch Core Console" in response.text
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
 def test_python_ui_chat_submit_renders_conversation_history() -> None:
     client, layout = create_client()
     try:
@@ -691,7 +745,7 @@ def test_runtime_trace_api_is_safe_and_read_only() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
-def test_no_typescript_or_node_artifacts_reintroduced() -> None:
+def test_typescript_frontend_artifacts_stay_in_frontend_only() -> None:
     root = Path(__file__).resolve().parents[3]
     patterns = [
         "*.ts",
@@ -712,9 +766,12 @@ def test_no_typescript_or_node_artifacts_reintroduced() -> None:
         if "dist" not in path.parts
         and "node_modules" not in path.parts
         and ".venv" not in path.parts
+        and "frontend" not in path.parts
     ]
 
     assert filtered == []
+    assert (root / "frontend" / "package.json").exists()
+    assert (root / "frontend" / "vite.config.ts").exists()
 
 
 def test_default_launcher_is_local_model_and_browser_open() -> None:
@@ -735,5 +792,6 @@ def test_default_launcher_is_local_model_and_browser_open() -> None:
     assert "RIN_OLLAMA_TIMEOUT_MS" in launcher_text
     assert "RIN_OLLAMA_NUM_PREDICT" in launcher_text
     assert 'LOCAL_URL="http://127.0.0.1:8765"' in launcher_text
-    assert 'open "$LOCAL_URL"' in launcher_text
+    assert "RIN_STARTUP_UI_PATH" in launcher_text
+    assert 'open "$UI_URL"' in launcher_text
     assert 'MAX_WAIT="${RIN_STARTUP_TIMEOUT_SEC:-60}"' in launcher_text

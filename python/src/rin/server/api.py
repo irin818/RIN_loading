@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import cast
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict
@@ -27,6 +27,7 @@ from rin.database import (
     get_conversation,
     inspect_database,
     list_conversations,
+    list_legacy_memories,
     list_memory_v2_traces,
     list_messages,
 )
@@ -47,6 +48,9 @@ REPO_ROOT = SERVER_DIR.parents[3]
 TEMPLATES = Jinja2Templates(directory=SERVER_DIR / "templates")
 STATIC_DIR = SERVER_DIR / "static"
 PUBLIC_LIVE2D_DIR = REPO_ROOT / "public" / "live2d"
+FRONTEND_DIST_DIR = REPO_ROOT / "frontend" / "dist"
+FRONTEND_INDEX = FRONTEND_DIST_DIR / "index.html"
+FRONTEND_ASSETS_DIR = FRONTEND_DIST_DIR / "assets"
 
 
 class ConversationCreateBody(BaseModel):
@@ -114,6 +118,12 @@ def create_app(
     """
     app = FastAPI(title="RIN Python Compatibility API", version="0.0.0")
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    if FRONTEND_ASSETS_DIR.is_dir():
+        app.mount(
+            "/glitch-core/assets",
+            StaticFiles(directory=FRONTEND_ASSETS_DIR),
+            name="glitch-core-assets",
+        )
     if PUBLIC_LIVE2D_DIR.is_dir():
         app.mount(
             "/live2d",
@@ -168,6 +178,14 @@ def create_app(
             selected_conversation_id=conversationId,
             force_new_chat=new,
         )
+
+    @app.get("/glitch-core", response_class=HTMLResponse)
+    def glitch_core_index() -> Response:
+        return render_glitch_core_entry()
+
+    @app.get("/glitch-core/{spa_path:path}", response_class=HTMLResponse)
+    def glitch_core_spa(spa_path: str) -> Response:
+        return render_glitch_core_entry()
 
     @app.get("/ui-v2", response_class=HTMLResponse)
     def ui_v2(
@@ -224,6 +242,39 @@ def create_app(
             current_adapter,
             selected_conversation_id=conversationId,
         )
+
+    @app.get("/api/glitch-core/snapshot")
+    def api_glitch_core_snapshot(
+        conversationId: str | None = None,
+        memoryQuery: str = "",
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> dict[str, object]:
+        return build_glitch_core_snapshot(
+            current_layout,
+            current_adapter,
+            selected_conversation_id=conversationId,
+            memory_query=memoryQuery,
+        )
+
+    @app.get("/api/glitch-core/memories")
+    def api_glitch_core_memories(
+        query: str = "",
+        limit: int = 40,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return {
+            "ok": True,
+            "mode": "glitch-core-memories",
+            "readOnly": True,
+            "localOnly": True,
+            "fullTextIncluded": False,
+            "cards": build_glitch_memory_cards(
+                current_layout,
+                query=query,
+                limit=limit,
+            ),
+        }
 
     # ---- Diagnostics endpoints ----
     @app.get("/api/diagnostics/overview")
@@ -645,6 +696,52 @@ def render_console_v2_page(
     )
 
 
+def render_glitch_core_entry() -> Response:
+    """Serve the built React shell when available, otherwise show run instructions."""
+    if FRONTEND_INDEX.is_file():
+        return FileResponse(FRONTEND_INDEX)
+    return HTMLResponse(
+        """
+        <!doctype html>
+        <html lang="en">
+          <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <title>RIN Glitch Core Console</title>
+            <style>
+              body {
+                margin: 0;
+                min-height: 100vh;
+                display: grid;
+                place-items: center;
+                background: #020403;
+                color: #d8ffe5;
+                font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+              }
+              main {
+                width: min(720px, calc(100vw - 40px));
+                border: 1px solid #00ff64;
+                padding: 28px;
+                box-shadow: 0 0 36px rgba(0, 255, 100, 0.24);
+                background: rgba(0, 18, 9, 0.84);
+              }
+              code { color: #67e8f9; }
+            </style>
+          </head>
+          <body>
+            <main>
+              <h1>RIN Glitch Core Console</h1>
+              <p>React build not found. Run the frontend dev server:</p>
+              <p><code>cd frontend && npm install && npm run dev</code></p>
+              <p>Backend API remains available from this Python server.</p>
+            </main>
+          </body>
+        </html>
+        """,
+        status_code=503,
+    )
+
+
 def build_console_view_model(
     layout: RinDataLayout,
     adapter: ModelAdapterProtocol,
@@ -839,6 +936,310 @@ def build_console_v2_snapshot(
             "fullPathIncluded": False,
         },
     }
+
+
+def build_glitch_core_snapshot(
+    layout: RinDataLayout,
+    adapter: ModelAdapterProtocol,
+    *,
+    selected_conversation_id: str | None = None,
+    memory_query: str = "",
+) -> dict[str, object]:
+    """Return the read-only JSON model for the React Glitch Core console."""
+    conversations = list_conversations(layout, limit=30)
+    selected = selected_conversation_id or (
+        conversations[0].id if conversations else None
+    )
+    messages = list_messages(layout, selected) if selected else []
+    dashboard = build_status_dashboard_summary(
+        layout,
+        adapter,
+        selected_conversation_id=selected,
+        messages=messages,
+    )
+    model_diagnostics = build_diagnostics_payload(layout, adapter, "model")
+    memory_cards = build_glitch_memory_cards(layout, query=memory_query, limit=40)
+    latest_trace = RUNTIME_TRACE_STORE.latest()
+    latest_trace_payload = latest_trace.to_safe_dict() if latest_trace else None
+    traces = [trace.to_safe_dict() for trace in RUNTIME_TRACE_STORE.list()]
+    readiness = cast(dict[str, object], dashboard["readiness"])
+    return {
+        "ok": True,
+        "mode": "glitch-core-snapshot",
+        "readOnly": True,
+        "localOnly": True,
+        "version": __version__,
+        "fullTextIncluded": False,
+        "rawPromptIncluded": False,
+        "rawModelOutputIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "secretValuesIncluded": False,
+        "externalProviderCallCount": 0,
+        "core": {
+            "name": "RIN",
+            "status": "online" if readiness["ok"] is True else "warning",
+            "mode": "local-first",
+            "avatarAssetPath": "/live2d/rin/rin-front-fullbody.png",
+            "replaceableImageNote": (
+                "Replace public/live2d/rin/rin-front-fullbody.png later."
+            ),
+            "animationEnabledByDefault": True,
+        },
+        "dashboard": dashboard,
+        "conversations": [
+            {
+                "id": conversation.id,
+                "shortId": short_id(conversation.id),
+                "title": conversation.title,
+                "createdAt": conversation.createdAt,
+                "updatedAt": conversation.updatedAt,
+            }
+            for conversation in conversations
+        ],
+        "selectedConversationId": selected,
+        "messages": [
+            message
+            for message in (safe_chat_message(item) for item in messages)
+            if message is not None
+        ],
+        "memory": {
+            "cards": memory_cards,
+            "totalVisible": len(memory_cards),
+            "query": memory_query,
+            "compactDefault": True,
+            "readOnly": True,
+            "fullTextIncluded": False,
+        },
+        "trace": {
+            "latest": latest_trace_payload,
+            "recent": traces,
+            "readOnly": True,
+            "rawPromptIncluded": False,
+            "rawModelOutputIncluded": False,
+            "hiddenReasoningIncluded": False,
+        },
+        "provider": build_glitch_provider_payload(
+            adapter,
+            model_diagnostics,
+            latest_trace_payload,
+        ),
+        "errors": build_glitch_error_items(latest_trace_payload),
+        "windows": {
+            "defaultTypes": ["core", "chat", "memory", "trace", "provider"],
+            "temporaryTypes": ["error", "settings", "tasks", "tools", "system"],
+            "persistentTypes": ["chat", "memory", "trace"],
+            "layoutPersistence": "browser-local-storage",
+        },
+    }
+
+
+def build_glitch_memory_cards(
+    layout: RinDataLayout,
+    *,
+    query: str = "",
+    limit: int = 40,
+) -> list[dict[str, object]]:
+    """Build safe, card-friendly memory summaries from SQLite read-only helpers."""
+    safe_limit = max(1, min(limit, 80))
+    cards = [
+        build_glitch_trace_memory_card(trace)
+        for trace in list_memory_v2_traces(layout, limit=safe_limit)
+    ]
+    cards.extend(
+        build_glitch_legacy_memory_card(memory)
+        for memory in list_legacy_memories(layout, limit=safe_limit)
+    )
+    normalized_query = query.strip().lower()
+    if normalized_query:
+        cards = [
+            card
+            for card in cards
+            if normalized_query in str(card.get("searchText", "")).lower()
+        ]
+    return cards[:safe_limit]
+
+
+def build_glitch_trace_memory_card(trace: object) -> dict[str, object]:
+    """Serialize a Memory V2 trace as a safe HUD memory card."""
+    item = safe_memory_trace_item(trace)
+    trace_id = str(item["traceId"])
+    signal_keys = item["signalKeys"] if isinstance(item["signalKeys"], list) else []
+    preview = str(item["safePreview"])
+    return {
+        "id": trace_id,
+        "shortId": str(item["traceShortId"]),
+        "kind": "memory_v2_trace",
+        "type": str(item["traceType"]),
+        "title": f"Trace {item['traceShortId']}",
+        "summary": "Safe Memory V2 trace metadata",
+        "contentPreview": preview,
+        "source": "memory_v2_traces",
+        "sourceMessageId": str(item["sourceMessageId"]),
+        "linkedSession": str(item["sourceShortId"]),
+        "createdAt": str(item["createdAt"]),
+        "updatedAt": str(item["updatedAt"]),
+        "lastUsedAt": "n/a",
+        "confidence": "n/a",
+        "importance": "salience",
+        "salienceScore": item["salienceScore"],
+        "tags": signal_keys,
+        "metadata": item,
+        "readOnly": True,
+        "fullTextIncluded": False,
+        "searchText": (
+            f"{trace_id} memory_v2_trace {item['traceType']} "
+            f"{preview} {' '.join(signal_keys)}"
+        ),
+    }
+
+
+def build_glitch_legacy_memory_card(memory: object) -> dict[str, object]:
+    """Serialize a legacy memory item without exposing full raw memory JSON."""
+    memory_id = str(getattr(memory, "id", "n/a"))
+    metadata = getattr(memory, "metadata", None)
+    content = getattr(memory, "content", {})
+    tags = list(getattr(metadata, "tags", [])) if metadata is not None else []
+    confidence = str(getattr(metadata, "confidence", "n/a"))
+    importance = str(getattr(metadata, "importance", "n/a"))
+    source = getattr(metadata, "source", None) if metadata is not None else None
+    summary = legacy_memory_summary(content)
+    return {
+        "id": memory_id,
+        "shortId": short_id(memory_id),
+        "kind": "legacy_memory",
+        "type": str(getattr(memory, "memoryType", "n/a")),
+        "title": input_preview(summary or f"Memory {short_id(memory_id)}", limit=72),
+        "summary": input_preview(summary or "Legacy memory metadata", limit=96),
+        "contentPreview": input_preview(summary or "content preview hidden", limit=96),
+        "source": str(source or "legacy_memory"),
+        "sourceMessageId": str(getattr(memory, "sourceMessageId", "n/a")),
+        "linkedSession": str(getattr(memory, "sourceMessageId", "n/a")),
+        "createdAt": str(getattr(memory, "createdAt", "n/a")),
+        "updatedAt": str(getattr(memory, "updatedAt", "n/a")),
+        "lastUsedAt": "n/a",
+        "confidence": confidence,
+        "importance": importance,
+        "salienceScore": "n/a",
+        "tags": tags,
+        "metadata": {
+            "status": str(getattr(memory, "status", "n/a")),
+            "reviewedAt": str(getattr(metadata, "reviewedAt", "n/a"))
+            if metadata is not None
+            else "n/a",
+            "acceptedAt": str(getattr(metadata, "acceptedAt", "n/a"))
+            if metadata is not None
+            else "n/a",
+        },
+        "readOnly": True,
+        "fullTextIncluded": False,
+        "searchText": (
+            f"{memory_id} legacy_memory {summary} "
+            f"{' '.join(tags)} {confidence} {importance}"
+        ),
+    }
+
+
+def legacy_memory_summary(content: object) -> str:
+    """Return a bounded legacy memory summary using summary-like fields only."""
+    if not isinstance(content, dict):
+        return ""
+    for key in ("title", "summary", "safeSummary", "name", "label"):
+        value = content.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    keys = sorted(str(key) for key in content)
+    return f"fields: {', '.join(keys[:8])}" if keys else ""
+
+
+def build_glitch_provider_payload(
+    adapter: ModelAdapterProtocol,
+    model_diagnostics: dict[str, object],
+    latest_trace: dict[str, object] | None,
+) -> dict[str, object]:
+    """Build provider status/config data without secret values."""
+    last_error = "n/a"
+    if latest_trace and latest_trace.get("status") == "failed":
+        last_error = str(latest_trace.get("errorCode", "unknown"))
+    return {
+        "activeProvider": model_diagnostics.get("provider", "local"),
+        "activeAdapter": adapter.id,
+        "activeModel": model_diagnostics.get("model", "n/a"),
+        "configured": bool(adapter.id),
+        "streamingSupport": "not configured",
+        "health": "error" if last_error != "n/a" else "ok",
+        "lastLatencyMs": provider_latency_from_trace(latest_trace),
+        "lastError": last_error,
+        "availableProviders": [
+            {
+                "id": "rin-mock-local",
+                "provider": "local",
+                "configured": True,
+                "secretRequired": False,
+            },
+            {
+                "id": "rin-ollama-local",
+                "provider": "local",
+                "configured": True,
+                "secretRequired": False,
+            },
+        ],
+        "safeConfig": {
+            "baseUrl": model_diagnostics.get("baseUrl", "n/a"),
+            "timeoutMs": model_diagnostics.get("timeoutMs", "n/a"),
+            "numPredict": model_diagnostics.get("numPredict", "n/a"),
+            "temperature": model_diagnostics.get("temperature", "n/a"),
+            "topP": model_diagnostics.get("topP", "n/a"),
+            "apiKeyIncluded": False,
+            "secretValuesIncluded": False,
+        },
+    }
+
+
+def provider_latency_from_trace(trace: dict[str, object] | None) -> object:
+    """Extract the latest provider latency from safe trace metadata when available."""
+    if trace is None:
+        return "n/a"
+    stages = trace.get("stages", [])
+    if not isinstance(stages, list):
+        return "n/a"
+    for stage in stages:
+        if not isinstance(stage, dict) or stage.get("name") != "raw_model_response":
+            continue
+        operation = stage.get("operation", {})
+        if isinstance(operation, dict):
+            return operation.get("durationMs", "n/a")
+    return "n/a"
+
+
+def build_glitch_error_items(
+    latest_trace: dict[str, object] | None,
+) -> list[dict[str, object]]:
+    """Build displayable error items from safe runtime trace metadata."""
+    if latest_trace is None or latest_trace.get("status") != "failed":
+        return []
+    code = str(latest_trace.get("errorCode", "RUNTIME_ERROR"))
+    stages = latest_trace.get("stages", [])
+    last_step = "n/a"
+    if isinstance(stages, list) and stages:
+        maybe_stage = stages[-1]
+        if isinstance(maybe_stage, dict):
+            fallback_name = maybe_stage.get("name", "n/a")
+            last_step = str(maybe_stage.get("displayName", fallback_name))
+    severity = "critical" if code == "MODEL_RESPONSE_INVALID" else "error"
+    return [
+        {
+            "id": f"trace-{latest_trace.get('turnShortId', 'latest')}-{code}",
+            "code": code,
+            "severity": severity,
+            "module": "conversation-runtime",
+            "message": "Latest runtime turn failed. Safe metadata only.",
+            "lastStep": last_step,
+            "turnId": latest_trace.get("turnId", "n/a"),
+            "traceAvailable": True,
+            "rawModelOutputIncluded": False,
+            "hiddenReasoningIncluded": False,
+        }
+    ]
 
 
 def build_status_dashboard_summary(
