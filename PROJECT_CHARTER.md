@@ -85,7 +85,15 @@ Slow variables include:
 - feedback history;
 - reflection history;
 - local data integrity;
-- integration strategy.
+- integration strategy;
+- identity/profile policy;
+- memory system architecture;
+- storage schema;
+- provider abstraction boundaries;
+- sanitizer boundaries;
+- runtime trace integrity;
+- permissions and security assumptions;
+- governance documents.
 
 Fast variables include:
 
@@ -97,7 +105,14 @@ Fast variables include:
 - external tool output;
 - web content;
 - current model version;
-- transient runtime state.
+- transient runtime state;
+- frontend visual design;
+- external model choice;
+- UI layout;
+- provider selection;
+- tool adapters;
+- avatar/Live2D implementation;
+- desktop shell implementation.
 
 Rules:
 
@@ -131,7 +146,6 @@ Cloud services may only be:
 
 - optional expert or fallback reasoning providers;
 - optional encrypted transport layers;
-- optional encrypted backup storage;
 - optional external tool providers.
 
 Cloud services must never become RIN's identity source.
@@ -376,9 +390,10 @@ Rules:
 
 ---
 
-## 18. Deferred Systems
+## 18. Removed or Inactive Systems
 
-The following are not active development scope unless explicitly reopened by the owner:
+The following are removed from current active product scope unless
+explicitly reopened by the owner:
 
 - backup;
 - restore;
@@ -390,10 +405,17 @@ The following are not active development scope unless explicitly reopened by the
 - planner/task autonomy;
 - MCP runtime execution;
 - L0-L5 permission hierarchy;
-- TypeScript/React/Vite runtime restoration;
+- restoration of old deleted TypeScript/React/Vite runtime (not the current Glitch Core frontend);
 - complete Live2D behavior.
 
-Preserve future compatibility where practical, but do not let deferred systems distort current core development.
+Note: the current TypeScript/React/Vite frontend (Glitch Core Multi-Window
+Console under frontend/) is an active first-class project area, not a
+restoration of the old deleted TypeScript runtime.
+
+Safety-critical data guards, schema protections, and local data integrity
+checks may remain when they protect existing owner data.
+
+Do not let removed or inactive systems distort current core development.
 
 ---
 

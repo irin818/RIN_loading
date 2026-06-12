@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/console-v2.css') }}" />
+    <script defer src="{{ url_for('static', path='/console-v2.js') }}"></script>
+  </head>
+  <body>
+    <main
+      class="rin-v2-shell"
+      data-snapshot-url="/api/console-v2/snapshot{% if selected_conversation_id %}?conversationId={{ selected_conversation_id }}{% endif %}"
+      data-chat-url="/api/chat-test/send"
+      data-active-conversation="{{ selected_conversation_id or '' }}"
+    >
+      <div class="v2-grid-bg" aria-hidden="true"></div>
+      <div class="v2-particles" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+
+      <aside class="v2-panel v2-glass-panel v2-neon-border v2-avatar-panel" aria-label="RIN avatar and runtime identity">
+        <header class="v2-brand">
+          <span class="v2-status-dot v2-status-indicator"></span>
+          <div>
+            <h1>RIN</h1>
+            <p>{{ identity }}</p>
+          </div>
+        </header>
+        <section class="v2-avatar-stage">
+          <img src="{{ avatar_asset_path }}" alt="RIN avatar" />
+          <span class="v2-avatar-glow"></span>
+        </section>
+        <section class="v2-identity-stack">
+          <div><span>Model</span><b data-v2-field="dashboard.model">{{ dashboard.model }}</b></div>
+          <div><span>Adapter</span><b data-v2-field="dashboard.adapter">{{ dashboard.adapter }}</b></div>
+          <div><span>Version</span><b data-v2-field="version">{{ version }}</b></div>
+          <div><span>Mode</span><b data-v2-field="dashboard.serverMode">{{ dashboard.serverMode }}</b></div>
+        </section>
+        <a class="v2-secondary-link" href="/legacy-ui">Old Console</a>
+      </aside>
+
+      <section class="v2-center-panel">
+        <header class="v2-topline">
+          <div>
+            <p class="v2-kicker">Local Control Console</p>
+            <h2>Runtime, memory, diagnostics, and data flow</h2>
+          </div>
+          <div class="v2-top-metrics">
+            <span>external <b data-v2-field="externalProviderCallCount">{{ snapshot.externalProviderCallCount }}</b></span>
+            <span>safe trace <b>{{ "ready" if runtime_trace else "empty" }}</b></span>
+          </div>
+        </header>
+
+        {% if notice %}<aside class="v2-notice">{{ notice }}</aside>{% endif %}
+        {% if error %}<aside class="v2-error">{{ error }}</aside>{% endif %}
+
+        <nav class="v2-tabs" aria-label="Console V2 pages">
+          <button type="button" class="v2-tab-button active" data-v2-tab="dashboard">Dashboard</button>
+          <button type="button" class="v2-tab-button" data-v2-tab="conversations">Conversations</button>
+          <button type="button" class="v2-tab-button" data-v2-tab="memory">Memory</button>
+          <button type="button" class="v2-tab-button" data-v2-tab="context">Context</button>
+          <button type="button" class="v2-tab-button" data-v2-tab="model">Model</button>
+          <button type="button" class="v2-tab-button" data-v2-tab="data-flow">Data Flow</button>
+          <button type="button" class="v2-tab-button" data-v2-tab="diagnostics">Diagnostics</button>
+          <button type="button" class="v2-tab-button" data-v2-tab="storage">Storage</button>
+        </nav>
+
+        <section class="v2-page active" data-v2-page="dashboard">
+          <section class="v2-page-grid v2-metric-grid">
+            <article class="v2-metric-card"><span>Conversations</span><b data-v2-field="dashboard.database.conversations">{{ dashboard.database.conversations }}</b></article>
+            <article class="v2-metric-card"><span>Messages</span><b data-v2-field="dashboard.database.messages">{{ dashboard.database.messages }}</b></article>
+            <article class="v2-metric-card"><span>Memory traces</span><b data-v2-field="dashboard.memoryContext.memoryV2Traces">{{ dashboard.memoryContext.memoryV2Traces }}</b></article>
+            <article class="v2-metric-card"><span>Schema</span><b data-v2-field="dashboard.database.schemaVersion">{{ dashboard.database.schemaVersion }}</b></article>
+          </section>
+          <section class="v2-page-grid v2-chart-grid">
+            <article class="v2-chart-panel">
+              <h3>Message Balance</h3>
+              <div class="v2-bar"><i data-v2-style-width="dashboard.activeConversation.ownerMessagePercent" style="width: {{ dashboard.activeConversation.ownerMessagePercent }}%"></i></div>
+              <p><span data-v2-field="dashboard.activeConversation.ownerMessages">{{ dashboard.activeConversation.ownerMessages }}</span> owner / <span data-v2-field="dashboard.activeConversation.rinMessages">{{ dashboard.activeConversation.rinMessages }}</span> RIN</p>
+            </article>
+            <article class="v2-chart-panel">
+              <h3>Runtime Health</h3>
+              <div class="v2-health-row"><span>database</span><b>{{ dashboard.health.database }}</b></div>
+              <div class="v2-health-row"><span>model</span><b>{{ dashboard.health.model }}</b></div>
+              <div class="v2-health-row"><span>profile</span><b>{{ dashboard.health.profile }}</b></div>
+              <div class="v2-health-row"><span>memory</span><b>{{ dashboard.health.memory }}</b></div>
+            </article>
+          </section>
+        </section>
+
+        <section class="v2-page" data-v2-page="conversations">
+          <section class="v2-conversation-layout">
+            <nav class="v2-conversation-list" aria-label="Recent conversations">
+              <a class="v2-new-link" href="/legacy-ui-v2?new=1">New Conversation</a>
+              {% for conversation in conversations[:8] %}
+                <a class="{% if conversation.id == selected_conversation_id %}active{% endif %}" href="/legacy-ui-v2?conversationId={{ conversation.id }}">
+                  <strong>{{ conversation.title }}</strong>
+                  <span>{{ conversation.updatedAt }}</span>
+                </a>
+              {% else %}
+                <p class="v2-empty">No conversations yet.</p>
+              {% endfor %}
+            </nav>
+            <section class="v2-chat-panel">
+              <div id="v2-message-stream" class="v2-message-stream">
+                {% for message in messages %}
+                  <article class="v2-message {{ message.role }}">
+                    <strong>{{ message.role }}</strong>
+                    <p>{{ message.content }}</p>
+                  </article>
+                {% else %}
+                  <p class="v2-empty">Start a local test conversation.</p>
+                {% endfor %}
+              </div>
+              <form id="v2-chat-form" class="v2-composer" autocomplete="off">
+                <input type="hidden" name="conversationId" value="{{ selected_conversation_id or '' }}" />
+                <label class="v2-sr-only" for="v2-chat-input">Message</label>
+                <textarea id="v2-chat-input" name="content" placeholder="Send a local test message..." required></textarea>
+                <button type="submit">Send</button>
+                <p id="v2-chat-status">Ready.</p>
+              </form>
+            </section>
+          </section>
+        </section>
+
+        <section class="v2-page" data-v2-page="memory">
+          <section class="v2-page-grid v2-data-grid">
+            <article class="v2-data-card"><span>Trace count</span><b data-v2-field="diagnostics.memory.state.traceCount">{{ diagnostics.memory.state.traceCount }}</b></article>
+            <article class="v2-data-card"><span>Retrieval</span><b data-v2-field="diagnostics.memory.health.retrievalStatus">{{ diagnostics.memory.health.retrievalStatus }}</b></article>
+            <article class="v2-data-card"><span>Used last request</span><b data-v2-field="diagnostics.memory.aiMemoryState.memoryUsedInLastModelRequest">{{ diagnostics.memory.aiMemoryState.memoryUsedInLastModelRequest }}</b></article>
+          </section>
+          <div class="v2-table-wrap">
+            <table>
+              <thead><tr><th>trace</th><th>score</th><th>chars</th><th>raw</th></tr></thead>
+              <tbody>
+                {% for trace in diagnostics.memory.contents[:6] %}
+                  <tr><td>{{ trace.traceShortId }}</td><td>{{ trace.salienceScore }}</td><td>{{ trace.contentCharacterCount }}</td><td>{{ trace.rawTextIncluded }}</td></tr>
+                {% else %}
+                  <tr><td colspan="4">No Memory V2 traces yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="v2-page" data-v2-page="context">
+          <section class="v2-page-grid v2-data-grid">
+            <article class="v2-data-card"><span>Profile injection</span><b>{{ diagnostics.context.profileInjection }}</b></article>
+            <article class="v2-data-card"><span>Memory injection</span><b>{{ diagnostics.context.memoryInjection }}</b></article>
+            <article class="v2-data-card"><span>Recent window</span><b>{{ diagnostics.context.recentWindowPolicy }}</b></article>
+          </section>
+          <pre class="v2-safe-pre">fullPromptIncluded={{ diagnostics.context.fullPromptIncluded }}
+fullTextIncluded={{ diagnostics.context.fullTextIncluded }}
+budgetPolicy={{ diagnostics.context.budgetPolicy }}</pre>
+        </section>
+
+        <section class="v2-page" data-v2-page="model">
+          <section class="v2-page-grid v2-data-grid">
+            <article class="v2-data-card"><span>Adapter</span><b data-v2-field="diagnostics.model.adapter">{{ diagnostics.model.adapter }}</b></article>
+            <article class="v2-data-card"><span>Model</span><b data-v2-field="diagnostics.model.model">{{ diagnostics.model.model }}</b></article>
+            <article class="v2-data-card"><span>Timeout</span><b>{{ diagnostics.model.timeoutMs }}</b></article>
+            <article class="v2-data-card"><span>Num predict</span><b>{{ diagnostics.model.numPredict }}</b></article>
+          </section>
+          <pre class="v2-safe-pre">provider={{ diagnostics.model.provider }}
+baseUrl={{ diagnostics.model.baseUrl }}
+externalApiDisabled={{ diagnostics.model.externalApiDisabled }}
+smokeStatus={{ diagnostics.model.smokeStatus }}</pre>
+        </section>
+
+        <section class="v2-page" data-v2-page="data-flow">
+          <section id="v2-trace-timeline" class="v2-flow-timeline">
+            {% if runtime_trace %}
+              {% for stage in runtime_trace.stages %}
+                <article class="{{ stage.status }}"><span>{{ loop.index }}</span><strong>{{ stage.displayName }}</strong><em>{{ stage.durationMs }} ms</em><p>{{ stage.summary }}</p></article>
+              {% endfor %}
+            {% else %}
+              <p class="v2-empty">No runtime trace yet.</p>
+            {% endif %}
+          </section>
+        </section>
+
+        <section class="v2-page" data-v2-page="diagnostics">
+          <section class="v2-page-grid v2-data-grid">
+            <article class="v2-data-card"><span>Overview</span><b>{{ diagnostics.overview.mode }}</b></article>
+            <article class="v2-data-card"><span>Profiles</span><b>{{ diagnostics.profiles.status }}</b></article>
+            <article class="v2-data-card"><span>Body</span><b>{{ diagnostics.body.status }}</b></article>
+            <article class="v2-data-card"><span>Events</span><b>{{ diagnostics.events.fullPayloadIncluded }}</b></article>
+          </section>
+          <pre class="v2-safe-pre">readOnly=true
+localOnly=true
+fullTextIncluded=false
+rawPromptIncluded=false
+rawModelOutputIncluded=false</pre>
+        </section>
+
+        <section class="v2-page" data-v2-page="storage">
+          <section class="v2-page-grid v2-data-grid">
+            <article class="v2-data-card"><span>Data dir</span><b>{{ snapshot.storage.dataDirName }}</b></article>
+            <article class="v2-data-card"><span>Manifest</span><b>{{ snapshot.storage.manifestPresent }}</b></article>
+            <article class="v2-data-card"><span>Schema</span><b>{{ diagnostics.database.databaseSchemaVersion }}</b></article>
+            <article class="v2-data-card"><span>Full path</span><b>{{ snapshot.storage.fullPathIncluded }}</b></article>
+          </section>
+        </section>
+      </section>
+
+      <aside class="v2-panel v2-glass-panel v2-neon-border v2-right-panel" aria-label="Latest turn and quick actions">
+        <header>
+          <p class="v2-kicker">Latest Turn</p>
+          <h2 data-v2-field="runtimeTrace.status">{{ runtime_trace.status if runtime_trace else "none" }}</h2>
+        </header>
+        <section class="v2-side-metrics">
+          <div><span>Duration</span><b data-v2-field="runtimeTrace.totalDurationMs">{{ runtime_trace.totalDurationMs if runtime_trace else "n/a" }}</b></div>
+          <div><span>Final chars</span><b data-v2-field="runtimeTrace.analysis.finalAnswerLength">{{ runtime_trace.analysis.finalAnswerLength if runtime_trace else "n/a" }}</b></div>
+          <div><span>Memory</span><b data-v2-field="dashboard.memoryContext.memoryV2Traces">{{ dashboard.memoryContext.memoryV2Traces }}</b></div>
+          <div><span>Messages</span><b data-v2-field="dashboard.activeConversation.messageCount">{{ dashboard.activeConversation.messageCount }}</b></div>
+        </section>
+        <section class="v2-actions">
+          <a href="/legacy-ui-v2?new=1">New Conversation</a>
+          <button type="button" data-v2-refresh>Refresh Dashboard</button>
+        </section>
+        <section class="v2-memory-pulse">
+          <span></span>
+          <div>
+            <strong>Memory Activity</strong>
+            <p data-v2-field="diagnostics.memory.health.retrievalStatus">{{ diagnostics.memory.health.retrievalStatus }}</p>
+          </div>
+        </section>
+      </aside>
+
+      <script id="console-v2-snapshot" type="application/json">{{ snapshot | tojson }}</script>
+    </main>
+  </body>
+</html>

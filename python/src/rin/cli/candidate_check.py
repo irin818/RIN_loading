@@ -8,6 +8,9 @@ from rin.cli._runner import run_steps
 
 
 def main() -> int:
+    """
+    Run the full candidate quality pipeline: python check → parity check → readiness.
+    """
     return run_steps(
         [
             ("python check", [sys.executable, "-m", "rin.cli.check"]),

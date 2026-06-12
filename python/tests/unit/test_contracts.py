@@ -43,7 +43,6 @@ def test_manifest_contract_round_trips() -> None:
             "config": "config",
             "databases": "databases",
             "logs": "logs",
-            "bundles": "bundles",
             "attachments": "attachments",
         },
     }

@@ -103,9 +103,9 @@
               <div class="inline-chips"><span>{{ adapter_id }}</span><span>{{ model_name }}</span><span>{{ local_model_status }}</span></div>
             </header>
             <nav class="conversation-strip" aria-label="Recent conversations">
-              <a class="new-chat-link" href="/ui?new=1">New</a>
+              <a class="new-chat-link" href="/legacy-ui?new=1">New</a>
               {% for conversation in conversations[:6] %}
-                <a class="conversation-pill{% if conversation.id == selected_conversation_id %} selected{% endif %}" href="/ui?conversationId={{ conversation.id }}" data-conversation-id="{{ conversation.id }}">{{ conversation.title }}</a>
+                <a class="conversation-pill{% if conversation.id == selected_conversation_id %} selected{% endif %}" href="/legacy-ui?conversationId={{ conversation.id }}" data-conversation-id="{{ conversation.id }}">{{ conversation.title }}</a>
               {% else %}
                 <span class="empty-copy">No conversations.</span>
               {% endfor %}

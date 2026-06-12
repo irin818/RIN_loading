@@ -1,3 +1,9 @@
+"""Ollama local model adapter with thinking-artifact sanitization.
+
+Talks to a local Ollama server via its /api/chat endpoint. Sanitizes responses by
+stripping <think> blocks, thinking-like prefaces, and unsafe reasoning markers.
+"""
+
 from __future__ import annotations
 
 import os
@@ -15,6 +21,7 @@ from rin.contracts import (
     ModelResponseMetadata,
 )
 
+# ---- Adapter identity and defaults ----
 OLLAMA_ADAPTER_ID = "rin-ollama-local"
 OLLAMA_DEFAULT_BASE_URL = "http://127.0.0.1:11434"
 OLLAMA_DEFAULT_MODEL = "qwen3:4b"
@@ -22,6 +29,7 @@ OLLAMA_DEFAULT_NUM_PREDICT = 1024
 OLLAMA_DEFAULT_TEMPERATURE = 0.5
 OLLAMA_DEFAULT_TIMEOUT_MS = 180_000
 OLLAMA_DEFAULT_TOP_P = 0.9
+# Keys in the Ollama response payload that may carry reasoning/thinking content.
 REASONING_KEYS = {"thinking", "reasoning", "reason", "thought", "thoughts"}
 
 ModelErrorCode = Literal[
@@ -35,6 +43,10 @@ ModelErrorCode = Literal[
 
 @dataclass(frozen=True)
 class OllamaGenerationOptions:
+    """
+    Generation parameters forwarded to the Ollama API (num_predict, temperature, top_p).
+    """
+
     numPredict: int = OLLAMA_DEFAULT_NUM_PREDICT
     temperature: float = OLLAMA_DEFAULT_TEMPERATURE
     topP: float = OLLAMA_DEFAULT_TOP_P
@@ -42,6 +54,11 @@ class OllamaGenerationOptions:
 
 @dataclass(frozen=True)
 class ModelErrorDetails:
+    """
+    Structured diagnostics attached to a ModelError (empty content, reasoning-only
+    output, etc.).
+    """
+
     baseUrl: str | None = None
     model: str | None = None
     emptyContent: bool | None = None
@@ -54,6 +71,11 @@ class ModelErrorDetails:
 
 @dataclass(frozen=True)
 class SanitizedAssistantContent:
+    """
+    Result of sanitizing raw model output: final text plus flags for what was
+    removed/rejected.
+    """
+
     content: str
     removed: bool
     thinkingTagRemoved: bool
@@ -65,6 +87,11 @@ class SanitizedAssistantContent:
 
 
 class ModelError(RuntimeError):
+    """
+    Raised when the Ollama adapter cannot produce a valid response (timeout,
+    unavailable, invalid, etc.).
+    """
+
     def __init__(
         self,
         code: ModelErrorCode,
@@ -84,6 +111,12 @@ class ModelError(RuntimeError):
 
 @dataclass(frozen=True)
 class OllamaAdapter:
+    """Talks to a local Ollama server via its /api/chat endpoint.
+
+    Sanitizes responses by stripping <think> blocks and thinking-like prefaces
+    before returning the final assistant content.
+    """
+
     id: str = OLLAMA_ADAPTER_ID
     displayName: str = "Ollama local adapter"
     baseUrl: str = OLLAMA_DEFAULT_BASE_URL
@@ -93,6 +126,10 @@ class OllamaAdapter:
     client: httpx.AsyncClient | None = None
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
+        """
+        Send a chat request to Ollama, sanitize the response, and return a
+        ModelResponse.
+        """
         endpoint = f"{self.baseUrl.rstrip('/')}/api/chat"
         body = {
             "model": self.model,
@@ -145,6 +182,7 @@ class OllamaAdapter:
                     emptyAfterThinkingRemoval=not sanitized.content.strip(),
                     possibleReasoningOnlyOutput=True,
                     thinkingArtifactRemoved=sanitized.removed,
+                    unsafeContentIssue=sanitized.rejectionReason,
                     responseFields=response_fields(payload),
                 ),
             )
@@ -188,12 +226,17 @@ class OllamaAdapter:
         message: str,
         details: ModelErrorDetails | None = None,
     ) -> ModelError:
+        """Build a ModelError with this adapter's base URL and model pre-filled."""
         base = ModelErrorDetails(baseUrl=self.baseUrl, model=self.model)
         merged = merge_details(base, details)
         return ModelError(code, message, self.id, "local", details=merged)
 
 
 def create_ollama_adapter_from_env() -> OllamaAdapter:
+    """
+    Build an OllamaAdapter from RIN_OLLAMA_* environment variables, falling back to
+    defaults.
+    """
     return OllamaAdapter(
         baseUrl=os.environ.get("RIN_OLLAMA_BASE_URL", OLLAMA_DEFAULT_BASE_URL),
         model=os.environ.get("RIN_OLLAMA_MODEL", OLLAMA_DEFAULT_MODEL),
@@ -213,11 +256,15 @@ def create_ollama_adapter_from_env() -> OllamaAdapter:
 
 
 def to_ollama_chat_message(message: ModelMessage) -> dict[str, str]:
+    """
+    Map RIN's internal roles (owner/rin) to Ollama's expected roles (user/assistant).
+    """
     role = {"system": "system", "owner": "user", "rin": "assistant"}[message.role]
     return {"role": role, "content": message.content}
 
 
 def read_json_response(adapter: OllamaAdapter, response: httpx.Response) -> Any:
+    """Parse the Ollama HTTP response as JSON, raising ModelError on failure."""
     if not response.text.strip():
         return {}
     try:
@@ -230,6 +277,10 @@ def read_json_response(adapter: OllamaAdapter, response: httpx.Response) -> Any:
 
 
 def read_ollama_assistant_content(adapter: OllamaAdapter, payload: Any) -> str:
+    """
+    Extract the assistant's text content from the Ollama response payload, validating
+    structure.
+    """
     if not isinstance(payload, dict) or not isinstance(payload.get("message"), dict):
         raise adapter.error(
             "MODEL_RESPONSE_INVALID",
@@ -259,10 +310,12 @@ def read_ollama_assistant_content(adapter: OllamaAdapter, payload: Any) -> str:
 
 
 def sanitize_assistant_content(content: str) -> tuple[str, bool]:
+    """Convenience wrapper: return (sanitized_text, was_anything_removed)."""
     sanitized = sanitize_assistant_content_details(content)
-    return sanitized.content, sanitized.removed
+    return "" if sanitized.rejected else sanitized.content, sanitized.removed
 
 
+# Regex patterns that detect thinking-like prefaces in Chinese and English.
 THINKING_PREFIX_PATTERNS = (
     re.compile(r"^\s*(首先[，,]\s*)?用户(问|询问|想知道)", re.I),
     re.compile(r"^\s*我需要(分析|判断|考虑|先)", re.I),
@@ -281,6 +334,7 @@ THINKING_PREFIX_PATTERNS = (
     re.compile(r"^\s*let me (check|think|analy[sz]e|look)", re.I),
 )
 
+# Pattern that marks an explicit "final answer" section in Chinese or English.
 FINAL_ANSWER_MARKER_PATTERN = re.compile(
     (
         r"(?:最终答案|最终回答|最终响应|直接回答|答案|Final answer|Final response)"
@@ -291,6 +345,15 @@ FINAL_ANSWER_MARKER_PATTERN = re.compile(
 
 
 def sanitize_assistant_content_details(content: str) -> SanitizedAssistantContent:
+    """Apply the full sanitization pipeline to raw model output.
+
+    1. Remove paired <think>…</think> blocks.
+    2. Drop everything before the last </think> tag.
+    3. Extract text after an explicit final-answer marker.
+    4. Reject if the remainder starts with a thinking-like preface (no safe answer
+    follows).
+    5. Reject if unsafe thinking markers remain.
+    """
     rules = [
         "remove paired <think> blocks",
         "keep content after final </think>",
@@ -303,11 +366,25 @@ def sanitize_assistant_content_details(content: str) -> SanitizedAssistantConten
     thinking_prefix_removed = False
     extracted_final_answer = False
 
+    if has_unclosed_thinking_tag(working):
+        return SanitizedAssistantContent(
+            content="",
+            removed=False,
+            thinkingTagRemoved=False,
+            thinkingLikePrefixRemoved=False,
+            extractedFinalAnswer=False,
+            rejected=True,
+            rejectionReason="unclosed_thinking_tag",
+            rulesApplied=rules,
+        )
+
+    # Step 1: Remove paired <think>…</think> blocks.
     without_pairs = re.sub(r"<think>.*?</think>", "", working, flags=re.DOTALL | re.I)
     if without_pairs != working:
         working = without_pairs.strip()
         thinking_tag_removed = True
 
+    # Step 2: Drop everything before the last </think> tag.
     lower = working.lower()
     marker = "</think>"
     if marker in lower:
@@ -315,11 +392,13 @@ def sanitize_assistant_content_details(content: str) -> SanitizedAssistantConten
         working = working[index + len(marker) :].strip()
         thinking_tag_removed = True
 
+    # Step 3: Extract text after an explicit final-answer marker.
     marker_match = list(FINAL_ANSWER_MARKER_PATTERN.finditer(working))
     if marker_match:
         working = working[marker_match[-1].end() :].strip()
         extracted_final_answer = True
 
+    # Step 4: Reject if a thinking-like preface remains without a safe final answer.
     thinking_like_prefix = has_thinking_like_prefix_text(working)
     if thinking_like_prefix and not extracted_final_answer:
         return SanitizedAssistantContent(
@@ -335,6 +414,7 @@ def sanitize_assistant_content_details(content: str) -> SanitizedAssistantConten
     if thinking_like_prefix:
         thinking_prefix_removed = True
 
+    # Step 5: Reject if unsafe thinking markers still remain.
     unsafe = has_unsafe_thinking_leak(working)
     return SanitizedAssistantContent(
         content=working,
@@ -354,10 +434,25 @@ def sanitize_assistant_content_details(content: str) -> SanitizedAssistantConten
 
 
 def has_thinking_like_prefix_text(content: str) -> bool:
+    """Check whether the text starts with a known thinking-like preface pattern."""
     return any(pattern.search(content) for pattern in THINKING_PREFIX_PATTERNS)
 
 
+def has_unclosed_thinking_tag(content: str) -> bool:
+    """Check whether the last opening <think> tag has no later closing tag."""
+    lowered = content.lower()
+    last_open = lowered.rfind("<think>")
+    if last_open == -1:
+        return False
+    last_close = lowered.rfind("</think>")
+    return last_close < last_open
+
+
 def has_unsafe_thinking_leak(content: str) -> bool:
+    """
+    Check for known unsafe thinking markers (<think>, internal analysis, etc.) in the
+    text.
+    """
     lowered = content.lower()
     markers = (
         "<think>",
@@ -386,15 +481,24 @@ def has_unsafe_thinking_leak(content: str) -> bool:
 
 
 def has_thinking_tag_text(content: str) -> bool:
+    """Check whether the text contains <think> or </think> tags."""
     lowered = content.lower()
     return "<think>" in lowered or "</think>" in lowered
 
 
 def short_hash(content: str) -> str:
+    """
+    Return the first 12 hex characters of the SHA-256 hash (for trace-safe content
+    identification).
+    """
     return sha256(content.encode("utf-8")).hexdigest()[:12]
 
 
 def safe_raw_preview(content: str) -> str:
+    """
+    Return a short preview of raw model output, hiding content that looks like
+    thinking/reasoning.
+    """
     if has_thinking_tag_text(content) or has_thinking_like_prefix_text(content):
         return "hidden_due_to_thinking_signal"
     stripped = " ".join(content.split())
@@ -402,6 +506,10 @@ def safe_raw_preview(content: str) -> str:
 
 
 def response_fields(payload: dict[str, Any]) -> list[str]:
+    """
+    List top-level and message.* keys in the Ollama response payload (for error
+    diagnostics).
+    """
     fields = sorted(payload.keys())
     message = payload.get("message")
     if isinstance(message, dict):
@@ -410,6 +518,10 @@ def response_fields(payload: dict[str, Any]) -> list[str]:
 
 
 def has_reasoning_like_field(payload: dict[str, Any]) -> bool:
+    """
+    Check whether any top-level or message.* key in the payload looks like a reasoning
+    field.
+    """
     if any(key.lower() in REASONING_KEYS for key in payload):
         return True
     message = payload.get("message")
@@ -423,6 +535,9 @@ def classify_ollama_error(
     status: int,
     model: str,
 ) -> tuple[ModelErrorCode, str]:
+    """
+    Classify an Ollama HTTP error into a ModelErrorCode and human-readable message.
+    """
     error_text = ""
     if isinstance(payload, dict) and isinstance(payload.get("error"), str):
         error_text = payload["error"].strip()
@@ -437,6 +552,10 @@ def classify_ollama_error(
 
 
 def default_retryable(code: ModelErrorCode) -> bool:
+    """
+    Most errors are retryable except when the model is not installed
+    (LOCAL_MODEL_MISSING).
+    """
     return code != "LOCAL_MODEL_MISSING"
 
 
@@ -444,6 +563,7 @@ def merge_details(
     base: ModelErrorDetails,
     extra: ModelErrorDetails | None,
 ) -> ModelErrorDetails:
+    """Merge two ModelErrorDetails, with extra's non-None fields taking precedence."""
     if extra is None:
         return base
     return ModelErrorDetails(
@@ -459,6 +579,9 @@ def merge_details(
 
 
 def read_int_env(name: str, default: int) -> int:
+    """
+    Read a positive integer from the environment, returning default on missing/invalid.
+    """
     try:
         value = int(os.environ.get(name, ""))
         return value if value > 0 else default
@@ -467,6 +590,7 @@ def read_int_env(name: str, default: int) -> int:
 
 
 def read_float_env(name: str, default: float) -> float:
+    """Read a float from the environment, returning default on missing/invalid."""
     try:
         return float(os.environ.get(name, ""))
     except ValueError:

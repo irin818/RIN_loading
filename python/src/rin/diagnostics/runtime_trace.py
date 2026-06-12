@@ -1,3 +1,10 @@
+"""
+Privacy-safe runtime tracing for per-stage conversation diagnostics.
+
+Traces are stored in-memory only (deque of last N turns). No raw prompt or model
+output text is ever included — only hashes, previews, and character counts.
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -13,6 +20,10 @@ TraceStatus = Literal["running", "success", "failed"]
 
 @dataclass(frozen=True)
 class RuntimeTraceStage:
+    """
+    One stage in a turn trace: input, operation, output, decision, privacy metadata.
+    """
+
     name: str
     displayName: str
     status: TraceStageStatus
@@ -34,6 +45,10 @@ class RuntimeTraceStage:
 
 @dataclass
 class RuntimeTrace:
+    """
+    A full trace for one conversation turn: ordered stages with privacy-safe summaries.
+    """
+
     turnId: str
     conversationId: str
     createdAt: str
@@ -62,6 +77,10 @@ class RuntimeTrace:
 
 
 class RuntimeTraceRecorder:
+    """
+    Records trace stages for a single turn. Call record() at each step, then finish().
+    """
+
     def __init__(self, turn_id: str, conversation_id: str, created_at: str) -> None:
         self.trace = RuntimeTrace(
             turnId=turn_id,
@@ -141,6 +160,8 @@ class RuntimeTraceRecorder:
 
 
 class RuntimeTraceStore:
+    """In-memory ring buffer of the most recent N RuntimeTraces (default 20)."""
+
     def __init__(self, limit: int = 20) -> None:
         self._items: deque[RuntimeTrace] = deque(maxlen=limit)
 
@@ -164,6 +185,7 @@ RUNTIME_TRACE_STORE = RuntimeTraceStore()
 
 
 def safe_trace_response(traces: list[RuntimeTrace]) -> dict[str, object]:
+    """Wrap a list of traces in a privacy-safe response envelope for the trace API."""
     return {
         "privacyMode": "safe",
         "readOnly": True,
@@ -177,21 +199,29 @@ def safe_trace_response(traces: list[RuntimeTrace]) -> dict[str, object]:
 
 
 def input_preview(value: str, limit: int = 18) -> str:
+    """Return a short, whitespace-normalized preview of a string (for trace safety)."""
     stripped = " ".join(value.split())
     return stripped[:limit] + ("..." if len(stripped) > limit else "")
 
 
 def short_hash(value: str) -> str:
+    """
+    Return the first 12 hex chars of SHA-256 (for trace-safe content fingerprinting).
+    """
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
 
 
 def short_id(value: str | None, limit: int = 8) -> str:
+    """
+    Truncate a UUID/id to a short prefix for display (returns 'n/a' for None/empty).
+    """
     if not value:
         return "n/a"
     return value[:limit] + ("..." if len(value) > limit else "")
 
 
 def build_trace_analysis(trace: RuntimeTrace) -> dict[str, object]:
+    """Extract key metrics from a completed trace for the analysis summary view."""
     input_stage = find_stage(trace, "input_received")
     recent_stage = find_stage(trace, "recent_history_selection")
     memory_stage = find_stage(trace, "memory_v2_retrieval")

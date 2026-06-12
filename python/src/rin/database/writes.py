@@ -1,3 +1,8 @@
+"""
+Write-side SQLite helpers: create conversations, append messages, record turns, write
+traces.
+"""
+
 from __future__ import annotations
 
 import json
@@ -12,10 +17,16 @@ from rin.storage import RinDataLayout, create_data_layout
 
 
 def assert_safe_write_layout(layout: RinDataLayout) -> Path:
+    """
+    Verify the layout's root directory is safe for writes, returning the resolved path.
+    """
     return assert_safe_python_write_data_dir(layout.rootDir)
 
 
 def initialize_temp_database(layout: RinDataLayout) -> Path:
+    """
+    Create the database file and apply the full schema if it does not already exist.
+    """
     assert_safe_write_layout(layout)
     layout.directories["databases"].mkdir(parents=True, exist_ok=True)
     path = database_path_for(layout)
@@ -32,6 +43,10 @@ def initialize_temp_database(layout: RinDataLayout) -> Path:
 
 
 def create_temp_layout_database(root: Path | str) -> RinDataLayout:
+    """
+    Create a RinDataLayout and initialize its database in one call (convenience
+    wrapper).
+    """
     layout = create_data_layout(str(root), cwd="/")
     initialize_temp_database(layout)
     return layout
@@ -43,6 +58,7 @@ def create_conversation(
     now: str,
     conversation_id: str | None = None,
 ) -> ConversationRecord:
+    """Insert a new conversation row and an audit event in a single transaction."""
     assert_safe_write_layout(layout)
     conversation_id = conversation_id or str(uuid4())
     with sqlite3.connect(database_path_for(layout)) as connection:
@@ -80,6 +96,10 @@ def append_message(
     message_id: str | None = None,
     model_adapter: str | None = None,
 ) -> ConversationMessageRecord:
+    """
+    Insert a message row, bump the conversation timestamp, and write an audit event in
+    one transaction.
+    """
     assert_safe_write_layout(layout)
     message_id = message_id or str(uuid4())
     with sqlite3.connect(database_path_for(layout)) as connection:
@@ -91,10 +111,13 @@ def append_message(
                 "VALUES (?, ?, ?, ?, ?, ?)",
                 (message_id, conversation_id, role, content, model_adapter, now),
             )
-            connection.execute(
+            update_result = connection.execute(
                 "UPDATE conversations SET updated_at = ? WHERE id = ?",
                 (now, conversation_id),
             )
+            if update_result.rowcount != 1:
+                msg = f"Conversation not found: {conversation_id}"
+                raise ValueError(msg)
             append_audit_event_in_transaction(
                 connection,
                 "conversation.message_appended",
@@ -129,6 +152,7 @@ def record_failed_turn(
     error_code: str,
     now: str,
 ) -> None:
+    """Insert a failed conversation_turns row and an audit event in one transaction."""
     assert_safe_write_layout(layout)
     with sqlite3.connect(database_path_for(layout)) as connection:
         try:
@@ -164,6 +188,9 @@ def record_completed_turn(
     rin_message_id: str,
     now: str,
 ) -> None:
+    """
+    Insert a completed conversation_turns row and an audit event in one transaction.
+    """
     assert_safe_write_layout(layout)
     with sqlite3.connect(database_path_for(layout)) as connection:
         try:
@@ -207,6 +234,7 @@ def create_memory_trace(
     salience_score: float,
     now: str,
 ) -> None:
+    """Insert a shadow long-term-candidate Memory V2 trace in one transaction."""
     assert_safe_write_layout(layout)
     with sqlite3.connect(database_path_for(layout)) as connection:
         try:
@@ -240,6 +268,7 @@ def append_audit_event(
     payload: dict[str, object],
     now: str,
 ) -> str:
+    """Insert a single audit event row and return its generated id."""
     assert_safe_write_layout(layout)
     event_id = str(uuid4())
     with sqlite3.connect(database_path_for(layout)) as connection:
@@ -260,6 +289,10 @@ def append_audit_event_in_transaction(
     now: str,
     event_id: str | None = None,
 ) -> str:
+    """
+    Insert an audit event row within an existing transaction; auto-generates id if not
+    given.
+    """
     event_id = event_id or str(uuid4())
     connection.execute(
         "INSERT INTO audit_events (id, event_type, payload_json, created_at) "

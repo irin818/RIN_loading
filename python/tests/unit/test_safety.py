@@ -5,16 +5,13 @@ from pathlib import Path
 import pytest
 
 from rin.diagnostics.safety import (
-    PERSISTENT_SANDBOX_DATA_DIR,
     PRODUCTION_RIN_DATA_DIR,
     TEMP_ROOT,
     UnsafeDataPathError,
     assert_not_production_data_path,
-    assert_safe_persistent_sandbox_data_dir,
     assert_safe_python_write_data_dir,
     assert_safe_temp_data_dir,
     create_temp_data_dir,
-    python_cutover_marker_path,
     resolve_path,
 )
 
@@ -43,29 +40,17 @@ def test_rejects_non_tmp_write_test_path() -> None:
         assert_safe_temp_data_dir(Path("/Users/irin/Documents/RIN_loading_python/tmp"))
 
 
-def test_allows_only_named_persistent_sandbox() -> None:
-    assert (
-        assert_safe_persistent_sandbox_data_dir(PERSISTENT_SANDBOX_DATA_DIR)
-        == PERSISTENT_SANDBOX_DATA_DIR.resolve()
-    )
-
-    with pytest.raises(UnsafeDataPathError):
-        assert_safe_persistent_sandbox_data_dir(
-            Path("/Users/irin/Documents/RIN_loading/.rin-python-other-data")
-        )
-
-
-def test_python_write_guard_allows_temp_or_sandbox_only() -> None:
+def test_python_write_guard_allows_temp_or_production_root_only() -> None:
     temp_dir = create_temp_data_dir()
 
     assert assert_safe_python_write_data_dir(temp_dir.path) == temp_dir.path
     assert (
-        assert_safe_python_write_data_dir(PERSISTENT_SANDBOX_DATA_DIR)
-        == PERSISTENT_SANDBOX_DATA_DIR.resolve()
+        assert_safe_python_write_data_dir(PRODUCTION_RIN_DATA_DIR)
+        == PRODUCTION_RIN_DATA_DIR.resolve()
     )
 
 
-def test_python_production_write_requires_marker(
+def test_python_production_write_guard_requires_exact_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -73,10 +58,12 @@ def test_python_production_write_requires_marker(
 
     production = tmp_path / ".rin-data"
     monkeypatch.setattr(safety, "PRODUCTION_RIN_DATA_DIR", production)
-    with pytest.raises(UnsafeDataPathError):
-        safety.assert_safe_python_write_data_dir(production)
-    marker = python_cutover_marker_path(production)
-    marker.parent.mkdir(parents=True)
-    marker.write_text("{}\n", encoding="utf-8")
 
+    assert (
+        safety.assert_safe_python_production_data_dir(production)
+        == production.resolve()
+    )
     assert safety.assert_safe_python_write_data_dir(production) == production.resolve()
+
+    with pytest.raises(UnsafeDataPathError):
+        safety.assert_safe_python_production_data_dir(production / "databases")

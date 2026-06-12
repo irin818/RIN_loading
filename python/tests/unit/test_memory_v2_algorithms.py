@@ -84,6 +84,23 @@ def test_existing_trace_reinforces_when_retained() -> None:
     assert "reinforcement_signal" in analysis.reasons
 
 
+def test_chinese_preference_project_and_contradiction_signals_are_detected() -> None:
+    cases = [
+        ("我喜欢本地模型回答。", "preference_signal"),
+        ("继续推进这个项目。", "project_signal"),
+        ("不要再使用旧行为，改为新的方式。", "contradiction_signal"),
+    ]
+
+    for index, (content, reason) in enumerate(cases):
+        analysis = analyze_memory_v2_source(
+            message(f"zh-signal-{index}", content, DEFAULT_NOW),
+            DEFAULT_NOW,
+        )
+
+        assert analysis.decision == "promoted"
+        assert reason in analysis.reasons
+
+
 def test_analysis_is_deterministic() -> None:
     source = message(
         "project-deterministic",

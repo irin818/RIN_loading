@@ -119,6 +119,7 @@ function updateClock() {
 const openTraceWindows = new Map();
 let topTraceWindowZ = 1000;
 let traceWindowOffset = 0;
+let traceStages = new Map();
 
 function loadTraceStages() {
   const node = document.getElementById("trace-stage-data");
@@ -623,6 +624,290 @@ function resetTraceWindows() {
   });
 }
 
+function clearChildren(element) {
+  while (element.firstChild) {
+    element.removeChild(element.firstChild);
+  }
+}
+
+function textNode(tagName, text, className = "") {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  element.textContent = text === undefined || text === null ? "n/a" : String(text);
+  return element;
+}
+
+function boundedPercent(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return 0;
+  }
+  return Math.max(0, Math.min(100, Math.round(number)));
+}
+
+function createPageHeading() {
+  const header = document.createElement("header");
+  header.className = "page-heading";
+  const title = document.createElement("div");
+  title.append(
+    textNode("p", "Runtime Dataflow Analyzer", "eyebrow"),
+    textNode("h2", "Latest Backend Turn Pipeline"),
+  );
+  const chips = document.createElement("div");
+  chips.className = "inline-chips";
+  ["Safe Mode", "prompt hidden", "raw output hidden"].forEach((label) => {
+    chips.appendChild(textNode("span", label));
+  });
+  header.append(title, chips);
+  return header;
+}
+
+function createTraceToolbar() {
+  const toolbar = document.createElement("section");
+  toolbar.className = "trace-toolbar";
+  toolbar.appendChild(
+    textNode("span", "Click any stage to open a free floating inspector."),
+  );
+  const reset = document.createElement("button");
+  reset.type = "button";
+  reset.dataset.traceResetWindows = "";
+  reset.textContent = "Reset windows";
+  const close = document.createElement("button");
+  close.type = "button";
+  close.dataset.traceCloseWindows = "";
+  close.textContent = "Close all windows";
+  toolbar.append(reset, close);
+  return toolbar;
+}
+
+function createSummaryItem(label, value, title = "") {
+  const item = document.createElement("div");
+  item.appendChild(textNode("span", label));
+  const body = textNode("b", value);
+  if (title) {
+    body.title = title;
+  }
+  item.appendChild(body);
+  return item;
+}
+
+function buildTraceSummary(trace) {
+  const analysis = trace.analysis || {};
+  const summary = document.createElement("section");
+  summary.className = "trace-v2-summary";
+  summary.append(
+    createSummaryItem("Status", trace.status),
+    createSummaryItem("Duration", `${trace.totalDurationMs ?? "n/a"} ms`),
+    createSummaryItem(
+      "Conversation",
+      trace.conversationShortId,
+      trace.conversationId || "",
+    ),
+    createSummaryItem("Turn", trace.turnShortId, trace.turnId || ""),
+    createSummaryItem("Privacy", trace.privacyMode),
+    createSummaryItem("Model", analysis.model),
+    createSummaryItem("Final", `${analysis.finalAnswerLength ?? "n/a"} chars`),
+  );
+  return summary;
+}
+
+function buildTraceMetrics(trace) {
+  const analysis = trace.analysis || {};
+  const metrics = [
+    ["Owner input", analysis.ownerInputLength],
+    ["Recent selected", analysis.recentMessagesSelected],
+    ["Memory injected", analysis.memoryTracesInjected],
+    ["Request messages", analysis.requestMessages],
+    ["Raw output", analysis.rawOutputLength],
+    ["Removed", analysis.removedThinkingCharacters],
+    ["Stored sanitized", analysis.storedSanitizedOnly],
+  ];
+  const section = document.createElement("section");
+  section.className = "trace-flow-metrics";
+  metrics.forEach(([label, value]) => {
+    const item = document.createElement("article");
+    item.append(textNode("span", label), textNode("b", value));
+    section.appendChild(item);
+  });
+  return section;
+}
+
+function buildTraceStageData(stages) {
+  const script = document.createElement("script");
+  script.id = "trace-stage-data";
+  script.type = "application/json";
+  script.textContent = JSON.stringify(stages);
+  return script;
+}
+
+function buildTraceTimeline(stages) {
+  const timeline = document.createElement("nav");
+  timeline.className = "trace-timeline compact";
+  timeline.setAttribute("aria-label", "Runtime pipeline timeline");
+  stages.forEach((stage, index) => {
+    const button = document.createElement("button");
+    button.className = `trace-stage ${stage.status}`;
+    button.type = "button";
+    button.dataset.traceStage = stage.name;
+    button.dataset.stageId = stage.name;
+    button.append(
+      textNode("span", index + 1),
+      textNode("strong", stage.displayName),
+      textNode("em", stage.status),
+      textNode("b", stage.summary),
+    );
+    timeline.appendChild(button);
+  });
+  return timeline;
+}
+
+function buildTraceBar(className, finalPercent, removedPercent = null) {
+  const bar = document.createElement("div");
+  bar.className = className;
+  const final = document.createElement("i");
+  final.style.width = `${boundedPercent(finalPercent)}%`;
+  bar.appendChild(final);
+  if (removedPercent !== null) {
+    const removed = document.createElement("em");
+    removed.style.width = `${boundedPercent(removedPercent)}%`;
+    bar.appendChild(removed);
+  }
+  return bar;
+}
+
+function buildTraceBarBlock(label, bar, detail) {
+  const block = document.createElement("div");
+  block.className = "trace-bar-block";
+  block.append(textNode("span", label), bar, textNode("small", detail));
+  return block;
+}
+
+function buildDurationBars(items) {
+  const section = document.createElement("div");
+  section.className = "trace-duration-bars";
+  (Array.isArray(items) ? items : []).forEach((item) => {
+    const row = document.createElement("div");
+    const bar = buildTraceBar("trace-bar mini", item.percent);
+    const fill = bar.querySelector("i");
+    if (fill && item.status) {
+      fill.className = item.status;
+    }
+    row.append(
+      textNode("span", item.name),
+      bar,
+      textNode("b", `${item.durationMs ?? "n/a"} ms`),
+    );
+    section.appendChild(row);
+  });
+  return section;
+}
+
+function buildTraceE2E(trace) {
+  const analysis = trace.analysis || {};
+  const aside = document.createElement("aside");
+  aside.className = "trace-e2e";
+  aside.appendChild(textNode("h3", "End-to-End Summary"));
+  aside.appendChild(
+    buildTraceBarBlock(
+      "Sanitizer raw → final",
+      buildTraceBar(
+        "trace-bar",
+        analysis.rawToFinalPercent,
+        analysis.removedPercent,
+      ),
+      `${analysis.rawOutputLength ?? "n/a"} raw / `
+        + `${analysis.finalAnswerLength ?? "n/a"} final / `
+        + `${analysis.removedThinkingCharacters ?? "n/a"} removed`,
+    ),
+  );
+  aside.appendChild(
+    buildTraceBarBlock(
+      "Context → request",
+      buildTraceBar("trace-bar cyan", analysis.contextToRequestPercent),
+      `${analysis.contextCharacters ?? "n/a"} context chars / `
+        + `${analysis.requestCharacters ?? "n/a"} request chars`,
+    ),
+  );
+  aside.appendChild(buildDurationBars(analysis.durationBars));
+
+  const privacy = document.createElement("section");
+  privacy.className = "trace-privacy-box";
+  privacy.append(
+    textNode("strong", "Safe Mode"),
+    textNode("span", "Full prompt hidden"),
+    textNode("span", "Raw model output hidden"),
+    textNode("span", "Full profile and memory text hidden"),
+  );
+  aside.appendChild(privacy);
+
+  const note = document.createElement("section");
+  note.className = "trace-diagnostic-note";
+  note.append(
+    textNode("strong", "Memory retrieval"),
+    textNode(
+      "span",
+      `${analysis.memoryRetrievalStatus ?? "n/a"} · `
+        + `${analysis.memorySkipReason ?? "n/a"}`,
+    ),
+  );
+  aside.appendChild(note);
+  return aside;
+}
+
+function buildTraceAnalyzer(stages, trace) {
+  const analyzer = document.createElement("section");
+  analyzer.className = "trace-analyzer trace-analyzer-compact";
+  analyzer.append(buildTraceTimeline(stages), buildTraceE2E(trace));
+  return analyzer;
+}
+
+function buildSafeTraceJson(trace) {
+  const details = document.createElement("details");
+  details.className = "safe-json compact-json";
+  details.appendChild(textNode("summary", "Safe trace JSON"));
+  const pre = document.createElement("pre");
+  pre.textContent = JSON.stringify(trace, null, 2);
+  details.appendChild(pre);
+  return details;
+}
+
+function renderLatestRuntimeTrace(trace) {
+  const page = document.querySelector("[data-console-page='runtime-trace']");
+  if (!page || !trace) {
+    return;
+  }
+  const stages = Array.isArray(trace.stages) ? trace.stages : [];
+  traceStages = new Map(stages.map((stage) => [stage.name, stage]));
+  closeAllTraceWindows();
+  clearChildren(page);
+  page.append(
+    createPageHeading(),
+    createTraceToolbar(),
+    buildTraceSummary(trace),
+    buildTraceMetrics(trace),
+    buildTraceStageData(stages),
+    buildTraceAnalyzer(stages, trace),
+    buildSafeTraceJson(trace),
+  );
+}
+
+async function refreshLatestRuntimeTrace() {
+  const response = await fetch("/api/diagnostics/runtime-trace/latest", {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    return;
+  }
+  const payload = await response.json();
+  const trace = Array.isArray(payload.traces) ? payload.traces[0] : null;
+  if (trace) {
+    renderLatestRuntimeTrace(trace);
+  }
+}
+
 async function submitChatForm(formElement) {
   const form = new FormData(formElement);
   const payload = {
@@ -657,6 +942,7 @@ async function submitChatForm(formElement) {
   appendChatMessage(result.ownerMessage);
   appendChatMessage(result.rinMessage);
   updateDashboard(result.dashboard || {});
+  await refreshLatestRuntimeTrace();
   setChatStatus(`Reply stored with turn ${result.turnId} · ${result.elapsedMs} ms`, "ok");
   scrollMessagesToEnd();
 }
@@ -731,18 +1017,22 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  const traceStages = loadTraceStages();
-  document.querySelectorAll("[data-trace-stage]").forEach((stage) => {
-    stage.addEventListener("click", (event) => {
+  traceStages = loadTraceStages();
+  document.addEventListener("click", (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const stage = target ? target.closest("[data-trace-stage]") : null;
+    if (stage) {
       event.preventDefault();
       openTraceStageWindow(stage.dataset.traceStage, traceStages);
-    });
-  });
-  document.querySelectorAll("[data-trace-close-windows]").forEach((button) => {
-    button.addEventListener("click", closeAllTraceWindows);
-  });
-  document.querySelectorAll("[data-trace-reset-windows]").forEach((button) => {
-    button.addEventListener("click", resetTraceWindows);
+      return;
+    }
+    if (target?.closest("[data-trace-close-windows]")) {
+      closeAllTraceWindows();
+      return;
+    }
+    if (target?.closest("[data-trace-reset-windows]")) {
+      resetTraceWindows();
+    }
   });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape" || openTraceWindows.size === 0) {

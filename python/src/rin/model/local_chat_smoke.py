@@ -1,3 +1,5 @@
+"""Quick smoke test that calls the local Ollama model with a simple Chinese prompt."""
+
 from __future__ import annotations
 
 import os
@@ -13,6 +15,10 @@ from rin.model.ollama import (
 
 @dataclass(frozen=True)
 class LocalChatSmokeReport:
+    """
+    Result of a local chat smoke test: status, model info, timing, and error details.
+    """
+
     mode: str
     status: str
     adapter: str
@@ -30,6 +36,11 @@ class LocalChatSmokeReport:
 
 
 async def run_local_chat_smoke() -> LocalChatSmokeReport:
+    """
+    Send a simple Chinese dinner-suggestion prompt to the Ollama adapter.
+
+    Skips if the active adapter is not the Ollama adapter.
+    """
     active_adapter = os.environ.get("RIN_MODEL_ADAPTER", "rin-mock-local")
     model = os.environ.get("RIN_OLLAMA_MODEL", "qwen3:4b")
     if active_adapter != OLLAMA_ADAPTER_ID:
@@ -104,6 +115,7 @@ async def run_local_chat_smoke() -> LocalChatSmokeReport:
 
 
 def format_local_chat_smoke_report(report: LocalChatSmokeReport) -> str:
+    """Render a LocalChatSmokeReport as a human-readable multi-line string."""
     return "\n".join(
         [
             "RIN Python local chat smoke report.",

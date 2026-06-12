@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import mkdtemp
 
-PRODUCTION_RIN_DATA_DIR = Path("/Users/irin/Documents/RIN_loading/.rin-data")
+REPO_ROOT = Path(__file__).resolve().parents[4]
+PRODUCTION_RIN_DATA_DIR = Path(
+    os.environ.get("RIN_PRODUCTION_DATA_DIR", str(REPO_ROOT / ".rin-data"))
+)
 TEMP_DATA_PREFIX = "rin-python-"
 TEMP_ROOT = Path("/tmp")
 
@@ -38,7 +42,7 @@ def assert_not_production_data_path(path: str | Path) -> Path:
     """Reject the protected production `.rin-data` path and descendants."""
     resolved = resolve_path(path)
     if is_production_data_path(resolved):
-        msg = "Python migration commands must not target production .rin-data."
+        msg = "Python runtime commands must not target production .rin-data."
         raise UnsafeDataPathError(msg)
     return resolved
 
@@ -49,12 +53,12 @@ def assert_safe_temp_data_dir(path: str | Path) -> Path:
     temp_root = resolve_path(TEMP_ROOT)
 
     if temp_root not in (resolved, *resolved.parents):
-        msg = "Python migration test data must live under /tmp."
+        msg = "Python runtime test data must live under /tmp."
         raise UnsafeDataPathError(msg)
 
     relative = resolved.relative_to(temp_root)
     if not relative.parts or not relative.parts[0].startswith(TEMP_DATA_PREFIX):
-        msg = "Python migration test data must use a /tmp/rin-python-* path."
+        msg = "Python runtime test data must use a /tmp/rin-python-* path."
         raise UnsafeDataPathError(msg)
 
     return resolved

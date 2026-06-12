@@ -36,7 +36,6 @@ def create_layout() -> RinDataLayout:
                 "config": str(layout.directories["config"]),
                 "databases": str(layout.directories["databases"]),
                 "logs": str(layout.directories["logs"]),
-                "bundles": str(layout.directories["bundles"]),
                 "attachments": str(layout.directories["attachments"]),
             },
         },

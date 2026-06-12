@@ -293,6 +293,26 @@ def test_lists_conversations_messages_and_memory() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
+def test_legacy_memory_metadata_can_join_on_memory_id_column() -> None:
+    layout = create_database_fixture()
+    try:
+        connection = sqlite3.connect(database_path_for(layout))
+        try:
+            connection.execute(
+                "ALTER TABLE memory_metadata RENAME COLUMN memory_item_id TO memory_id"
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+        memories = list_legacy_memories(layout)
+
+        assert memories[0].id == "mem-1"
+        assert memories[0].metadata.source == "synthetic"
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
 def test_audit_summaries_do_not_include_payload_text() -> None:
     layout = create_database_fixture()
     try:

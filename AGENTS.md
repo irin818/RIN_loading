@@ -25,7 +25,7 @@ If another file conflicts with this file, follow AGENTS.md first and report the 
 For development tasks, read only what is necessary:
 
 1. AGENTS.md
-2. PROJECT_CHARTER.md
+2. PROJECT_CHARTER.md only for governance, architecture, identity, memory, policy, model layer, storage, data safety, Live2D/body, integration, or high-risk work
 3. DEVELOPMENT_PROTOCOL.md
 4. ARCHITECTURE.md only for architecture, runtime, module-boundary, or data-flow work
 5. task-relevant source files
@@ -45,19 +45,37 @@ Do not read or recreate deleted legacy docs, including:
 
 ## 4. Current Project State
 
-RIN is currently a Python-first project.
+RIN architecture:
 
-Active areas:
+- Python backend/core (protected):
+  - identity/profile policy
+  - memory system
+  - SQLite storage access
+  - runtime/agent loop
+  - provider-neutral model adapters
+  - sanitizer
+  - runtime trace
+  - tool orchestration
+  - API routes
+- TypeScript/React/Vite frontend (first-class):
+  - Glitch Core Multi-Window Console
+  - Web UI
+  - window system
+  - visual state
+  - API client
+- SQLite: local long-term memory store
+- Launcher: Start_RIN.command
+- Local data: .rin-data/
 
-- source: python/src/rin/
-- tests: python/tests/
+Active source areas:
+
+- Python source: python/src/rin/
+- Python tests: python/tests/
 - Python config: python/pyproject.toml
-- local UI: FastAPI + Jinja2 + static CSS/JavaScript
-- launcher: Start_RIN.command
-- local data: .rin-data/
-- model strategy: local-model-first through provider-neutral adapters
+- Frontend source: frontend/src/
+- Frontend config: frontend/package.json, frontend/vite.config.ts, frontend/tsconfig.json
 
-Do not restore old TypeScript, React, Vite, Node, or npm runtime systems.
+Do not restore old deleted TypeScript runtime systems from earlier project phases. The current React/Vite frontend is not a restoration of those systems.
 
 ---
 
@@ -109,7 +127,6 @@ Do not implement, restore, or expand these unless the owner explicitly reopens t
 - MCP runtime execution
 - tool-execution framework
 - L0-L5 permission hierarchy
-- TypeScript/React/Vite runtime
 - real Live2D Cubism .moc3 loading
 - complete Live2D behavior system
 - multi-user accounts
@@ -131,6 +148,7 @@ Use these boundaries unless existing local structure is more specific:
 - python/src/rin/conversation/: conversation runtime
 - python/src/rin/model/: provider-neutral model adapters
 - python/src/rin/memory/: memory proposal, review, retrieval
+- python/src/rin/context/: context assembly, context budgeting, and context reports
 - python/src/rin/storage/: local file layout
 - python/src/rin/database/: SQLite persistence
 - python/src/rin/profiles/: user model and AI identity model
@@ -143,7 +161,89 @@ Do not mix concerns without explicit architecture work.
 
 ---
 
-## 9. Documentation Policy
+## 9. Frontend Rules
+
+React/Vite/TypeScript frontend work is allowed and expected.
+
+Rules:
+
+- Frontend work should normally stay inside frontend/.
+- Frontend must call backend APIs, not internal Python modules directly.
+- Frontend must not call external model providers directly.
+- Frontend must not read secrets or environment variables directly.
+- Frontend must not write directly to SQLite or mutate memory storage.
+- Frontend must not expose hidden reasoning, raw unsafe model output, API keys, or secret config.
+- Frontend-only layout/UI state persistence is allowed inside frontend/ when it does not depend on backend schema.
+- develop web app style tooling may be used when available.
+
+Before completing frontend work, run when applicable:
+
+```sh
+cd frontend
+npm run typecheck
+npm run build
+```
+
+---
+
+## 10. Backend Protection Rules
+
+Protected backend areas require stronger caution:
+
+- memory core (python/src/rin/memory/)
+- provider abstraction (python/src/rin/model/)
+- sanitizer logic
+- runtime trace core (python/src/rin/diagnostics/)
+- identity/profile policy (python/src/rin/profiles/)
+- storage schema (python/src/rin/storage/, python/src/rin/database/)
+- database migrations
+- secrets and config files
+
+Lightweight read-only API endpoints are allowed when needed by the frontend, provided they:
+
+- do not change core logic
+- do not change schema
+- do not expose secrets
+- do not expose hidden reasoning
+- return safe metadata only
+
+---
+
+## 11. API Boundary Rules
+
+Frontend/backend interaction must use explicit API contracts.
+
+Rules:
+
+- New UI data needs should first be expressed as route/schema contracts.
+- API responses must be safe for display.
+- Runtime trace endpoints must expose safe metadata only.
+- Provider status endpoints must expose configured/health/model metadata but not keys or tokens.
+- Memory endpoints should be read-only unless explicit memory-management work is requested.
+- Frontend must not import or depend on internal Python modules.
+
+---
+
+## 12. Governance Document Rules
+
+Governance files are protected slow-variable documents.
+
+Rules:
+
+- Do not casually edit governance files during feature work.
+- Governance changes should be isolated in dedicated governance tasks unless explicitly requested.
+- AGENTS.md has the highest priority among project-local instruction files.
+- If governance files conflict, prefer the more recent explicit architecture: Python-core + TypeScript/React frontend.
+- Governance files:
+  - AGENTS.md — highest priority, first-read for AI agents
+  - PROJECT_CHARTER.md — long-term principles
+  - DEVELOPMENT_PROTOCOL.md — development workflow
+  - ARCHITECTURE.md — runtime architecture
+  - README.md — human usage guide
+
+---
+
+## 13. Documentation Policy
 
 Avoid large stale documentation.
 
@@ -155,7 +255,7 @@ Final reports should normally stay in chat replies or PR descriptions.
 
 ---
 
-## 10. Temporary Files and Secrets
+## 14. Temporary Files and Secrets
 
 Temporary files are allowed only when necessary.
 
@@ -191,7 +291,7 @@ Do not print secrets in logs, summaries, commits, PRs, or reports.
 
 ---
 
-## 11. Git Workflow
+## 15. Git Workflow
 
 Default rules:
 
@@ -206,6 +306,7 @@ Suggested branch prefixes:
 
 - codex/
 - cursor/
+- claude/
 - governance/
 - docs/
 - fix/
@@ -217,27 +318,62 @@ If unexpected user changes exist, do not overwrite them. Inspect if relevant and
 
 ---
 
-## 12. Checks
+## 16. Low-Cost Agent Policy
+
+For Claude Code / DeepSeek usage, prefer these defaults:
+
+- keep tasks small and file-scoped;
+- do not scan the whole repo by default;
+- read only files required by the task;
+- prefer targeted shell checks over full tests unless runtime behavior changed;
+- do not run expensive checks without a concrete reason;
+- do not push, merge, or create PRs unless requested.
+
+---
+
+## 17. Checks
 
 Run checks relevant to the changed files.
 
 For Python runtime changes, prefer:
 
-sh cd python python -m pytest python -m ruff check . python -m ruff format --check . python -m mypy src rin-python-candidate-check rin-python-production-check 
+```sh
+cd python
+python -m pytest
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy src
+rin-python-candidate-check
+rin-python-production-check
+```
 
 For local model adapter changes, also run when available:
 
-sh RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke 
+```sh
+RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check
+RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke
+```
+
+For frontend changes, run when applicable:
+
+```sh
+cd frontend
+npm run typecheck
+npm run build
+```
 
 For docs/governance-only changes, at minimum run when possible:
 
-sh git diff --check git status --short 
+```sh
+git diff --check
+git status --short
+```
 
 Never claim a check passed if it was not run.
 
 ---
 
-## 13. High-Risk Areas
+## 18. High-Risk Areas
 
 Treat these as high-risk:
 
@@ -261,8 +397,30 @@ For high-risk areas, inspect relevant tests, make small changes, preserve invari
 
 ---
 
-## 14. Final Report Format
+## 19. Final Report Format
 
 End each development task with:
 
-md ### Summary - What was done.  ### Changed Files - `path`: reason.  ### Tests / Checks - `command`: result. - Skipped checks, if any, with reason.  ### Git / GitHub - Branch: - Commit: - Push status: - PR status:  ### Risks - Remaining risks, assumptions, or uncertainty.  ### Next Step - Recommended next action. 
+```md
+### Summary
+- What was done.
+
+### Changed Files
+- `path`: reason.
+
+### Tests / Checks
+- `command`: result.
+- Skipped checks, if any, with reason.
+
+### Git / GitHub
+- Branch:
+- Commit:
+- Push status:
+- PR status:
+
+### Risks
+- Remaining risks, assumptions, or uncertainty.
+
+### Next Step
+- Recommended next action.
+```

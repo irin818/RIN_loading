@@ -162,6 +162,24 @@ def test_sanitizer_extracts_chinese_final_answer_after_analysis() -> None:
     assert content == "今晚可以吃番茄鸡蛋面。"
 
 
+def test_sanitizer_rejects_unclosed_think_even_with_final_marker() -> None:
+    content, removed = sanitize_assistant_content(
+        "<think>private reasoning\n最终答案：今晚可以吃面。"
+    )
+
+    assert removed is False
+    assert content == ""
+
+
+def test_sanitizer_rejects_residual_internal_analysis() -> None:
+    content, removed = sanitize_assistant_content(
+        "最终答案：今晚可以吃面。\ninternal analysis: hidden"
+    )
+
+    assert removed is True
+    assert content == ""
+
+
 def test_sanitizer_rejects_thinking_only_chinese_preface() -> None:
     content, removed = sanitize_assistant_content(
         "首先，用户问晚饭吃什么。我需要分析用户偏好。"
@@ -214,6 +232,29 @@ async def test_chinese_internal_analysis_without_final_answer_is_safe_error() ->
             await adapter.generate(request())
 
     assert captured.value.code == "MODEL_RESPONSE_INVALID"
+
+
+@pytest.mark.asyncio
+async def test_unclosed_thinking_tag_is_safe_error() -> None:
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(
+                200,
+                json={
+                    "message": {
+                        "role": "assistant",
+                        "content": "<think>private\n最终答案：今晚可以吃面。",
+                    }
+                },
+            )
+        )
+    ) as client:
+        adapter = OllamaAdapter(client=client)
+        with pytest.raises(ModelError) as captured:
+            await adapter.generate(request())
+
+    assert captured.value.code == "MODEL_RESPONSE_INVALID"
+    assert captured.value.details.unsafeContentIssue == "unclosed_thinking_tag"
 
 
 @pytest.mark.asyncio

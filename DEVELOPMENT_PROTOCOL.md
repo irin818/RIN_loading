@@ -34,13 +34,23 @@ Do not perform unrelated cleanup or broad rewrites.
 
 Before editing:
 
-sh git status --short git branch --show-current 
+```sh
+git status --short
+git branch --show-current
+```
 
 Use a scoped branch unless the owner explicitly requests direct work on main.
 
 Recommended branch prefixes:
 
-text governance/ docs/ fix/ feature/ codex/ cursor/ 
+```text
+governance/
+docs/
+fix/
+feature/
+codex/
+cursor/
+```
 
 Commit rules:
 
@@ -70,29 +80,52 @@ Owner edits are valid project state, not errors.
 
 For Python runtime changes, run from python/ when available:
 
-sh python -m pytest python -m ruff check . python -m ruff format --check . python -m mypy src rin-python-candidate-check rin-python-production-check 
+```sh
+python -m pytest
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy src
+rin-python-candidate-check
+rin-python-production-check
+```
 
 For targeted changes, targeted tests are acceptable when full checks are expensive.
 
+## 6. Frontend Checks
+
+For frontend changes, run from frontend/ when applicable:
+
+```sh
+cd frontend
+npm run typecheck
+npm run build
+```
+
 For local model adapter changes, also run when available:
 
-sh RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke 
+```sh
+RIN_PYTHON_CHECK_LOCAL_MODEL=1 rin-python-production-check
+RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke
+```
 
 Never claim a check passed if it was not run.
 
 ---
 
-## 6. Documentation / Governance Checks
+## 7. Documentation / Governance Checks
 
 For documentation-only or governance-only changes, run when possible:
 
-sh git diff --check git status --short 
+```sh
+git diff --check
+git status --short
+```
 
 Do not run expensive runtime checks unless the documentation change affects commands, runtime assumptions, or architecture.
 
 ---
 
-## 7. Failure Handling
+## 8. Failure Handling
 
 When a check fails:
 
@@ -105,13 +138,17 @@ If the environment is missing or a check cannot run, report the reason.
 
 ---
 
-## 8. Temporary Files
+## 9. Temporary Files
 
 Temporary files should be created only when necessary.
 
 Preferred locations:
 
-text /tmp/rin-* tmp/ temp/ 
+```text
+/tmp/rin-*
+tmp/
+temp/
+```
 
 Before finishing:
 
@@ -121,7 +158,7 @@ Before finishing:
 
 ---
 
-## 9. Local Data and Secret Safety
+## 10. Local Data and Secret Safety
 
 Before committing, ensure no private or local-only files are included.
 
@@ -147,7 +184,7 @@ If a secret appears in tracked files, stop and report it.
 
 ---
 
-## 10. Data-Sensitive Changes
+## 11. Data-Sensitive Changes
 
 For changes touching local data, database schema, memory, identity, profile, context assembly, or persistence:
 
@@ -161,7 +198,7 @@ Do not delete, migrate, overwrite, or transform local owner data unless explicit
 
 ---
 
-## 11. Completion
+## 12. Completion
 
 Use the final report format defined in AGENTS.md.
 

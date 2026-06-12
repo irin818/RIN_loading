@@ -21,6 +21,7 @@ dev = [
   "mypy>=1.10",
   "pytest>=8.2",
   "pytest-asyncio>=0.23",
+  "pytest-cov>=7.0",
   "ruff>=0.5",
 ]
 
@@ -48,6 +49,23 @@ packages = ["src/rin"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
+addopts = [
+  "--cov=rin",
+  "--cov-report=term-missing",
+  "--cov-report=json",
+  "--cov-fail-under=80",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["rin"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+exclude_also = [
+  "if __name__ == .__main__.:",
+]
 
 [tool.ruff]
 line-length = 88

@@ -84,79 +84,85 @@ def test_conversation_create_send_and_history_contract() -> None:
             "rin",
         ]
         assert trace.status_code == 200
-        assert trace.json()["memoryV2Traces"] == 1
+        assert trace.json()["memoryV2Traces"] == 0
         assert trace.json()["fullTextIncluded"] is False
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
-def test_write_routes_reject_unmarked_production_data_path(
+def test_write_routes_allow_initialized_production_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import rin.diagnostics.safety as safety
+    from rin.database import initialize_temp_database
 
     production = tmp_path / ".rin-data"
     monkeypatch.setattr(safety, "PRODUCTION_RIN_DATA_DIR", production)
     layout = create_data_layout(str(production), cwd="/")
+    initialize_temp_database(layout)
     client = TestClient(create_app(layout))
 
-    response = client.post("/conversations", json={"title": "blocked"})
+    response = client.post("/conversations", json={"title": "allowed"})
 
-    assert response.status_code == 403
-    assert response.json()["detail"]["code"] == "UNSAFE_DATA_PATH"
+    assert response.status_code == 200
+    assert response.json()["title"] == "allowed"
 
 
 def test_python_ui_renders_local_status_and_profile_summary() -> None:
     client, layout = create_client()
     try:
-        response = client.get("/")
+        response = client.get("/", follow_redirects=False)
+        legacy = client.get("/legacy-ui")
+        page_text = legacy.text
 
-        assert response.status_code == 200
-        assert "RIN Control Console" in response.text
-        assert "Observe, test, and understand RIN." in response.text
-        assert 'class="control-console-shell"' in response.text
-        assert 'class="console-topbar"' in response.text
-        assert 'class="console-nav glass-panel"' in response.text
-        assert 'data-console-tab="overview"' in response.text
-        assert 'data-console-tab="chat"' in response.text
-        assert 'data-console-tab="runtime-trace"' in response.text
-        assert 'data-console-tab="model"' in response.text
-        assert 'data-console-tab="memory"' in response.text
-        assert 'data-console-tab="context"' in response.text
-        assert 'data-console-tab="database"' in response.text
-        assert 'data-console-tab="conversations"' in response.text
-        assert 'data-console-tab="profiles"' in response.text
-        assert 'data-console-tab="body"' in response.text
-        assert 'data-console-tab="events"' in response.text
-        assert 'data-console-tab="developer"' in response.text
-        assert 'data-console-page="overview"' in response.text
-        assert 'data-console-page="chat"' in response.text
-        assert 'data-console-page="runtime-trace"' in response.text
-        assert "Runtime Dataflow Analyzer" in response.text
-        assert "Manual Runtime Test Chat" in response.text
-        assert 'class="rin-character"' in response.text
-        assert 'class="presence-panel glass-panel"' in response.text
-        assert 'class="composer-dock"' in response.text
-        assert 'class="trace-ring"' in response.text
-        assert 'class="metric-card balance-card"' in response.text
-        assert 'class="health-grid"' in response.text
-        assert "/api/status-dashboard" in response.text
-        assert "console.css" in response.text
-        assert "console.js" in response.text
-        assert "Python-primary local RIN runtime." in response.text
-        assert "rin-mock-local" in response.text
-        assert "Memory V2" in response.text
-        assert "PROFILE" in response.text
-        assert "Profile files" in response.text
-        assert "Trace full text" in response.text
-        assert "Body" in response.text
-        assert "RIN PRESENCE" in response.text
-        assert "/live2d/rin/rin-front-fullbody.png" in response.text
-        assert "STATIC BODY / LIVE2D FUTURE" in response.text
-        assert "external" in response.text
-        assert "0" in response.text
-        assert "Start a local conversation." in response.text
+        assert response.status_code == 307
+        assert response.headers["location"] == "/glitch-core"
+        assert legacy.status_code == 200
+        assert "RIN Control Console" in page_text
+        assert "Observe, test, and understand RIN." in page_text
+        assert 'class="control-console-shell"' in page_text
+        assert 'class="console-topbar"' in page_text
+        assert 'class="console-nav glass-panel"' in page_text
+        assert 'data-console-tab="overview"' in page_text
+        assert 'data-console-tab="chat"' in page_text
+        assert 'data-console-tab="runtime-trace"' in page_text
+        assert 'data-console-tab="model"' in page_text
+        assert 'data-console-tab="memory"' in page_text
+        assert 'data-console-tab="context"' in page_text
+        assert 'data-console-tab="database"' in page_text
+        assert 'data-console-tab="conversations"' in page_text
+        assert 'data-console-tab="profiles"' in page_text
+        assert 'data-console-tab="body"' in page_text
+        assert 'data-console-tab="events"' in page_text
+        assert 'data-console-tab="developer"' in page_text
+        assert 'data-console-page="overview"' in page_text
+        assert 'data-console-page="chat"' in page_text
+        assert 'data-console-page="runtime-trace"' in page_text
+        assert "Runtime Dataflow Analyzer" in page_text
+        assert "Manual Runtime Test Chat" in page_text
+        assert 'class="rin-character"' in page_text
+        assert 'class="presence-panel glass-panel"' in page_text
+        assert 'class="composer-dock"' in page_text
+        assert 'class="trace-ring"' in page_text
+        assert 'class="metric-card balance-card"' in page_text
+        assert 'class="health-grid"' in page_text
+        assert "/api/status-dashboard" in page_text
+        assert "console.css" in page_text
+        assert "console.js" in page_text
+        assert "Python-primary local RIN runtime." in page_text
+        assert "rin-mock-local" in page_text
+        assert "Memory V2" in page_text
+        assert "PROFILE" in page_text
+        assert "Profile files" in page_text
+        assert "Trace full text" in page_text
+        assert "Body" in page_text
+        assert "RIN PRESENCE" in page_text
+        assert "/live2d/rin/rin-front-fullbody.png" in page_text
+        assert "STATIC BODY / LIVE2D FUTURE" in page_text
+        assert "external" in page_text
+        assert "0" in page_text
+        assert "Start a local conversation." in page_text
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
@@ -194,6 +200,10 @@ def test_python_ui_static_assets_are_served() -> None:
         assert "RIN console submit failed" in js.text
         assert "requestSubmit" in js.text
         assert "refreshDashboard" in js.text
+        assert "refreshLatestRuntimeTrace" in js.text
+        assert "renderLatestRuntimeTrace" in js.text
+        assert "/api/diagnostics/runtime-trace/latest" in js.text
+        assert "await refreshLatestRuntimeTrace()" in js.text
         assert "/api/chat-test/send" in js.text
         assert "document.write" not in js.text
         assert "document.open" not in js.text
@@ -221,6 +231,114 @@ def test_python_ui_static_assets_are_served() -> None:
         assert avatar.headers["content-type"] == "image/png"
         assert fullbody.status_code == 200
         assert fullbody.headers["content-type"] == "image/png"
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_console_v2_route_assets_and_snapshot_are_safe() -> None:
+    client, layout = create_client()
+    try:
+        old_redirect = client.get("/ui", follow_redirects=False)
+        v2_redirect = client.get("/ui-v2", follow_redirects=False)
+        old_console = client.get("/legacy-ui")
+        page = client.get("/legacy-ui-v2")
+        css = client.get("/static/console-v2.css")
+        js = client.get("/static/console-v2.js")
+        snapshot = client.get("/api/console-v2/snapshot")
+
+        assert old_redirect.status_code == 307
+        assert old_redirect.headers["location"] == "/glitch-core"
+        assert v2_redirect.status_code == 307
+        assert v2_redirect.headers["location"] == "/glitch-core"
+        assert old_console.status_code == 200
+        assert "RIN Control Console" in old_console.text
+        assert page.status_code == 200
+        assert "RIN Console V2" in page.text
+        assert 'data-v2-tab="dashboard"' in page.text
+        assert "v2-tab-button" in page.text
+        assert "v2-page-grid" in page.text
+        assert 'data-v2-page="data-flow"' in page.text
+        assert "v2-avatar-panel" in page.text
+        assert "console-v2.css" in page.text
+        assert "console-v2.js" in page.text
+        assert "/api/console-v2/snapshot" in page.text
+        assert "/api/chat-test/send" in page.text
+        assert css.status_code == 200
+        assert "--v2-green: #00ff64" in css.text
+        assert ".v2-glass-panel" in css.text
+        assert ".v2-neon-border" in css.text
+        assert ".v2-status-indicator" in css.text
+        assert ".v2-tab-button" in css.text
+        assert ".v2-page-grid" in css.text
+        assert ".v2-avatar-panel" in css.text
+        assert ".v2-metric-card" in css.text
+        assert js.status_code == 200
+        assert "refreshSnapshot" in js.text
+        assert "submitChat" in js.text
+        assert "document.write" not in js.text
+        assert snapshot.status_code == 200
+        payload = snapshot.json()
+        assert payload["readOnly"] is True
+        assert payload["fullTextIncluded"] is False
+        assert payload["rawPromptIncluded"] is False
+        assert payload["rawModelOutputIncluded"] is False
+        assert payload["externalProviderCallCount"] == 0
+        assert payload["dashboard"]["serverMode"] == "local-only"
+        assert payload["storage"]["fullPathIncluded"] is False
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_glitch_core_snapshot_and_memory_api_are_safe_read_only() -> None:
+    client, layout = create_client()
+    try:
+        submitted = client.post(
+            "/api/chat-test/send",
+            json={"content": "glitch core memory preference signal"},
+        )
+        state_after_submit = client.get("/api/local-state").json()
+        snapshot = client.get("/api/glitch-core/snapshot")
+        memories = client.get("/api/glitch-core/memories?query=memory")
+        state_after_reads = client.get("/api/local-state").json()
+
+        assert submitted.status_code == 200
+        assert snapshot.status_code == 200
+        payload = snapshot.json()
+        assert payload["mode"] == "glitch-core-snapshot"
+        assert payload["readOnly"] is True
+        assert payload["localOnly"] is True
+        assert payload["fullTextIncluded"] is False
+        assert payload["rawPromptIncluded"] is False
+        assert payload["rawModelOutputIncluded"] is False
+        assert payload["hiddenReasoningIncluded"] is False
+        assert payload["secretValuesIncluded"] is False
+        assert payload["externalProviderCallCount"] == 0
+        assert payload["messages"][-1]["content"] == "Python API mock reply."
+        assert payload["memory"]["cards"]
+        assert payload["memory"]["cards"][0]["readOnly"] is True
+        assert payload["memory"]["cards"][0]["fullTextIncluded"] is False
+        assert payload["trace"]["latest"]["rawModelOutputIncluded"] is False
+        assert payload["provider"]["safeConfig"]["apiKeyIncluded"] is False
+        assert payload["provider"]["safeConfig"]["secretValuesIncluded"] is False
+        assert state_after_reads["database"] == state_after_submit["database"]
+        assert state_after_reads["externalProviderCallCount"] == 0
+
+        assert memories.status_code == 200
+        memory_payload = memories.json()
+        assert memory_payload["readOnly"] is True
+        assert memory_payload["fullTextIncluded"] is False
+        assert memory_payload["cards"]
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_glitch_core_entry_reports_frontend_build_state() -> None:
+    client, layout = create_client()
+    try:
+        response = client.get("/glitch-core")
+
+        assert response.status_code in {200, 503}
+        assert "RIN Glitch Core Console" in response.text
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
@@ -296,10 +414,51 @@ def test_chat_test_json_endpoint_updates_without_raw_thinking() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
+def test_chat_test_endpoint_rejects_missing_conversation_without_writes() -> None:
+    client, layout = create_client()
+    try:
+        response = client.post(
+            "/api/chat-test/send",
+            json={
+                "content": "should not create orphan message",
+                "conversationId": "missing-conversation",
+            },
+        )
+        state = client.get("/api/local-state").json()
+
+        assert response.status_code == 404
+        assert response.json()["detail"]["code"] == "CONVERSATION_NOT_FOUND"
+        assert state["database"]["conversations"] == 0
+        assert state["database"]["messages"] == 0
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_empty_chat_requests_do_not_create_conversations() -> None:
+    client, layout = create_client()
+    try:
+        conversations_response = client.post(
+            "/api/conversations",
+            json={"content": "   "},
+        )
+        chat_test_response = client.post(
+            "/api/chat-test/send",
+            json={"content": "\n\t"},
+        )
+        state = client.get("/api/local-state").json()
+
+        assert conversations_response.status_code == 400
+        assert chat_test_response.status_code == 400
+        assert state["database"]["conversations"] == 0
+        assert state["database"]["messages"] == 0
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
 def test_console_tab_buttons_are_explicit_button_type() -> None:
     client, layout = create_client()
     try:
-        response = client.get("/")
+        response = client.get("/legacy-ui")
 
         assert response.status_code == 200
         tab_buttons = re.findall(
@@ -317,7 +476,7 @@ def test_python_ui_reload_preserves_history_without_new_write() -> None:
     try:
         submitted = client.post("/ui/chat", json={"content": "reload-safe message"})
         state_after_submit = client.get("/api/local-state").json()
-        reloaded = client.get("/ui")
+        reloaded = client.get("/legacy-ui")
         state_after_reload = client.get("/api/local-state").json()
 
         assert submitted.status_code == 200
@@ -334,7 +493,7 @@ def test_python_ui_reload_preserves_history_without_new_write() -> None:
 def test_python_ui_renders_local_model_status() -> None:
     client, layout = create_client(adapter=LocalModelAdapter())
     try:
-        response = client.get("/")
+        response = client.get("/legacy-ui")
 
         assert response.status_code == 200
         assert "rin-ollama-local" in response.text
@@ -364,7 +523,7 @@ def test_python_ui_new_chat_view_does_not_create_writes() -> None:
     try:
         submitted = client.post("/ui/chat", json={"content": "existing chat"})
         state_after_submit = client.get("/api/local-state").json()
-        response = client.get("/ui?new=1")
+        response = client.get("/legacy-ui?new=1")
         state_after_new_view = client.get("/api/local-state").json()
 
         assert submitted.status_code == 200
@@ -445,11 +604,11 @@ def test_diagnostics_endpoints_are_safe_and_read_only() -> None:
         assert model["providerCallsMade"] == 0
         assert memory["fullTextIncluded"] is False
         assert memory["algorithm"]["fullTextIncluded"] is False
-        assert memory["state"]["retrievalWiredIntoPrompt"] is False
-        assert memory["health"]["retrievalStatus"] == "skipped"
+        assert memory["state"]["retrievalWiredIntoPrompt"] is True
+        assert memory["health"]["retrievalStatus"] == "active"
         assert memory["algorithm"]["memoryV2WritePolicy"]
         assert memory["aiMemoryState"]["shortTermContextActive"] is True
-        assert memory["aiMemoryState"]["longTermRetrievalActive"] is False
+        assert memory["aiMemoryState"]["longTermRetrievalActive"] is True
         assert memory["curve"]["samplePoints"]
         assert memory["curve"]["status"] == "not parameterized yet"
         assert memory["contents"]
@@ -477,10 +636,7 @@ def test_memory_page_renders_useful_safe_console_sections() -> None:
         assert "Memory used last request" in response.text
         assert "Last Turn Memory Update" in response.text
         assert "Gaps / Warnings" in response.text
-        assert (
-            "Memory V2 retrieval is not wired into prompt assembly yet."
-            in response.text
-        )
+        assert "No Memory V2 traces available for retrieval." in response.text
         assert "memory page private text" in response.text
 
         memory = client.get("/api/diagnostics/memory")
@@ -520,9 +676,7 @@ def test_runtime_trace_api_is_safe_and_read_only() -> None:
         assert latest_payload["rawPromptIncluded"] is False
         assert latest_payload["rawModelOutputIncluded"] is False
         assert trace["status"] == "success"
-        assert trace["analysis"]["memorySkipReason"] == (
-            "runtime retrieval not wired into prompt assembly"
-        )
+        assert trace["analysis"]["memorySkipReason"] == "no_memory_v2_traces"
         assert [stage["name"] for stage in trace["stages"]] == [
             "input_received",
             "owner_message_persisted",
@@ -576,9 +730,7 @@ def test_runtime_trace_api_is_safe_and_read_only() -> None:
 
         assert recent["output"]["selectedPriorMessages"] == 0
         assert memory["status"] == "skipped"
-        assert memory["decision"]["skipReason"] == (
-            "runtime retrieval not wired into prompt assembly"
-        )
+        assert memory["decision"]["skipReason"] == "no_memory_v2_traces"
         assert context["output"]["componentTable"]
         assert request["output"]["requestOutline"]
         assert raw["output"]["providerRawMetadataAvailable"] is False
@@ -603,7 +755,7 @@ def test_runtime_trace_api_is_safe_and_read_only() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
-def test_no_typescript_or_node_artifacts_reintroduced() -> None:
+def test_typescript_frontend_artifacts_stay_in_frontend_only() -> None:
     root = Path(__file__).resolve().parents[3]
     patterns = [
         "*.ts",
@@ -624,9 +776,12 @@ def test_no_typescript_or_node_artifacts_reintroduced() -> None:
         if "dist" not in path.parts
         and "node_modules" not in path.parts
         and ".venv" not in path.parts
+        and "frontend" not in path.parts
     ]
 
     assert filtered == []
+    assert (root / "frontend" / "package.json").exists()
+    assert (root / "frontend" / "vite.config.ts").exists()
 
 
 def test_default_launcher_is_local_model_and_browser_open() -> None:
@@ -640,12 +795,13 @@ def test_default_launcher_is_local_model_and_browser_open() -> None:
     assert not (root / "Start_RIN_Python.command").exists()
     assert not (root / "打开RIN项目.command").exists()
     assert sorted(path.name for path in root.glob("*.command")) == ["Start_RIN.command"]
-    assert 'RIN_MODEL_ADAPTER="rin-ollama-local"' in launcher_text
+    assert 'MODEL_ADAPTER="${RIN_MODEL_ADAPTER:-rin-ollama-local}"' in launcher_text
     assert "http://127.0.0.1:11434" in launcher_text
     assert "qwen3:4b" in launcher_text
     assert 'RIN_OLLAMA_MODEL="$OLLAMA_MODEL"' in launcher_text
     assert "RIN_OLLAMA_TIMEOUT_MS" in launcher_text
     assert "RIN_OLLAMA_NUM_PREDICT" in launcher_text
-    assert 'LOCAL_URL="http://127.0.0.1:8765/"' in launcher_text
-    assert 'open "$LOCAL_URL"' in launcher_text
-    assert "for _ in {1..60}" in launcher_text
+    assert 'LOCAL_URL="http://127.0.0.1:8765"' in launcher_text
+    assert "RIN_STARTUP_UI_PATH" in launcher_text
+    assert 'open "$UI_URL"' in launcher_text
+    assert 'MAX_WAIT="${RIN_STARTUP_TIMEOUT_SEC:-60}"' in launcher_text
