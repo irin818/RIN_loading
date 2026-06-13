@@ -36,8 +36,11 @@ ContextV2SegmentType = Literal[
     "rin_profile",
     "owner_profile",
     "current_owner_message",
+    "owner_state",
+    "response_plan",
     "short_term_window",
     "memory_v2_trace",
+    "conversation_summary",
     "older_reference",
 ]
 ModelProvider = Literal["mock", "openai-compatible", "custom"]
@@ -325,8 +328,8 @@ class ContextV2Report(RinBaseModel):
 
     mode: Literal["context-v2-report"]
     status: Literal["ready"]
-    shadowOnly: Literal[True]
-    productionContextChanged: Literal[False]
+    shadowOnly: bool
+    productionContextChanged: bool
     providerCallCount: Literal[0]
     fullTextIncluded: Literal[False]
     maxCharacters: int

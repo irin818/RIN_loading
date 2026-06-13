@@ -25,6 +25,25 @@ from rin.model import ModelError
 from rin.storage import RinDataLayout
 
 NOW = "2026-06-05T00:00:00.000Z"
+EXPECTED_SUCCESS_STAGE_NAMES = [
+    "input_received",
+    "owner_message_persisted",
+    "profile_loading",
+    "message_understanding",
+    "owner_state_inference",
+    "memory_candidate_generation",
+    "recent_history_selection",
+    "memory_v2_retrieval",
+    "context_planning",
+    "response_planning",
+    "context_assembly",
+    "model_request",
+    "raw_model_response",
+    "sanitization_final_answer",
+    "rin_reply_persisted",
+    "memory_update",
+    "response_returned",
+]
 
 
 class MockAdapter:
@@ -206,27 +225,33 @@ async def test_runtime_persists_owner_and_rin_reply_on_success() -> None:
         assert result.elapsedMs >= 0
         assert result.memoryTraceWritten is False
         assert status.counts.conversationTurns == 1
+        assert status.counts.mindTurnSnapshots == 1
+        assert status.counts.memoryCandidates == 0
         assert status.counts.memoryV2Traces == 0
         assert status.counts.apiUsageEvents == 0
         assert adapter.requests[0].messages[-1].content == "hello"
         trace = RUNTIME_TRACE_STORE.latest()
         assert trace is not None
         assert trace.turnId == result.turnId
-        assert [stage.name for stage in trace.stages] == [
-            "input_received",
-            "owner_message_persisted",
-            "profile_loading",
-            "recent_history_selection",
-            "memory_v2_retrieval",
-            "context_assembly",
-            "model_request",
-            "raw_model_response",
-            "sanitization_final_answer",
-            "rin_reply_persisted",
-            "memory_update",
-            "response_returned",
-        ]
+        assert [stage.name for stage in trace.stages] == EXPECTED_SUCCESS_STAGE_NAMES
         input_stage = trace.stages[0]
+        understanding_stage = next(
+            stage for stage in trace.stages if stage.name == "message_understanding"
+        )
+        owner_state_stage = next(
+            stage for stage in trace.stages if stage.name == "owner_state_inference"
+        )
+        candidates_stage = next(
+            stage
+            for stage in trace.stages
+            if stage.name == "memory_candidate_generation"
+        )
+        context_plan_stage = next(
+            stage for stage in trace.stages if stage.name == "context_planning"
+        )
+        response_plan_stage = next(
+            stage for stage in trace.stages if stage.name == "response_planning"
+        )
         memory_stage = next(
             stage for stage in trace.stages if stage.name == "memory_v2_retrieval"
         )
@@ -245,6 +270,12 @@ async def test_runtime_persists_owner_and_rin_reply_on_success() -> None:
 
         assert input_stage.output["inputLength"] == len("hello")
         assert input_stage.output["inputHash"]
+        assert understanding_stage.output["mode"] == "daily_chat"
+        assert understanding_stage.privacy["fullOwnerInputIncluded"] is False
+        assert owner_state_stage.output["supportNeed"] == "answer"
+        assert candidates_stage.output["candidateCount"] == 0
+        assert context_plan_stage.output["ownerStateIncluded"] is True
+        assert response_plan_stage.output["nextActionStyle"]
         assert memory_stage.status == "skipped"
         assert memory_stage.decision["skipReason"] == "no_memory_v2_traces"
         assert context_stage.output["componentTable"]
@@ -281,12 +312,18 @@ async def test_runtime_promotes_memory_trace_from_owner_signal() -> None:
         assert result.status == "completed"
         assert result.memoryTraceWritten is True
         assert status.counts.memoryV2Traces == 1
+        assert status.counts.mindTurnSnapshots == 1
+        assert status.counts.memoryCandidates == 1
         assert traces[0].signalSummary["rawTextIncluded"] is False
-        assert traces[0].signalSummary["decision"] == "promoted"
+        assert traces[0].signalSummary["decision"] == "auto_promoted"
+        assert traces[0].signalSummary["candidateType"] == "owner_preference"
+        assert traces[0].signalSummary["riskLevel"] == "low"
         assert traces[0].signalSummary["contentCharacterCount"] == len(
             "I prefer concise RIN progress reports."
         )
         assert "I prefer" not in str(traces[0].signalSummary)
+        assert memory_update_stage.output["candidateCount"] == 1
+        assert memory_update_stage.output["autoPromoteCandidateCount"] == 1
         assert memory_update_stage.output["analysisDecision"] == "promoted"
         assert memory_update_stage.output["tracesCreatedCount"] == 1
     finally:
@@ -414,14 +451,14 @@ async def test_runtime_estimates_usage_when_provider_usage_missing(
 
 
 @pytest.mark.asyncio
-async def test_runtime_injects_top_memory_trace_summaries_only() -> None:
+async def test_runtime_injects_query_relevant_memory_trace_summaries_only() -> None:
     layout = create_layout()
     try:
-        for trace_id, score in (
-            ("trace-low", 0.1),
-            ("trace-high", 0.9),
-            ("trace-mid", 0.7),
-            ("trace-second", 0.8),
+        for trace_id, score, signal_keys in (
+            ("trace-irrelevant-high", 0.9, ["cooking", "dinner"]),
+            ("trace-mid", 0.7, ["rin", "progress", "reports"]),
+            ("trace-second", 0.8, ["rin", "progress", "context"]),
+            ("trace-low", 0.1, ["rin", "report"]),
         ):
             create_memory_trace(
                 layout,
@@ -431,7 +468,7 @@ async def test_runtime_injects_top_memory_trace_summaries_only() -> None:
                     "rawTextIncluded": False,
                     "decision": "promoted",
                     "reasons": [f"reason-{trace_id}"],
-                    "signalKeys": [f"signal-{trace_id}"],
+                    "signalKeys": signal_keys,
                     "contentCharacterCount": 42,
                 },
                 score,
@@ -441,7 +478,7 @@ async def test_runtime_injects_top_memory_trace_summaries_only() -> None:
         adapter = MockAdapter("Memory-aware reply.")
         await run_conversation_turn(
             layout,
-            "What context matters?",
+            "What RIN progress report context matters?",
             adapter,
             clock=RuntimeClock(NOW),
         )
@@ -457,12 +494,16 @@ async def test_runtime_injects_top_memory_trace_summaries_only() -> None:
         )
 
         assert memory_stage.output["selectedTraceCount"] == 3
-        assert memory_stage.output["selectedScores"] == [0.9, 0.8, 0.7]
-        assert "reason-trace-high" in system_context
+        assert memory_stage.output["topSelectedTraceIds"] == [
+            "trace-second",
+            "trace-mid",
+            "trace-low",
+        ]
         assert "reason-trace-second" in system_context
         assert "reason-trace-mid" in system_context
-        assert "reason-trace-low" not in system_context
-        assert "source-trace-high" not in system_context
+        assert "reason-trace-low" in system_context
+        assert "reason-trace-irrelevant-high" not in system_context
+        assert "source-trace-irrelevant-high" not in system_context
         assert any(
             item["component"] == "memory_v2_trace"
             and item["privacyStatus"] == "metadata_only"

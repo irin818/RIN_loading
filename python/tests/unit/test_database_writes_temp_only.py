@@ -8,16 +8,23 @@ from rin.database import (
     append_audit_event,
     append_message,
     create_conversation,
+    create_memory_candidate_records,
     create_memory_trace,
+    create_mind_turn_snapshot,
     create_temp_layout_database,
+    get_latest_mind_snapshot,
+    get_mind_snapshot_for_turn,
     initialize_temp_database,
     inspect_database,
     list_audit_summaries,
     list_conversations,
     list_messages,
+    list_mind_memory_candidates,
     record_failed_turn,
+    update_memory_candidate_review,
 )
 from rin.diagnostics.safety import UnsafeDataPathError, create_temp_data_dir
+from rin.mind import build_rin_mind_snapshot
 from rin.storage import RinDataLayout, create_data_layout
 
 NOW = "2026-06-05T00:00:00.000Z"
@@ -136,5 +143,79 @@ def test_failed_turn_audit_and_memory_trace_writes_are_temp_only() -> None:
         assert status.counts.memoryV2Traces == 1
         assert any(item.eventType == "safe.test" for item in summaries)
         assert "hidden" not in summaries[0].model_dump_json()
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_mind_snapshots_and_candidates_are_safe_additive_tables() -> None:
+    layout = create_layout()
+    try:
+        conversation = create_conversation(layout, "Mind turn", NOW, "conv-mind")
+        owner = append_message(
+            layout,
+            conversation.id,
+            "owner",
+            "I prefer concise RIN progress reports.",
+            NOW,
+            "msg-mind-owner",
+        )
+        snapshot = build_rin_mind_snapshot(
+            owner_message_id=owner.id,
+            owner_content=owner.content,
+            created_at=NOW,
+            prior_messages=[],
+            memory_traces=[],
+            profile_sections=["rin_profile"],
+            budget=6000,
+        )
+
+        candidate_ids = create_memory_candidate_records(
+            layout,
+            conversation_id=conversation.id,
+            candidates=snapshot.memoryCandidates,
+            now=NOW,
+        )
+        snapshot_id = create_mind_turn_snapshot(
+            layout,
+            turn_id="turn-mind",
+            conversation_id=conversation.id,
+            snapshot=snapshot,
+            now=NOW,
+            snapshot_id="mind-snapshot-1",
+        )
+
+        latest = get_latest_mind_snapshot(layout)
+        by_turn = get_mind_snapshot_for_turn(layout, "turn-mind")
+        candidates = list_mind_memory_candidates(layout)
+        status = inspect_database(layout)
+
+        assert snapshot_id == "mind-snapshot-1"
+        assert candidate_ids == [snapshot.memoryCandidates[0].id]
+        assert latest is not None
+        assert by_turn == latest
+        assert latest.safeForUi is True
+        assert latest.rawTextIncluded is False
+        assert latest.messageUnderstanding.mode == "preference_expression"
+        assert latest.memoryCandidates[0].autoPromote is True
+        assert candidates[0].summary == "Owner expressed a stable owner preference."
+        assert candidates[0].ownerConfirmed is False
+        assert status.counts.mindTurnSnapshots == 1
+        assert status.counts.memoryCandidates == 1
+        assert status.counts.conversationSummaries == 0
+
+        updated = update_memory_candidate_review(
+            layout,
+            candidate_id=candidates[0].id,
+            review_status="rejected",
+            active=False,
+            owner_confirmed=False,
+            now=NOW,
+        )
+        reviewed = list_mind_memory_candidates(layout)[0]
+
+        assert updated is True
+        assert reviewed.reviewStatus == "rejected"
+        assert reviewed.active is False
+        assert "I prefer" not in latest.model_dump_json()
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)

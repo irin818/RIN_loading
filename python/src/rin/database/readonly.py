@@ -14,6 +14,7 @@ from rin.contracts import (
     ConversationRecord,
     MemoryInjectionTrace,
 )
+from rin.mind import MemoryCandidate, RinMindSnapshot
 from rin.storage import RinDataLayout
 
 DATABASE_FILENAME = "rin.sqlite"
@@ -32,6 +33,9 @@ DATABASE_TABLES: tuple[str, ...] = (
     "memory_v2_trace_signals",
     "memory_v2_retrieval_events",
     "api_usage_events",
+    "mind_turn_snapshots",
+    "memory_candidates",
+    "conversation_summaries",
     "slow_variable_versions",
     "state_history",
     "tool_invocations",
@@ -65,6 +69,9 @@ class DatabaseCounts(BaseModel):
     memoryV2TraceSignals: int
     memoryV2RetrievalEvents: int
     apiUsageEvents: int
+    mindTurnSnapshots: int
+    memoryCandidates: int
+    conversationSummaries: int
     messageMemoryContexts: int
     slowVariableVersions: int
     stateHistory: int
@@ -259,6 +266,15 @@ def inspect_database(layout: RinDataLayout) -> DatabaseStatus:
                     "memory_v2_retrieval_events",
                 ),
                 apiUsageEvents=count_rows_if_exists(connection, "api_usage_events"),
+                mindTurnSnapshots=count_rows_if_exists(
+                    connection,
+                    "mind_turn_snapshots",
+                ),
+                memoryCandidates=count_rows_if_exists(connection, "memory_candidates"),
+                conversationSummaries=count_rows_if_exists(
+                    connection,
+                    "conversation_summaries",
+                ),
                 slowVariableVersions=count_rows_if_exists(
                     connection,
                     "slow_variable_versions",
@@ -460,6 +476,57 @@ def summarize_api_usage(layout: RinDataLayout) -> ApiUsageSummary:
     )
 
 
+def get_latest_mind_snapshot(layout: RinDataLayout) -> RinMindSnapshot | None:
+    """Return the latest safe RIN Mind snapshot, if one has been recorded."""
+    with open_readonly_database(database_path_for(layout)) as connection:
+        if not table_exists(connection, "mind_turn_snapshots"):
+            return None
+        row = connection.execute(
+            """
+            SELECT * FROM mind_turn_snapshots
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """
+        ).fetchone()
+        return map_mind_snapshot(row) if row else None
+
+
+def get_mind_snapshot_for_turn(
+    layout: RinDataLayout,
+    turn_id: str,
+) -> RinMindSnapshot | None:
+    """Return the safe RIN Mind snapshot for a specific turn."""
+    with open_readonly_database(database_path_for(layout)) as connection:
+        if not table_exists(connection, "mind_turn_snapshots"):
+            return None
+        row = connection.execute(
+            "SELECT * FROM mind_turn_snapshots WHERE turn_id = ?",
+            (turn_id,),
+        ).fetchone()
+        return map_mind_snapshot(row) if row else None
+
+
+def list_mind_memory_candidates(
+    layout: RinDataLayout,
+    *,
+    limit: int = 50,
+) -> list[MemoryCandidate]:
+    """List safe RIN Mind memory candidates without raw source message text."""
+    safe_limit = max(1, min(limit, 100))
+    with open_readonly_database(database_path_for(layout)) as connection:
+        if not table_exists(connection, "memory_candidates"):
+            return []
+        rows = connection.execute(
+            """
+            SELECT * FROM memory_candidates
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            (safe_limit,),
+        ).fetchall()
+        return [map_memory_candidate(row) for row in rows]
+
+
 def empty_api_usage_summary() -> ApiUsageSummary:
     return ApiUsageSummary(
         eventCount=0,
@@ -603,6 +670,44 @@ def map_api_usage_event(row: sqlite3.Row) -> ApiUsageEventRecord:
         rawResponseIncluded=False,
         hiddenReasoningIncluded=False,
         secretValuesIncluded=False,
+    )
+
+
+def map_mind_snapshot(row: sqlite3.Row) -> RinMindSnapshot:
+    return RinMindSnapshot(
+        messageUnderstanding=json.loads(str(row["message_understanding_json"])),
+        ownerState=json.loads(str(row["owner_state_json"])),
+        contextPlan=json.loads(str(row["context_plan_json"])),
+        memoryRetrieval=json.loads(str(row["memory_retrieval_json"])),
+        memoryCandidates=json.loads(str(row["memory_candidates_json"])),
+        responsePlan=json.loads(str(row["response_plan_json"])),
+        createdAt=str(row["created_at"]),
+        safeForUi=True,
+        rawTextIncluded=False,
+        secretValuesIncluded=False,
+    )
+
+
+def map_memory_candidate(row: sqlite3.Row) -> MemoryCandidate:
+    return MemoryCandidate(
+        id=str(row["id"]),
+        type=str(row["type"]),  # type: ignore[arg-type]
+        summary=str(row["summary"]),
+        sourceMessageIds=[str(row["source_message_id"])],
+        confidence=float(row["confidence"]),
+        salience=float(row["salience"]),
+        stability=str(row["stability"]),
+        decayPolicy=str(row["decay_policy"]),
+        riskLevel=str(row["risk_level"]),  # type: ignore[arg-type]
+        reviewStatus=str(row["review_status"]),  # type: ignore[arg-type]
+        active=bool(row["active"]),
+        tags=list(json.loads(str(row["tags_json"]))),
+        evidenceHashes=list(json.loads(str(row["evidence_hashes_json"]))),
+        contradictionOf=row["contradiction_of"],
+        supersedes=row["supersedes"],
+        ownerConfirmed=bool(row["owner_confirmed"]),
+        autoPromote=bool(row["auto_promote"]),
+        reasons=list(json.loads(str(row["reasons_json"]))),
     )
 
 

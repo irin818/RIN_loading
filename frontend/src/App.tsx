@@ -5,20 +5,33 @@ import type {
   ReactNode
 } from "react";
 
-import { fetchGlitchSnapshot, fetchMemoryCards, sendChatMessage } from "./api";
+import {
+  approveMindMemoryCandidate,
+  fetchGlitchSnapshot,
+  fetchMemoryCards,
+  rejectMindMemoryCandidate,
+  sendChatMessage
+} from "./api";
 import type {
   ChatMessage,
   ConsoleWindow,
   GlitchErrorItem,
   GlitchSnapshot,
   MemoryCard,
+  MindMemoryCandidate,
   RuntimeTrace,
   WindowPayload,
   WindowType
 } from "./types";
 
 const LAYOUT_KEY = "rin.glitch-core.window-layout.v2";
-const PERSISTENT_TYPES = new Set<WindowType>(["chat", "memory", "trace", "cost"]);
+const PERSISTENT_TYPES = new Set<WindowType>([
+  "chat",
+  "memory",
+  "trace",
+  "cost",
+  "mind"
+]);
 const REUSABLE_WINDOW_TYPES = new Set<WindowType>([
   "core",
   "chat",
@@ -26,6 +39,7 @@ const REUSABLE_WINDOW_TYPES = new Set<WindowType>([
   "trace",
   "provider",
   "cost",
+  "mind",
   "tasks",
   "tools",
   "settings",
@@ -55,6 +69,7 @@ const WINDOW_META: Record<WindowType, WindowMeta> = {
   trace: { label: "Trace", context: "Runtime Trace", code: "TRC" },
   provider: { label: "Provider", context: "API Provider", code: "PRV" },
   cost: { label: "Cost / Token", context: "Usage Ledger", code: "COST" },
+  mind: { label: "RIN Mind", context: "Mind Snapshot", code: "MIND" },
   error: { label: "Error", context: "Runtime Error", code: "ERR" },
   tasks: { label: "Tasks", context: "Mission Queue", code: "TASK" },
   tools: { label: "Tools", context: "Tool Layer", code: "TOOL" },
@@ -69,6 +84,7 @@ const MENU_ITEMS: Array<{ label: string; type?: WindowType }> = [
   { label: "TRACE", type: "trace" },
   { label: "PROVIDERS", type: "provider" },
   { label: "COST", type: "cost" },
+  { label: "RIN MIND", type: "mind" },
   { label: "TASKS", type: "tasks" },
   { label: "TOOLS", type: "tools" },
   { label: "SETTINGS", type: "settings" },
@@ -87,7 +103,8 @@ const DEFAULT_LAYOUT: Array<Pick<
   { type: "memory", contextName: "Recent Memories", x: 850, y: 82, width: 406, height: 488 },
   { type: "trace", contextName: "Latest Turn", x: 372, y: 432, width: 548, height: 236 },
   { type: "provider", contextName: "API Provider", x: 888, y: 492, width: 360, height: 200 },
-  { type: "cost", contextName: "Usage Ledger", x: 498, y: 104, width: 382, height: 248 }
+  { type: "cost", contextName: "Usage Ledger", x: 498, y: 104, width: 382, height: 248 },
+  { type: "mind", contextName: "Mind Snapshot", x: 486, y: 214, width: 438, height: 328 }
 ];
 
 const SPAWN_LAYOUT: Record<WindowType, {
@@ -105,6 +122,7 @@ const SPAWN_LAYOUT: Record<WindowType, {
   trace: { x: 346, y: 396, width: 570, height: 268, offsetX: 38, offsetY: -24 },
   provider: { x: 838, y: 424, width: 390, height: 244, offsetX: -30, offsetY: -18 },
   cost: { x: 54, y: 470, width: 438, height: 300, offsetX: 30, offsetY: -26 },
+  mind: { x: 464, y: 156, width: 460, height: 360, offsetX: 26, offsetY: 22 },
   error: { x: 500, y: 124, width: 460, height: 340, offsetX: 28, offsetY: 30 },
   tasks: { x: 96, y: 128, width: 420, height: 320, offsetX: 32, offsetY: 30 },
   tools: { x: 744, y: 154, width: 410, height: 318, offsetX: -32, offsetY: 30 },
@@ -606,6 +624,22 @@ export default function App() {
     }
   }, [memoryQuery, openErrorWindow]);
 
+  const reviewMindCandidate = useCallback(
+    async (candidateId: string, action: "approve" | "reject") => {
+      try {
+        if (action === "approve") {
+          await approveMindMemoryCandidate(candidateId);
+        } else {
+          await rejectMindMemoryCandidate(candidateId);
+        }
+        await refreshSnapshot();
+      } catch (error) {
+        openErrorWindow(compactError(error));
+      }
+    },
+    [openErrorWindow, refreshSnapshot]
+  );
+
   const visibleWindows = windows.filter((item) => item.visible && !item.minimized);
   const minimizedWindows = windows.filter((item) => item.minimized);
   const hiddenWindows = windows.filter((item) => !item.visible);
@@ -660,6 +694,7 @@ export default function App() {
               memoryQuery={memoryQuery}
               setMemoryQuery={setMemoryQuery}
               searchMemory={searchMemory}
+              reviewMindCandidate={reviewMindCandidate}
               openWindow={openWindow}
               openErrorWindow={openErrorWindow}
               closeWindow={closeWindow}
@@ -959,6 +994,7 @@ function WindowContent(props: {
   memoryQuery: string;
   setMemoryQuery: (value: string) => void;
   searchMemory: () => Promise<void>;
+  reviewMindCandidate: (candidateId: string, action: "approve" | "reject") => Promise<void>;
   openWindow: (type: WindowType, options?: { contextName?: string; payload?: WindowPayload; focusExistingId?: string }) => void;
   openErrorWindow: (error: GlitchErrorItem) => void;
   closeWindow: (id: string) => void;
@@ -978,6 +1014,13 @@ function WindowContent(props: {
       return <ProviderWindow snapshot={props.snapshot} openWindow={props.openWindow} />;
     case "cost":
       return <CostWindow snapshot={props.snapshot} />;
+    case "mind":
+      return (
+        <MindWindow
+          snapshot={props.snapshot}
+          reviewMindCandidate={props.reviewMindCandidate}
+        />
+      );
     case "error":
       return (
         <ErrorWindow
@@ -1367,6 +1410,142 @@ function CostWindow(props: { snapshot: GlitchSnapshot | null }) {
         )}
       </div>
     </div>
+  );
+}
+
+function MindWindow(props: {
+  snapshot: GlitchSnapshot | null;
+  reviewMindCandidate: (candidateId: string, action: "approve" | "reject") => Promise<void>;
+}) {
+  const mind = props.snapshot?.mind;
+  const latest = mind?.latest;
+  if (!mind || !latest) {
+    return <p className="empty-state">No RIN Mind snapshot captured yet.</p>;
+  }
+  const understanding = latest.messageUnderstanding;
+  const ownerState = latest.ownerState;
+  const contextPlan = latest.contextPlan;
+  const retrieval = latest.memoryRetrieval;
+  const responsePlan = latest.responsePlan;
+  const candidates = mind.memoryCandidates.length ? mind.memoryCandidates : latest.memoryCandidates;
+  return (
+    <div className="mind-module">
+      <div className="module-strip">RIN MIND · SAFE SNAPSHOT</div>
+      <div className="mind-grid">
+        <Metric label="mode" value={understanding.mode} />
+        <Metric label="support" value={ownerState.supportNeed} />
+        <Metric label="urgency" value={understanding.urgency} />
+        <Metric label="risk" value={understanding.privacyRisk} />
+        <Metric label="memory" value={retrieval.selected.length} />
+        <Metric label="candidates" value={mind.candidateCount} />
+      </div>
+      <details open>
+        <summary>Overview</summary>
+        <p className="readable-note">{understanding.intentSummary}</p>
+        <div className="tag-row">
+          {understanding.topicTags.map((tag) => <span key={tag}>{tag}</span>)}
+        </div>
+      </details>
+      <details>
+        <summary>Owner State</summary>
+        <dl className="detail-list compact">
+          <div><dt>energy</dt><dd>{ownerState.energyLevel}</dd></div>
+          <div><dt>mood</dt><dd>{ownerState.moodValence}</dd></div>
+          <div><dt>focus</dt><dd>{ownerState.focusState}</dd></div>
+          <div><dt>motivation</dt><dd>{ownerState.motivationState}</dd></div>
+          <div><dt>interrupt</dt><dd>{ownerState.interruptionRisk}</dd></div>
+          <div><dt>expires</dt><dd>{shortLabel(ownerState.expiresAt)}</dd></div>
+        </dl>
+      </details>
+      <details>
+        <summary>Context Plan</summary>
+        <div className="mind-plan-grid">
+          <Metric label="budget" value={contextPlan.budget} />
+          <Metric label="est tokens" value={contextPlan.estimatedTokens} />
+          <Metric label="recent" value={contextPlan.selectedRecentMessageIds.length} />
+          <Metric label="memory" value={contextPlan.selectedMemoryTraceIds.length} />
+        </div>
+        <pre className="safe-json">{safeDisplayJson({
+          selectedRecentMessageIds: contextPlan.selectedRecentMessageIds,
+          selectedMemoryTraceIds: contextPlan.selectedMemoryTraceIds,
+          selectedProfileSections: contextPlan.selectedProfileSections,
+          excludedItems: contextPlan.excludedItems.slice(0, 8),
+          privacyFlags: contextPlan.privacyFlags,
+          exportAllowed: contextPlan.exportAllowed
+        })}</pre>
+      </details>
+      <details>
+        <summary>Memory Retrieval</summary>
+        <div className="mind-list">
+          {retrieval.selected.length ? retrieval.selected.map((item) => (
+            <article key={item.traceId} className="mind-row">
+              <strong>{shortLabel(item.traceId)}</strong>
+              <span>score {item.score}</span>
+              <small>{item.reasons.join(", ") || "selected"}</small>
+            </article>
+          )) : <p className="empty-state">No relevant memory selected.</p>}
+        </div>
+      </details>
+      <details open>
+        <summary>Memory Candidates</summary>
+        <div className="mind-list">
+          {candidates.length ? candidates.map((candidate) => (
+            <MemoryCandidateRow
+              key={candidate.id}
+              candidate={candidate}
+              reviewMindCandidate={props.reviewMindCandidate}
+            />
+          )) : <p className="empty-state">No memory candidates from latest turn.</p>}
+        </div>
+      </details>
+      <details>
+        <summary>Response Plan</summary>
+        <pre className="safe-json">{safeDisplayJson(responsePlan)}</pre>
+      </details>
+    </div>
+  );
+}
+
+function MemoryCandidateRow(props: {
+  candidate: MindMemoryCandidate;
+  reviewMindCandidate: (candidateId: string, action: "approve" | "reject") => Promise<void>;
+}) {
+  const candidate = props.candidate;
+  const actionable = ["candidate", "review_required"].includes(candidate.reviewStatus)
+    && candidate.riskLevel !== "blocked";
+  return (
+    <article className={`mind-candidate ${candidate.riskLevel}`}>
+      <header>
+        <strong>{candidate.type}</strong>
+        <span>{candidate.reviewStatus}</span>
+      </header>
+      <p>{candidate.summary}</p>
+      <dl className="detail-list compact">
+        <div><dt>risk</dt><dd>{candidate.riskLevel}</dd></div>
+        <div><dt>confidence</dt><dd>{candidate.confidence}</dd></div>
+        <div><dt>salience</dt><dd>{candidate.salience}</dd></div>
+        <div><dt>auto</dt><dd>{candidate.autoPromote ? "yes" : "no"}</dd></div>
+      </dl>
+      <div className="tag-row">
+        {candidate.tags.map((tag) => <span key={tag}>{tag}</span>)}
+      </div>
+      {actionable ? (
+        <div className="mind-actions">
+          <button
+            type="button"
+            onClick={() => void props.reviewMindCandidate(candidate.id, "approve")}
+          >
+            APPROVE
+          </button>
+          <button
+            type="button"
+            onClick={() => void props.reviewMindCandidate(candidate.id, "reject")}
+          >
+            REJECT
+          </button>
+        </div>
+      ) : null}
+    </article>
   );
 }
 
