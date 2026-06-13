@@ -887,7 +887,7 @@ def test_default_launcher_is_api_provider_and_browser_open() -> None:
     assert "RIN_API_CHAT_BASE_URL" in launcher_text
     assert "RIN_OLLAMA" not in launcher_text
     assert "rin-ollama-local" not in launcher_text
-    assert 'LOCAL_URL="http://127.0.0.1:8765"' in launcher_text
+    assert 'LOCAL_URL="http://${LOCAL_HOST}:${LOCAL_PORT}"' in launcher_text
     assert "RIN_STARTUP_UI_PATH" in launcher_text
     assert 'open "$UI_URL"' in launcher_text
     assert 'MAX_WAIT="${RIN_STARTUP_TIMEOUT_SEC:-60}"' in launcher_text
