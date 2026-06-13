@@ -35,7 +35,7 @@ class FailingAdapter:
 class ExternalUsageAdapter:
     id = "rin-api-chat-openai-compatible"
     provider = "openai-compatible"
-    model = "qwen-long"
+    model = "deepseek-v4-flash"
     baseUrl = "https://api.example.test/v1"
     timeoutMs = 180000
 
@@ -584,7 +584,7 @@ def test_python_ui_renders_api_provider_status() -> None:
         assert response.status_code == 200
         assert "rin-mock-test" in response.text
         assert "API model" in response.text
-        assert "qwen-long" in response.text
+        assert "deepseek-v4-flash" in response.text
         assert "not active" in response.text
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
@@ -882,7 +882,7 @@ def test_default_launcher_is_api_provider_and_browser_open() -> None:
     assert not (root / "打开RIN项目.command").exists()
     assert sorted(path.name for path in root.glob("*.command")) == ["Start_RIN.command"]
     assert 'CHAT_PROVIDER="${RIN_CHAT_PROVIDER:-openai-compatible}"' in launcher_text
-    assert 'API_CHAT_MODEL="${RIN_API_CHAT_MODEL:-qwen-long}"' in launcher_text
+    assert 'API_CHAT_MODEL="${RIN_API_CHAT_MODEL:-deepseek-v4-flash}"' in launcher_text
     assert "RIN_API_CHAT_KEY" in launcher_text
     assert "RIN_API_CHAT_BASE_URL" in launcher_text
     assert "RIN_OLLAMA" not in launcher_text
