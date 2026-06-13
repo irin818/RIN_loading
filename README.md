@@ -126,6 +126,8 @@ Governance requires external-API-only chat. RIN does not use a local model for c
 
 Chat dialogue uses the backend OpenAI-compatible API adapter when configured. Set `RIN_API_CHAT_BASE_URL`, `RIN_API_CHAT_KEY`, and optionally `RIN_API_CHAT_MODEL` before expecting live replies. If the API key or base URL is missing, chat fails safely with `API_PROVIDER_UNCONFIGURED`; the server and Cost / Token UI remain available.
 
+DeepSeek models can opt out of thinking mode (non-thinking by default). Set `RIN_API_CHAT_THINKING=disabled` to add `{"thinking": {"type": "disabled"}}` to every request body. Set `RIN_API_CHAT_THINKING=enabled` for `{"thinking": {"type": "enabled"}}`. When unset, no `thinking` field is sent.
+
 ---
 
 ## 6. Development Setup

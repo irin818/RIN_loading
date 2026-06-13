@@ -62,7 +62,7 @@ class OpenAICompatibleChatAdapter:
             )
 
         endpoint = chat_completions_endpoint(self.config.baseUrl or "")
-        body = {
+        body: dict[str, Any] = {
             "model": self.config.model,
             "messages": [
                 to_openai_chat_message(message) for message in request.messages
@@ -72,6 +72,8 @@ class OpenAICompatibleChatAdapter:
             "max_tokens": self.config.maxTokens,
             "top_p": self.config.topP,
         }
+        if self.config.thinkingMode is not None:
+            body["thinking"] = {"type": self.config.thinkingMode}
         headers = {
             "Authorization": f"Bearer {self.config.apiKey}",
             "Content-Type": "application/json",

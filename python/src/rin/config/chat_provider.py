@@ -31,7 +31,10 @@ CHAT_PROVIDER_ENV_VARS = (
     "RIN_API_CHAT_TEMPERATURE",
     "RIN_API_CHAT_MAX_TOKENS",
     "RIN_API_CHAT_TOP_P",
+    "RIN_API_CHAT_THINKING",
 )
+
+THINKING_MODE_VALUES = ("disabled", "enabled")
 
 COST_ENV_VARS = (
     "RIN_COST_INPUT_PER_1K_TOKENS_CNY",
@@ -52,6 +55,7 @@ class ChatProviderConfig:
     temperature: float
     maxTokens: int
     topP: float
+    thinkingMode: str | None = None
 
     @property
     def id(self) -> str:
@@ -106,6 +110,7 @@ class ChatProviderConfig:
             "apiKeyPresent": self.apiKeyPresent,
             "apiKeyIncluded": False,
             "secretValuesIncluded": False,
+            "thinkingMode": self.thinkingMode or "unset",
         }
 
 
@@ -153,6 +158,7 @@ def load_chat_provider_config(
             DEFAULT_API_CHAT_MAX_TOKENS,
         ),
         topP=read_float_env(source, "RIN_API_CHAT_TOP_P", DEFAULT_API_CHAT_TOP_P),
+        thinkingMode=read_thinking_mode_env(source),
     )
 
 
@@ -215,3 +221,28 @@ def read_float_env(source: Mapping[str, str], name: str, default: float) -> floa
     except ValueError:
         return default
     return value if value >= 0 else default
+
+
+def read_thinking_mode_env(
+    source: Mapping[str, str],
+) -> str | None:
+    """Read RIN_API_CHAT_THINKING and return a validated value.
+
+    Returns:
+        "disabled", "enabled", or None (unset / empty).
+
+    Raises:
+        ValueError: if the value is set but not one of the allowed choices.
+    """
+    raw = source.get("RIN_API_CHAT_THINKING")
+    if raw is None:
+        return None
+    value = raw.strip()
+    if not value:
+        return None
+    if value not in THINKING_MODE_VALUES:
+        raise ValueError(
+            f"Invalid RIN_API_CHAT_THINKING value '{value}'. "
+            f"Allowed: {', '.join(THINKING_MODE_VALUES)}."
+        )
+    return value

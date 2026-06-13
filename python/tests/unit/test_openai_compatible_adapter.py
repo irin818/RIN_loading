@@ -4,7 +4,7 @@ from typing import Any
 import httpx
 import pytest
 
-from rin.config.chat_provider import ChatProviderConfig
+from rin.config.chat_provider import ChatProviderConfig, load_chat_provider_config
 from rin.contracts import ModelMessage, ModelRequest
 from rin.model import sanitize_assistant_content
 from rin.model.errors import ModelError
@@ -15,6 +15,7 @@ def config(
     *,
     base_url: str | None = "https://api.example.test/v1",
     api_key: str | None = "test-key",
+    thinking_mode: str | None = None,
 ) -> ChatProviderConfig:
     return ChatProviderConfig(
         provider="openai-compatible",
@@ -25,6 +26,7 @@ def config(
         temperature=0.5,
         maxTokens=1024,
         topP=0.9,
+        thinkingMode=thinking_mode,
     )
 
 
@@ -84,6 +86,7 @@ async def test_openai_compatible_request_shape_and_usage_metadata() -> None:
         "max_tokens": 1024,
         "top_p": 0.9,
     }
+    assert "thinking" not in captured["body"]
     assert response.content == "API response"
     assert response.adapterId == "rin-api-chat-openai-compatible"
     assert response.metadata.externalProvider is True
@@ -193,3 +196,53 @@ def test_sanitizer_rejects_unclosed_think_even_with_final_marker() -> None:
 
     assert removed is False
     assert content == ""
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "thinking_mode,expected_thinking",
+    [
+        ("disabled", {"type": "disabled"}),
+        ("enabled", {"type": "enabled"}),
+    ],
+)
+async def test_thinking_mode_adds_field_to_request_body(
+    thinking_mode: str, expected_thinking: dict[str, str]
+) -> None:
+    captured_body: dict[str, Any] = {}
+
+    def handler(http_request: httpx.Request) -> httpx.Response:
+        captured_body.update(json.loads(http_request.content.decode("utf-8")))
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"role": "assistant", "content": "API response"}}
+                ],
+                "usage": {
+                    "prompt_tokens": 5,
+                    "completion_tokens": 3,
+                    "total_tokens": 8,
+                },
+            },
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = OpenAICompatibleChatAdapter(
+            config=config(thinking_mode=thinking_mode), client=client
+        )
+        await adapter.generate(request())
+
+    assert captured_body["thinking"] == expected_thinking
+
+
+@pytest.mark.asyncio
+async def test_unsafe_thinking_mode_returns_clear_config_error() -> None:
+    with pytest.raises(ValueError) as captured:
+        load_chat_provider_config({"RIN_API_CHAT_THINKING": "unsafe"})
+
+    message = str(captured.value)
+    assert "Invalid RIN_API_CHAT_THINKING value" in message
+    assert "unsafe" in message
+    assert "disabled" in message
+    assert "enabled" in message
