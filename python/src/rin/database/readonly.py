@@ -837,10 +837,10 @@ def map_mind_snapshot(row: sqlite3.Row) -> RinMindSnapshot:
         json.loads(str(row["policy_json"]))
         if "policy_json" in keys and row["policy_json"]
         else {
-            "contextMaxCharacters": 6000,
-            "recentHistorySelectedLimit": 6,
+            "contextMaxCharacters": 8000,
+            "recentHistorySelectedLimit": 8,
             "recentHistoryCandidateLimit": 20,
-            "memoryRetrievalCandidateLimit": 50,
+            "memoryRetrievalCandidateLimit": 100,
             "memoryMaxSelected": 5,
             "autopromoteConfidence": 0.8,
             "ownerStateTtlHours": 6,

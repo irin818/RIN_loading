@@ -466,7 +466,8 @@ async def run_conversation_turn(
             "conversationId": conversation_id,
             "availablePriorMessages": len(available_prior_messages),
             "selectionPolicy": (
-                "mind context plan: adjacency + token/tag relevance, max 6"
+                "mind context plan: adjacency + token/tag relevance, "
+                f"max {mind_policy.recentHistorySelectedLimit}"
             ),
             "timeWindow": "n/a",
         },

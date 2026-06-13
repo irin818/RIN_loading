@@ -11,6 +11,7 @@ from rin.contracts import (
     ModelResponseMetadata,
 )
 from rin.conversation import RuntimeClock, run_conversation_turn
+from rin.conversation.runtime import build_memory_context_segments
 from rin.database import (
     create_memory_trace,
     create_temp_layout_database,
@@ -21,6 +22,7 @@ from rin.database import (
 )
 from rin.diagnostics.runtime_trace import RUNTIME_TRACE_STORE
 from rin.diagnostics.safety import create_temp_data_dir
+from rin.mind import generate_memory_candidates, understand_owner_message
 from rin.model import ModelError
 from rin.storage import RinDataLayout
 
@@ -164,6 +166,31 @@ class ExternalUsageAdapter:
 def create_layout() -> RinDataLayout:
     temp = create_temp_data_dir()
     return create_temp_layout_database(temp.path)
+
+
+def test_approved_candidate_context_uses_safe_semantic_fields_only() -> None:
+    owner_content = "I prefer concise RIN progress reports. RIN 应该保持本地优先。"
+    candidate = generate_memory_candidates(
+        owner_message_id="msg-candidate-context",
+        owner_content=owner_content,
+        understanding=understand_owner_message(owner_content),
+    )[0].model_copy(
+        update={
+            "reviewStatus": "owner_approved",
+            "ownerConfirmed": True,
+        }
+    )
+
+    segments = build_memory_context_segments([], [candidate])
+
+    assert len(segments) == 1
+    assert (
+        "safeSummary: Owner prefers concise RIN progress reports."
+        in segments[0].content
+    )
+    assert "normalizedValue: concise RIN progress reports" in segments[0].content
+    assert "I prefer" not in segments[0].content
+    assert "RIN 应该" not in segments[0].content
 
 
 def write_profiles(layout: RinDataLayout) -> None:
@@ -558,6 +585,9 @@ async def test_runtime_injects_bounded_recent_history_content() -> None:
             > 0
         )
         assert request_stage.output["currentOwnerInputLast"] is True
+        assert recent_stage.input["selectionPolicy"] == (
+            "mind context plan: adjacency + token/tag relevance, max 8"
+        )
         outline = request_stage.output["requestOutline"]
         assert isinstance(outline, list)
         assert "上一句话是香蕉" in str(outline[0]["recentHistoryPreview"])

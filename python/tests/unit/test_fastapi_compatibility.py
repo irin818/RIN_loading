@@ -538,18 +538,91 @@ def test_mind_api_exposes_safe_snapshot_and_review_actions() -> None:
         assert "RIN 应该保持本地优先边界" not in candidates.text
 
         approved = client.post(f"/api/mind/memory-candidates/{candidate['id']}/approve")
+        deactivated = client.post(
+            f"/api/mind/memory-candidates/{candidate['id']}/deactivate"
+        )
+        reactivated = client.post(
+            f"/api/mind/memory-candidates/{candidate['id']}/reactivate"
+        )
         rejected = client.post(f"/api/mind/memory-candidates/{candidate['id']}/reject")
         missing_action = client.post("/api/mind/memory-candidates/missing/reject")
 
         assert approved.status_code == 200
         assert approved.json()["readOnly"] is False
         assert approved.json()["candidate"]["reviewStatus"] == "owner_approved"
+        assert approved.json()["candidate"]["active"] is True
         assert approved.json()["candidate"]["ownerConfirmed"] is True
+        assert deactivated.status_code == 200
+        assert deactivated.json()["candidate"]["reviewStatus"] == "inactive"
+        assert deactivated.json()["candidate"]["active"] is False
+        assert deactivated.json()["candidate"]["ownerConfirmed"] is False
+        assert reactivated.status_code == 200
+        assert reactivated.json()["candidate"]["reviewStatus"] == "candidate"
+        assert reactivated.json()["candidate"]["active"] is True
+        assert reactivated.json()["candidate"]["ownerConfirmed"] is False
         assert rejected.status_code == 200
         assert rejected.json()["candidate"]["reviewStatus"] == "rejected"
         assert rejected.json()["candidate"]["active"] is False
         assert rejected.json()["secretValuesIncluded"] is False
         assert missing_action.status_code == 404
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_mind_api_and_snapshot_redact_secret_like_owner_input() -> None:
+    client, layout = create_client()
+    try:
+        secret_text = "记住我的 api key sk-testsecret123456789"
+        response = client.post("/api/chat-test/send", json={"content": secret_text})
+        turn_id = response.json()["turnId"]
+
+        latest = client.get("/api/mind/latest")
+        by_turn = client.get(f"/api/mind/turn/{turn_id}")
+        candidates = client.get("/api/mind/memory-candidates")
+        glitch = client.get("/api/glitch-core/snapshot")
+
+        assert response.status_code == 200
+        assert latest.status_code == 200
+        assert by_turn.status_code == 200
+        assert candidates.status_code == 200
+        assert glitch.status_code == 200
+
+        surfaces = {
+            "latest": latest.text,
+            "turn": by_turn.text,
+            "candidates": candidates.text,
+            "glitch_mind": str(glitch.json()["mind"]),
+        }
+        for payload_text in surfaces.values():
+            assert secret_text not in payload_text
+            assert "sk-testsecret" not in payload_text
+            assert "rawPromptIncluded': True" not in payload_text
+            assert "hiddenReasoningIncluded': True" not in payload_text
+
+        latest_payload = latest.json()
+        candidate_payload = candidates.json()["candidates"][0]
+
+        assert latest_payload["rawTextIncluded"] is False
+        assert latest_payload["rawPromptIncluded"] is False
+        assert latest_payload["hiddenReasoningIncluded"] is False
+        assert latest_payload["secretValuesIncluded"] is False
+        assert latest_payload["latest"]["secretValuesIncluded"] is False
+        assert latest_payload["latest"]["memoryCandidates"][0]["redacted"] is True
+        assert (
+            latest_payload["latest"]["memoryCandidates"][0]["rawTextIncluded"] is False
+        )
+        assert candidate_payload["reviewStatus"] == "rejected"
+        assert candidate_payload["riskLevel"] == "blocked"
+        assert candidate_payload["active"] is False
+        assert candidate_payload["redacted"] is True
+        assert candidate_payload["safeSummary"] == (
+            "Blocked secret-like content was detected and redacted."
+        )
+        assert candidate_payload["normalizedValue"] is None
+        assert glitch.json()["mind"]["rawTextIncluded"] is False
+        assert glitch.json()["mind"]["rawPromptIncluded"] is False
+        assert glitch.json()["mind"]["hiddenReasoningIncluded"] is False
+        assert glitch.json()["mind"]["secretValuesIncluded"] is False
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
@@ -780,6 +853,9 @@ def test_diagnostics_endpoints_are_safe_and_read_only() -> None:
         assert model["providerCallsMade"] == 0
         assert memory["fullTextIncluded"] is False
         assert memory["algorithm"]["fullTextIncluded"] is False
+        assert memory["algorithm"]["shortTermWindowPolicy"] == (
+            "mind-selected prior messages in active conversation, max 8"
+        )
         assert memory["state"]["retrievalWiredIntoPrompt"] is True
         assert memory["health"]["retrievalStatus"] == "active"
         assert memory["algorithm"]["memoryV2WritePolicy"]

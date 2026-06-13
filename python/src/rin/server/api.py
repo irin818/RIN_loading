@@ -1901,13 +1901,17 @@ def build_memory_diagnostics_payload(layout: RinDataLayout) -> dict[str, object]
         if context_stage is not None
         else False
     )
+    mind_policy = load_mind_policy()
     return {
         "mode": "diagnostics-memory",
         "readOnly": True,
         "localOnly": True,
         "fullTextIncluded": False,
         "algorithm": {
-            "shortTermWindowPolicy": "last six prior messages in active conversation",
+            "shortTermWindowPolicy": (
+                "mind-selected prior messages in active conversation, "
+                f"max {mind_policy.recentHistorySelectedLimit}"
+            ),
             "memoryV2WritePolicy": (
                 "successful turns write safe long-term candidate trace summaries"
             ),
