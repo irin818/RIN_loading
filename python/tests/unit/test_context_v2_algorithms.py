@@ -42,19 +42,19 @@ def test_orders_core_segments_like_typescript_fixture() -> None:
         "system",
         "rin_profile",
         "owner_profile",
-        "current_owner_message",
         "short_term_window",
         "memory_v2_trace",
         "older_reference",
+        "current_owner_message",
     ]
     assert included_ids(report) == [
         "system",
         "rin-profile",
         "owner-profile",
-        "owner-latest",
         "short-1",
         "trace-1",
         "older-1",
+        "owner-latest",
     ]
     assert report.providerCallCount == 0
     assert report.fullTextIncluded is False
@@ -80,7 +80,10 @@ def test_preserves_owner_under_budget_pressure() -> None:
     assert included_ids(report) == ["system", "owner-latest"]
     assert skipped_ids(report) == ["trace-large"]
     assert report.latestOwnerMessagePreserved is True
-    assert report.segments[-1].skipReason == "budget_exceeded"
+    assert (
+        next(item for item in report.segments if item.id == "trace-large").skipReason
+        == "budget_exceeded"
+    )
 
 
 def test_deduplicates_shared_sources() -> None:
@@ -99,10 +102,13 @@ def test_deduplicates_shared_sources() -> None:
         ]
     )
 
-    assert report.order == ["system", "current_owner_message", "short_term_window"]
-    assert included_ids(report) == ["system", "owner-latest", "short-dup"]
+    assert report.order == ["system", "short_term_window", "current_owner_message"]
+    assert included_ids(report) == ["system", "short-dup", "owner-latest"]
     assert skipped_ids(report) == ["trace-dup"]
-    assert report.segments[-1].skipReason == "duplicate_source"
+    assert (
+        next(item for item in report.segments if item.id == "trace-dup").skipReason
+        == "duplicate_source"
+    )
 
 
 def test_report_is_deterministic() -> None:

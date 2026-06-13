@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict
 
 from rin.contracts import ContextV2Report, ContextV2ReportSegment, ContextV2SegmentType
 
-DEFAULT_CONTEXT_V2_MAX_CHARACTERS = 2400
+DEFAULT_CONTEXT_V2_MAX_CHARACTERS = 6000
 
 
 class ContextV2InputSegment(BaseModel):
@@ -89,8 +89,8 @@ def build_context_v2_report(
     return ContextV2Report(
         mode="context-v2-report",
         status="ready",
-        shadowOnly=True,
-        productionContextChanged=False,
+        shadowOnly=False,
+        productionContextChanged=True,
         providerCallCount=0,
         fullTextIncluded=False,
         maxCharacters=max_chars,
@@ -121,10 +121,13 @@ def priority_for(segment_type: ContextV2SegmentType) -> int:
         "system": 0,
         "rin_profile": 1,
         "owner_profile": 2,
-        "current_owner_message": 3,
-        "short_term_window": 4,
-        "memory_v2_trace": 5,
-        "older_reference": 6,
+        "owner_state": 3,
+        "response_plan": 4,
+        "conversation_summary": 5,
+        "short_term_window": 6,
+        "memory_v2_trace": 7,
+        "older_reference": 8,
+        "current_owner_message": 9,
     }
     return priorities[segment_type]
 

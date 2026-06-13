@@ -129,6 +129,7 @@ button {
 .windows-menu button,
 .composer-actions button,
 .memory-toolbar button,
+.mind-actions button,
 .danger-action,
 .error-actions button {
   border: 1px solid rgba(0, 255, 100, 0.7);
@@ -893,6 +894,7 @@ button {
 .trace-module,
 .provider-module,
 .cost-module,
+.mind-module,
 .error-module,
 .stub-module {
   min-height: 100%;
@@ -901,7 +903,9 @@ button {
 .core-status-grid,
 .trace-summary-grid,
 .provider-grid,
-.cost-grid {
+.cost-grid,
+.mind-grid,
+.mind-plan-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 8px;
@@ -933,11 +937,36 @@ button {
 .health-matrix,
 .tag-row,
 .error-actions,
+.mind-actions,
+.mind-filter-row,
 .composer-actions,
 .memory-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.mind-filter-row {
+  align-items: center;
+  padding: 0 10px 10px;
+}
+
+.mind-filter-row label {
+  display: grid;
+  gap: 4px;
+  color: var(--rin-muted);
+  font-family: var(--font-hud);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.mind-filter-row select {
+  min-width: 120px;
+  border: 1px solid rgba(var(--window-rgb, 0, 255, 100), 0.36);
+  background: rgba(0, 0, 0, 0.42);
+  color: var(--rin-text);
+  font: inherit;
+  padding: 6px 8px;
 }
 
 .health-pill,
@@ -1136,13 +1165,15 @@ dd {
   line-height: 1.45;
 }
 
-.trace-module details {
+.trace-module details,
+.mind-module details {
   margin-bottom: 10px;
   border: 1px solid rgba(var(--window-rgb, 0, 255, 100), 0.24);
   background: rgba(0, 0, 0, 0.2);
 }
 
-.trace-module summary {
+.trace-module summary,
+.mind-module summary {
   cursor: pointer;
   padding: 8px 10px;
   color: var(--window-accent, var(--rin-green));
@@ -1266,6 +1297,70 @@ dd {
   display: block;
   height: 100%;
   background: linear-gradient(90deg, var(--rin-amber), var(--rin-cyan));
+}
+
+.mind-module {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.mind-list {
+  display: grid;
+  gap: 8px;
+  padding: 0 10px 10px;
+}
+
+.mind-row,
+.mind-candidate {
+  display: grid;
+  gap: 7px;
+  padding: 9px;
+  border: 1px solid rgba(166, 121, 255, 0.28);
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.mind-row strong,
+.mind-candidate strong {
+  color: var(--rin-violet);
+  overflow-wrap: anywhere;
+}
+
+.mind-row span,
+.mind-candidate header span {
+  color: var(--rin-cyan);
+  font-family: var(--font-hud);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.mind-row small,
+.mind-candidate p {
+  color: #cfe8d5;
+  line-height: 1.4;
+}
+
+.mind-candidate header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mind-candidate.high {
+  border-color: rgba(255, 194, 71, 0.42);
+}
+
+.mind-candidate.blocked {
+  border-color: rgba(255, 51, 92, 0.48);
+}
+
+.detail-list.compact div {
+  grid-template-columns: 86px minmax(0, 1fr);
+}
+
+.mind-actions button {
+  border-color: rgba(166, 121, 255, 0.62);
+  color: var(--rin-violet);
 }
 
 .error-module {

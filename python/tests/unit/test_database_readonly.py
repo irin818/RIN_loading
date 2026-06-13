@@ -10,16 +10,22 @@ import pytest
 from rin.database import (
     database_path_for,
     get_conversation,
+    get_latest_mind_snapshot,
+    initialize_temp_database,
     inspect_database,
     list_audit_summaries,
     list_conversations,
     list_legacy_memories,
     list_memory_v2_traces,
     list_messages,
+    list_mind_memory_candidates,
     open_readonly_database,
 )
 from rin.diagnostics.safety import create_temp_data_dir
+from rin.mind import build_rin_mind_snapshot
 from rin.storage import RinDataLayout, create_data_layout
+
+NOW = "2026-06-05T00:00:00.000Z"
 
 
 def create_database_fixture() -> RinDataLayout:
@@ -31,6 +37,128 @@ def create_database_fixture() -> RinDataLayout:
     try:
         create_schema(connection)
         seed_rows(connection)
+        connection.commit()
+    finally:
+        connection.close()
+    return layout
+
+
+def create_legacy_mind_database_fixture() -> RinDataLayout:
+    layout = create_database_fixture()
+    snapshot = build_rin_mind_snapshot(
+        owner_message_id="msg-mind-owner",
+        owner_content="I prefer concise RIN progress reports.",
+        created_at=NOW,
+        prior_messages=[],
+        memory_traces=[],
+        profile_sections=[],
+        budget=8000,
+        turn_id="turn-mind",
+        conversation_id="conv-1",
+    )
+    candidate = snapshot.memoryCandidates[0]
+    connection = sqlite3.connect(database_path_for(layout))
+    try:
+        connection.executescript(
+            """
+            CREATE TABLE mind_turn_snapshots (
+              id TEXT PRIMARY KEY,
+              turn_id TEXT NOT NULL,
+              conversation_id TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              message_understanding_json TEXT NOT NULL,
+              owner_state_json TEXT NOT NULL,
+              context_plan_json TEXT NOT NULL,
+              memory_retrieval_json TEXT NOT NULL,
+              memory_candidates_json TEXT NOT NULL,
+              response_plan_json TEXT NOT NULL,
+              safe_for_ui INTEGER NOT NULL
+            );
+            CREATE TABLE memory_candidates (
+              id TEXT PRIMARY KEY,
+              source_message_id TEXT NOT NULL,
+              conversation_id TEXT NOT NULL,
+              type TEXT NOT NULL,
+              summary TEXT NOT NULL,
+              confidence REAL NOT NULL,
+              salience REAL NOT NULL,
+              stability TEXT NOT NULL,
+              decay_policy TEXT NOT NULL,
+              risk_level TEXT NOT NULL,
+              review_status TEXT NOT NULL,
+              active INTEGER NOT NULL,
+              tags_json TEXT NOT NULL,
+              evidence_hashes_json TEXT NOT NULL,
+              contradiction_of TEXT,
+              supersedes TEXT,
+              owner_confirmed INTEGER NOT NULL,
+              auto_promote INTEGER NOT NULL,
+              reasons_json TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO mind_turn_snapshots (
+              id, turn_id, conversation_id, created_at,
+              message_understanding_json, owner_state_json, context_plan_json,
+              memory_retrieval_json, memory_candidates_json, response_plan_json,
+              safe_for_ui
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            """,
+            (
+                "legacy-mind-snapshot-1",
+                "turn-mind",
+                "conv-1",
+                NOW,
+                snapshot.messageUnderstanding.model_dump_json(),
+                snapshot.ownerState.model_dump_json(),
+                snapshot.contextPlan.model_dump_json(),
+                snapshot.memoryRetrieval.model_dump_json(),
+                json.dumps(
+                    [item.model_dump(mode="json") for item in snapshot.memoryCandidates]
+                ),
+                snapshot.responsePlan.model_dump_json(),
+            ),
+        )
+        connection.execute(
+            """
+            INSERT INTO memory_candidates (
+              id, source_message_id, conversation_id, type, summary,
+              confidence, salience, stability, decay_policy, risk_level,
+              review_status, active, tags_json, evidence_hashes_json,
+              contradiction_of, supersedes, owner_confirmed, auto_promote,
+              reasons_json, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                candidate.id,
+                candidate.sourceMessageIds[0],
+                "conv-1",
+                candidate.type,
+                candidate.safeSummary,
+                candidate.confidence,
+                candidate.salience,
+                candidate.stability,
+                candidate.decayPolicy,
+                candidate.riskLevel,
+                candidate.reviewStatus,
+                int(candidate.active),
+                json.dumps(candidate.tags),
+                json.dumps(candidate.evidenceHashes),
+                candidate.contradictionOf,
+                candidate.supersedes,
+                int(candidate.ownerConfirmed),
+                int(candidate.autoPromote),
+                json.dumps(candidate.reasons),
+                NOW,
+                NOW,
+            ),
+        )
         connection.commit()
     finally:
         connection.close()
@@ -337,5 +465,45 @@ def test_readonly_connection_rejects_writes() -> None:
                 "INSERT INTO conversations VALUES (?, ?, ?, ?)",
                 ("blocked", "blocked", "now", "now"),
             )
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_legacy_mind_tables_without_new_columns_read_and_initialize_safely() -> None:
+    layout = create_legacy_mind_database_fixture()
+    try:
+        snapshot = get_latest_mind_snapshot(layout)
+        candidates = list_mind_memory_candidates(layout)
+
+        assert snapshot is not None
+        assert snapshot.conversationSummary is None
+        assert snapshot.growthEvents == []
+        assert snapshot.toolInvocationRequests == []
+        assert snapshot.lifecycle.stored is True
+        assert snapshot.policy.contextMaxCharacters == 8000
+        assert snapshot.policy.recentHistorySelectedLimit == 8
+        assert (
+            candidates[0].safeSummary == "Owner prefers concise RIN progress reports."
+        )
+        assert candidates[0].normalizedValue is None
+        assert candidates[0].rawTextIncluded is False
+        assert candidates[0].sourceKind == "owner_message"
+
+        initialize_temp_database(layout)
+        status = inspect_database(layout)
+        initialized = get_latest_mind_snapshot(layout)
+        initialized_candidates = list_mind_memory_candidates(layout)
+
+        assert status.counts.mindTurnSnapshots == 1
+        assert status.counts.memoryCandidates == 1
+        assert status.counts.conversationSummaries == 0
+        assert status.counts.rinGrowthEvents == 0
+        assert status.counts.memoryEmbeddings == 0
+        assert status.counts.toolInvocationRequests == 0
+        assert initialized is not None
+        assert initialized.policy.recentHistorySelectedLimit == 8
+        assert initialized_candidates[0].safeSummary == (
+            "Owner prefers concise RIN progress reports."
+        )
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)

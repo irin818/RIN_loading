@@ -1,4 +1,9 @@
-import type { ChatSendResult, GlitchSnapshot, MemoryCard } from "./types";
+import type {
+  ChatSendResult,
+  GlitchSnapshot,
+  MemoryCard,
+  MindCandidateActionResult
+} from "./types";
 
 async function readJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -61,4 +66,44 @@ export async function sendChatMessage(
     body: JSON.stringify({ content, conversationId })
   });
   return readJson<ChatSendResult>(response);
+}
+
+export async function approveMindMemoryCandidate(
+  candidateId: string
+): Promise<MindCandidateActionResult> {
+  const response = await fetch(`/api/mind/memory-candidates/${candidateId}/approve`, {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+  return readJson<MindCandidateActionResult>(response);
+}
+
+export async function rejectMindMemoryCandidate(
+  candidateId: string
+): Promise<MindCandidateActionResult> {
+  const response = await fetch(`/api/mind/memory-candidates/${candidateId}/reject`, {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+  return readJson<MindCandidateActionResult>(response);
+}
+
+export async function deactivateMindMemoryCandidate(
+  candidateId: string
+): Promise<MindCandidateActionResult> {
+  const response = await fetch(`/api/mind/memory-candidates/${candidateId}/deactivate`, {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+  return readJson<MindCandidateActionResult>(response);
+}
+
+export async function reactivateMindMemoryCandidate(
+  candidateId: string
+): Promise<MindCandidateActionResult> {
+  const response = await fetch(`/api/mind/memory-candidates/${candidateId}/reactivate`, {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+  return readJson<MindCandidateActionResult>(response);
 }

@@ -1,4 +1,5 @@
 from rin.context.v2 import (
+    DEFAULT_CONTEXT_V2_MAX_CHARACTERS,
     ContextV2InputSegment,
     build_context_v2_report,
     order_segments,
@@ -7,6 +8,7 @@ from rin.context.v2 import (
 )
 
 __all__ = [
+    "DEFAULT_CONTEXT_V2_MAX_CHARACTERS",
     "ContextV2InputSegment",
     "build_context_v2_report",
     "order_segments",

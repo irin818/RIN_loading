@@ -14,6 +14,27 @@ from rin.server import create_app
 from rin.server.api import MockApiAdapter
 from rin.storage import RinDataLayout, create_data_layout
 
+EXPECTED_RUNTIME_TRACE_STAGE_NAMES = [
+    "input_received",
+    "owner_message_persisted",
+    "profile_loading",
+    "message_understanding",
+    "owner_state_inference",
+    "memory_candidate_generation",
+    "recent_history_selection",
+    "memory_v2_retrieval",
+    "context_planning",
+    "response_planning",
+    "context_assembly",
+    "model_request",
+    "raw_model_response",
+    "sanitization_final_answer",
+    "rin_reply_persisted",
+    "memory_update",
+    "mind_lifecycle",
+    "response_returned",
+]
+
 
 def create_client(
     adapter: ModelAdapterProtocol | None = None,
@@ -311,7 +332,7 @@ def test_glitch_core_snapshot_and_memory_api_are_safe_read_only() -> None:
     try:
         submitted = client.post(
             "/api/chat-test/send",
-            json={"content": "glitch core memory preference signal"},
+            json={"content": "I prefer glitch core memory cards."},
         )
         state_after_submit = client.get("/api/local-state").json()
         snapshot = client.get("/api/glitch-core/snapshot")
@@ -334,6 +355,14 @@ def test_glitch_core_snapshot_and_memory_api_are_safe_read_only() -> None:
         assert payload["memory"]["cards"]
         assert payload["memory"]["cards"][0]["readOnly"] is True
         assert payload["memory"]["cards"][0]["fullTextIncluded"] is False
+        assert payload["mind"]["safeForUi"] is True
+        assert payload["mind"]["rawTextIncluded"] is False
+        assert payload["mind"]["secretValuesIncluded"] is False
+        assert payload["mind"]["latest"]["messageUnderstanding"]["mode"] == (
+            "preference_expression"
+        )
+        assert payload["mind"]["candidateCount"] == 1
+        assert payload["mind"]["memoryCandidates"][0]["autoPromote"] is True
         assert payload["trace"]["latest"]["rawModelOutputIncluded"] is False
         assert payload["provider"]["safeConfig"]["apiKeyIncluded"] is False
         assert payload["provider"]["safeConfig"]["secretValuesIncluded"] is False
@@ -465,6 +494,135 @@ def test_chat_test_json_endpoint_updates_without_raw_thinking() -> None:
         assert payload["hiddenReasoningIncluded"] is False
         assert payload["externalProviderCallCount"] == 0
         assert state["externalProviderCallCount"] == 0
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_mind_api_exposes_safe_snapshot_and_review_actions() -> None:
+    client, layout = create_client()
+    try:
+        response = client.post(
+            "/api/chat-test/send",
+            json={"content": "RIN 应该保持本地优先边界。"},
+        )
+        turn_id = response.json()["turnId"]
+
+        latest = client.get("/api/mind/latest")
+        by_turn = client.get(f"/api/mind/turn/{turn_id}")
+        candidates = client.get("/api/mind/memory-candidates")
+        missing = client.get("/api/mind/turn/missing-turn")
+
+        assert response.status_code == 200
+        assert latest.status_code == 200
+        assert by_turn.status_code == 200
+        assert candidates.status_code == 200
+        assert missing.status_code == 404
+
+        latest_payload = latest.json()
+        by_turn_payload = by_turn.json()
+        candidate_payload = candidates.json()
+        candidate = candidate_payload["candidates"][0]
+
+        assert latest_payload["safeForUi"] is True
+        assert latest_payload["rawTextIncluded"] is False
+        assert latest_payload["rawPromptIncluded"] is False
+        assert latest_payload["secretValuesIncluded"] is False
+        assert latest_payload["latest"]["messageUnderstanding"]["mode"] == (
+            "rin_development"
+        )
+        assert latest_payload["latest"]["memoryCandidates"][0]["riskLevel"] == "high"
+        assert by_turn_payload["snapshot"] == latest_payload["latest"]
+        assert candidate["reviewStatus"] == "review_required"
+        assert candidate["ownerConfirmed"] is False
+        assert "RIN 应该保持本地优先边界" not in latest.text
+        assert "RIN 应该保持本地优先边界" not in candidates.text
+
+        approved = client.post(f"/api/mind/memory-candidates/{candidate['id']}/approve")
+        deactivated = client.post(
+            f"/api/mind/memory-candidates/{candidate['id']}/deactivate"
+        )
+        reactivated = client.post(
+            f"/api/mind/memory-candidates/{candidate['id']}/reactivate"
+        )
+        rejected = client.post(f"/api/mind/memory-candidates/{candidate['id']}/reject")
+        missing_action = client.post("/api/mind/memory-candidates/missing/reject")
+
+        assert approved.status_code == 200
+        assert approved.json()["readOnly"] is False
+        assert approved.json()["candidate"]["reviewStatus"] == "owner_approved"
+        assert approved.json()["candidate"]["active"] is True
+        assert approved.json()["candidate"]["ownerConfirmed"] is True
+        assert deactivated.status_code == 200
+        assert deactivated.json()["candidate"]["reviewStatus"] == "inactive"
+        assert deactivated.json()["candidate"]["active"] is False
+        assert deactivated.json()["candidate"]["ownerConfirmed"] is False
+        assert reactivated.status_code == 200
+        assert reactivated.json()["candidate"]["reviewStatus"] == "candidate"
+        assert reactivated.json()["candidate"]["active"] is True
+        assert reactivated.json()["candidate"]["ownerConfirmed"] is False
+        assert rejected.status_code == 200
+        assert rejected.json()["candidate"]["reviewStatus"] == "rejected"
+        assert rejected.json()["candidate"]["active"] is False
+        assert rejected.json()["secretValuesIncluded"] is False
+        assert missing_action.status_code == 404
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_mind_api_and_snapshot_redact_secret_like_owner_input() -> None:
+    client, layout = create_client()
+    try:
+        secret_text = "记住我的 api key sk-testsecret123456789"
+        response = client.post("/api/chat-test/send", json={"content": secret_text})
+        turn_id = response.json()["turnId"]
+
+        latest = client.get("/api/mind/latest")
+        by_turn = client.get(f"/api/mind/turn/{turn_id}")
+        candidates = client.get("/api/mind/memory-candidates")
+        glitch = client.get("/api/glitch-core/snapshot")
+
+        assert response.status_code == 200
+        assert latest.status_code == 200
+        assert by_turn.status_code == 200
+        assert candidates.status_code == 200
+        assert glitch.status_code == 200
+
+        surfaces = {
+            "latest": latest.text,
+            "turn": by_turn.text,
+            "candidates": candidates.text,
+            "glitch_mind": str(glitch.json()["mind"]),
+        }
+        for payload_text in surfaces.values():
+            assert secret_text not in payload_text
+            assert "sk-testsecret" not in payload_text
+            assert "rawPromptIncluded': True" not in payload_text
+            assert "hiddenReasoningIncluded': True" not in payload_text
+
+        latest_payload = latest.json()
+        candidate_payload = candidates.json()["candidates"][0]
+
+        assert latest_payload["rawTextIncluded"] is False
+        assert latest_payload["rawPromptIncluded"] is False
+        assert latest_payload["hiddenReasoningIncluded"] is False
+        assert latest_payload["secretValuesIncluded"] is False
+        assert latest_payload["latest"]["secretValuesIncluded"] is False
+        assert latest_payload["latest"]["memoryCandidates"][0]["redacted"] is True
+        assert (
+            latest_payload["latest"]["memoryCandidates"][0]["rawTextIncluded"] is False
+        )
+        assert candidate_payload["reviewStatus"] == "rejected"
+        assert candidate_payload["riskLevel"] == "blocked"
+        assert candidate_payload["active"] is False
+        assert candidate_payload["redacted"] is True
+        assert candidate_payload["safeSummary"] == (
+            "Blocked secret-like content was detected and redacted."
+        )
+        assert candidate_payload["normalizedValue"] is None
+        assert glitch.json()["mind"]["rawTextIncluded"] is False
+        assert glitch.json()["mind"]["rawPromptIncluded"] is False
+        assert glitch.json()["mind"]["hiddenReasoningIncluded"] is False
+        assert glitch.json()["mind"]["secretValuesIncluded"] is False
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
@@ -651,9 +809,13 @@ def test_diagnostics_endpoints_are_safe_and_read_only() -> None:
     client, layout = create_client()
     try:
         RUNTIME_TRACE_STORE.clear()
-        submitted = client.post(
+        private_submitted = client.post(
             "/ui/chat",
             json={"content": "private diagnostic endpoint check"},
+        )
+        submitted = client.post(
+            "/ui/chat",
+            json={"content": "I prefer concise diagnostic endpoint checks."},
         )
         state_after_submit = client.get("/api/local-state").json()
         endpoints = [
@@ -667,6 +829,7 @@ def test_diagnostics_endpoints_are_safe_and_read_only() -> None:
             "/api/diagnostics/events",
         ]
 
+        assert private_submitted.status_code == 200
         assert submitted.status_code == 200
         for endpoint in endpoints:
             response = client.get(endpoint)
@@ -690,6 +853,9 @@ def test_diagnostics_endpoints_are_safe_and_read_only() -> None:
         assert model["providerCallsMade"] == 0
         assert memory["fullTextIncluded"] is False
         assert memory["algorithm"]["fullTextIncluded"] is False
+        assert memory["algorithm"]["shortTermWindowPolicy"] == (
+            "mind-selected prior messages in active conversation, max 8"
+        )
         assert memory["state"]["retrievalWiredIntoPrompt"] is True
         assert memory["health"]["retrievalStatus"] == "active"
         assert memory["algorithm"]["memoryV2WritePolicy"]
@@ -722,7 +888,7 @@ def test_memory_page_renders_useful_safe_console_sections() -> None:
         assert "Memory used last request" in response.text
         assert "Last Turn Memory Update" in response.text
         assert "Gaps / Warnings" in response.text
-        assert "No Memory V2 traces available for retrieval." in response.text
+        assert "No approved memory sources available for retrieval." in response.text
         assert "memory page private text" in response.text
 
         memory = client.get("/api/diagnostics/memory")
@@ -762,21 +928,10 @@ def test_runtime_trace_api_is_safe_and_read_only() -> None:
         assert latest_payload["rawPromptIncluded"] is False
         assert latest_payload["rawModelOutputIncluded"] is False
         assert trace["status"] == "success"
-        assert trace["analysis"]["memorySkipReason"] == "no_memory_v2_traces"
-        assert [stage["name"] for stage in trace["stages"]] == [
-            "input_received",
-            "owner_message_persisted",
-            "profile_loading",
-            "recent_history_selection",
-            "memory_v2_retrieval",
-            "context_assembly",
-            "model_request",
-            "raw_model_response",
-            "sanitization_final_answer",
-            "rin_reply_persisted",
-            "memory_update",
-            "response_returned",
-        ]
+        assert trace["analysis"]["memorySkipReason"] == "no_memory_sources"
+        assert [stage["name"] for stage in trace["stages"]] == (
+            EXPECTED_RUNTIME_TRACE_STAGE_NAMES
+        )
         for stage in trace["stages"]:
             assert "input" in stage
             assert "operation" in stage
@@ -816,7 +971,7 @@ def test_runtime_trace_api_is_safe_and_read_only() -> None:
 
         assert recent["output"]["selectedPriorMessages"] == 0
         assert memory["status"] == "skipped"
-        assert memory["decision"]["skipReason"] == "no_memory_v2_traces"
+        assert memory["decision"]["skipReason"] == "no_memory_sources"
         assert context["output"]["componentTable"]
         assert request["output"]["requestOutline"]
         assert raw["output"]["providerRawMetadataAvailable"] is False
@@ -827,7 +982,10 @@ def test_runtime_trace_api_is_safe_and_read_only() -> None:
         assert request["output"]["currentOwnerInputLast"] is True
         assert reply["output"]["storedSanitizedAnswer"] is True
         assert reply["output"]["storedRawThinking"] is False
-        assert memory_update["output"]["tracesCreatedCount"] == 1
+        assert memory_update["output"]["tracesCreatedCount"] == 0
+        assert memory_update["decision"]["skipReason"] == (
+            "no_auto_promoted_memory_candidate"
+        )
         assert "private runtime trace owner message" not in latest.text
         assert "private runtime tr..." in latest.text
         assert "Python API mock reply." not in latest.text

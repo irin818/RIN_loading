@@ -6,6 +6,7 @@ export type WindowType =
   | "trace"
   | "provider"
   | "cost"
+  | "mind"
   | "error"
   | "tasks"
   | "tools"
@@ -158,6 +159,254 @@ export interface CostSummary {
   secretValuesIncluded: false;
 }
 
+export interface MindMessageUnderstanding {
+  mode: string;
+  secondaryModes: string[];
+  intentSummary: string;
+  topicTags: string[];
+  emotionalTone: string;
+  urgency: string;
+  relationshipRelevance: string;
+  memorySignalType: string;
+  privacyRisk: string;
+  confidence: number;
+  reasons: string[];
+}
+
+export interface MindOwnerState {
+  energyLevel: string;
+  moodValence: string;
+  arousalLevel: string;
+  focusState: string;
+  motivationState: string;
+  immersionInertia: string;
+  interruptionRisk: string;
+  resultUrgency: string;
+  supportNeed: string;
+  confidence: number;
+  evidenceMessageIds: string[];
+  ttlHours: number;
+  expiresAt: string;
+}
+
+export interface MindContextPlan {
+  mode: string;
+  ownerStateIncluded: boolean;
+  selectedRecentMessageIds: string[];
+  selectedMemoryTraceIds: string[];
+  selectedMemorySourceIds: string[];
+  selectedProfileSections: string[];
+  selectedSummaryIds: string[];
+  excludedItems: Array<{ id: string; kind: string; reason: string }>;
+  budget: number;
+  estimatedTokens: number;
+  privacyFlags: Record<string, boolean>;
+  exportAllowed: boolean;
+  reasons: string[];
+}
+
+export interface MindRetrievalItem {
+  sourceKind: string;
+  sourceId: string;
+  traceId: string;
+  score: number;
+  selected: boolean;
+  reasons: string[];
+  matchedTags: string[];
+  salienceScore: number;
+  confidence: number | null;
+  safeSummary: string;
+  normalizedValue: string | null;
+  riskLevel: string;
+  rawTextIncluded: false;
+}
+
+export interface MindMemoryRetrieval {
+  selected: MindRetrievalItem[];
+  excluded: MindRetrievalItem[];
+  queryTags: string[];
+  maxSelected: number;
+  selectionPolicy: string;
+  rawMemoryIncluded: false;
+}
+
+export interface MindMemoryCandidate {
+  id: string;
+  type: string;
+  summary: string;
+  safeSummary: string;
+  normalizedValue: string | null;
+  rawTextIncluded: false;
+  redacted: boolean;
+  sourceKind: string;
+  language: string;
+  sourceMessageIds: string[];
+  confidence: number;
+  salience: number;
+  stability: string;
+  decayPolicy: string;
+  riskLevel: string;
+  reviewStatus: string;
+  active: boolean;
+  tags: string[];
+  evidenceHashes: string[];
+  contradictionOf: string | null;
+  supersedes: string | null;
+  ownerConfirmed: boolean;
+  autoPromote: boolean;
+  reasons: string[];
+}
+
+export interface MindPolicyMetadata {
+  contextMaxCharacters: number;
+  recentHistorySelectedLimit: number;
+  recentHistoryCandidateLimit: number;
+  memoryRetrievalCandidateLimit: number;
+  memoryMaxSelected: number;
+  autopromoteConfidence: number;
+  ownerStateTtlHours: number;
+  enableEmbeddings: boolean;
+  embeddingProvider: string;
+  enableModelSummaries: boolean;
+  enableAgentTools: boolean;
+  allowHighRiskMemoryExport: boolean;
+  selfModelAutoApply: boolean;
+  warnings: string[];
+  dangerousDefaultsDisabled: boolean;
+  secretValuesIncluded: false;
+}
+
+export interface MindConversationSummary {
+  id: string;
+  conversationId: string;
+  topicTags: string[];
+  activeMode: string;
+  recentDecisionHints: string[];
+  preferenceHints: string[];
+  correctionHints: string[];
+  relationshipHints: string[];
+  unresolvedHints: string[];
+  lastUpdatedTurnId: string;
+  sourceMessageCount: number;
+  reviewStatus: string;
+  modelGenerated: boolean;
+  rawTextIncluded: false;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MindGrowthEvent {
+  id: string;
+  eventType: string;
+  summary: string;
+  sourceTurnId: string;
+  sourceMessageId: string;
+  candidate: Record<string, unknown>;
+  riskLevel: string;
+  reviewStatus: string;
+  createdAt: string;
+  appliedAt: string | null;
+  active: boolean;
+  rawTextIncluded: false;
+}
+
+export interface MindToolInvocationRequest {
+  id: string;
+  sourceTurnId: string;
+  intent: string;
+  toolName: string;
+  actionSummary: string;
+  riskLevel: string;
+  requiresOwnerApproval: boolean;
+  status: string;
+  createdAt: string;
+  rawInputIncluded: false;
+  secretValuesIncluded: false;
+}
+
+export interface MindLifecycle {
+  observed: boolean;
+  understood: boolean;
+  planned: boolean;
+  responded: boolean;
+  candidateGenerated: boolean;
+  stored: boolean;
+  awaitingReview: boolean;
+  stages: string[];
+  rawTextIncluded: false;
+}
+
+export interface MindResponsePlan {
+  tone: string;
+  length: string;
+  directness: string;
+  warmth: string;
+  initiativeLevel: string;
+  askFollowup: boolean;
+  referenceMemory: boolean;
+  provideStructure: boolean;
+  provideComfort: boolean;
+  challengeOwner: boolean;
+  avoidOverexplaining: boolean;
+  rinCharacterExpression: string;
+  emotionalMirroring: string;
+  nextActionStyle: string;
+  reasons: string[];
+}
+
+export interface RinMindSnapshot {
+  messageUnderstanding: MindMessageUnderstanding;
+  ownerState: MindOwnerState;
+  contextPlan: MindContextPlan;
+  memoryRetrieval: MindMemoryRetrieval;
+  memoryCandidates: MindMemoryCandidate[];
+  conversationSummary: MindConversationSummary | null;
+  growthEvents: MindGrowthEvent[];
+  toolInvocationRequests: MindToolInvocationRequest[];
+  responsePlan: MindResponsePlan;
+  lifecycle: MindLifecycle;
+  policy: MindPolicyMetadata;
+  createdAt: string;
+  safeForUi: true;
+  rawTextIncluded: false;
+  secretValuesIncluded: false;
+}
+
+export interface RinMindPayload {
+  ok: boolean;
+  mode: string;
+  readOnly: boolean;
+  localOnly: boolean;
+  latest: RinMindSnapshot | null;
+  candidateCount: number;
+  memoryCandidates: MindMemoryCandidate[];
+  policy: MindPolicyMetadata;
+  growthEvents: MindGrowthEvent[];
+  toolInvocationRequests: MindToolInvocationRequest[];
+  embeddingStatus: {
+    enabled: boolean;
+    provider: string;
+    entryCount: number;
+    rawTextIncluded: false;
+  };
+  safeForUi: true;
+  rawTextIncluded: false;
+  rawPromptIncluded: false;
+  rawMemoryIncluded: false;
+  hiddenReasoningIncluded: false;
+  secretValuesIncluded: false;
+}
+
+export interface MindCandidateActionResult {
+  ok: boolean;
+  mode: string;
+  readOnly: boolean;
+  localOnly: boolean;
+  candidate: MindMemoryCandidate;
+  rawTextIncluded: false;
+  secretValuesIncluded: false;
+}
+
 export interface GlitchErrorItem {
   id: string;
   code: string;
@@ -232,6 +481,7 @@ export interface GlitchSnapshot {
   };
   provider: ProviderStatus;
   cost: CostSummary;
+  mind: RinMindPayload;
   errors: GlitchErrorItem[];
   windows: Record<string, unknown>;
 }

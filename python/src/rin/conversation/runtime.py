@@ -4,6 +4,7 @@ Conversation turn runtime: context assembly, model call, sanitization, persisten
 
 from __future__ import annotations
 
+import os
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -14,7 +15,11 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict
 
 from rin.config.chat_provider import load_cost_config
-from rin.context import ContextV2InputSegment, build_context_v2_report
+from rin.context import (
+    DEFAULT_CONTEXT_V2_MAX_CHARACTERS,
+    ContextV2InputSegment,
+    build_context_v2_report,
+)
 from rin.contracts import (
     ContextV2Report,
     ConversationMessageRecord,
@@ -28,12 +33,20 @@ from rin.database import (
     append_message,
     create_api_usage_event,
     create_conversation,
+    create_memory_candidate_records,
+    create_memory_embedding_entries,
     create_memory_trace,
+    create_mind_turn_snapshot,
+    create_rin_growth_events,
+    create_tool_invocation_requests,
+    get_active_conversation_summary,
     inspect_database,
+    list_memory_v2_traces,
     list_messages,
-    list_top_memory_v2_traces,
+    list_mind_memory_candidates,
     record_completed_turn,
     record_failed_turn,
+    upsert_conversation_summary,
 )
 from rin.diagnostics.runtime_trace import (
     RUNTIME_TRACE_STORE,
@@ -46,6 +59,19 @@ from rin.diagnostics.runtime_trace import (
 )
 from rin.diagnostics.safety import assert_safe_python_write_data_dir
 from rin.memory import MemoryV2SourceMessage, analyze_memory_v2_source
+from rin.mind import (
+    build_conversation_summary,
+    build_embedding_entry_for_candidate,
+    build_rin_mind_snapshot,
+    conversation_summary_context,
+    embedding_allowed_for_candidate,
+    embedding_provider_for_policy,
+    load_mind_policy,
+    memory_trace_signal_summary_from_candidate,
+    mind_owner_state_context,
+    response_plan_context,
+)
+from rin.mind.schemas import MemoryCandidate, RinMindSnapshot
 from rin.model import (
     ModelError,
     has_unsafe_thinking_leak,
@@ -105,6 +131,7 @@ class ConversationRuntimeResult(BaseModel):
 RECENT_HISTORY_MESSAGE_LIMIT = 6
 RECENT_HISTORY_MESSAGE_MAX_CHARS = 500
 RECENT_HISTORY_TOTAL_MAX_CHARS = 2000
+MIND_MEMORY_RETRIEVAL_LIMIT = 50
 
 
 @dataclass(frozen=True)
@@ -270,17 +297,161 @@ async def run_conversation_turn(
         if profile_report.status == "valid"
         else ["profile validation warning"],
     )
-    # --- Select recent history for prompt ---
-    previous_messages = select_recent_messages(
-        layout,
-        conversation_id,
-        owner_content,
-        current_message_id=owner_message.id,
-    )
+    # --- RIN Mind local understanding and planning ---
     available_prior_messages = [
         message
         for message in list_messages(layout, conversation_id)
         if message.id != owner_message.id
+    ]
+    status_before_memory = inspect_database(layout)
+    mind_policy = load_mind_policy()
+    available_memory_traces = list_memory_v2_traces(
+        layout,
+        limit=mind_policy.memoryRetrievalCandidateLimit,
+    )
+    available_memory_candidates = [
+        item
+        for item in list_mind_memory_candidates(
+            layout,
+            limit=mind_policy.memoryRetrievalCandidateLimit,
+            active=True,
+        )
+        if item.reviewStatus in {"auto_promoted", "owner_approved"}
+    ]
+    active_summary = get_active_conversation_summary(layout, conversation_id)
+    context_budget = mind_policy.contextMaxCharacters
+    mind_snapshot = build_rin_mind_snapshot(
+        owner_message_id=owner_message.id,
+        owner_content=owner_content,
+        created_at=now,
+        prior_messages=available_prior_messages,
+        memory_traces=available_memory_traces,
+        memory_candidates=available_memory_candidates,
+        conversation_summary=active_summary,
+        profile_sections=[segment.type for segment in profile_context_segments],
+        budget=context_budget,
+        policy=mind_policy,
+        turn_id=turn_id,
+        conversation_id=conversation_id,
+    )
+    create_memory_candidate_records(
+        layout,
+        conversation_id=conversation_id,
+        candidates=mind_snapshot.memoryCandidates,
+        now=now,
+    )
+    create_rin_growth_events(layout, events=mind_snapshot.growthEvents, now=now)
+    create_tool_invocation_requests(
+        layout,
+        requests=mind_snapshot.toolInvocationRequests,
+        now=now,
+    )
+    embedding_provider = embedding_provider_for_policy(mind_policy)
+    if embedding_provider:
+        create_memory_embedding_entries(
+            layout,
+            entries=[
+                build_embedding_entry_for_candidate(
+                    item,
+                    provider=embedding_provider,
+                    created_at=now,
+                )
+                for item in mind_snapshot.memoryCandidates
+                if embedding_allowed_for_candidate(item, mind_policy)
+            ],
+            now=now,
+        )
+    mind_snapshot_id = create_mind_turn_snapshot(
+        layout,
+        turn_id=turn_id,
+        conversation_id=conversation_id,
+        snapshot=mind_snapshot,
+        now=now,
+    )
+    recorder.record(
+        "message_understanding",
+        "ok",
+        display_name="Message Understanding",
+        summary=mind_snapshot.messageUnderstanding.mode,
+        input={
+            "ownerMessageId": owner_message.id,
+            "contentLength": len(owner_content),
+            "contentHash": short_hash(owner_content),
+        },
+        operation={"classifier": "rin.mind.rules", "externalProviderCall": False},
+        output={
+            "mode": mind_snapshot.messageUnderstanding.mode,
+            "secondaryModes": mind_snapshot.messageUnderstanding.secondaryModes,
+            "intentSummary": mind_snapshot.messageUnderstanding.intentSummary,
+            "topicTags": mind_snapshot.messageUnderstanding.topicTags,
+            "emotionalTone": mind_snapshot.messageUnderstanding.emotionalTone,
+            "urgency": mind_snapshot.messageUnderstanding.urgency,
+            "relationshipRelevance": (
+                mind_snapshot.messageUnderstanding.relationshipRelevance
+            ),
+            "memorySignalType": mind_snapshot.messageUnderstanding.memorySignalType,
+            "privacyRisk": mind_snapshot.messageUnderstanding.privacyRisk,
+            "confidence": mind_snapshot.messageUnderstanding.confidence,
+            "reasons": mind_snapshot.messageUnderstanding.reasons,
+        },
+        decision={"accepted": True, "reason": "deterministic local classification"},
+        privacy={"fullOwnerInputIncluded": False, "secretValuesIncluded": False},
+    )
+    recorder.record(
+        "owner_state_inference",
+        "ok",
+        display_name="Owner State",
+        summary=mind_snapshot.ownerState.supportNeed,
+        input={"evidenceMessageIds": mind_snapshot.ownerState.evidenceMessageIds},
+        operation={"inference": "current-message-dominant local state"},
+        output=mind_snapshot.ownerState.model_dump(mode="json"),
+        decision={"stateExpiresAt": mind_snapshot.ownerState.expiresAt},
+        privacy={"diagnosis": False, "rawTextIncluded": False},
+    )
+    recorder.record(
+        "memory_candidate_generation",
+        "ok" if mind_snapshot.memoryCandidates else "skipped",
+        display_name="Memory Candidates",
+        summary=f"{len(mind_snapshot.memoryCandidates)} candidate(s)",
+        input={
+            "ownerMessageId": owner_message.id,
+            "memorySignalType": mind_snapshot.messageUnderstanding.memorySignalType,
+        },
+        operation={
+            "generator": "rin.mind.rules.generate_memory_candidates",
+            "modelOutputUsed": False,
+            "autoPromotePolicy": "low-risk high-confidence local rules only",
+        },
+        output={
+            "candidateCount": len(mind_snapshot.memoryCandidates),
+            "autoPromoteCount": sum(
+                1 for item in mind_snapshot.memoryCandidates if item.autoPromote
+            ),
+            "reviewRequiredCount": sum(
+                1
+                for item in mind_snapshot.memoryCandidates
+                if item.reviewStatus == "review_required"
+            ),
+            "blockedCount": sum(
+                1
+                for item in mind_snapshot.memoryCandidates
+                if item.riskLevel == "blocked"
+            ),
+            "candidates": [
+                item.model_dump(mode="json") for item in mind_snapshot.memoryCandidates
+            ],
+        },
+        decision={
+            "directLongTermMemoryWrite": False,
+            "reason": "candidates are governed by local risk/review policy",
+        },
+        privacy={"rawTextIncluded": False, "secretValuesIncluded": False},
+    )
+    selected_recent_ids = set(mind_snapshot.contextPlan.selectedRecentMessageIds)
+    previous_messages = [
+        message
+        for message in available_prior_messages
+        if message.id in selected_recent_ids
     ]
     selected_character_count = sum(
         len(message.content) for message in previous_messages
@@ -294,12 +465,18 @@ async def run_conversation_turn(
         input={
             "conversationId": conversation_id,
             "availablePriorMessages": len(available_prior_messages),
-            "selectionPolicy": "last six prior messages in active conversation",
+            "selectionPolicy": (
+                "mind context plan: adjacency + token/tag relevance, "
+                f"max {mind_policy.recentHistorySelectedLimit}"
+            ),
             "timeWindow": "n/a",
         },
         operation={
             "excludedCurrentOwnerMessageId": owner_message.id,
-            "dedupRule": "exclude current owner message by id/content",
+            "dedupRule": "exclude current owner message by id",
+            "contextPlanSelectedIds": (
+                mind_snapshot.contextPlan.selectedRecentMessageIds
+            ),
         },
         output={
             "selectedPriorMessages": len(previous_messages),
@@ -328,50 +505,135 @@ async def run_conversation_turn(
                 {message.conversationId for message in previous_messages}
             ),
             "selectedMessages": [
-                message_trace_summary(message, included=True, reason="selected")
+                message_trace_summary(
+                    message,
+                    included=True,
+                    reason="mind_context_plan_selected",
+                )
                 for message in previous_messages
             ],
         },
         decision={
             "dedupResult": "current owner message excluded from prior history",
-            "reason": "runtime uses the latest six prior messages only",
+            "reason": "runtime uses mind-selected relevant recent history",
         },
         privacy={"fullMessageTextIncluded": False, "previewsOnly": True},
     )
-    status_before_memory = inspect_database(layout)
-    selected_memory_traces = list_top_memory_v2_traces(layout, limit=3)
-    memory_context_segments = build_memory_context_segments(selected_memory_traces)
+    trace_by_id = {trace.id: trace for trace in available_memory_traces}
+    candidate_by_id = {
+        candidate.id: candidate for candidate in available_memory_candidates
+    }
+    selected_memory_traces = [
+        trace_by_id[item.traceId]
+        for item in mind_snapshot.memoryRetrieval.selected
+        if item.sourceKind == "memory_v2_trace" and item.traceId in trace_by_id
+    ]
+    selected_memory_candidates = [
+        candidate_by_id[item.sourceId]
+        for item in mind_snapshot.memoryRetrieval.selected
+        if item.sourceKind == "memory_candidate" and item.sourceId in candidate_by_id
+    ]
+    memory_context_segments = build_memory_context_segments(
+        selected_memory_traces,
+        selected_memory_candidates,
+    )
+    memory_skip_reason = None
+    available_memory_source_count = len(available_memory_traces) + len(
+        available_memory_candidates
+    )
+    selected_memory_source_count = len(selected_memory_traces) + len(
+        selected_memory_candidates
+    )
+    if not available_memory_source_count:
+        memory_skip_reason = "no_memory_sources"
+    elif not selected_memory_source_count:
+        memory_skip_reason = "no_relevant_memory_sources"
     recorder.record(
         "memory_v2_retrieval",
-        "ok" if selected_memory_traces else "skipped",
+        "ok" if selected_memory_source_count else "skipped",
         display_name="Memory Retrieval",
-        summary=f"{len(selected_memory_traces)} selected",
+        summary=f"{selected_memory_source_count} selected",
         input={
             "availableMemoryV2TraceCount": status_before_memory.counts.memoryV2Traces,
+            "availableMemoryCandidateCount": len(available_memory_candidates),
             "runtimeRetrievalConfigured": True,
         },
         operation={
             "retrievalEnabled": True,
-            "selectionPolicy": "top salience score, max 3",
-            "candidateCount": status_before_memory.counts.memoryV2Traces,
+            "selectionPolicy": mind_snapshot.memoryRetrieval.selectionPolicy,
+            "candidateCount": available_memory_source_count,
+            "maxSelected": mind_snapshot.memoryRetrieval.maxSelected,
         },
         output={
             "selectedTraceCount": len(selected_memory_traces),
+            "selectedCandidateCount": len(selected_memory_candidates),
+            "selectedMemorySourceCount": selected_memory_source_count,
             "topSelectedTraceIds": [trace.id for trace in selected_memory_traces],
+            "topSelectedCandidateIds": [
+                candidate.id for candidate in selected_memory_candidates
+            ],
             "topSelectedTraceShortIds": [
                 short_id(trace.id) for trace in selected_memory_traces
             ],
-            "selectedScores": [trace.salienceScore for trace in selected_memory_traces],
+            "selectedScores": [
+                item.score for item in mind_snapshot.memoryRetrieval.selected
+            ],
+            "selectedSalienceScores": [
+                trace.salienceScore for trace in selected_memory_traces
+            ],
+            "excludedTraceCount": len(mind_snapshot.memoryRetrieval.excluded),
+            "retrievalExplanation": mind_snapshot.memoryRetrieval.model_dump(
+                mode="json"
+            ),
             "injectedIntoContext": bool(memory_context_segments),
         },
         decision={
-            "skipReason": None if selected_memory_traces else "no_memory_v2_traces",
+            "skipReason": memory_skip_reason,
             "explanation": (
-                "Memory V2 traces are injected as safe summaries without raw text."
+                "Memory sources are query-selected as safe summaries without raw text."
             ),
         },
         privacy={"fullMemoryTextIncluded": False},
-        warnings=[] if selected_memory_traces else ["No Memory V2 traces available"],
+        warnings=[]
+        if selected_memory_source_count
+        else ["No relevant Memory V2 traces or approved candidates available"],
+    )
+    recorder.record(
+        "context_planning",
+        "ok",
+        display_name="Context Plan",
+        summary=f"{len(mind_snapshot.contextPlan.selectedMemoryTraceIds)} memory / "
+        f"{len(mind_snapshot.contextPlan.selectedRecentMessageIds)} recent",
+        input={
+            "mindSnapshotId": mind_snapshot_id,
+            "mode": mind_snapshot.contextPlan.mode,
+        },
+        operation={
+            "planner": "rin.mind.rules.build_context_plan",
+            "budget": mind_snapshot.contextPlan.budget,
+        },
+        output=mind_snapshot.contextPlan.model_dump(mode="json"),
+        decision={
+            "exportAllowed": mind_snapshot.contextPlan.exportAllowed,
+            "ownerStateIncluded": mind_snapshot.contextPlan.ownerStateIncluded,
+        },
+        privacy={
+            key: value for key, value in mind_snapshot.contextPlan.privacyFlags.items()
+        },
+    )
+    recorder.record(
+        "response_planning",
+        "ok",
+        display_name="Response Plan",
+        summary=mind_snapshot.responsePlan.nextActionStyle,
+        input={
+            "mode": mind_snapshot.messageUnderstanding.mode,
+            "supportNeed": mind_snapshot.ownerState.supportNeed,
+        },
+        operation={"planner": "rin.mind.rules.plan_response"},
+        output=mind_snapshot.responsePlan.model_dump(mode="json"),
+        decision={"modelOutputAuthority": False},
+        privacy={"rawTextIncluded": False, "hiddenReasoningIncluded": False},
     )
     # --- Assemble context and build model request ---
     context_segments = build_runtime_context_segments_from_messages(
@@ -379,8 +641,12 @@ async def run_conversation_turn(
         owner_content,
         profile_context_segments=profile_context_segments,
         memory_context_segments=memory_context_segments,
+        mind_snapshot=mind_snapshot,
     )
-    context_report = build_context_v2_report(context_segments)
+    context_report = build_context_v2_report(
+        context_segments,
+        max_characters=context_budget,
+    )
     export_policy = context_export_policy_metadata(
         context_report,
         recent_history_count=len(previous_messages),
@@ -427,6 +693,14 @@ async def run_conversation_turn(
                 item.type == "owner_profile" and item.included
                 for item in context_report.segments
             ),
+            "ownerStateIncluded": any(
+                item.type == "owner_state" and item.included
+                for item in context_report.segments
+            ),
+            "responsePlanIncluded": any(
+                item.type == "response_plan" and item.included
+                for item in context_report.segments
+            ),
             "currentOwnerInputIncluded": context_report.latestOwnerMessagePreserved,
         },
         output={
@@ -439,6 +713,14 @@ async def run_conversation_turn(
                 1
                 for item in context_report.segments
                 if item.type == "memory_v2_trace" and item.included
+            ),
+            "ownerStateIncluded": any(
+                item.type == "owner_state" and item.included
+                for item in context_report.segments
+            ),
+            "responsePlanIncluded": any(
+                item.type == "response_plan" and item.included
+                for item in context_report.segments
             ),
             "finalRequestMessageCount": len(model_request.messages),
             "finalContextCharacterCount": context_report.characterCount,
@@ -950,18 +1232,30 @@ async def run_conversation_turn(
         ),
         now=now,
     )
-    memory_trace_id: str | None = None
-    memory_update_supported = memory_analysis.decision == "promoted"
-    if memory_update_supported:
+    auto_promote_candidates = [
+        item
+        for item in mind_snapshot.memoryCandidates
+        if item.autoPromote
+        and item.riskLevel == "low"
+        and item.reviewStatus == "auto_promoted"
+    ]
+    memory_trace_ids: list[str] = []
+    for candidate_item in auto_promote_candidates:
         memory_trace_id = str(uuid4())
         create_memory_trace(
             layout,
             memory_trace_id,
             owner_message.id,
-            memory_trace_signal_summary(memory_analysis),
-            memory_analysis.retentionScore,
+            memory_trace_signal_summary_from_candidate(candidate_item)
+            | {
+                "conversationId": conversation_id,
+                "contentCharacterCount": len(owner_content),
+            },
+            candidate_item.salience,
             now,
         )
+        memory_trace_ids.append(memory_trace_id)
+    memory_update_supported = bool(memory_trace_ids)
     status_after_memory = inspect_database(layout)
     traces_created = max(
         0,
@@ -984,7 +1278,8 @@ async def run_conversation_turn(
         },
         operation={
             "memoryV2UpdateAttempted": True,
-            "analyzer": "analyze_memory_v2_source",
+            "analyzer": "rin.mind.memory_candidate_policy",
+            "legacyAnalyzerDecision": memory_analysis.decision,
             "writeType": "create_memory_trace"
             if memory_update_supported
             else "no_write",
@@ -993,11 +1288,21 @@ async def run_conversation_turn(
             "signalsCreatedCount": signals_created,
             "tracesCreatedCount": traces_created,
             "tracesUpdatedCount": 0,
-            "createdTraceId": memory_trace_id or "n/a",
-            "createdTraceShortId": short_id(memory_trace_id),
+            "createdTraceIds": memory_trace_ids,
+            "createdTraceShortId": short_id(memory_trace_ids[0])
+            if memory_trace_ids
+            else "n/a",
+            "createdTraceShortIds": [short_id(item) for item in memory_trace_ids],
             "totalMemoryV2Traces": status_after_memory.counts.memoryV2Traces,
             "shortTermStateUpdated": False,
             "fullTextStoredInTrace": False,
+            "candidateCount": len(mind_snapshot.memoryCandidates),
+            "autoPromoteCandidateCount": len(auto_promote_candidates),
+            "reviewRequiredCandidateCount": sum(
+                1
+                for item in mind_snapshot.memoryCandidates
+                if item.reviewStatus == "review_required"
+            ),
             "analysisDecision": memory_analysis.decision,
             "analysisRetentionScore": memory_analysis.retentionScore,
             "analysisReasons": memory_analysis.reasons,
@@ -1008,15 +1313,52 @@ async def run_conversation_turn(
         decision={
             "skipReason": None
             if memory_update_supported
-            else f"{memory_analysis.decision}_does_not_create_trace",
-            "reason": "safe Memory V2 trace summary written"
+            else "no_auto_promoted_memory_candidate",
+            "reason": "safe Memory V2 trace summary written from local candidate"
             if memory_update_supported
-            else "memory analysis did not promote a new trace",
+            else "mind candidate policy did not allow automatic trace write",
         },
         privacy={"noFullTextStoredInTrace": True},
         warnings=[]
-        if memory_update_supported or memory_analysis.decision == "ignored"
-        else [f"{memory_analysis.decision} update path not implemented"],
+        if memory_update_supported or not mind_snapshot.memoryCandidates
+        else ["memory candidates require review or were blocked"],
+    )
+    updated_summary = build_conversation_summary(
+        conversation_id=conversation_id,
+        turn_id=turn_id,
+        messages=list_messages(layout, conversation_id),
+        snapshot=mind_snapshot,
+        now=now,
+        existing=active_summary,
+    )
+    upsert_conversation_summary(layout, summary=updated_summary)
+    recorder.record(
+        "mind_lifecycle",
+        "ok",
+        display_name="Mind Lifecycle",
+        summary="stored / awaiting review"
+        if mind_snapshot.lifecycle.awaitingReview
+        else "stored",
+        input={"mindSnapshotId": mind_snapshot_id, "turnId": turn_id},
+        operation={
+            "summaryWrite": "deterministic_safe_summary",
+            "selfModelAutoApply": mind_policy.selfModelAutoApply,
+            "toolExecution": "disabled_by_default",
+        },
+        output={
+            "lifecycle": mind_snapshot.lifecycle.model_dump(mode="json"),
+            "conversationSummaryId": updated_summary.id,
+            "growthEventCount": len(mind_snapshot.growthEvents),
+            "toolRequestCount": len(mind_snapshot.toolInvocationRequests),
+            "embeddingsEnabled": mind_policy.enableEmbeddings,
+            "modelSummariesEnabled": mind_policy.enableModelSummaries,
+        },
+        decision={
+            "directProfileMutation": False,
+            "directToolExecution": False,
+            "modelGeneratedSummaryApplied": False,
+        },
+        privacy={"rawTextIncluded": False, "secretValuesIncluded": False},
     )
     total_elapsed = elapsed_ms(started_at)
     recorder.record(
@@ -1119,9 +1461,10 @@ def build_profile_context_segments(
 
 def build_memory_context_segments(
     traces: Sequence[MemoryV2TraceRecord],
+    candidates: Sequence[MemoryCandidate] = (),
 ) -> list[ContextV2InputSegment]:
-    """Build prompt segments from safe Memory V2 trace summaries."""
-    return [
+    """Build prompt segments from safe Memory V2 traces and approved candidates."""
+    trace_segments = [
         ContextV2InputSegment(
             id=f"memory-v2-trace-{index + 1}",
             type="memory_v2_trace",
@@ -1132,6 +1475,18 @@ def build_memory_context_segments(
         )
         for index, trace in enumerate(traces)
     ]
+    candidate_segments = [
+        ContextV2InputSegment(
+            id=f"memory-candidate-{index + 1}",
+            type="memory_v2_trace",
+            sourceId=f"memory-candidate:{candidate.id}",
+            provenance="memory:candidate:approved_safe_summary",
+            protected=False,
+            content=safe_memory_candidate_context(candidate),
+        )
+        for index, candidate in enumerate(candidates)
+    ]
+    return trace_segments + candidate_segments
 
 
 def safe_memory_trace_context(trace: MemoryV2TraceRecord) -> str:
@@ -1149,6 +1504,21 @@ def safe_memory_trace_context(trace: MemoryV2TraceRecord) -> str:
             f"sourceLength: {content_length}",
             f"reasons: {safe_join(reasons)}",
             f"signalKeys: {safe_join(signal_keys)}",
+        ]
+    )
+
+
+def safe_memory_candidate_context(candidate: MemoryCandidate) -> str:
+    """Render approved candidate memory without raw source text."""
+    return "\n".join(
+        [
+            f"Approved memory candidate {short_id(candidate.id)}:",
+            f"type: {candidate.type}",
+            f"reviewStatus: {candidate.reviewStatus}",
+            f"riskLevel: {candidate.riskLevel}",
+            f"safeSummary: {candidate.safeSummary}",
+            f"normalizedValue: {candidate.normalizedValue or 'n/a'}",
+            f"tags: {safe_join(candidate.tags)}",
         ]
     )
 
@@ -1208,6 +1578,7 @@ def build_runtime_context_segments_from_messages(
     *,
     profile_context_segments: Sequence[ContextV2InputSegment] = (),
     memory_context_segments: Sequence[ContextV2InputSegment] = (),
+    mind_snapshot: RinMindSnapshot | None = None,
 ) -> list[ContextV2InputSegment]:
     """
     Build context segments: system prompt, current owner message, and bounded recent
@@ -1249,8 +1620,46 @@ def build_runtime_context_segments_from_messages(
                 content=f"Recent conversation context (bounded):\n{history}",
             )
         )
+    if mind_snapshot is not None:
+        segments.extend(build_mind_context_segments(mind_snapshot))
     segments.extend(profile_context_segments)
     segments.extend(memory_context_segments)
+    return segments
+
+
+def build_mind_context_segments(
+    mind_snapshot: RinMindSnapshot,
+) -> list[ContextV2InputSegment]:
+    """Build compact safe context segments from the local mind plan."""
+    segments = [
+        ContextV2InputSegment(
+            id="mind-owner-state",
+            type="owner_state",
+            sourceId="mind:owner_state",
+            provenance="mind:local_state_summary",
+            protected=False,
+            content=mind_owner_state_context(mind_snapshot.ownerState),
+        ),
+        ContextV2InputSegment(
+            id="mind-response-plan",
+            type="response_plan",
+            sourceId="mind:response_plan",
+            provenance="mind:local_response_plan",
+            protected=False,
+            content=response_plan_context(mind_snapshot.responsePlan),
+        ),
+    ]
+    if mind_snapshot.conversationSummary is not None:
+        segments.append(
+            ContextV2InputSegment(
+                id="mind-conversation-summary",
+                type="conversation_summary",
+                sourceId=f"mind:summary:{mind_snapshot.conversationSummary.id}",
+                provenance="mind:deterministic_conversation_summary",
+                protected=False,
+                content=conversation_summary_context(mind_snapshot.conversationSummary),
+            )
+        )
     return segments
 
 
@@ -1376,6 +1785,9 @@ def context_export_policy_metadata(
             item in {"rin_profile", "owner_profile"} for item in included_types
         ),
         "fullProfileIncluded": False,
+        "ownerStateIncluded": "owner_state" in included_types,
+        "responsePlanIncluded": "response_plan" in included_types,
+        "conversationSummaryIncluded": "conversation_summary" in included_types,
         "memorySummaryIncluded": "memory_v2_trace" in included_types,
         "rawMemoryIncluded": False,
         "recentHistoryCount": recent_history_count,
@@ -1388,6 +1800,8 @@ def segment_privacy_status(segment_type: str) -> str:
     """Return the trace privacy label for a context segment type."""
     if segment_type in {"rin_profile", "owner_profile", "memory_v2_trace"}:
         return "metadata_only"
+    if segment_type in {"owner_state", "response_plan", "conversation_summary"}:
+        return "safe_summary"
     return "preview_only"
 
 
@@ -1402,7 +1816,21 @@ def segment_safe_preview(
         return "hidden_profile_context"
     if segment_type == "memory_v2_trace":
         return "hidden_memory_summary"
+    if segment_type in {"owner_state", "response_plan", "conversation_summary"}:
+        return "local_mind_summary"
     return input_preview(segment.content)
+
+
+def context_max_characters() -> int:
+    """Return configured context budget with a safer default than early prototypes."""
+    raw = os.getenv("RIN_CONTEXT_MAX_CHARACTERS", "").strip()
+    if not raw:
+        return DEFAULT_CONTEXT_V2_MAX_CHARACTERS
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return DEFAULT_CONTEXT_V2_MAX_CHARACTERS
+    return max(1200, min(parsed, 32000))
 
 
 def model_request_outline(request: ModelRequest) -> list[dict[str, object]]:
