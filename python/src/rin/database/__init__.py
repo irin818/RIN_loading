@@ -1,4 +1,6 @@
 from rin.database.readonly import (
+    ApiUsageEventRecord,
+    ApiUsageSummary,
     AuditEventSummary,
     DatabaseStatus,
     DatabaseTableStatus,
@@ -7,6 +9,7 @@ from rin.database.readonly import (
     database_path_for,
     get_conversation,
     inspect_database,
+    list_api_usage_events,
     list_audit_summaries,
     list_conversations,
     list_legacy_memories,
@@ -14,11 +17,13 @@ from rin.database.readonly import (
     list_messages,
     list_top_memory_v2_traces,
     open_readonly_database,
+    summarize_api_usage,
 )
 from rin.database.writes import (
     append_audit_event,
     append_message,
     assert_safe_write_layout,
+    create_api_usage_event,
     create_conversation,
     create_memory_trace,
     create_temp_layout_database,
@@ -28,6 +33,8 @@ from rin.database.writes import (
 )
 
 __all__ = [
+    "ApiUsageEventRecord",
+    "ApiUsageSummary",
     "AuditEventSummary",
     "DatabaseStatus",
     "DatabaseTableStatus",
@@ -36,6 +43,7 @@ __all__ = [
     "database_path_for",
     "get_conversation",
     "inspect_database",
+    "list_api_usage_events",
     "list_audit_summaries",
     "list_conversations",
     "list_legacy_memories",
@@ -43,9 +51,11 @@ __all__ = [
     "list_messages",
     "list_top_memory_v2_traces",
     "open_readonly_database",
+    "summarize_api_usage",
     "append_audit_event",
     "append_message",
     "assert_safe_write_layout",
+    "create_api_usage_event",
     "create_conversation",
     "create_memory_trace",
     "create_temp_layout_database",

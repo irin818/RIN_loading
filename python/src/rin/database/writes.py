@@ -13,6 +13,7 @@ from uuid import uuid4
 from rin.contracts import ConversationMessageRecord, ConversationRecord
 from rin.database.readonly import database_path_for
 from rin.diagnostics.safety import assert_safe_python_write_data_dir
+from rin.model.usage import ApiUsageAccounting
 from rin.storage import RinDataLayout, create_data_layout
 
 
@@ -282,6 +283,70 @@ def append_audit_event(
     return event_id
 
 
+def create_api_usage_event(
+    layout: RinDataLayout,
+    *,
+    turn_id: str | None,
+    conversation_id: str | None,
+    accounting: ApiUsageAccounting,
+    now: str,
+    event_id: str | None = None,
+) -> str:
+    """Persist a safe API usage event with no raw prompt or response text."""
+    assert_safe_write_layout(layout)
+    event_id = event_id or str(uuid4())
+    with sqlite3.connect(database_path_for(layout)) as connection:
+        try:
+            connection.execute("BEGIN")
+            ensure_api_usage_events_table(connection)
+            connection.execute(
+                """
+                INSERT INTO api_usage_events (
+                  id, turn_id, conversation_id, provider_id, model,
+                  input_tokens, output_tokens, total_tokens, estimated_cost,
+                  currency, estimate_method, context_character_count, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    event_id,
+                    turn_id,
+                    conversation_id,
+                    accounting.providerId,
+                    accounting.model,
+                    accounting.inputTokens,
+                    accounting.outputTokens,
+                    accounting.totalTokens,
+                    accounting.estimatedCost,
+                    accounting.currency,
+                    accounting.estimateMethod,
+                    accounting.contextCharacterCount,
+                    now,
+                ),
+            )
+            append_audit_event_in_transaction(
+                connection,
+                "api.usage_recorded",
+                {
+                    "turnId": turn_id,
+                    "conversationId": conversation_id,
+                    "providerId": accounting.providerId,
+                    "model": accounting.model,
+                    "totalTokens": accounting.totalTokens,
+                    "estimateMethod": accounting.estimateMethod,
+                    "rawPromptIncluded": False,
+                    "rawResponseIncluded": False,
+                    "secretValuesIncluded": False,
+                },
+                now,
+            )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+    return event_id
+
+
 def append_audit_event_in_transaction(
     connection: sqlite3.Connection,
     event_type: str,
@@ -300,6 +365,29 @@ def append_audit_event_in_transaction(
         (event_id, event_type, json.dumps(payload, sort_keys=True), now),
     )
     return event_id
+
+
+def ensure_api_usage_events_table(connection: sqlite3.Connection) -> None:
+    """Create the additive usage ledger table if an existing DB lacks it."""
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS api_usage_events (
+          id TEXT PRIMARY KEY,
+          turn_id TEXT,
+          conversation_id TEXT,
+          provider_id TEXT NOT NULL,
+          model TEXT NOT NULL,
+          input_tokens INTEGER NOT NULL,
+          output_tokens INTEGER NOT NULL,
+          total_tokens INTEGER NOT NULL,
+          estimated_cost REAL NOT NULL,
+          currency TEXT NOT NULL,
+          estimate_method TEXT NOT NULL,
+          context_character_count INTEGER NOT NULL,
+          created_at TEXT NOT NULL
+        )
+        """
+    )
 
 
 SCHEMA_SQL = """
@@ -382,6 +470,21 @@ CREATE TABLE IF NOT EXISTS memory_v2_traces (
 );
 CREATE TABLE IF NOT EXISTS memory_v2_trace_signals (id TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS memory_v2_retrieval_events (id TEXT PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS api_usage_events (
+  id TEXT PRIMARY KEY,
+  turn_id TEXT,
+  conversation_id TEXT,
+  provider_id TEXT NOT NULL,
+  model TEXT NOT NULL,
+  input_tokens INTEGER NOT NULL,
+  output_tokens INTEGER NOT NULL,
+  total_tokens INTEGER NOT NULL,
+  estimated_cost REAL NOT NULL,
+  currency TEXT NOT NULL,
+  estimate_method TEXT NOT NULL,
+  context_character_count INTEGER NOT NULL,
+  created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS raw_events (id TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS slow_variable_versions (id TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS state_history (id TEXT PRIMARY KEY);

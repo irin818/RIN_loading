@@ -5,6 +5,7 @@ export type WindowType =
   | "memoryDetail"
   | "trace"
   | "provider"
+  | "cost"
   | "error"
   | "tasks"
   | "tools"
@@ -103,12 +104,58 @@ export interface ProviderStatus {
   activeAdapter: string;
   activeModel: string;
   configured: boolean;
+  configurationStatus: string;
   streamingSupport: string;
   health: string;
   lastLatencyMs: number | string;
   lastError: string;
   availableProviders: Array<Record<string, unknown>>;
   safeConfig: Record<string, unknown>;
+}
+
+export interface CostUsageRecord {
+  id: string;
+  turnId: string | null;
+  conversationId: string | null;
+  providerId: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  estimatedCost: number;
+  currency: string;
+  estimateMethod: string;
+  contextCharacterCount: number;
+  createdAt: string;
+  rawPromptIncluded: false;
+  rawResponseIncluded: false;
+  hiddenReasoningIncluded: false;
+  secretValuesIncluded: false;
+}
+
+export interface CostSummary {
+  ok: boolean;
+  mode: string;
+  readOnly: boolean;
+  localOnly: boolean;
+  provider: string;
+  adapter: string;
+  model: string;
+  configured: boolean;
+  configurationStatus: string;
+  currency: string;
+  priceConfig: Record<string, unknown>;
+  eventCount: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalTokens: number;
+  totalEstimatedCost: number;
+  latest: CostUsageRecord | null;
+  recent: CostUsageRecord[];
+  rawPromptIncluded: false;
+  rawResponseIncluded: false;
+  hiddenReasoningIncluded: false;
+  secretValuesIncluded: false;
 }
 
 export interface GlitchErrorItem {
@@ -184,6 +231,7 @@ export interface GlitchSnapshot {
     hiddenReasoningIncluded: boolean;
   };
   provider: ProviderStatus;
+  cost: CostSummary;
   errors: GlitchErrorItem[];
   windows: Record<string, unknown>;
 }

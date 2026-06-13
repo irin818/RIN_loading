@@ -797,6 +797,7 @@ button {
 .window-memory-detail { --window-accent: var(--rin-cyan); --window-accent-2: var(--rin-blue); --window-rgb: 56, 248, 255; --window-panel: rgba(1, 18, 22, 0.9); }
 .window-trace { --window-accent: var(--rin-blue); --window-accent-2: var(--rin-violet); --window-rgb: 74, 163, 255; --window-panel: rgba(2, 10, 24, 0.9); }
 .window-provider { --window-accent: var(--rin-green); --window-accent-2: var(--rin-amber); --window-rgb: 0, 255, 100; --window-panel: rgba(12, 16, 4, 0.91); }
+.window-cost { --window-accent: var(--rin-amber); --window-accent-2: var(--rin-cyan); --window-rgb: 255, 194, 71; --window-panel: rgba(20, 14, 4, 0.92); }
 .window-error { --window-accent: var(--rin-red); --window-accent-2: var(--rin-magenta); --window-rgb: 255, 51, 92; --window-panel: rgba(28, 3, 12, 0.93); }
 .window-settings { --window-accent: #e7edf0; --window-accent-2: var(--rin-green); --window-rgb: 231, 237, 240; --window-panel: rgba(12, 15, 14, 0.92); }
 .window-tasks { --window-accent: #ff7040; --window-accent-2: var(--rin-cyan); --window-rgb: 255, 112, 64; --window-panel: rgba(24, 8, 4, 0.92); }
@@ -891,6 +892,7 @@ button {
 .detail-module,
 .trace-module,
 .provider-module,
+.cost-module,
 .error-module,
 .stub-module {
   min-height: 100%;
@@ -898,7 +900,8 @@ button {
 
 .core-status-grid,
 .trace-summary-grid,
-.provider-grid {
+.provider-grid,
+.cost-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 8px;
@@ -1196,6 +1199,73 @@ dd {
 .error-actions button {
   border-color: var(--rin-red);
   color: var(--rin-red);
+}
+
+.cost-module {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.cost-latest {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid rgba(255, 194, 71, 0.3);
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.cost-latest span,
+.cost-record small {
+  color: var(--rin-muted);
+  font-family: var(--font-hud);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.cost-latest strong {
+  overflow-wrap: anywhere;
+  color: var(--rin-text);
+  font-size: 13px;
+}
+
+.cost-record-list {
+  display: grid;
+  gap: 8px;
+}
+
+.cost-record {
+  display: grid;
+  gap: 5px;
+  padding: 8px;
+  border: 1px solid rgba(255, 194, 71, 0.24);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.cost-record > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--rin-text);
+  font-family: var(--font-hud);
+  font-size: 12px;
+}
+
+.cost-record b {
+  color: var(--rin-amber);
+}
+
+.cost-bar {
+  height: 7px;
+  overflow: hidden;
+  border: 1px solid rgba(56, 248, 255, 0.2);
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.cost-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--rin-amber), var(--rin-cyan));
 }
 
 .error-module {

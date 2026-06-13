@@ -122,9 +122,9 @@ Before running, make sure the Python environment is prepared.
 
 The launcher expects the Python environment to be set up.
 
-Governance now requires external-API-only chat. RIN does not currently use a local model for chat.
+Governance requires external-API-only chat. RIN does not use a local model for chat.
 
-Chat dialogue will require external API configuration in a future implementation step. Code-level provider replacement and removal of legacy local-model paths are pending a later implementation task. Do not claim an external API adapter or cost monitor is already implemented if it is not.
+Chat dialogue uses the backend OpenAI-compatible API adapter when configured. Set `RIN_API_CHAT_BASE_URL`, `RIN_API_CHAT_KEY`, and optionally `RIN_API_CHAT_MODEL` before expecting live replies. If the API key or base URL is missing, chat fails safely with `API_PROVIDER_UNCONFIGURED`; the server and Cost / Token UI remain available.
 
 ---
 

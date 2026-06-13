@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from rin.database import create_temp_layout_database
 from rin.diagnostics.safety import create_temp_data_dir
 from rin.server import create_app
+from rin.server.api import MockApiAdapter
 
 
 @dataclass(frozen=True)
@@ -42,7 +43,7 @@ def run_api_contract_check() -> ApiContractCheckReport:
     temp = create_temp_data_dir("rin-python-api-contract-")
     layout = create_temp_layout_database(temp.path)
     try:
-        client = TestClient(create_app(layout))
+        client = TestClient(create_app(layout, adapter=MockApiAdapter()))
         local_state = client.get("/api/local-state")
         readiness = client.get("/api/readiness")
         profile = client.get("/profile/status")

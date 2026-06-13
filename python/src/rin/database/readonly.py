@@ -31,6 +31,7 @@ DATABASE_TABLES: tuple[str, ...] = (
     "memory_v2_traces",
     "memory_v2_trace_signals",
     "memory_v2_retrieval_events",
+    "api_usage_events",
     "slow_variable_versions",
     "state_history",
     "tool_invocations",
@@ -63,6 +64,7 @@ class DatabaseCounts(BaseModel):
     memoryV2Traces: int
     memoryV2TraceSignals: int
     memoryV2RetrievalEvents: int
+    apiUsageEvents: int
     messageMemoryContexts: int
     slowVariableVersions: int
     stateHistory: int
@@ -145,6 +147,48 @@ class AuditEventSummary(BaseModel):
     fullTextIncluded: Literal[False]
 
 
+class ApiUsageEventRecord(BaseModel):
+    """Safe external API token/cost usage event with no prompt or response text."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    turnId: str | None
+    conversationId: str | None
+    providerId: str
+    model: str
+    inputTokens: int
+    outputTokens: int
+    totalTokens: int
+    estimatedCost: float
+    currency: str
+    estimateMethod: str
+    contextCharacterCount: int
+    createdAt: str
+    rawPromptIncluded: Literal[False]
+    rawResponseIncluded: Literal[False]
+    hiddenReasoningIncluded: Literal[False]
+    secretValuesIncluded: Literal[False]
+
+
+class ApiUsageSummary(BaseModel):
+    """Aggregate token/cost summary for safe UI display."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    eventCount: int
+    totalInputTokens: int
+    totalOutputTokens: int
+    totalTokens: int
+    totalEstimatedCost: float
+    currency: str
+    latest: ApiUsageEventRecord | None
+    rawPromptIncluded: Literal[False]
+    rawResponseIncluded: Literal[False]
+    hiddenReasoningIncluded: Literal[False]
+    secretValuesIncluded: Literal[False]
+
+
 def database_path_for(layout: RinDataLayout) -> Path:
     """Return the full path to the SQLite database file for the given layout."""
     return layout.directories["databases"] / DATABASE_FILENAME
@@ -214,6 +258,7 @@ def inspect_database(layout: RinDataLayout) -> DatabaseStatus:
                     connection,
                     "memory_v2_retrieval_events",
                 ),
+                apiUsageEvents=count_rows_if_exists(connection, "api_usage_events"),
                 slowVariableVersions=count_rows_if_exists(
                     connection,
                     "slow_variable_versions",
@@ -362,6 +407,75 @@ def list_audit_summaries(
         return [map_audit_summary(row) for row in rows]
 
 
+def list_api_usage_events(
+    layout: RinDataLayout,
+    limit: int = 20,
+) -> list[ApiUsageEventRecord]:
+    """List recent API usage records without raw prompt/response text."""
+    safe_limit = max(1, min(limit, 100))
+    with open_readonly_database(database_path_for(layout)) as connection:
+        if not table_exists(connection, "api_usage_events"):
+            return []
+        rows = connection.execute(
+            """
+            SELECT * FROM api_usage_events
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            (safe_limit,),
+        ).fetchall()
+        return [map_api_usage_event(row) for row in rows]
+
+
+def summarize_api_usage(layout: RinDataLayout) -> ApiUsageSummary:
+    """Return aggregate API usage/cost totals for diagnostics and UI."""
+    with open_readonly_database(database_path_for(layout)) as connection:
+        if not table_exists(connection, "api_usage_events"):
+            return empty_api_usage_summary()
+        row = connection.execute(
+            """
+            SELECT
+              COUNT(*) AS event_count,
+              COALESCE(SUM(input_tokens), 0) AS input_tokens,
+              COALESCE(SUM(output_tokens), 0) AS output_tokens,
+              COALESCE(SUM(total_tokens), 0) AS total_tokens,
+              COALESCE(SUM(estimated_cost), 0) AS estimated_cost,
+              COALESCE(MAX(currency), 'CNY') AS currency
+            FROM api_usage_events
+            """
+        ).fetchone()
+    latest = list_api_usage_events(layout, limit=1)
+    return ApiUsageSummary(
+        eventCount=int(row["event_count"]),
+        totalInputTokens=int(row["input_tokens"]),
+        totalOutputTokens=int(row["output_tokens"]),
+        totalTokens=int(row["total_tokens"]),
+        totalEstimatedCost=round(float(row["estimated_cost"]), 8),
+        currency=str(row["currency"]),
+        latest=latest[0] if latest else None,
+        rawPromptIncluded=False,
+        rawResponseIncluded=False,
+        hiddenReasoningIncluded=False,
+        secretValuesIncluded=False,
+    )
+
+
+def empty_api_usage_summary() -> ApiUsageSummary:
+    return ApiUsageSummary(
+        eventCount=0,
+        totalInputTokens=0,
+        totalOutputTokens=0,
+        totalTokens=0,
+        totalEstimatedCost=0.0,
+        currency="CNY",
+        latest=None,
+        rawPromptIncluded=False,
+        rawResponseIncluded=False,
+        hiddenReasoningIncluded=False,
+        secretValuesIncluded=False,
+    )
+
+
 def table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
     """Check whether a table exists in the connected database."""
     row = connection.execute(
@@ -467,6 +581,28 @@ def map_audit_summary(row: sqlite3.Row) -> AuditEventSummary:
         payloadKeys=sorted(payload.keys()) if isinstance(payload, dict) else [],
         createdAt=str(row["created_at"]),
         fullTextIncluded=False,
+    )
+
+
+def map_api_usage_event(row: sqlite3.Row) -> ApiUsageEventRecord:
+    return ApiUsageEventRecord(
+        id=str(row["id"]),
+        turnId=row["turn_id"],
+        conversationId=row["conversation_id"],
+        providerId=str(row["provider_id"]),
+        model=str(row["model"]),
+        inputTokens=int(row["input_tokens"]),
+        outputTokens=int(row["output_tokens"]),
+        totalTokens=int(row["total_tokens"]),
+        estimatedCost=float(row["estimated_cost"]),
+        currency=str(row["currency"]),
+        estimateMethod=str(row["estimate_method"]),
+        contextCharacterCount=int(row["context_character_count"]),
+        createdAt=str(row["created_at"]),
+        rawPromptIncluded=False,
+        rawResponseIncluded=False,
+        hiddenReasoningIncluded=False,
+        secretValuesIncluded=False,
     )
 
 

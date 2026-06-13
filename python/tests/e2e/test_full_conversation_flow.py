@@ -15,7 +15,7 @@ from rin.storage import RinDataLayout
 
 
 class E2EAdapter:
-    id = "rin-e2e-local"
+    id = "rin-e2e-test"
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
         return ModelResponse(

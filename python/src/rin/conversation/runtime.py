@@ -13,6 +13,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict
 
+from rin.config.chat_provider import load_cost_config
 from rin.context import ContextV2InputSegment, build_context_v2_report
 from rin.contracts import (
     ContextV2Report,
@@ -25,6 +26,7 @@ from rin.contracts import (
 from rin.database import (
     MemoryV2TraceRecord,
     append_message,
+    create_api_usage_event,
     create_conversation,
     create_memory_trace,
     inspect_database,
@@ -44,11 +46,12 @@ from rin.diagnostics.runtime_trace import (
 )
 from rin.diagnostics.safety import assert_safe_python_write_data_dir
 from rin.memory import MemoryV2SourceMessage, analyze_memory_v2_source
-from rin.model.ollama import (
+from rin.model import (
     ModelError,
     has_unsafe_thinking_leak,
     sanitize_assistant_content_details,
 )
+from rin.model.usage import build_api_usage_accounting
 from rin.profiles import build_profile_report, load_owner_profile, load_rin_profile
 from rin.storage import RinDataLayout
 
@@ -378,6 +381,10 @@ async def run_conversation_turn(
         memory_context_segments=memory_context_segments,
     )
     context_report = build_context_v2_report(context_segments)
+    export_policy = context_export_policy_metadata(
+        context_report,
+        recent_history_count=len(previous_messages),
+    )
     model_request = ModelRequest(
         ownerId="local-owner",
         conversationId=conversation_id,
@@ -442,12 +449,26 @@ async def run_conversation_turn(
             ),
             "droppedCount": context_report.skippedSegments,
             "componentTable": context_component_table(context_segments, context_report),
+            "exportPolicyApplied": export_policy["exportPolicyApplied"],
+            "rawPromptIncluded": export_policy["rawPromptIncluded"],
+            "hiddenReasoningIncluded": export_policy["hiddenReasoningIncluded"],
+            "profileSummaryIncluded": export_policy["profileSummaryIncluded"],
+            "fullProfileIncluded": export_policy["fullProfileIncluded"],
+            "memorySummaryIncluded": export_policy["memorySummaryIncluded"],
+            "rawMemoryIncluded": export_policy["rawMemoryIncluded"],
+            "recentHistoryCount": export_policy["recentHistoryCount"],
+            "contextCharacterCount": export_policy["contextCharacterCount"],
+            "includedSegments": export_policy["includedSegments"],
         },
         decision={
             "productionContextChanged": context_report.productionContextChanged,
             "reason": "Context V2 report built a safe prompt outline",
         },
-        privacy={"rawPromptIncluded": False, "componentPreviewsOnly": True},
+        privacy={
+            "rawPromptIncluded": False,
+            "componentPreviewsOnly": True,
+            "contextExportPolicy": export_policy,
+        },
     )
     recorder.record(
         "model_request",
@@ -463,22 +484,22 @@ async def run_conversation_turn(
         },
         operation={
             "adapter": adapter.id,
-            "provider": "local",
+            "provider": getattr(adapter, "provider", "unknown"),
             "model": getattr(adapter, "model", "n/a"),
             "baseUrl": getattr(adapter, "baseUrl", "n/a"),
             "timeoutMs": getattr(adapter, "timeoutMs", "n/a"),
-            "numPredict": getattr(
-                getattr(adapter, "generationOptions", None),
-                "numPredict",
+            "maxTokens": getattr(
+                getattr(adapter, "config", None),
+                "maxTokens",
                 "n/a",
             ),
             "temperature": getattr(
-                getattr(adapter, "generationOptions", None),
+                getattr(adapter, "config", None),
                 "temperature",
                 "n/a",
             ),
-            "topP": getattr(getattr(adapter, "generationOptions", None), "topP", "n/a"),
-            "thinkFalse": True if adapter.id == "rin-ollama-local" else "n/a",
+            "topP": getattr(getattr(adapter, "config", None), "topP", "n/a"),
+            "streaming": False,
         },
         output={
             "requestMessageCount": len(model_request.messages),
@@ -519,7 +540,7 @@ async def run_conversation_turn(
         metadata = model_response.metadata
         provider_raw_length = metadata.rawContentLength
         provider_raw_hash = metadata.rawContentHash or "n/a"
-        provider_raw_preview = metadata.rawPreview or "n/a"
+        provider_raw_preview = metadata.rawPreview or "not_included"
         provider_raw_metadata_available = provider_raw_length is not None
         trace_raw_length = (
             provider_raw_length
@@ -547,6 +568,14 @@ async def run_conversation_turn(
                 "rawContentHash": provider_raw_hash,
                 "rawPreview": provider_raw_preview,
                 "adapterContentLength": len(adapter_content),
+                "providerId": metadata.providerId or adapter.id,
+                "provider": metadata.provider or getattr(adapter, "provider", "n/a"),
+                "model": metadata.model or getattr(adapter, "model", "n/a"),
+                "safeBaseUrl": metadata.safeBaseUrl
+                or getattr(adapter, "baseUrl", "n/a"),
+                "promptTokens": metadata.promptTokens or "n/a",
+                "completionTokens": metadata.completionTokens or "n/a",
+                "totalTokens": metadata.totalTokens or "n/a",
                 "adapterSanitized": metadata.adapterSanitized,
                 "adapterRemovedCharacterCount": metadata.adapterRemovedCharacterCount,
                 "adapterSanitizedContentLength": metadata.sanitizedContentLength,
@@ -569,6 +598,7 @@ async def run_conversation_turn(
             },
             privacy={
                 "rawModelOutputIncluded": False,
+                "secretValuesIncluded": metadata.secretValuesIncluded,
                 "rawPreviewHiddenIfThinkingDetected": True,
             },
         )
@@ -844,6 +874,17 @@ async def run_conversation_turn(
         )
 
     # --- Persist rin reply ---
+    usage_accounting = None
+    if metadata.externalProvider:
+        usage_accounting = build_api_usage_accounting(
+            metadata=metadata,
+            provider_id=metadata.providerId or model_response.adapterId,
+            model=str(metadata.model or getattr(adapter, "model", "n/a")),
+            request_character_count=request_character_count,
+            output_character_count=len(sanitized),
+            context_character_count=context_report.characterCount,
+            cost_config=load_cost_config(),
+        )
     rin_message = append_message(
         layout,
         conversation_id,
@@ -890,6 +931,15 @@ async def run_conversation_turn(
         rin_message.id,
         now,
     )
+    usage_event_id: str | None = None
+    if usage_accounting is not None:
+        usage_event_id = create_api_usage_event(
+            layout,
+            turn_id=turn_id,
+            conversation_id=conversation_id,
+            accounting=usage_accounting,
+            now=now,
+        )
     memory_analysis = analyze_memory_v2_source(
         MemoryV2SourceMessage(
             messageId=owner_message.id,
@@ -984,6 +1034,8 @@ async def run_conversation_turn(
             "messageId": rin_message.id,
             "messageShortId": short_id(rin_message.id),
             "errorCode": None,
+            "usageEventRecorded": usage_event_id is not None,
+            "usageEventShortId": short_id(usage_event_id),
         },
         decision={"uiResponseSuccess": True, "reason": "completed turn returned to UI"},
         privacy={"fullFinalAnswerIncluded": False},
@@ -1305,6 +1357,31 @@ def context_component_table(
             }
         )
     return rows
+
+
+def context_export_policy_metadata(
+    context_report: ContextV2Report,
+    *,
+    recent_history_count: int,
+) -> dict[str, object]:
+    """Build safe metadata describing what context may leave local runtime."""
+    included_types = [
+        segment.type for segment in context_report.segments if segment.included
+    ]
+    return {
+        "exportPolicyApplied": True,
+        "rawPromptIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "profileSummaryIncluded": any(
+            item in {"rin_profile", "owner_profile"} for item in included_types
+        ),
+        "fullProfileIncluded": False,
+        "memorySummaryIncluded": "memory_v2_trace" in included_types,
+        "rawMemoryIncluded": False,
+        "recentHistoryCount": recent_history_count,
+        "contextCharacterCount": context_report.characterCount,
+        "includedSegments": included_types,
+    }
 
 
 def segment_privacy_status(segment_type: str) -> str:
