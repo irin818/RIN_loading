@@ -5,6 +5,11 @@ set -euo pipefail
 #  RIN One-Click Launcher
 #  Backend:  http://127.0.0.1:8765
 #  Frontend: http://127.0.0.1:5173
+#
+#  Secrets policy:
+#  - .env.example is the committed template.
+#  - .env is the local untracked secret/config file.
+#  - This launcher may report whether a key is present, but it must never print it.
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,34 +19,18 @@ PYTHON_DIR="$SCRIPT_DIR/python"
 FRONTEND_DIR="$SCRIPT_DIR/frontend"
 VENV_PYTHON="$PYTHON_DIR/.venv/bin/python"
 DEFAULT_DATA_DIR="$SCRIPT_DIR/.rin-data"
-
-if [[ -f "$SCRIPT_DIR/.env" ]]; then
-    set -a
-    # shellcheck source=/dev/null
-    source "$SCRIPT_DIR/.env"
-    set +a
-fi
+ENV_FILE="$SCRIPT_DIR/.env"
+ENV_EXAMPLE_FILE="$SCRIPT_DIR/.env.example"
 
 LOCAL_HOST="127.0.0.1"
 LOCAL_PORT="8765"
-LOCAL_URL="http://127.0.0.1:8765"
+LOCAL_URL="http://${LOCAL_HOST}:${LOCAL_PORT}"
 BACKEND_READY_URL="$LOCAL_URL/api/glitch-core/snapshot"
 
 FRONTEND_HOST="${RIN_FRONTEND_HOST:-127.0.0.1}"
 FRONTEND_PORT="${RIN_FRONTEND_PORT:-5173}"
 FRONTEND_URL="http://${FRONTEND_HOST}:${FRONTEND_PORT}"
 
-CHAT_PROVIDER="${RIN_CHAT_PROVIDER:-openai-compatible}"
-API_CHAT_BASE_URL="${RIN_API_CHAT_BASE_URL:-}"
-API_CHAT_MODEL="${RIN_API_CHAT_MODEL:-deepseek-v4-flash}"
-API_CHAT_TIMEOUT_MS="${RIN_API_CHAT_TIMEOUT_MS:-180000}"
-API_CHAT_TEMPERATURE="${RIN_API_CHAT_TEMPERATURE:-0.5}"
-API_CHAT_MAX_TOKENS="${RIN_API_CHAT_MAX_TOKENS:-1024}"
-API_CHAT_TOP_P="${RIN_API_CHAT_TOP_P:-0.9}"
-DATA_DIR="${RIN_PYTHON_DATA_DIR:-$DEFAULT_DATA_DIR}"
-
-# The preferred UI is the Vite Glitch Core shell. Keep the env override for
-# local experiments, for example RIN_STARTUP_UI_PATH=/glitch-core.
 UI_PATH="${RIN_STARTUP_UI_PATH:-/}"
 if [[ "$UI_PATH" != /* ]]; then
     UI_PATH="/$UI_PATH"
@@ -74,6 +63,80 @@ print_warn() { echo "  WARN $*"; }
 print_err() { echo "  ERR  $*"; }
 print_info() { echo "  INFO $*"; }
 
+load_local_env() {
+    if [[ -f "$ENV_FILE" ]]; then
+        set -a
+        # shellcheck source=/dev/null
+        source "$ENV_FILE"
+        set +a
+        print_ok "Loaded local environment from .env"
+        return
+    fi
+
+    print_warn "No local .env file found."
+    if [[ -f "$ENV_EXAMPLE_FILE" ]]; then
+        echo "       Create one with: cp .env.example .env"
+        echo "       Then edit .env and set RIN_API_CHAT_KEY."
+    else
+        echo "       .env.example is also missing; use shell exports for API config."
+    fi
+}
+
+check_env_file_safety() {
+    if [[ ! -f "$ENV_FILE" ]]; then
+        return
+    fi
+
+    if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        if git ls-files --error-unmatch .env >/dev/null 2>&1; then
+            print_err ".env is tracked by Git. Remove it from version control immediately."
+            echo "       Run: git rm --cached .env"
+            exit 1
+        fi
+
+        if git check-ignore -q .env; then
+            print_ok ".env is ignored by Git."
+        else
+            print_warn ".env is not ignored by Git. Add '.env' to .gitignore before committing."
+        fi
+    fi
+}
+
+read_runtime_config() {
+    CHAT_PROVIDER="${RIN_CHAT_PROVIDER:-openai-compatible}"
+    API_CHAT_BASE_URL="${RIN_API_CHAT_BASE_URL:-}"
+    API_CHAT_MODEL="${RIN_API_CHAT_MODEL:-deepseek-v4-flash}"
+    API_CHAT_TIMEOUT_MS="${RIN_API_CHAT_TIMEOUT_MS:-180000}"
+    API_CHAT_TEMPERATURE="${RIN_API_CHAT_TEMPERATURE:-0.5}"
+    API_CHAT_MAX_TOKENS="${RIN_API_CHAT_MAX_TOKENS:-1024}"
+    API_CHAT_TOP_P="${RIN_API_CHAT_TOP_P:-0.9}"
+    API_CHAT_THINKING="${RIN_API_CHAT_THINKING:-}"
+
+    COST_INPUT_PER_1K_TOKENS_CNY="${RIN_COST_INPUT_PER_1K_TOKENS_CNY:-0.001}"
+    COST_OUTPUT_PER_1K_TOKENS_CNY="${RIN_COST_OUTPUT_PER_1K_TOKENS_CNY:-0.002}"
+    COST_CURRENCY="${RIN_COST_CURRENCY:-CNY}"
+
+    DATA_DIR="${RIN_PYTHON_DATA_DIR:-$DEFAULT_DATA_DIR}"
+}
+
+validate_runtime_config() {
+    if [[ "$CHAT_PROVIDER" != "openai-compatible" ]]; then
+        print_err "Unsupported RIN_CHAT_PROVIDER: $CHAT_PROVIDER"
+        echo "       Supported value: openai-compatible"
+        exit 1
+    fi
+
+    case "$API_CHAT_THINKING" in
+        ""|disabled|enabled)
+            ;;
+        *)
+            print_err "Invalid RIN_API_CHAT_THINKING: $API_CHAT_THINKING"
+            echo "       Supported values: disabled, enabled, or empty/unset."
+            exit 1
+            ;;
+    esac
+}
+
 print_banner() {
     echo ""
     echo "============================================================"
@@ -83,6 +146,7 @@ print_banner() {
     echo " UI:       $UI_URL"
     echo " Provider: $CHAT_PROVIDER"
     echo " Model:    $API_CHAT_MODEL"
+    echo " Thinking: ${API_CHAT_THINKING:-unset}"
     echo "============================================================"
     echo ""
 }
@@ -177,37 +241,65 @@ verify_background_image() {
         print_ok "Glitch Core background: frontend/public/picture/rin-core-background.png"
     else
         print_warn "Glitch Core background image not found: $bg_path"
-        echo "The Core background image is missing. Place rin-core-background.png in frontend/public/picture/"
+        echo "       The Core background image is missing. Place rin-core-background.png in frontend/public/picture/"
     fi
 }
 
 check_chat_provider_config() {
     print_info "Chat provider: $CHAT_PROVIDER"
     print_info "Chat model: $API_CHAT_MODEL"
+    print_info "Thinking mode: ${API_CHAT_THINKING:-unset}"
+
     if [[ -z "$API_CHAT_BASE_URL" ]]; then
-        print_warn "RIN_API_CHAT_BASE_URL is not set."
+        print_warn "RIN_API_CHAT_BASE_URL is not set. Chat will fail safely with API_PROVIDER_UNCONFIGURED."
     else
         print_ok "API base URL configured."
     fi
+
     if [[ -z "${RIN_API_CHAT_KEY:-}" ]]; then
         print_warn "RIN_API_CHAT_KEY is not set. Chat will fail safely with API_PROVIDER_UNCONFIGURED."
     else
         print_ok "API key env var is present."
     fi
+
+    print_info "Cost estimate: input=${COST_INPUT_PER_1K_TOKENS_CNY}/${COST_CURRENCY} per 1K, output=${COST_OUTPUT_PER_1K_TOKENS_CNY}/${COST_CURRENCY} per 1K"
 }
 
 export_runtime_env() {
     mkdir -p "$DATA_DIR"
+
     export RIN_PYTHON_DATA_DIR="$DATA_DIR"
+
     export RIN_CHAT_PROVIDER="$CHAT_PROVIDER"
     export RIN_API_CHAT_MODEL="$API_CHAT_MODEL"
     export RIN_API_CHAT_TIMEOUT_MS="$API_CHAT_TIMEOUT_MS"
     export RIN_API_CHAT_TEMPERATURE="$API_CHAT_TEMPERATURE"
     export RIN_API_CHAT_MAX_TOKENS="$API_CHAT_MAX_TOKENS"
     export RIN_API_CHAT_TOP_P="$API_CHAT_TOP_P"
+
+    export RIN_COST_INPUT_PER_1K_TOKENS_CNY="$COST_INPUT_PER_1K_TOKENS_CNY"
+    export RIN_COST_OUTPUT_PER_1K_TOKENS_CNY="$COST_OUTPUT_PER_1K_TOKENS_CNY"
+    export RIN_COST_CURRENCY="$COST_CURRENCY"
+
     if [[ -n "$API_CHAT_BASE_URL" ]]; then
         export RIN_API_CHAT_BASE_URL="$API_CHAT_BASE_URL"
     fi
+
+    if [[ -n "$API_CHAT_THINKING" ]]; then
+        export RIN_API_CHAT_THINKING="$API_CHAT_THINKING"
+    else
+        unset RIN_API_CHAT_THINKING || true
+    fi
+}
+
+run_optional_api_smoke() {
+    if [[ "${RIN_RUN_API_SMOKE_ON_START:-0}" != "1" ]]; then
+        return
+    fi
+
+    echo ""
+    print_info "Running optional API chat smoke test..."
+    (cd "$PYTHON_DIR" && "$VENV_PYTHON" -m rin.cli.api_chat_smoke)
 }
 
 start_backend() {
@@ -244,12 +336,17 @@ start_frontend() {
     wait_for_url "$FRONTEND_URL" "frontend"
 }
 
+load_local_env
+check_env_file_safety
+read_runtime_config
+validate_runtime_config
 print_banner
 ensure_python_runtime
 ensure_frontend_runtime
 verify_background_image
 check_chat_provider_config
 export_runtime_env
+run_optional_api_smoke
 start_backend
 start_frontend
 
@@ -258,16 +355,6 @@ print_info "Opening $UI_URL"
 open "$UI_URL"
 
 echo ""
-echo "RIN is running."
-echo "Frontend: $FRONTEND_URL"
-echo "Backend:  $LOCAL_URL"
-echo "Press Ctrl-C to stop services launched by this window."
-echo ""
+print_ok "RIN is running. Close this terminal window or press Ctrl+C to stop backend/frontend started by this launcher."
 
-if [[ -n "${SERVER_PID:-}" ]]; then
-    wait "$SERVER_PID" || true
-else
-    while true; do
-        sleep 3600
-    done
-fi
+wait
