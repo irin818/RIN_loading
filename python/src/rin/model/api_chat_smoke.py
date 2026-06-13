@@ -1,30 +1,24 @@
-"""Quick smoke test that calls the local Ollama model with a simple Chinese prompt."""
+"""Optional smoke test for the configured external API chat provider."""
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 
+from rin.config.chat_provider import load_chat_provider_config
 from rin.contracts import ModelMessage, ModelRequest
-from rin.model.ollama import (
-    OLLAMA_ADAPTER_ID,
-    ModelError,
-    create_ollama_adapter_from_env,
-)
+from rin.model.errors import ModelError
+from rin.model.openai_compatible import create_api_chat_adapter_from_env
 
 
 @dataclass(frozen=True)
-class LocalChatSmokeReport:
-    """
-    Result of a local chat smoke test: status, model info, timing, and error details.
-    """
+class ApiChatSmokeReport:
+    """Result of an external API chat smoke test."""
 
     mode: str
     status: str
     adapter: str
     provider: str
     model: str | None
-    localModelCallCount: int
     externalProviderCallCount: int
     success: bool
     contentLength: int
@@ -32,93 +26,81 @@ class LocalChatSmokeReport:
     retryable: bool | None
     fullTextIncluded: bool
     rawProviderResponseIncluded: bool
-    thinkingIncluded: bool
+    secretValuesIncluded: bool
 
 
-async def run_local_chat_smoke() -> LocalChatSmokeReport:
-    """
-    Send a simple Chinese dinner-suggestion prompt to the Ollama adapter.
-
-    Skips if the active adapter is not the Ollama adapter.
-    """
-    active_adapter = os.environ.get("RIN_MODEL_ADAPTER", "rin-mock-local")
-    model = os.environ.get("RIN_OLLAMA_MODEL", "qwen3:4b")
-    if active_adapter != OLLAMA_ADAPTER_ID:
-        return LocalChatSmokeReport(
-            mode="local-chat-smoke",
-            status="skipped_not_selected",
-            adapter=active_adapter,
-            provider="unknown",
-            model=model,
-            localModelCallCount=0,
+async def run_api_chat_smoke() -> ApiChatSmokeReport:
+    """Send a tiny prompt only when the external API provider is configured."""
+    config = load_chat_provider_config()
+    adapter = create_api_chat_adapter_from_env()
+    if not config.configured:
+        return ApiChatSmokeReport(
+            mode="api-chat-smoke",
+            status=config.configurationStatus,
+            adapter=adapter.id,
+            provider=config.provider,
+            model=config.model,
             externalProviderCallCount=0,
             success=False,
             contentLength=0,
-            errorCode=None,
-            retryable=None,
+            errorCode="API_PROVIDER_UNCONFIGURED",
+            retryable=False,
             fullTextIncluded=False,
             rawProviderResponseIncluded=False,
-            thinkingIncluded=False,
+            secretValuesIncluded=False,
         )
-    adapter = create_ollama_adapter_from_env()
     try:
         response = await adapter.generate(
             ModelRequest(
                 ownerId="local-owner",
-                conversationId="local-chat-smoke",
+                conversationId="api-chat-smoke",
                 messages=[
                     ModelMessage(
                         role="system",
                         content="Return only final assistant content.",
                     ),
-                    ModelMessage(
-                        role="owner",
-                        content="请直接用两句话给一个简单晚饭建议。不要展开推理。",
-                    ),
+                    ModelMessage(role="owner", content="Reply with OK."),
                 ],
             )
         )
-        return LocalChatSmokeReport(
-            mode="local-chat-smoke",
+        return ApiChatSmokeReport(
+            mode="api-chat-smoke",
             status="success",
             adapter=adapter.id,
-            provider="local",
-            model=adapter.model,
-            localModelCallCount=1,
-            externalProviderCallCount=0,
+            provider=config.provider,
+            model=config.model,
+            externalProviderCallCount=1,
             success=True,
             contentLength=len(response.content),
             errorCode=None,
             retryable=None,
             fullTextIncluded=False,
             rawProviderResponseIncluded=False,
-            thinkingIncluded=False,
+            secretValuesIncluded=False,
         )
     except ModelError as error:
-        unavailable = error.code in {"LOCAL_MODEL_UNAVAILABLE", "LOCAL_MODEL_MISSING"}
-        return LocalChatSmokeReport(
-            mode="local-chat-smoke",
-            status="unavailable" if unavailable else "failed",
+        return ApiChatSmokeReport(
+            mode="api-chat-smoke",
+            status="failed",
             adapter=error.adapterId,
-            provider="local",
+            provider=error.provider,
             model=error.details.model,
-            localModelCallCount=1,
-            externalProviderCallCount=0,
+            externalProviderCallCount=1,
             success=False,
             contentLength=0,
             errorCode=error.code,
             retryable=error.retryable,
             fullTextIncluded=False,
             rawProviderResponseIncluded=False,
-            thinkingIncluded=False,
+            secretValuesIncluded=False,
         )
 
 
-def format_local_chat_smoke_report(report: LocalChatSmokeReport) -> str:
-    """Render a LocalChatSmokeReport as a human-readable multi-line string."""
+def format_api_chat_smoke_report(report: ApiChatSmokeReport) -> str:
+    """Render an ApiChatSmokeReport as a human-readable multi-line string."""
     return "\n".join(
         [
-            "RIN Python local chat smoke report.",
+            "RIN Python API chat smoke report.",
             f"Mode: {report.mode}",
             f"Status: {report.status}",
             f"Adapter: {report.adapter}",
@@ -128,11 +110,10 @@ def format_local_chat_smoke_report(report: LocalChatSmokeReport) -> str:
             f"Content length: {report.contentLength}",
             f"Error code: {report.errorCode or 'none'}",
             f"Retryable: {report.retryable if report.retryable is not None else 'n/a'}",
-            f"Local model calls: {report.localModelCallCount}",
             f"External provider calls: {report.externalProviderCallCount}",
             f"Full text included: {'yes' if report.fullTextIncluded else 'no'}",
             "Raw provider response included: "
             f"{'yes' if report.rawProviderResponseIncluded else 'no'}",
-            f"Thinking included: {'yes' if report.thinkingIncluded else 'no'}",
+            f"Secret values included: {'yes' if report.secretValuesIncluded else 'no'}",
         ]
     )

@@ -8,7 +8,6 @@ profile/memory status, and safe serialization helpers.
 
 from __future__ import annotations
 
-import os
 from collections.abc import Sequence
 from pathlib import Path
 from typing import cast
@@ -20,16 +19,23 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict
 
 from rin.body import build_body_report
+from rin.config.chat_provider import (
+    ChatProviderConfig,
+    load_chat_provider_config,
+    load_cost_config,
+)
 from rin.contracts import ModelRequest, ModelResponse, ModelResponseMetadata
 from rin.conversation import ModelAdapterProtocol, RuntimeClock, run_conversation_turn
 from rin.database import (
     create_conversation,
     get_conversation,
     inspect_database,
+    list_api_usage_events,
     list_conversations,
     list_legacy_memories,
     list_memory_v2_traces,
     list_messages,
+    summarize_api_usage,
 )
 from rin.diagnostics.readiness import build_python_readiness_report
 from rin.diagnostics.runtime_trace import (
@@ -39,6 +45,7 @@ from rin.diagnostics.runtime_trace import (
     short_id,
 )
 from rin.diagnostics.safety import assert_safe_python_write_data_dir
+from rin.model import create_api_chat_adapter_from_env
 from rin.profiles import build_profile_report
 from rin.storage import RinDataLayout
 from rin.version import __version__
@@ -91,10 +98,10 @@ class ApiState(BaseModel):
 
 class MockApiAdapter:
     """
-    Fallback adapter that returns a static mock reply when no real model is configured.
+    Test-only adapter used by unit tests. It is never selected as production fallback.
     """
 
-    id = "rin-mock-local"
+    id = "rin-mock-test"
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
         return ModelResponse(
@@ -115,8 +122,8 @@ def create_app(
 ) -> FastAPI:
     """Build and return a FastAPI app wired to the given layout, adapter, and clock.
 
-    If no adapter is provided, a MockApiAdapter is used. Routes are grouped by concern:
-    UI, diagnostics, chat/conversation, profiles, and memory status.
+    If no adapter is provided, the external API adapter is constructed from
+    environment config. Missing API config fails safely at chat-call time.
     """
     app = FastAPI(title="RIN Python Compatibility API", version="0.0.0")
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -143,7 +150,10 @@ def create_app(
             StaticFiles(directory=_picture_dir),
             name="picture",
         )
-    selected_adapter = adapter or MockApiAdapter()
+    selected_adapter = cast(
+        ModelAdapterProtocol,
+        adapter or create_api_chat_adapter_from_env(),
+    )
     selected_clock = clock or RuntimeClock()
 
     def get_layout() -> RinDataLayout:
@@ -287,6 +297,21 @@ def create_app(
                 limit=limit,
             ),
         }
+
+    @app.get("/api/cost/summary")
+    def api_cost_summary(
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> dict[str, object]:
+        return build_cost_summary_payload(current_layout, current_adapter)
+
+    @app.get("/api/cost/recent")
+    def api_cost_recent(
+        limit: int = 20,
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> dict[str, object]:
+        return build_cost_recent_payload(current_layout, current_adapter, limit=limit)
 
     # ---- Diagnostics endpoints ----
     @app.get("/api/diagnostics/overview")
@@ -790,14 +815,9 @@ def build_console_view_model(
     profile_files = profile.get("files", []) if isinstance(profile, dict) else []
     profile_file_count = len(profile_files) if isinstance(profile_files, list) else 0
     adapter_id = adapter.id
-    model_name = (
-        os.environ.get("RIN_OLLAMA_MODEL", "qwen3:4b")
-        if adapter_id == "rin-ollama-local"
-        else "provider-free mock"
-    )
-    local_model_status = (
-        "selected" if adapter_id == "rin-ollama-local" else "not selected"
-    )
+    chat_config = active_chat_config(adapter)
+    model_name = getattr(adapter, "model", chat_config.model)
+    local_model_status = "not active"
     dashboard = build_status_dashboard_summary(
         layout,
         adapter,
@@ -970,6 +990,7 @@ def build_glitch_core_snapshot(
         messages=messages,
     )
     model_diagnostics = build_diagnostics_payload(layout, adapter, "model")
+    cost_payload = build_cost_summary_payload(layout, adapter)
     memory_cards = build_glitch_memory_cards(layout, query=memory_query, limit=40)
     latest_trace = RUNTIME_TRACE_STORE.latest()
     latest_trace_payload = latest_trace.to_safe_dict() if latest_trace else None
@@ -1035,11 +1056,12 @@ def build_glitch_core_snapshot(
             model_diagnostics,
             latest_trace_payload,
         ),
+        "cost": cost_payload,
         "errors": build_glitch_error_items(latest_trace_payload),
         "windows": {
-            "defaultTypes": ["core", "chat", "memory", "trace", "provider"],
+            "defaultTypes": ["core", "chat", "memory", "trace", "provider", "cost"],
             "temporaryTypes": ["error", "settings", "tasks", "tools", "system"],
-            "persistentTypes": ["chat", "memory", "trace"],
+            "persistentTypes": ["chat", "memory", "trace", "cost"],
             "layoutPersistence": "browser-local-storage",
         },
     }
@@ -1172,39 +1194,100 @@ def build_glitch_provider_payload(
     last_error = "n/a"
     if latest_trace and latest_trace.get("status") == "failed":
         last_error = str(latest_trace.get("errorCode", "unknown"))
+    config = active_chat_config(adapter)
+    is_mock = adapter.id == MockApiAdapter.id
+    configured = True if is_mock else config.configured
+    configuration_status = "test_mock" if is_mock else config.configurationStatus
     return {
-        "activeProvider": model_diagnostics.get("provider", "local"),
+        "activeProvider": model_diagnostics.get("provider", config.provider),
         "activeAdapter": adapter.id,
-        "activeModel": model_diagnostics.get("model", "n/a"),
-        "configured": bool(adapter.id),
-        "streamingSupport": "not configured",
-        "health": "error" if last_error != "n/a" else "ok",
+        "activeModel": model_diagnostics.get("model", config.model),
+        "configured": configured,
+        "configurationStatus": configuration_status,
+        "streamingSupport": "disabled_v1",
+        "health": "error" if last_error != "n/a" else "ok" if configured else "warning",
         "lastLatencyMs": provider_latency_from_trace(latest_trace),
         "lastError": last_error,
         "availableProviders": [
             {
-                "id": "rin-mock-local",
-                "provider": "local",
-                "configured": True,
-                "secretRequired": False,
-            },
-            {
-                "id": "rin-ollama-local",
-                "provider": "local",
-                "configured": True,
-                "secretRequired": False,
+                "id": "rin-api-chat-openai-compatible",
+                "provider": "openai-compatible",
+                "configured": config.configured,
+                "configurationStatus": config.configurationStatus,
+                "secretRequired": True,
             },
         ],
-        "safeConfig": {
-            "baseUrl": model_diagnostics.get("baseUrl", "n/a"),
-            "timeoutMs": model_diagnostics.get("timeoutMs", "n/a"),
-            "numPredict": model_diagnostics.get("numPredict", "n/a"),
-            "temperature": model_diagnostics.get("temperature", "n/a"),
-            "topP": model_diagnostics.get("topP", "n/a"),
-            "apiKeyIncluded": False,
-            "secretValuesIncluded": False,
-        },
+        "safeConfig": config.safe_metadata(),
     }
+
+
+def build_cost_summary_payload(
+    layout: RinDataLayout,
+    adapter: ModelAdapterProtocol,
+) -> dict[str, object]:
+    """Build aggregate token/cost payload for safe UI display."""
+    config = active_chat_config(adapter)
+    usage = summarize_api_usage(layout)
+    recent = list_api_usage_events(layout, limit=20)
+    cost_config = load_cost_config()
+    return {
+        "ok": True,
+        "mode": "api-cost-summary",
+        "readOnly": True,
+        "localOnly": True,
+        "provider": getattr(adapter, "provider", config.provider),
+        "adapter": adapter.id,
+        "model": getattr(adapter, "model", config.model),
+        "configured": config.configured,
+        "configurationStatus": config.configurationStatus,
+        "currency": usage.currency,
+        "priceConfig": cost_config.safe_metadata(),
+        "eventCount": usage.eventCount,
+        "totalInputTokens": usage.totalInputTokens,
+        "totalOutputTokens": usage.totalOutputTokens,
+        "totalTokens": usage.totalTokens,
+        "totalEstimatedCost": usage.totalEstimatedCost,
+        "latest": usage.latest.model_dump(mode="json") if usage.latest else None,
+        "recent": [item.model_dump(mode="json") for item in recent],
+        "rawPromptIncluded": False,
+        "rawResponseIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def build_cost_recent_payload(
+    layout: RinDataLayout,
+    adapter: ModelAdapterProtocol,
+    *,
+    limit: int = 20,
+) -> dict[str, object]:
+    """Build recent token/cost records for the Web UI."""
+    config = active_chat_config(adapter)
+    records = list_api_usage_events(layout, limit=limit)
+    return {
+        "ok": True,
+        "mode": "api-cost-recent",
+        "readOnly": True,
+        "localOnly": True,
+        "provider": getattr(adapter, "provider", config.provider),
+        "adapter": adapter.id,
+        "model": getattr(adapter, "model", config.model),
+        "configurationStatus": config.configurationStatus,
+        "records": [item.model_dump(mode="json") for item in records],
+        "rawPromptIncluded": False,
+        "rawResponseIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def active_chat_config(adapter: ModelAdapterProtocol) -> ChatProviderConfig:
+    """Return adapter config when present, otherwise current environment config."""
+    config = getattr(adapter, "config", None)
+    if isinstance(config, ChatProviderConfig):
+        return config
+    return load_chat_provider_config()
 
 
 def provider_latency_from_trace(trace: dict[str, object] | None) -> object:
@@ -1311,14 +1394,12 @@ def build_status_dashboard_summary(
     )
     memory_ring_percent = min(100, round((memory_trace_count / 20) * 100))
     adapter_id = adapter.id
-    model_name = (
-        os.environ.get("RIN_OLLAMA_MODEL", "qwen3:4b")
-        if adapter_id == "rin-ollama-local"
-        else "provider-free mock"
-    )
     raw_schema_version = database.get("schemaVersion", 0)
     schema_version = raw_schema_version if isinstance(raw_schema_version, int) else 0
     memory_available = memory_context.get("available") is True
+    chat_config = active_chat_config(adapter)
+    model_name = getattr(adapter, "model", chat_config.model)
+    provider_configured = adapter.id == MockApiAdapter.id or chat_config.configured
     return {
         "readiness": {
             "ok": readiness.get("ok") is True,
@@ -1357,7 +1438,7 @@ def build_status_dashboard_summary(
         },
         "health": {
             "database": "ok" if schema_version >= 6 else "warning",
-            "model": "ok" if adapter_id else "warning",
+            "model": "ok" if provider_configured else "warning",
             "profile": "ok" if profile_status == "valid" else "warning",
             "memory": "ok" if memory_available else "warning",
             "local": "ok" if snapshot["localOnly"] is True else "warning",
@@ -1404,11 +1485,7 @@ def build_diagnostics_payload(
         )
     model_name = str(dashboard["model"])
     adapter_id = adapter.id
-    ollama_base_url = (
-        os.environ.get("RIN_OLLAMA_BASE_URL", "http://127.0.0.1:11434")
-        if adapter_id == "rin-ollama-local"
-        else "n/a"
-    )
+    chat_config = active_chat_config(adapter)
     memory_diagnostics = build_memory_diagnostics_payload(layout)
     payloads: dict[str, dict[str, object]] = {
         "overview": {
@@ -1422,18 +1499,23 @@ def build_diagnostics_payload(
         "model": {
             "mode": "diagnostics-model",
             "readOnly": True,
-            "providerCallsMade": 0,
+            "providerCallsMade": snapshot["externalProviderCallCount"],
             "adapter": adapter_id,
-            "provider": "local",
+            "provider": getattr(adapter, "provider", chat_config.provider),
             "model": model_name,
-            "baseUrl": ollama_base_url,
-            "timeoutMs": os.environ.get("RIN_OLLAMA_TIMEOUT_MS", "180000"),
-            "numPredict": os.environ.get("RIN_OLLAMA_NUM_PREDICT", "1024"),
-            "temperature": os.environ.get("RIN_OLLAMA_TEMPERATURE", "n/a"),
-            "topP": os.environ.get("RIN_OLLAMA_TOP_P", "n/a"),
-            "externalApiDisabled": True,
-            "smokeStatus": "not run automatically",
+            "baseUrl": chat_config.safeBaseUrl or "n/a",
+            "timeoutMs": chat_config.timeoutMs,
+            "maxTokens": chat_config.maxTokens,
+            "temperature": chat_config.temperature,
+            "topP": chat_config.topP,
+            "configured": chat_config.configured,
+            "configurationStatus": chat_config.configurationStatus,
+            "missingEnvironment": chat_config.missingEnvironment,
+            "externalApiDisabled": False,
+            "smokeStatus": "skipped unless RIN_API_CHAT_* env vars are configured",
             "sanitizerStatus": "thinking output is guarded by adapter tests",
+            "apiKeyIncluded": False,
+            "secretValuesIncluded": False,
         },
         "memory": memory_diagnostics,
         "context": {
@@ -1702,24 +1784,31 @@ def local_console_snapshot(layout: RinDataLayout) -> dict[str, object]:
     """
     status = inspect_database(layout)
     profile = build_profile_report(layout).model_dump(mode="json")
+    chat_config = load_chat_provider_config()
     return {
         "ok": True,
         "mode": "python-fastapi-compatibility",
         "localOnly": True,
         "providerCallCount": 0,
-        "externalProviderCallCount": 0,
+        "externalProviderCallCount": status.counts.apiUsageEvents,
         "fullTextIncluded": False,
         "database": {
             "schemaVersion": status.schemaVersion,
             "conversations": status.counts.conversations,
             "messages": status.counts.messages,
             "memoryV2Traces": status.counts.memoryV2Traces,
+            "apiUsageEvents": status.counts.apiUsageEvents,
         },
         "profile": profile,
         "modelRuntime": {
-            "activeAdapter": "rin-mock-local",
-            "provider": "local",
+            "activeAdapter": chat_config.id,
+            "provider": chat_config.provider,
+            "model": chat_config.model,
+            "configured": chat_config.configured,
+            "configurationStatus": chat_config.configurationStatus,
             "localOnly": True,
+            "apiKeyIncluded": False,
+            "secretValuesIncluded": False,
         },
         "memoryContext": {
             "available": True,

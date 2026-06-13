@@ -26,7 +26,7 @@ NOW = "2026-06-05T00:00:00.000Z"
 
 
 class BenchmarkAdapter:
-    id = "rin-benchmark-local"
+    id = "rin-benchmark-test"
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
         return ModelResponse(
@@ -91,7 +91,7 @@ def test_memory_signal_extraction_regression_budget() -> None:
                 messageId=f"message-{index}",
                 conversationId="conversation",
                 role="owner",
-                content="I prefer concise local model progress updates.",
+                content="I prefer concise API provider progress updates.",
                 createdAt=NOW,
             ),
             now=NOW,

@@ -4,25 +4,31 @@ from typing import cast
 
 import pytest
 
-from rin.contracts import ModelRequest, ModelResponse, ModelResponseMetadata
+from rin.contracts import (
+    ModelErrorDetails,
+    ModelRequest,
+    ModelResponse,
+    ModelResponseMetadata,
+)
 from rin.conversation import RuntimeClock, run_conversation_turn
 from rin.database import (
     create_memory_trace,
     create_temp_layout_database,
     inspect_database,
+    list_api_usage_events,
     list_memory_v2_traces,
     list_messages,
 )
 from rin.diagnostics.runtime_trace import RUNTIME_TRACE_STORE
 from rin.diagnostics.safety import create_temp_data_dir
-from rin.model.ollama import ModelError, ModelErrorDetails
+from rin.model import ModelError
 from rin.storage import RinDataLayout
 
 NOW = "2026-06-05T00:00:00.000Z"
 
 
 class MockAdapter:
-    id = "rin-mock-local"
+    id = "rin-mock-test"
 
     def __init__(self, content: str = "Final reply.") -> None:
         self.content = content
@@ -42,22 +48,23 @@ class MockAdapter:
 
 
 class FailingAdapter:
-    id = "rin-mock-local"
+    id = "rin-mock-test"
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
         raise ModelError(
             "MODEL_RESPONSE_INVALID",
             "empty",
-            "rin-mock-local",
+            "rin-mock-test",
             retryable=True,
             details=ModelErrorDetails(emptyContent=True),
         )
 
 
 class RawMetadataAdapter:
-    id = "rin-ollama-local"
-    model = "qwen3:4b"
-    baseUrl = "http://127.0.0.1:11434"
+    id = "rin-api-chat-openai-compatible"
+    provider = "openai-compatible"
+    model = "qwen-long"
+    baseUrl = "https://api.example.test/v1"
     timeoutMs = 180000
 
     def __init__(self) -> None:
@@ -69,9 +76,13 @@ class RawMetadataAdapter:
             content=self.sanitized,
             adapterId=self.id,
             metadata=ModelResponseMetadata(
-                externalProvider=False,
+                externalProvider=True,
                 memoryWriteRequested=False,
                 toolCallRequested=False,
+                providerId=self.id,
+                provider=self.provider,
+                model=self.model,
+                safeBaseUrl=self.baseUrl,
                 rawContentLength=len(self.raw),
                 rawContentHash="rawhash",
                 rawPreview="hidden_due_to_thinking_signal",
@@ -81,6 +92,51 @@ class RawMetadataAdapter:
                 adapterSanitized=True,
                 adapterRemovedCharacterCount=len(self.raw) - len(self.sanitized),
                 sanitizedContentLength=len(self.sanitized),
+            ),
+        )
+
+
+class ExternalUsageAdapter:
+    id = "rin-api-chat-openai-compatible"
+    provider = "openai-compatible"
+    model = "qwen-long"
+    baseUrl = "https://api.example.test/v1"
+    timeoutMs = 180000
+
+    def __init__(
+        self,
+        *,
+        content: str = "External reply.",
+        prompt_tokens: int | None = None,
+        completion_tokens: int | None = None,
+        total_tokens: int | None = None,
+    ) -> None:
+        self.content = content
+        self.prompt_tokens = prompt_tokens
+        self.completion_tokens = completion_tokens
+        self.total_tokens = total_tokens
+        self.requests: list[ModelRequest] = []
+
+    async def generate(self, request: ModelRequest) -> ModelResponse:
+        self.requests.append(request)
+        return ModelResponse(
+            content=self.content,
+            adapterId=self.id,
+            metadata=ModelResponseMetadata(
+                externalProvider=True,
+                memoryWriteRequested=False,
+                toolCallRequested=False,
+                providerId=self.id,
+                provider=self.provider,
+                model=self.model,
+                safeBaseUrl=self.baseUrl,
+                promptTokens=self.prompt_tokens,
+                completionTokens=self.completion_tokens,
+                totalTokens=self.total_tokens,
+                rawContentLength=len(self.content),
+                rawContentHash="contenthash",
+                rawModelOutputIncluded=False,
+                secretValuesIncluded=False,
             ),
         )
 
@@ -151,6 +207,7 @@ async def test_runtime_persists_owner_and_rin_reply_on_success() -> None:
         assert result.memoryTraceWritten is False
         assert status.counts.conversationTurns == 1
         assert status.counts.memoryV2Traces == 0
+        assert status.counts.apiUsageEvents == 0
         assert adapter.requests[0].messages[-1].content == "hello"
         trace = RUNTIME_TRACE_STORE.latest()
         assert trace is not None
@@ -272,6 +329,86 @@ async def test_runtime_injects_selected_profile_fields_only() -> None:
             and item["preview"] == "hidden_profile_context"
             for item in component_table
         )
+        assert context_stage.output["exportPolicyApplied"] is True
+        assert context_stage.output["rawPromptIncluded"] is False
+        assert context_stage.output["hiddenReasoningIncluded"] is False
+        assert context_stage.output["profileSummaryIncluded"] is True
+        assert context_stage.output["fullProfileIncluded"] is False
+        assert context_stage.output["rawMemoryIncluded"] is False
+        assert context_stage.output["recentHistoryCount"] == 0
+        assert "owner_profile" in context_stage.output["includedSegments"]
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+@pytest.mark.asyncio
+async def test_runtime_records_provider_usage_tokens_for_external_adapter(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("RIN_COST_INPUT_PER_1K_TOKENS_CNY", "0.0005")
+    monkeypatch.setenv("RIN_COST_OUTPUT_PER_1K_TOKENS_CNY", "0.0005")
+    monkeypatch.setenv("RIN_COST_CURRENCY", "CNY")
+    layout = create_layout()
+    try:
+        RUNTIME_TRACE_STORE.clear()
+        result = await run_conversation_turn(
+            layout,
+            "hello",
+            ExternalUsageAdapter(
+                content="External final answer.",
+                prompt_tokens=1000,
+                completion_tokens=500,
+                total_tokens=1500,
+            ),
+            clock=RuntimeClock(NOW),
+        )
+
+        records = list_api_usage_events(layout)
+
+        assert result.status == "completed"
+        assert len(records) == 1
+        assert records[0].turnId == result.turnId
+        assert records[0].providerId == "rin-api-chat-openai-compatible"
+        assert records[0].inputTokens == 1000
+        assert records[0].outputTokens == 500
+        assert records[0].totalTokens == 1500
+        assert records[0].estimatedCost == 0.00075
+        assert records[0].currency == "CNY"
+        assert records[0].estimateMethod == "provider_usage"
+        assert records[0].rawPromptIncluded is False
+        assert records[0].rawResponseIncluded is False
+        assert records[0].hiddenReasoningIncluded is False
+        assert records[0].secretValuesIncluded is False
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+@pytest.mark.asyncio
+async def test_runtime_estimates_usage_when_provider_usage_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("RIN_COST_INPUT_PER_1K_TOKENS_CNY", "0.0005")
+    monkeypatch.setenv("RIN_COST_OUTPUT_PER_1K_TOKENS_CNY", "0.0005")
+    monkeypatch.setenv("RIN_COST_CURRENCY", "CNY")
+    layout = create_layout()
+    try:
+        RUNTIME_TRACE_STORE.clear()
+        result = await run_conversation_turn(
+            layout,
+            "hello",
+            ExternalUsageAdapter(content="abcd"),
+            clock=RuntimeClock(NOW),
+        )
+
+        records = list_api_usage_events(layout)
+
+        assert result.status == "completed"
+        assert len(records) == 1
+        assert records[0].inputTokens > 0
+        assert records[0].outputTokens == 1
+        assert records[0].totalTokens == records[0].inputTokens + 1
+        assert records[0].estimatedCost > 0
+        assert records[0].estimateMethod == "estimated_chars_div_4"
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 

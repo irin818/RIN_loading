@@ -18,13 +18,14 @@ import type {
 } from "./types";
 
 const LAYOUT_KEY = "rin.glitch-core.window-layout.v2";
-const PERSISTENT_TYPES = new Set<WindowType>(["chat", "memory", "trace"]);
+const PERSISTENT_TYPES = new Set<WindowType>(["chat", "memory", "trace", "cost"]);
 const REUSABLE_WINDOW_TYPES = new Set<WindowType>([
   "core",
   "chat",
   "memory",
   "trace",
   "provider",
+  "cost",
   "tasks",
   "tools",
   "settings",
@@ -52,7 +53,8 @@ const WINDOW_META: Record<WindowType, WindowMeta> = {
   memory: { label: "Memory", context: "Recent Memories", code: "MEM" },
   memoryDetail: { label: "Memory Detail", context: "Memory Record", code: "MEM+" },
   trace: { label: "Trace", context: "Runtime Trace", code: "TRC" },
-  provider: { label: "Provider", context: "Local Provider", code: "PRV" },
+  provider: { label: "Provider", context: "API Provider", code: "PRV" },
+  cost: { label: "Cost / Token", context: "Usage Ledger", code: "COST" },
   error: { label: "Error", context: "Runtime Error", code: "ERR" },
   tasks: { label: "Tasks", context: "Mission Queue", code: "TASK" },
   tools: { label: "Tools", context: "Tool Layer", code: "TOOL" },
@@ -66,6 +68,7 @@ const MENU_ITEMS: Array<{ label: string; type?: WindowType }> = [
   { label: "MEMORY", type: "memory" },
   { label: "TRACE", type: "trace" },
   { label: "PROVIDERS", type: "provider" },
+  { label: "COST", type: "cost" },
   { label: "TASKS", type: "tasks" },
   { label: "TOOLS", type: "tools" },
   { label: "SETTINGS", type: "settings" },
@@ -83,7 +86,8 @@ const DEFAULT_LAYOUT: Array<Pick<
   { type: "chat", contextName: "Default Session", x: 28, y: 76, width: 410, height: 516 },
   { type: "memory", contextName: "Recent Memories", x: 850, y: 82, width: 406, height: 488 },
   { type: "trace", contextName: "Latest Turn", x: 372, y: 432, width: 548, height: 236 },
-  { type: "provider", contextName: "Local Provider", x: 888, y: 492, width: 360, height: 200 }
+  { type: "provider", contextName: "API Provider", x: 888, y: 492, width: 360, height: 200 },
+  { type: "cost", contextName: "Usage Ledger", x: 498, y: 104, width: 382, height: 248 }
 ];
 
 const SPAWN_LAYOUT: Record<WindowType, {
@@ -100,6 +104,7 @@ const SPAWN_LAYOUT: Record<WindowType, {
   memoryDetail: { x: 520, y: 118, width: 430, height: 420, offsetX: 28, offsetY: 28 },
   trace: { x: 346, y: 396, width: 570, height: 268, offsetX: 38, offsetY: -24 },
   provider: { x: 838, y: 424, width: 390, height: 244, offsetX: -30, offsetY: -18 },
+  cost: { x: 54, y: 470, width: 438, height: 300, offsetX: 30, offsetY: -26 },
   error: { x: 500, y: 124, width: 460, height: 340, offsetX: 28, offsetY: 30 },
   tasks: { x: 96, y: 128, width: 420, height: 320, offsetX: 32, offsetY: 30 },
   tools: { x: 744, y: 154, width: 410, height: 318, offsetX: -32, offsetY: 30 },
@@ -971,6 +976,8 @@ function WindowContent(props: {
       return <TraceWindow trace={props.snapshot?.trace.latest ?? null} openWindow={props.openWindow} />;
     case "provider":
       return <ProviderWindow snapshot={props.snapshot} openWindow={props.openWindow} />;
+    case "cost":
+      return <CostWindow snapshot={props.snapshot} />;
     case "error":
       return (
         <ErrorWindow
@@ -1308,6 +1315,73 @@ function ProviderWindow(props: {
       ) : null}
     </div>
   );
+}
+
+function CostWindow(props: { snapshot: GlitchSnapshot | null }) {
+  const cost = props.snapshot?.cost;
+  if (!cost) {
+    return <p className="empty-state">Cost and token usage loading.</p>;
+  }
+  const latest = cost.latest;
+  const maxRecentTokens = Math.max(1, ...cost.recent.map((item) => item.totalTokens));
+  return (
+    <div className="cost-module">
+      <div className="module-strip">COST / TOKEN · SAFE LEDGER</div>
+      <div className="cost-grid">
+        <Metric label="provider" value={cost.provider} />
+        <Metric label="model" value={cost.model} />
+        <Metric label="config" value={cost.configurationStatus} />
+        <Metric label="records" value={cost.eventCount} />
+        <Metric label="total tokens" value={cost.totalTokens} />
+        <Metric
+          label="total cost"
+          value={`${formatCost(cost.totalEstimatedCost)} ${cost.currency}`}
+        />
+      </div>
+      <div className="cost-latest">
+        <span>latest turn</span>
+        {latest ? (
+          <strong>
+            {latest.inputTokens} in / {latest.outputTokens} out / {latest.totalTokens} total · {formatCost(latest.estimatedCost)} {latest.currency}
+          </strong>
+        ) : (
+          <strong>no usage records yet</strong>
+        )}
+      </div>
+      <div className="cost-record-list">
+        {cost.recent.length ? (
+          cost.recent.slice(0, 20).map((item) => (
+            <article key={item.id} className="cost-record">
+              <div>
+                <span>{shortLabel(item.createdAt)}</span>
+                <b>{item.totalTokens} tok</b>
+              </div>
+              <div className="cost-bar" aria-hidden="true">
+                <span style={{ width: `${Math.max(4, (item.totalTokens / maxRecentTokens) * 100)}%` }} />
+              </div>
+              <small>{formatCost(item.estimatedCost)} {item.currency} · {item.estimateMethod}</small>
+            </article>
+          ))
+        ) : (
+          <p className="empty-state">Configure API chat and complete a turn to record usage.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function formatCost(value: number) {
+  if (value === 0) {
+    return "0.000000";
+  }
+  return value.toFixed(6);
+}
+
+function shortLabel(value: string) {
+  if (!value || value === "n/a") {
+    return "n/a";
+  }
+  return value.replace("T", " ").replace("Z", "").slice(0, 19);
 }
 
 function ErrorWindow(props: {

@@ -10,6 +10,7 @@ from rin.database import (
 )
 from rin.diagnostics.safety import create_temp_data_dir
 from rin.server import create_app
+from rin.server.api import MockApiAdapter
 from rin.storage import create_data_layout
 
 
@@ -24,7 +25,7 @@ def file_hash(path: Path) -> str:
 def test_candidate_api_runtime_and_readonly_reports_on_synthetic_data() -> None:
     temp = create_temp_data_dir()
     layout = create_temp_layout_database(temp.path)
-    client = TestClient(create_app(layout))
+    client = TestClient(create_app(layout, adapter=MockApiAdapter()))
     try:
         created = client.post("/conversations", json={"title": "Candidate"})
         conversation_id = created.json()["id"]

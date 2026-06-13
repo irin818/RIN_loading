@@ -40,7 +40,7 @@ rin-python-production-check
 
 ## Mock Strategy
 
-Fast tests use provider-free mock adapters. They verify persistence, sanitization,
+Fast tests use explicit test mock adapters. They verify persistence, sanitization,
 runtime trace metadata, memory trace decisions, and API contracts without calling
 external model providers.
 
@@ -49,4 +49,4 @@ external model providers.
 Local model chat smoke checks are removed from the active development workflow.
 Local model capabilities are not active scope. If future non-chat AI
 capabilities are reopened, they require separate design and must not
-assume Ollama or any current local model path.
+assume any local model path.

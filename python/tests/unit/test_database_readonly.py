@@ -155,7 +155,7 @@ def seed_rows(connection: sqlite3.Connection) -> None:
             "conv-1",
             "rin",
             "Synthetic reply.",
-            "rin-mock-local",
+            "rin-mock-test",
             "2026-06-05T00:02:00.000Z",
         ),
     )

@@ -31,11 +31,13 @@ FRONTEND_HOST="${RIN_FRONTEND_HOST:-127.0.0.1}"
 FRONTEND_PORT="${RIN_FRONTEND_PORT:-5173}"
 FRONTEND_URL="http://${FRONTEND_HOST}:${FRONTEND_PORT}"
 
-OLLAMA_URL="${RIN_OLLAMA_BASE_URL:-http://127.0.0.1:11434}"
-OLLAMA_MODEL="${RIN_OLLAMA_MODEL:-qwen3:4b}"
-MODEL_ADAPTER="${RIN_MODEL_ADAPTER:-rin-ollama-local}"
-TIMEOUT_MS="${RIN_OLLAMA_TIMEOUT_MS:-180000}"
-NUM_PREDICT="${RIN_OLLAMA_NUM_PREDICT:-1024}"
+CHAT_PROVIDER="${RIN_CHAT_PROVIDER:-openai-compatible}"
+API_CHAT_BASE_URL="${RIN_API_CHAT_BASE_URL:-}"
+API_CHAT_MODEL="${RIN_API_CHAT_MODEL:-qwen-long}"
+API_CHAT_TIMEOUT_MS="${RIN_API_CHAT_TIMEOUT_MS:-180000}"
+API_CHAT_TEMPERATURE="${RIN_API_CHAT_TEMPERATURE:-0.5}"
+API_CHAT_MAX_TOKENS="${RIN_API_CHAT_MAX_TOKENS:-1024}"
+API_CHAT_TOP_P="${RIN_API_CHAT_TOP_P:-0.9}"
 DATA_DIR="${RIN_PYTHON_DATA_DIR:-$DEFAULT_DATA_DIR}"
 
 # The preferred UI is the Vite Glitch Core shell. Keep the env override for
@@ -79,7 +81,8 @@ print_banner() {
     echo " Backend:  $LOCAL_URL"
     echo " Frontend: $FRONTEND_URL"
     echo " UI:       $UI_URL"
-    echo " Adapter:  $MODEL_ADAPTER"
+    echo " Provider: $CHAT_PROVIDER"
+    echo " Model:    $API_CHAT_MODEL"
     echo "============================================================"
     echo ""
 }
@@ -178,39 +181,33 @@ verify_background_image() {
     fi
 }
 
-check_model_backend() {
-    case "$MODEL_ADAPTER" in
-        rin-ollama-local)
-            if curl -fsS "$OLLAMA_URL/api/tags" >/dev/null 2>&1; then
-                print_ok "Ollama reachable at $OLLAMA_URL"
-                if curl -fsS "$OLLAMA_URL/api/tags" 2>/dev/null | grep -q "\"name\"[[:space:]]*:[[:space:]]*\"$OLLAMA_MODEL\""; then
-                    print_ok "Model '$OLLAMA_MODEL' is available."
-                else
-                    print_warn "Model '$OLLAMA_MODEL' is not pulled yet."
-                    echo "Run: ollama pull $OLLAMA_MODEL"
-                fi
-            else
-                print_warn "Ollama is not reachable at $OLLAMA_URL"
-                echo "Chat may fail until the local model backend is running."
-            fi
-            ;;
-        rin-mock-local)
-            print_info "Mock adapter selected. No model backend needed."
-            ;;
-        *)
-            print_info "Adapter: $MODEL_ADAPTER"
-            ;;
-    esac
+check_chat_provider_config() {
+    print_info "Chat provider: $CHAT_PROVIDER"
+    print_info "Chat model: $API_CHAT_MODEL"
+    if [[ -z "$API_CHAT_BASE_URL" ]]; then
+        print_warn "RIN_API_CHAT_BASE_URL is not set."
+    else
+        print_ok "API base URL configured."
+    fi
+    if [[ -z "${RIN_API_CHAT_KEY:-}" ]]; then
+        print_warn "RIN_API_CHAT_KEY is not set. Chat will fail safely with API_PROVIDER_UNCONFIGURED."
+    else
+        print_ok "API key env var is present."
+    fi
 }
 
 export_runtime_env() {
     mkdir -p "$DATA_DIR"
     export RIN_PYTHON_DATA_DIR="$DATA_DIR"
-    export RIN_MODEL_ADAPTER="$MODEL_ADAPTER"
-    export RIN_OLLAMA_BASE_URL="$OLLAMA_URL"
-    export RIN_OLLAMA_MODEL="$OLLAMA_MODEL"
-    export RIN_OLLAMA_TIMEOUT_MS="$TIMEOUT_MS"
-    export RIN_OLLAMA_NUM_PREDICT="$NUM_PREDICT"
+    export RIN_CHAT_PROVIDER="$CHAT_PROVIDER"
+    export RIN_API_CHAT_MODEL="$API_CHAT_MODEL"
+    export RIN_API_CHAT_TIMEOUT_MS="$API_CHAT_TIMEOUT_MS"
+    export RIN_API_CHAT_TEMPERATURE="$API_CHAT_TEMPERATURE"
+    export RIN_API_CHAT_MAX_TOKENS="$API_CHAT_MAX_TOKENS"
+    export RIN_API_CHAT_TOP_P="$API_CHAT_TOP_P"
+    if [[ -n "$API_CHAT_BASE_URL" ]]; then
+        export RIN_API_CHAT_BASE_URL="$API_CHAT_BASE_URL"
+    fi
 }
 
 start_backend() {
@@ -251,7 +248,7 @@ print_banner
 ensure_python_runtime
 ensure_frontend_runtime
 verify_background_image
-check_model_backend
+check_chat_provider_config
 export_runtime_env
 start_backend
 start_frontend

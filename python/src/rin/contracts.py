@@ -40,12 +40,15 @@ ContextV2SegmentType = Literal[
     "memory_v2_trace",
     "older_reference",
 ]
-ModelProvider = Literal["mock", "openai-compatible", "local", "custom"]
+ModelProvider = Literal["mock", "openai-compatible", "custom"]
 ModelErrorCode = Literal[
-    "LOCAL_MODEL_TIMEOUT",
-    "LOCAL_MODEL_UNAVAILABLE",
-    "LOCAL_MODEL_MISSING",
-    "MODEL_PROVIDER_ERROR",
+    "API_PROVIDER_UNCONFIGURED",
+    "API_PROVIDER_UNAVAILABLE",
+    "API_PROVIDER_TIMEOUT",
+    "API_PROVIDER_AUTH_ERROR",
+    "API_PROVIDER_RATE_LIMITED",
+    "API_PROVIDER_RESPONSE_INVALID",
+    "API_PROVIDER_ERROR",
     "MODEL_RESPONSE_INVALID",
 ]
 ConversationErrorCode = ModelErrorCode | Literal["CONVERSATION_RUNTIME_ERROR"]
@@ -76,7 +79,7 @@ class ModelRuntimeNote(RinBaseModel):
 
 
 class ModelAdapterConfig(RinBaseModel):
-    """Descriptor for one model adapter (Ollama, mock, or future external provider)."""
+    """Descriptor for one model adapter (mock test adapter or external provider)."""
 
     id: str
     displayName: str
@@ -357,6 +360,15 @@ class ModelResponseMetadata(RinBaseModel):
     externalProvider: bool
     memoryWriteRequested: bool
     toolCallRequested: bool
+    providerId: str | None = Field(default=None, exclude=True)
+    provider: str | None = Field(default=None, exclude=True)
+    model: str | None = Field(default=None, exclude=True)
+    safeBaseUrl: str | None = Field(default=None, exclude=True)
+    promptTokens: int | None = Field(default=None, exclude=True)
+    completionTokens: int | None = Field(default=None, exclude=True)
+    totalTokens: int | None = Field(default=None, exclude=True)
+    usageSource: str | None = Field(default=None, exclude=True)
+    secretValuesIncluded: bool = Field(default=False, exclude=True)
     rawContentLength: int | None = Field(default=None, exclude=True)
     rawContentHash: str | None = Field(default=None, exclude=True)
     rawPreview: str | None = Field(default=None, exclude=True)
@@ -378,6 +390,8 @@ class ModelResponse(RinBaseModel):
 class ModelErrorDetails(RinBaseModel):
     baseUrl: str | None = None
     model: str | None = None
+    statusCode: int | None = None
+    providerErrorCode: str | None = None
     emptyContent: bool | None = None
     emptyAfterThinkingRemoval: bool | None = None
     possibleReasoningOnlyOutput: bool | None = None

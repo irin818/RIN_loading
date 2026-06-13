@@ -1,12 +1,11 @@
-"""CLI entry point: inspect the production .rin-data directory and launcher files."""
+"""CLI entry point: inspect production data and external API chat configuration."""
 
 from __future__ import annotations
 
 import os
-import urllib.error
-import urllib.request
 from dataclasses import dataclass
 
+from rin.config.chat_provider import load_chat_provider_config
 from rin.database import inspect_database
 from rin.diagnostics.safety import PRODUCTION_RIN_DATA_DIR
 from rin.storage import create_data_layout
@@ -21,8 +20,7 @@ _REPO_ROOT = os.path.dirname(
 @dataclass(frozen=True)
 class ProductionCheckReport:
     """
-    Result of inspecting the production .rin-data directory: schema, launchers, model
-    status.
+    Result of inspecting production data, launcher files, and API chat config.
     """
 
     status: str
@@ -33,23 +31,9 @@ class ProductionCheckReport:
     defaultLauncherExists: bool
     defaultLauncherExecutable: bool
     extraRootLaunchersAbsent: bool
-    externalApiDisabled: bool
-    localModelChecked: bool
-    localModelReady: bool | None
-
-
-def _check_local_ollama() -> bool:
-    """
-    Check whether the configured Ollama model is available at the configured base URL.
-    """
-    base_url = os.environ.get("RIN_OLLAMA_BASE_URL", "http://127.0.0.1:11434")
-    model = os.environ.get("RIN_OLLAMA_MODEL", "qwen3:4b")
-    try:
-        with urllib.request.urlopen(f"{base_url}/api/tags", timeout=3) as resp:
-            payload = resp.read().decode("utf-8")
-    except (OSError, urllib.error.URLError):
-        return False
-    return f'"name":"{model}"' in payload or f'"name": "{model}"' in payload
+    externalApiConfigured: bool
+    apiConfigurationStatus: str
+    apiMissingEnvironment: list[str]
 
 
 def yes_no(value: bool) -> str:
@@ -57,13 +41,13 @@ def yes_no(value: bool) -> str:
     return "yes" if value else "no"
 
 
-def run_production_check(*, check_local_model: bool = False) -> ProductionCheckReport:
+def run_production_check() -> ProductionCheckReport:
     """
-    Inspect the production .rin-data database and launcher files, optionally checking
-    Ollama.
+    Inspect the production .rin-data database, launcher files, and API config.
     """
     layout = create_data_layout(str(PRODUCTION_RIN_DATA_DIR), cwd="/")
     status = inspect_database(layout)
+    chat_config = load_chat_provider_config()
 
     default_launcher = os.path.join(_REPO_ROOT, "Start_RIN.command")
     launcher_exists = os.path.isfile(default_launcher)
@@ -75,17 +59,12 @@ def run_production_check(*, check_local_model: bool = False) -> ProductionCheckR
         if name.endswith(".command") and name != "Start_RIN.command"
     )
 
-    local_ready: bool | None = None
-    if check_local_model:
-        local_ready = _check_local_ollama()
-
     passed = all(
         [
             status.schemaVersion >= 6,
             launcher_exists,
             launcher_exec,
             not extra_launchers,
-            local_ready is not False,
         ]
     )
 
@@ -98,21 +77,14 @@ def run_production_check(*, check_local_model: bool = False) -> ProductionCheckR
         defaultLauncherExists=launcher_exists,
         defaultLauncherExecutable=launcher_exec,
         extraRootLaunchersAbsent=not extra_launchers,
-        externalApiDisabled=True,
-        localModelChecked=check_local_model,
-        localModelReady=local_ready,
+        externalApiConfigured=chat_config.configured,
+        apiConfigurationStatus=chat_config.configurationStatus,
+        apiMissingEnvironment=chat_config.missingEnvironment,
     )
 
 
 def format_report(report: ProductionCheckReport) -> str:
     """Render a ProductionCheckReport as a human-readable multi-line string."""
-    local_model = (
-        "not checked"
-        if not report.localModelChecked
-        else "ready"
-        if report.localModelReady
-        else "not ready"
-    )
     return "\n".join(
         [
             "RIN Python production check report.",
@@ -124,19 +96,19 @@ def format_report(report: ProductionCheckReport) -> str:
             f"Default launcher exists: {yes_no(report.defaultLauncherExists)}",
             f"Default launcher executable: {yes_no(report.defaultLauncherExecutable)}",
             f"Extra root launchers absent: {yes_no(report.extraRootLaunchersAbsent)}",
-            f"External API disabled: {yes_no(report.externalApiDisabled)}",
-            f"Local model: {local_model}",
+            f"External API configured: {yes_no(report.externalApiConfigured)}",
+            f"API config status: {report.apiConfigurationStatus}",
+            "API missing environment: "
+            f"{', '.join(report.apiMissingEnvironment) or 'none'}",
         ]
     )
 
 
 def main() -> None:
     """
-    Run the production check (optionally verifying the local model) and print the
-    report.
+    Run the production check and print the report.
     """
-    check_local = os.environ.get("RIN_PYTHON_CHECK_LOCAL_MODEL") == "1"
-    print(format_report(run_production_check(check_local_model=check_local)))
+    print(format_report(run_production_check()))
 
 
 if __name__ == "__main__":

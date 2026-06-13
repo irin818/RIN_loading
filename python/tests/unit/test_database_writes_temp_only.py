@@ -62,7 +62,7 @@ def test_creates_conversation_and_messages_transactionally() -> None:
             "hello back",
             NOW,
             "msg-2",
-            "rin-mock-local",
+            "rin-mock-test",
         )
 
         assert list_conversations(layout)[0].id == "conv-1"

@@ -120,12 +120,12 @@ def test_tokenization_matches_typescript_normalization_rules() -> None:
     assert preprocess_text("RIN-loading/API") == "rin loading api"
 
     profile = build_retrieval_token_profile(
-        "Owner prefers local Ollama models.",
+        "Owner prefers configurable API chat providers.",
         "RIN memory",
     )
 
     assert profile.latinTokens == frozenset(
-        {"owner", "prefer", "local", "ollama", "model", "rin", "memory"}
+        {"owner", "prefer", "configurable", "api", "chat", "provider", "rin", "memory"}
     )
     assert profile.normalizedTokenCount == len(profile.latinTokens)
 

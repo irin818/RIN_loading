@@ -82,17 +82,17 @@ def test_runtime_and_profile_report_contracts_round_trip() -> None:
         "schemaVersion": 1,
         "kind": "model_config",
         "updatedAt": "2026-06-05T00:00:00.000Z",
-        "activeAdapter": "rin-mock-local",
+        "activeAdapter": "rin-api-chat-openai-compatible",
         "adapters": [
             {
-                "id": "rin-mock-local",
-                "displayName": "Mock local adapter",
-                "provider": "mock",
+                "id": "rin-api-chat-openai-compatible",
+                "displayName": "OpenAI-compatible API chat adapter",
+                "provider": "openai-compatible",
                 "enabled": True,
-                "model": None,
-                "baseUrl": None,
-                "apiKeyEnv": None,
-                "timeoutMs": 30000,
+                "model": "qwen-long",
+                "baseUrl": "https://api.example.test/v1",
+                "apiKeyEnv": "RIN_API_CHAT_KEY",
+                "timeoutMs": 180000,
             }
         ],
         "apiKeysStoredHere": False,
@@ -273,7 +273,7 @@ def test_model_error_and_readiness_contracts_round_trip() -> None:
     }
     model_response = {
         "content": "Hello.",
-        "adapterId": "rin-mock-local",
+        "adapterId": "rin-mock-test",
         "metadata": {
             "externalProvider": False,
             "memoryWriteRequested": False,
@@ -286,11 +286,11 @@ def test_model_error_and_readiness_contracts_round_trip() -> None:
             "code": "MODEL_RESPONSE_INVALID",
             "message": "The model returned an invalid response.",
             "recovery": ["Use a shorter prompt."],
-            "modelAdapter": "rin-ollama-local",
-            "provider": "local",
+            "modelAdapter": "rin-api-chat-openai-compatible",
+            "provider": "openai-compatible",
             "retryable": True,
             "details": {
-                "model": "qwen3:4b",
+                "model": "qwen-long",
                 "emptyContent": True,
                 "possibleReasoningOnlyOutput": True,
                 "responseFields": ["message.content", "message.thinking"],
@@ -338,7 +338,7 @@ def test_contracts_reject_wrong_literals_and_unknown_fields() -> None:
         ModelResponse.model_validate(
             {
                 "content": "Hello.",
-                "adapterId": "rin-mock-local",
+                "adapterId": "rin-mock-test",
                 "metadata": {
                     "externalProvider": False,
                     "memoryWriteRequested": False,

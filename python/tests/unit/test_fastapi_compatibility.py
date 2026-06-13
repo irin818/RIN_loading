@@ -11,6 +11,7 @@ from rin.database import create_temp_layout_database
 from rin.diagnostics.runtime_trace import RUNTIME_TRACE_STORE
 from rin.diagnostics.safety import create_temp_data_dir
 from rin.server import create_app
+from rin.server.api import MockApiAdapter
 from rin.storage import RinDataLayout, create_data_layout
 
 
@@ -20,7 +21,8 @@ def create_client(
     RUNTIME_TRACE_STORE.clear()
     temp = create_temp_data_dir()
     layout = create_temp_layout_database(temp.path)
-    return TestClient(create_app(layout, adapter=adapter)), layout
+    selected_adapter = adapter if adapter is not None else MockApiAdapter()
+    return TestClient(create_app(layout, adapter=selected_adapter)), layout
 
 
 class FailingAdapter:
@@ -30,17 +32,32 @@ class FailingAdapter:
         raise RuntimeError("test adapter failure")
 
 
-class LocalModelAdapter:
-    id = "rin-ollama-local"
+class ExternalUsageAdapter:
+    id = "rin-api-chat-openai-compatible"
+    provider = "openai-compatible"
+    model = "qwen-long"
+    baseUrl = "https://api.example.test/v1"
+    timeoutMs = 180000
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
         return ModelResponse(
-            content="Python local model test reply.",
+            content="External API mock reply.",
             adapterId=self.id,
             metadata=ModelResponseMetadata(
-                externalProvider=False,
+                externalProvider=True,
                 memoryWriteRequested=False,
                 toolCallRequested=False,
+                providerId=self.id,
+                provider=self.provider,
+                model=self.model,
+                safeBaseUrl=self.baseUrl,
+                promptTokens=10,
+                completionTokens=5,
+                totalTokens=15,
+                rawContentLength=len("External API mock reply."),
+                rawContentHash="hash",
+                rawModelOutputIncluded=False,
+                secretValuesIncluded=False,
             ),
         )
 
@@ -151,7 +168,7 @@ def test_python_ui_renders_local_status_and_profile_summary() -> None:
         assert "console.css" in page_text
         assert "console.js" in page_text
         assert "Python-primary local RIN runtime." in page_text
-        assert "rin-mock-local" in page_text
+        assert "rin-mock-test" in page_text
         assert "Memory V2" in page_text
         assert "PROFILE" in page_text
         assert "Profile files" in page_text
@@ -332,6 +349,44 @@ def test_glitch_core_snapshot_and_memory_api_are_safe_read_only() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
+def test_cost_api_responses_are_safe_after_mocked_external_turn() -> None:
+    client, layout = create_client(adapter=ExternalUsageAdapter())
+    try:
+        submitted = client.post(
+            "/api/chat-test/send",
+            json={"content": "private cost prompt"},
+        )
+        summary = client.get("/api/cost/summary")
+        recent = client.get("/api/cost/recent")
+        snapshot = client.get("/api/glitch-core/snapshot")
+
+        assert submitted.status_code == 200
+        assert summary.status_code == 200
+        assert recent.status_code == 200
+        summary_payload = summary.json()
+        recent_payload = recent.json()
+        snapshot_payload = snapshot.json()
+        assert summary_payload["eventCount"] == 1
+        assert summary_payload["totalTokens"] == 15
+        assert summary_payload["latest"]["estimateMethod"] == "provider_usage"
+        assert recent_payload["records"][0]["totalTokens"] == 15
+        assert snapshot_payload["cost"]["eventCount"] == 1
+        for response in (summary, recent):
+            assert "private cost prompt" not in response.text
+            assert "External API mock reply." not in response.text
+            assert "hidden reasoning" not in response.text.lower()
+            assert "api-key" not in response.text.lower()
+        cost_json = str(snapshot_payload["cost"])
+        assert "private cost prompt" not in cost_json
+        assert "External API mock reply." not in cost_json
+        assert summary_payload["rawPromptIncluded"] is False
+        assert summary_payload["rawResponseIncluded"] is False
+        assert summary_payload["hiddenReasoningIncluded"] is False
+        assert summary_payload["secretValuesIncluded"] is False
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
 def test_glitch_core_entry_reports_frontend_build_state() -> None:
     client, layout = create_client()
     try:
@@ -414,6 +469,37 @@ def test_chat_test_json_endpoint_updates_without_raw_thinking() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
+def test_default_chat_provider_missing_key_fails_safely(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("RIN_API_CHAT_BASE_URL", raising=False)
+    monkeypatch.delenv("RIN_API_CHAT_KEY", raising=False)
+    monkeypatch.delenv("RIN_API_CHAT_MODEL", raising=False)
+    RUNTIME_TRACE_STORE.clear()
+    temp = create_temp_data_dir()
+    layout = create_temp_layout_database(temp.path)
+    client = TestClient(create_app(layout))
+    try:
+        response = client.post(
+            "/api/chat-test/send",
+            json={"content": "should fail safely"},
+        )
+        messages = client.get(f"/api/conversations/{response.json()['conversationId']}")
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["ok"] is False
+        assert payload["status"] == "failed"
+        assert payload["errorCode"] == "API_PROVIDER_UNCONFIGURED"
+        assert payload["rinMessage"] is None
+        assert payload["rawModelOutputIncluded"] is False
+        assert payload["hiddenReasoningIncluded"] is False
+        assert messages.status_code == 200
+        assert [item["role"] for item in messages.json()["messages"]] == ["owner"]
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
 def test_chat_test_endpoint_rejects_missing_conversation_without_writes() -> None:
     client, layout = create_client()
     try:
@@ -490,16 +576,16 @@ def test_python_ui_reload_preserves_history_without_new_write() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
-def test_python_ui_renders_local_model_status() -> None:
-    client, layout = create_client(adapter=LocalModelAdapter())
+def test_python_ui_renders_api_provider_status() -> None:
+    client, layout = create_client()
     try:
         response = client.get("/legacy-ui")
 
         assert response.status_code == 200
-        assert "rin-ollama-local" in response.text
-        assert "local model" in response.text
-        assert "qwen3:4b" in response.text
-        assert "selected" in response.text
+        assert "rin-mock-test" in response.text
+        assert "API model" in response.text
+        assert "qwen-long" in response.text
+        assert "not active" in response.text
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
@@ -547,7 +633,7 @@ def test_status_dashboard_endpoint_is_read_only_counts_only() -> None:
         assert response.status_code == 200
         payload = response.json()
         assert payload["readiness"]["label"] == "ok"
-        assert payload["adapter"] == "rin-mock-local"
+        assert payload["adapter"] == "rin-mock-test"
         assert payload["externalProviderCallCount"] == 0
         assert payload["database"]["schemaVersion"] == 6
         assert payload["activeConversation"]["messageCount"] == 2
@@ -784,7 +870,7 @@ def test_typescript_frontend_artifacts_stay_in_frontend_only() -> None:
     assert (root / "frontend" / "vite.config.ts").exists()
 
 
-def test_default_launcher_is_local_model_and_browser_open() -> None:
+def test_default_launcher_is_api_provider_and_browser_open() -> None:
     root = Path(__file__).resolve().parents[3]
     launcher = root / "Start_RIN.command"
 
@@ -795,12 +881,12 @@ def test_default_launcher_is_local_model_and_browser_open() -> None:
     assert not (root / "Start_RIN_Python.command").exists()
     assert not (root / "打开RIN项目.command").exists()
     assert sorted(path.name for path in root.glob("*.command")) == ["Start_RIN.command"]
-    assert 'MODEL_ADAPTER="${RIN_MODEL_ADAPTER:-rin-ollama-local}"' in launcher_text
-    assert "http://127.0.0.1:11434" in launcher_text
-    assert "qwen3:4b" in launcher_text
-    assert 'RIN_OLLAMA_MODEL="$OLLAMA_MODEL"' in launcher_text
-    assert "RIN_OLLAMA_TIMEOUT_MS" in launcher_text
-    assert "RIN_OLLAMA_NUM_PREDICT" in launcher_text
+    assert 'CHAT_PROVIDER="${RIN_CHAT_PROVIDER:-openai-compatible}"' in launcher_text
+    assert 'API_CHAT_MODEL="${RIN_API_CHAT_MODEL:-qwen-long}"' in launcher_text
+    assert "RIN_API_CHAT_KEY" in launcher_text
+    assert "RIN_API_CHAT_BASE_URL" in launcher_text
+    assert "RIN_OLLAMA" not in launcher_text
+    assert "rin-ollama-local" not in launcher_text
     assert 'LOCAL_URL="http://127.0.0.1:8765"' in launcher_text
     assert "RIN_STARTUP_UI_PATH" in launcher_text
     assert 'open "$UI_URL"' in launcher_text

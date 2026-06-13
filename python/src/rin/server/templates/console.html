@@ -28,7 +28,7 @@
           </div>
         </section>
         <section class="system-chips">
-          <span class="chip strong">local model <b>{{ dashboard.model }}</b></span>
+          <span class="chip strong">API model <b>{{ dashboard.model }}</b></span>
           <span class="chip">{{ dashboard.adapter }}</span>
           <span class="chip ok" data-dashboard-field="readiness.label">{{ dashboard.readiness.label }}</span>
           <span class="chip">local-only</span>
@@ -399,7 +399,7 @@
               <code>python -m mypy .</code>
               <code>rin-python-production-check</code>
               <code>rin-python-candidate-check</code>
-              <code>RIN_MODEL_ADAPTER=rin-ollama-local RIN_OLLAMA_MODEL=qwen3:4b RIN_OLLAMA_TIMEOUT_MS=180000 rin-python-local-chat-smoke</code>
+              <code>RIN_API_CHAT_BASE_URL=https://provider.example/v1 RIN_API_CHAT_KEY=... rin-python-api-chat-smoke</code>
             </section>
           </section>
         </section>

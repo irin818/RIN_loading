@@ -33,7 +33,7 @@ function startChatTimer() {
   setChatStatus("Sending... 0s", "pending");
   chatSubmitTimer = window.setInterval(() => {
     const elapsed = Math.floor((Date.now() - startedAt) / 1000);
-    setChatStatus(`Waiting for local model... ${elapsed}s`, "pending");
+    setChatStatus(`Waiting for API provider... ${elapsed}s`, "pending");
   }, 1000);
 }
 
@@ -248,7 +248,7 @@ function stagePurpose(stageName) {
     recent_history_selection: "Short-term conversation context selected.",
     memory_v2_retrieval: "Long-term memory retrieval status.",
     context_assembly: "Runtime context assembled for model request.",
-    model_request: "Structured request prepared for local model.",
+    model_request: "Structured request prepared for API provider.",
     raw_model_response: "Raw model output received from provider.",
     sanitization_final_answer: "Raw model output cleaned before display/storage.",
     rin_reply_persisted: "Final answer saved to conversation history.",
