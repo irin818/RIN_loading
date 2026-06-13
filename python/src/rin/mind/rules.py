@@ -11,9 +11,11 @@ from typing import Any, cast
 
 from rin.memory import build_retrieval_token_profile
 
+from .policy import MindPolicy, load_mind_policy
 from .schemas import (
     ArousalLevel,
     ContextPlan,
+    ConversationSummary,
     EnergyLevel,
     ExcludedContextItem,
     FocusState,
@@ -24,15 +26,18 @@ from .schemas import (
     MemorySignalType,
     MessageMode,
     MessageUnderstanding,
+    MindLifecycle,
     MoodValence,
     MotivationState,
     OwnerStateSnapshot,
     PrivacyRisk,
     ResponsePlan,
+    RinGrowthEvent,
     RinMindSnapshot,
     RiskLevel,
     StateLevel,
     SupportNeed,
+    ToolInvocationRequest,
 )
 
 SECRET_PATTERNS = (
@@ -118,39 +123,73 @@ def build_rin_mind_snapshot(
     created_at: str,
     prior_messages: Sequence[Any],
     memory_traces: Sequence[Any],
+    memory_candidates: Sequence[MemoryCandidate] = (),
+    conversation_summary: ConversationSummary | None = None,
     profile_sections: Sequence[str],
     budget: int,
+    policy: MindPolicy | None = None,
+    turn_id: str = "n/a",
+    conversation_id: str = "n/a",
 ) -> RinMindSnapshot:
     """Build the full safe mind snapshot for one owner turn."""
+    active_policy = policy or load_mind_policy()
     understanding = understand_owner_message(owner_content)
     owner_state = infer_owner_state(
         owner_content,
         owner_message_id=owner_message_id,
         now=created_at,
+        ttl_hours=active_policy.ownerStateTtlHours,
     )
     selected_messages, excluded_messages = select_recent_messages_for_mind(
         prior_messages,
         owner_content=owner_content,
         understanding=understanding,
-    )
-    memory_retrieval = retrieve_relevant_memory_traces(
-        owner_content=owner_content,
-        understanding=understanding,
-        traces=memory_traces,
-        now=created_at,
+        limit=active_policy.recentHistorySelectedLimit,
     )
     candidates = generate_memory_candidates(
         owner_message_id=owner_message_id,
         owner_content=owner_content,
         understanding=understanding,
+        policy=active_policy,
+    )
+    memory_retrieval = retrieve_relevant_memory_sources(
+        owner_content=owner_content,
+        understanding=understanding,
+        traces=memory_traces,
+        candidates=memory_candidates,
+        now=created_at,
+        limit=active_policy.memoryMaxSelected,
+        policy=active_policy,
     )
     response_plan = plan_response(understanding, owner_state, memory_retrieval)
+    growth_events = generate_growth_events(
+        turn_id=turn_id,
+        conversation_id=conversation_id,
+        owner_message_id=owner_message_id,
+        understanding=understanding,
+        candidates=candidates,
+        now=created_at,
+    )
+    tool_requests = generate_tool_invocation_requests(
+        turn_id=turn_id,
+        understanding=understanding,
+        policy=active_policy,
+        now=created_at,
+    )
     context_plan = build_context_plan(
         understanding=understanding,
         owner_state=owner_state,
         selected_recent_message_ids=[str(item.id) for item in selected_messages],
-        selected_memory_trace_ids=[item.traceId for item in memory_retrieval.selected],
+        selected_memory_trace_ids=[
+            item.sourceId
+            for item in memory_retrieval.selected
+            if item.sourceKind == "memory_v2_trace"
+        ],
+        selected_memory_source_ids=[
+            f"{item.sourceKind}:{item.sourceId}" for item in memory_retrieval.selected
+        ],
         selected_profile_sections=list(profile_sections),
+        selected_summary_ids=[conversation_summary.id] if conversation_summary else [],
         excluded_items=[
             ExcludedContextItem(
                 id=str(item.id),
@@ -161,8 +200,8 @@ def build_rin_mind_snapshot(
         ]
         + [
             ExcludedContextItem(
-                id=item.traceId,
-                kind="memory_v2_trace",
+                id=item.sourceId,
+                kind=item.sourceKind,
                 reason="; ".join(item.reasons) or "not_selected",
             )
             for item in memory_retrieval.excluded
@@ -175,7 +214,12 @@ def build_rin_mind_snapshot(
         contextPlan=context_plan,
         memoryRetrieval=memory_retrieval,
         memoryCandidates=candidates,
+        conversationSummary=conversation_summary,
+        growthEvents=growth_events,
+        toolInvocationRequests=tool_requests,
         responsePlan=response_plan,
+        lifecycle=build_lifecycle(candidates, growth_events, tool_requests),
+        policy=active_policy.metadata(),
         createdAt=created_at,
         safeForUi=True,
         rawTextIncluded=False,
@@ -209,6 +253,12 @@ def understand_owner_message(content: str) -> MessageUnderstanding:
         topic_tags.add("memory")
     if "成本" in normalized or "token" in normalized:
         topic_tags.add("cost")
+
+    if "preference_expression" in scores:
+        scores["preference_expression"] += 0.2
+        reasons_by_mode.setdefault("preference_expression", []).append(
+            "direct_preference_expression_priority"
+        )
 
     privacy_risk = privacy_risk_for(content)
     if privacy_risk == "blocked":
@@ -260,6 +310,7 @@ def infer_owner_state(
     *,
     owner_message_id: str,
     now: str,
+    ttl_hours: int = 6,
 ) -> OwnerStateSnapshot:
     """Infer a local interaction-state snapshot, not a diagnosis."""
     normalized = content.lower()
@@ -326,8 +377,8 @@ def infer_owner_state(
         supportNeed=support_need,
         confidence=confidence,
         evidenceMessageIds=[owner_message_id],
-        ttlHours=6,
-        expiresAt=expiry_from(now, hours=6),
+        ttlHours=ttl_hours,
+        expiresAt=expiry_from(now, hours=ttl_hours),
     )
 
 
@@ -379,8 +430,32 @@ def retrieve_relevant_memory_traces(
     traces: Sequence[Any],
     now: str,
     limit: int = 5,
+    policy: MindPolicy | None = None,
 ) -> MemoryRetrievalPlan:
-    """Score safe Memory V2 traces by query/tag/mode overlap, salience, and recency."""
+    """Compatibility wrapper for trace-only retrieval tests/callers."""
+    return retrieve_relevant_memory_sources(
+        owner_content=owner_content,
+        understanding=understanding,
+        traces=traces,
+        candidates=(),
+        now=now,
+        limit=limit,
+        policy=policy,
+    )
+
+
+def retrieve_relevant_memory_sources(
+    *,
+    owner_content: str,
+    understanding: MessageUnderstanding,
+    traces: Sequence[Any],
+    candidates: Sequence[MemoryCandidate],
+    now: str,
+    limit: int = 5,
+    policy: MindPolicy | None = None,
+) -> MemoryRetrievalPlan:
+    """Score safe Memory V2 traces and approved candidates by local relevance."""
+    active_policy = policy or load_mind_policy()
     query_tags = sorted(set(understanding.topicTags + [understanding.mode]))
     query_profile = build_retrieval_token_profile(owner_content, " ".join(query_tags))
     rows: list[MemoryRetrievalItem] = []
@@ -409,7 +484,9 @@ def retrieve_relevant_memory_traces(
             reasons.append("tag_overlap")
         if salience >= 0.65:
             reasons.append("salience_bonus")
-        if risk in {"high", "blocked"}:
+        if risk == "blocked" or (
+            risk == "high" and not active_policy.allowHighRiskMemoryExport
+        ):
             reasons.append(f"excluded_risk_{risk}")
             score = 0.0
         elif not (latin_overlap or cjk_overlap or tag_overlap):
@@ -419,13 +496,72 @@ def retrieve_relevant_memory_traces(
             reasons.append("low_query_relevance")
         rows.append(
             MemoryRetrievalItem(
+                sourceKind="memory_v2_trace",
+                sourceId=str(getattr(trace, "id", "n/a")),
                 traceId=str(getattr(trace, "id", "n/a")),
                 score=round(score, 4),
                 selected=False,
                 reasons=unique_reasons(reasons),
                 matchedTags=tag_overlap,
                 salienceScore=salience,
+                confidence=None,
+                safeSummary=memory_trace_safe_summary(trace, signal_summary),
+                normalizedValue=None,
                 riskLevel=risk,
+                rawTextIncluded=False,
+            )
+        )
+    for candidate_item in candidates:
+        safe_text = candidate_safe_text(candidate_item)
+        profile = build_retrieval_token_profile(safe_text)
+        latin_overlap = len(query_profile.latinTokens & profile.latinTokens)
+        cjk_overlap = len(query_profile.cjkBigrams & profile.cjkBigrams)
+        tag_overlap = sorted(set(query_tags) & set(candidate_item.tags))
+        salience = candidate_item.salience
+        recency_bonus = recency_score(getattr(candidate_item, "updatedAt", now), now)
+        score = (
+            latin_overlap * 0.14
+            + cjk_overlap * 0.1
+            + len(tag_overlap) * 0.22
+            + min(0.2, salience * 0.2)
+            + recency_bonus
+            + min(0.08, candidate_item.confidence * 0.08)
+        )
+        candidate_reasons: list[str] = []
+        if not candidate_retrieval_allowed(candidate_item, active_policy):
+            candidate_reasons.append("candidate_not_retrievable")
+            score = 0.0
+        elif (
+            candidate_item.riskLevel == "high"
+            and not active_policy.allowHighRiskMemoryExport
+        ):
+            candidate_reasons.append("excluded_risk_high")
+            score = 0.0
+        elif not (latin_overlap or cjk_overlap or tag_overlap):
+            candidate_reasons.append("no_query_overlap")
+            score = 0.0
+        else:
+            if latin_overlap or cjk_overlap:
+                candidate_reasons.append("token_overlap")
+            if tag_overlap:
+                candidate_reasons.append("tag_overlap")
+            candidate_reasons.append("approved_candidate_source")
+        if score < 0.12 and score > 0:
+            candidate_reasons.append("low_query_relevance")
+        rows.append(
+            MemoryRetrievalItem(
+                sourceKind="memory_candidate",
+                sourceId=candidate_item.id,
+                traceId=candidate_item.id,
+                score=round(score, 4),
+                selected=False,
+                reasons=unique_reasons(candidate_reasons),
+                matchedTags=tag_overlap,
+                salienceScore=salience,
+                confidence=candidate_item.confidence,
+                safeSummary=candidate_item.safeSummary,
+                normalizedValue=candidate_item.normalizedValue,
+                riskLevel=candidate_item.riskLevel,
                 rawTextIncluded=False,
             )
         )
@@ -434,15 +570,19 @@ def retrieve_relevant_memory_traces(
         for item in sorted(
             rows, key=lambda item: (-item.score, -item.salienceScore, item.traceId)
         )
-        if item.score >= 0.12 and item.riskLevel not in {"high", "blocked"}
+        if item.score >= 0.12
+        and item.riskLevel not in {"blocked"}
+        and (item.riskLevel != "high" or active_policy.allowHighRiskMemoryExport)
     ]
-    selected_ids = {item.traceId for item in ranked[:limit]}
+    selected_keys = {(item.sourceKind, item.sourceId) for item in ranked[:limit]}
     selected = [
         item.model_copy(update={"selected": True})
         for item in rows
-        if item.traceId in selected_ids
+        if (item.sourceKind, item.sourceId) in selected_keys
     ]
-    excluded = [item for item in rows if item.traceId not in selected_ids]
+    excluded = [
+        item for item in rows if (item.sourceKind, item.sourceId) not in selected_keys
+    ]
     selected = sorted(
         selected, key=lambda item: (-item.score, -item.salienceScore, item.traceId)
     )[:limit]
@@ -451,7 +591,10 @@ def retrieve_relevant_memory_traces(
         excluded=excluded,
         queryTags=query_tags,
         maxSelected=limit,
-        selectionPolicy="token+cjk_bigram+tag+mode+salience+recency",
+        selectionPolicy=(
+            "source_kind+token+cjk_bigram+tag+mode+salience+recency"
+            "+approved_candidate_policy"
+        ),
         rawMemoryIncluded=False,
     )
 
@@ -461,8 +604,10 @@ def generate_memory_candidates(
     owner_message_id: str,
     owner_content: str,
     understanding: MessageUnderstanding,
+    policy: MindPolicy | None = None,
 ) -> list[MemoryCandidate]:
     """Generate safe, reviewable memory candidates from local owner-message rules."""
+    active_policy = policy or load_mind_policy()
     evidence_hash = short_hash(owner_content)
     if understanding.privacyRisk == "blocked":
         return [
@@ -470,6 +615,9 @@ def generate_memory_candidates(
                 owner_message_id,
                 "temporary_context",
                 "Blocked secret-like content was detected and omitted.",
+                safe_summary="Blocked secret-like content was detected and redacted.",
+                normalized_value=None,
+                redacted=True,
                 confidence=0.95,
                 salience=0.1,
                 risk="blocked",
@@ -486,6 +634,12 @@ def generate_memory_candidates(
     if mode == "preference_expression":
         candidate_type = preference_candidate_type(understanding.topicTags)
         confidence = 0.9 if has_any(owner_content, ("记住", "remember")) else 0.82
+        semantic_value = extract_preference_value(owner_content)
+        safe_summary = safe_candidate_summary(
+            candidate_type,
+            semantic_value,
+            understanding,
+        )
         candidate_risk: RiskLevel = (
             "high"
             if understanding.privacyRisk == "high"
@@ -493,12 +647,19 @@ def generate_memory_candidates(
             if understanding.privacyRisk == "medium"
             else "low"
         )
-        auto_promote = candidate_risk == "low" and confidence >= 0.8
+        auto_promote = (
+            candidate_risk == "low"
+            and confidence >= active_policy.autopromoteConfidence
+            and semantic_value is not None
+        )
         return [
             candidate(
                 owner_message_id,
                 candidate_type,
-                f"Owner expressed a stable {candidate_type.replace('_', ' ')}.",
+                safe_summary,
+                safe_summary=safe_summary,
+                normalized_value=semantic_value,
+                redacted=False,
                 confidence=confidence,
                 salience=0.78,
                 risk=candidate_risk,
@@ -528,6 +689,11 @@ def generate_memory_candidates(
                 owner_message_id,
                 "conversation_correction",
                 "Owner corrected or superseded prior conversation context.",
+                safe_summary=(
+                    "Owner corrected or superseded prior conversation context."
+                ),
+                normalized_value=None,
+                redacted=False,
                 confidence=0.86,
                 salience=0.72,
                 risk="medium",
@@ -545,6 +711,9 @@ def generate_memory_candidates(
                 owner_message_id,
                 "rin_boundary" if mode == "rin_development" else "relationship_memory",
                 "Owner provided RIN relationship or identity guidance.",
+                safe_summary=safe_rin_guidance_summary(mode, owner_content),
+                normalized_value=None,
+                redacted=False,
                 confidence=0.78,
                 salience=0.74,
                 risk="high",
@@ -562,6 +731,11 @@ def generate_memory_candidates(
                 owner_message_id,
                 "life_routine",
                 "Owner mentioned a routine-related pattern.",
+                safe_summary="Owner mentioned a routine-related pattern.",
+                normalized_value=extract_after_marker(
+                    owner_content, ("作息", "routine")
+                ),
+                redacted=False,
                 confidence=0.68,
                 salience=0.58,
                 risk="medium",
@@ -584,6 +758,9 @@ def generate_memory_candidates(
                 if mode == "emotional_state"
                 else "motivation_pattern",
                 "Owner described a repeated state pattern.",
+                safe_summary="Owner described a repeated state pattern.",
+                normalized_value=None,
+                redacted=True,
                 confidence=0.7,
                 salience=0.62,
                 risk="medium",
@@ -604,7 +781,9 @@ def build_context_plan(
     owner_state: OwnerStateSnapshot,
     selected_recent_message_ids: list[str],
     selected_memory_trace_ids: list[str],
+    selected_memory_source_ids: list[str],
     selected_profile_sections: list[str],
+    selected_summary_ids: list[str],
     excluded_items: list[ExcludedContextItem],
     budget: int,
 ) -> ContextPlan:
@@ -614,8 +793,9 @@ def build_context_plan(
         ownerStateIncluded=True,
         selectedRecentMessageIds=selected_recent_message_ids,
         selectedMemoryTraceIds=selected_memory_trace_ids,
+        selectedMemorySourceIds=selected_memory_source_ids,
         selectedProfileSections=selected_profile_sections,
-        selectedSummaryIds=[],
+        selectedSummaryIds=selected_summary_ids,
         excludedItems=excluded_items,
         budget=budget,
         estimatedTokens=estimated_tokens,
@@ -704,6 +884,77 @@ def response_plan_context(response_plan: ResponsePlan) -> str:
     )
 
 
+def build_conversation_summary(
+    *,
+    conversation_id: str,
+    turn_id: str,
+    messages: Sequence[Any],
+    snapshot: RinMindSnapshot,
+    now: str,
+    existing: ConversationSummary | None = None,
+) -> ConversationSummary:
+    """Build a deterministic safe summary from Mind metadata and safe candidates."""
+    previous_tags = existing.topicTags if existing else []
+    topic_tags = sorted(set(previous_tags + snapshot.messageUnderstanding.topicTags))
+    preference_hints = list(existing.preferenceHints if existing else [])
+    correction_hints = list(existing.correctionHints if existing else [])
+    relationship_hints = list(existing.relationshipHints if existing else [])
+    unresolved_hints = list(existing.unresolvedHints if existing else [])
+    for item in snapshot.memoryCandidates:
+        if item.type in {
+            "owner_preference",
+            "aesthetic_preference",
+            "game_preference",
+            "tool_preference",
+            "research_interest",
+        }:
+            preference_hints.append(item.safeSummary)
+        elif item.type == "conversation_correction":
+            correction_hints.append(item.safeSummary)
+        elif item.type in {"relationship_memory", "rin_boundary", "rin_identity"}:
+            relationship_hints.append(item.safeSummary)
+        elif item.reviewStatus in {"candidate", "review_required"}:
+            unresolved_hints.append(item.safeSummary)
+    return ConversationSummary(
+        id=existing.id if existing else f"summary-{short_hash(conversation_id)}",
+        conversationId=conversation_id,
+        topicTags=topic_tags[:12],
+        activeMode=snapshot.messageUnderstanding.mode,
+        recentDecisionHints=unique_reasons(
+            [
+                f"latest_mode:{snapshot.messageUnderstanding.mode}",
+                f"response_style:{snapshot.responsePlan.nextActionStyle}",
+            ]
+        ),
+        preferenceHints=unique_reasons(preference_hints)[-8:],
+        correctionHints=unique_reasons(correction_hints)[-8:],
+        relationshipHints=unique_reasons(relationship_hints)[-8:],
+        unresolvedHints=unique_reasons(unresolved_hints)[-8:],
+        lastUpdatedTurnId=turn_id,
+        sourceMessageCount=len(messages),
+        reviewStatus="deterministic",
+        modelGenerated=False,
+        rawTextIncluded=False,
+        createdAt=existing.createdAt if existing else now,
+        updatedAt=now,
+    )
+
+
+def conversation_summary_context(summary: ConversationSummary) -> str:
+    """Render safe deterministic conversation summary context."""
+    return "\n".join(
+        [
+            "Conversation summary (deterministic, safe hints only):",
+            f"activeMode: {summary.activeMode}",
+            f"topicTags: {', '.join(summary.topicTags) or 'n/a'}",
+            f"preferenceHints: {safe_context_join(summary.preferenceHints)}",
+            f"correctionHints: {safe_context_join(summary.correctionHints)}",
+            f"relationshipHints: {safe_context_join(summary.relationshipHints)}",
+            f"unresolvedHints: {safe_context_join(summary.unresolvedHints)}",
+        ]
+    )
+
+
 def memory_trace_signal_summary_from_candidate(
     candidate_item: MemoryCandidate,
 ) -> dict[str, object]:
@@ -721,8 +972,15 @@ def memory_trace_signal_summary_from_candidate(
         "contentCharacterCount": 0,
         "riskLevel": candidate_item.riskLevel,
         "reviewStatus": candidate_item.reviewStatus,
-        "summary": candidate_item.summary,
+        "summary": candidate_item.safeSummary,
+        "safeSummary": candidate_item.safeSummary,
+        "normalizedValue": candidate_item.normalizedValue,
+        "redacted": candidate_item.redacted,
     }
+
+
+def safe_context_join(values: list[str]) -> str:
+    return "; ".join(values[:4]) if values else "n/a"
 
 
 def candidate(
@@ -730,6 +988,9 @@ def candidate(
     candidate_type: MemoryCandidateType,
     summary: str,
     *,
+    safe_summary: str,
+    normalized_value: str | None,
+    redacted: bool,
     confidence: float,
     salience: float,
     risk: RiskLevel,
@@ -745,6 +1006,12 @@ def candidate(
         id=f"mind-candidate-{short_hash(owner_message_id + summary)}",
         type=candidate_type,
         summary=summary,
+        safeSummary=safe_summary,
+        normalizedValue=normalized_value,
+        rawTextIncluded=False,
+        redacted=redacted,
+        sourceKind="owner_message",
+        language=language_for(normalized_value or summary),
         sourceMessageIds=[owner_message_id],
         confidence=confidence,
         salience=salience,
@@ -772,6 +1039,223 @@ def privacy_risk_for(content: str) -> PrivacyRisk:
     if has_any(lowered, ("隐私", "秘密", "private")):
         return "medium"
     return "low"
+
+
+def extract_preference_value(content: str) -> str | None:
+    """Extract a compact semantic value without storing the full owner message."""
+    cleaned = content.strip().strip("。.!！?")
+    patterns = (
+        r"我更喜欢(?P<value>.+)",
+        r"我喜欢(?P<value>.+)",
+        r"我偏好(?P<value>.+)",
+        r"我希望(?P<value>.+)",
+        r"\bI prefer (?P<value>.+)",
+        r"\bI like (?P<value>.+)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, cleaned, re.I)
+        if match:
+            value = sanitize_semantic_value(match.group("value"))
+            return value or None
+    return None
+
+
+def extract_after_marker(content: str, markers: tuple[str, ...]) -> str | None:
+    for marker in markers:
+        if marker in content:
+            _, tail = content.split(marker, 1)
+            value = sanitize_semantic_value(tail)
+            return value or None
+    return None
+
+
+def sanitize_semantic_value(value: str) -> str:
+    value = re.split(r"[。.!！?]", value, maxsplit=1)[0]
+    value = re.sub(r"^[\s：:，,。.!！?]+|[\s：:，,。.!！?]+$", "", value)
+    value = re.sub(r"^(是|为|to be|that|with)\s*", "", value, flags=re.I)
+    value = re.sub(r"(请记住|记住|remember).*$", "", value, flags=re.I).strip()
+    if any(pattern.search(value) for pattern in SECRET_PATTERNS):
+        return ""
+    if len(value) > 80:
+        value = value[:77].rstrip() + "..."
+    return value
+
+
+def safe_candidate_summary(
+    candidate_type: MemoryCandidateType,
+    normalized_value: str | None,
+    understanding: MessageUnderstanding,
+) -> str:
+    label = candidate_type.replace("_", " ")
+    if not normalized_value:
+        return f"Owner expressed a stable {label}."
+    if candidate_type == "aesthetic_preference":
+        return f"Owner prefers {normalized_value} visual style."
+    if candidate_type == "game_preference":
+        return f"Owner prefers {normalized_value} in games."
+    if candidate_type == "tool_preference":
+        return f"Owner prefers {normalized_value} for tools or workflow."
+    if "learning" in understanding.topicTags:
+        return f"Owner is interested in learning about {normalized_value}."
+    return f"Owner prefers {normalized_value}."
+
+
+def safe_rin_guidance_summary(mode: MessageMode, content: str) -> str:
+    if mode == "rin_development":
+        if has_any(content, ("本地", "local")):
+            return "Owner gave RIN local-first boundary or development guidance."
+        return "Owner gave RIN development or boundary guidance."
+    return "Owner gave RIN relationship guidance that requires review."
+
+
+def language_for(value: str) -> str:
+    if any("\u4e00" <= char <= "\u9fff" for char in value):
+        return "zh"
+    if any(char.isalpha() for char in value):
+        return "en"
+    return "unknown"
+
+
+def candidate_safe_text(candidate_item: MemoryCandidate) -> str:
+    return " ".join(
+        part
+        for part in (
+            candidate_item.type,
+            candidate_item.safeSummary,
+            candidate_item.normalizedValue or "",
+            " ".join(candidate_item.tags),
+            candidate_item.reviewStatus,
+        )
+        if part
+    )
+
+
+def candidate_retrieval_allowed(
+    candidate_item: MemoryCandidate,
+    policy: MindPolicy,
+) -> bool:
+    if not candidate_item.active:
+        return False
+    if candidate_item.reviewStatus not in {"auto_promoted", "owner_approved"}:
+        return False
+    if candidate_item.riskLevel == "blocked":
+        return False
+    return not (
+        candidate_item.riskLevel == "high" and not policy.allowHighRiskMemoryExport
+    )
+
+
+def memory_trace_safe_summary(trace: Any, signal_summary: object) -> str:
+    if not isinstance(signal_summary, dict):
+        return f"Memory V2 trace {getattr(trace, 'id', 'n/a')}"
+    for key in ("safeSummary", "summary"):
+        value = signal_summary.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    reasons = signal_summary.get("reasons", [])
+    if isinstance(reasons, list) and reasons:
+        return ", ".join(str(item) for item in reasons[:3] if isinstance(item, str))
+    return f"Memory V2 trace {getattr(trace, 'id', 'n/a')}"
+
+
+def generate_growth_events(
+    *,
+    turn_id: str,
+    conversation_id: str,
+    owner_message_id: str,
+    understanding: MessageUnderstanding,
+    candidates: Sequence[MemoryCandidate],
+    now: str,
+) -> list[RinGrowthEvent]:
+    events: list[RinGrowthEvent] = []
+    for item in candidates:
+        if item.type not in {"rin_boundary", "relationship_memory", "rin_preference"}:
+            continue
+        event_type = cast(
+            Any,
+            "boundary_policy_change"
+            if item.type == "rin_boundary"
+            else "relationship_milestone",
+        )
+        events.append(
+            RinGrowthEvent(
+                id=f"growth-{short_hash(turn_id + item.id)}",
+                eventType=event_type,
+                summary=item.safeSummary,
+                sourceTurnId=turn_id,
+                sourceMessageId=owner_message_id,
+                candidate={
+                    "candidateId": item.id,
+                    "candidateType": item.type,
+                    "conversationId": conversation_id,
+                    "mode": understanding.mode,
+                },
+                riskLevel=item.riskLevel,
+                reviewStatus="review_required",
+                createdAt=now,
+                appliedAt=None,
+                active=True,
+                rawTextIncluded=False,
+            )
+        )
+    return events
+
+
+def generate_tool_invocation_requests(
+    *,
+    turn_id: str,
+    understanding: MessageUnderstanding,
+    policy: MindPolicy,
+    now: str,
+) -> list[ToolInvocationRequest]:
+    if not policy.enableAgentTools or understanding.mode != "practical_assist":
+        return []
+    return [
+        ToolInvocationRequest(
+            id=f"tool-request-{short_hash(turn_id + understanding.mode)}",
+            sourceTurnId=turn_id,
+            intent=understanding.intentSummary,
+            toolName="future_manual_tool_proposal",
+            actionSummary=(
+                "RIN may propose a practical tool action, but execution is disabled."
+            ),
+            riskLevel="medium",
+            requiresOwnerApproval=True,
+            status="proposed",
+            createdAt=now,
+            rawInputIncluded=False,
+            secretValuesIncluded=False,
+        )
+    ]
+
+
+def build_lifecycle(
+    candidates: Sequence[MemoryCandidate],
+    growth_events: Sequence[RinGrowthEvent],
+    tool_requests: Sequence[ToolInvocationRequest],
+) -> MindLifecycle:
+    awaiting_review = any(
+        item.reviewStatus in {"candidate", "review_required"} for item in candidates
+    ) or bool(growth_events or tool_requests)
+    return MindLifecycle(
+        observed=True,
+        understood=True,
+        planned=True,
+        responded=True,
+        candidateGenerated=bool(candidates or growth_events or tool_requests),
+        stored=True,
+        awaitingReview=awaiting_review,
+        stages=[
+            "observed",
+            "understood",
+            "planned",
+            "responded",
+            "candidate_generated",
+            "stored",
+            "awaiting_review" if awaiting_review else "no_review_needed",
+        ],
+        rawTextIncluded=False,
+    )
 
 
 def memory_signal_for(

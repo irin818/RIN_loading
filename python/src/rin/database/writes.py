@@ -13,7 +13,14 @@ from uuid import uuid4
 from rin.contracts import ConversationMessageRecord, ConversationRecord
 from rin.database.readonly import database_path_for
 from rin.diagnostics.safety import assert_safe_python_write_data_dir
-from rin.mind import MemoryCandidate, RinMindSnapshot
+from rin.mind import (
+    ConversationSummary,
+    MemoryCandidate,
+    MemoryEmbeddingEntry,
+    RinGrowthEvent,
+    RinMindSnapshot,
+    ToolInvocationRequest,
+)
 from rin.model.usage import ApiUsageAccounting
 from rin.storage import RinDataLayout, create_data_layout
 
@@ -34,6 +41,7 @@ def initialize_temp_database(layout: RinDataLayout) -> Path:
     path = database_path_for(layout)
     with sqlite3.connect(path) as connection:
         connection.executescript(SCHEMA_SQL)
+        ensure_mind_tables(connection)
         connection.executemany(
             "INSERT OR IGNORE INTO schema_migrations VALUES (?, ?, ?)",
             [
@@ -370,9 +378,11 @@ def create_mind_turn_snapshot(
                   id, turn_id, conversation_id, created_at,
                   message_understanding_json, owner_state_json, context_plan_json,
                   memory_retrieval_json, memory_candidates_json, response_plan_json,
+                  conversation_summary_json, growth_events_json, tool_requests_json,
+                  lifecycle_json, policy_json,
                   safe_for_ui
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
                 """,
                 (
                     snapshot_id,
@@ -391,6 +401,25 @@ def create_mind_turn_snapshot(
                         sort_keys=True,
                     ),
                     snapshot.responsePlan.model_dump_json(),
+                    snapshot.conversationSummary.model_dump_json()
+                    if snapshot.conversationSummary
+                    else None,
+                    json.dumps(
+                        [
+                            item.model_dump(mode="json")
+                            for item in snapshot.growthEvents
+                        ],
+                        sort_keys=True,
+                    ),
+                    json.dumps(
+                        [
+                            item.model_dump(mode="json")
+                            for item in snapshot.toolInvocationRequests
+                        ],
+                        sort_keys=True,
+                    ),
+                    snapshot.lifecycle.model_dump_json(),
+                    snapshot.policy.model_dump_json(),
                 ),
             )
             append_audit_event_in_transaction(
@@ -434,13 +463,16 @@ def create_memory_candidate_records(
                     """
                     INSERT OR IGNORE INTO memory_candidates (
                       id, source_message_id, conversation_id, type, summary,
+                      safe_summary, normalized_value, raw_text_included, redacted,
+                      source_kind, language,
                       confidence, salience, stability, decay_policy, risk_level,
                       review_status, active, tags_json, evidence_hashes_json,
                       contradiction_of, supersedes, owner_confirmed, auto_promote,
                       reasons_json, created_at, updated_at
                     )
                     VALUES (
-                      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                      ?, ?, ?, ?, ?, ?
                     )
                     """,
                     (
@@ -449,6 +481,12 @@ def create_memory_candidate_records(
                         conversation_id,
                         item.type,
                         item.summary,
+                        item.safeSummary,
+                        item.normalizedValue,
+                        int(item.rawTextIncluded),
+                        int(item.redacted),
+                        item.sourceKind,
+                        item.language,
                         item.confidence,
                         item.salience,
                         item.stability,
@@ -535,6 +573,210 @@ def update_memory_candidate_review(
             raise
 
 
+def upsert_conversation_summary(
+    layout: RinDataLayout,
+    *,
+    summary: ConversationSummary,
+) -> str:
+    """Insert or update the active deterministic conversation summary."""
+    assert_safe_write_layout(layout)
+    with sqlite3.connect(database_path_for(layout)) as connection:
+        try:
+            connection.execute("BEGIN")
+            ensure_mind_tables(connection)
+            connection.execute(
+                """
+                INSERT INTO conversation_summaries (
+                  id, conversation_id, summary_json, created_at, updated_at,
+                  source_turn_id, active
+                )
+                VALUES (?, ?, ?, ?, ?, ?, 1)
+                ON CONFLICT(id) DO UPDATE SET
+                  summary_json = excluded.summary_json,
+                  updated_at = excluded.updated_at,
+                  source_turn_id = excluded.source_turn_id,
+                  active = excluded.active
+                """,
+                (
+                    summary.id,
+                    summary.conversationId,
+                    summary.model_dump_json(),
+                    summary.createdAt,
+                    summary.updatedAt,
+                    summary.lastUpdatedTurnId,
+                ),
+            )
+            append_audit_event_in_transaction(
+                connection,
+                "mind.conversation_summary_upserted",
+                {
+                    "conversationId": summary.conversationId,
+                    "summaryId": summary.id,
+                    "sourceMessageCount": summary.sourceMessageCount,
+                    "rawTextIncluded": False,
+                },
+                summary.updatedAt,
+            )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+    return summary.id
+
+
+def create_rin_growth_events(
+    layout: RinDataLayout,
+    *,
+    events: list[RinGrowthEvent],
+    now: str,
+) -> list[str]:
+    if not events:
+        return []
+    assert_safe_write_layout(layout)
+    ids: list[str] = []
+    with sqlite3.connect(database_path_for(layout)) as connection:
+        try:
+            connection.execute("BEGIN")
+            ensure_mind_tables(connection)
+            for item in events:
+                connection.execute(
+                    """
+                    INSERT OR IGNORE INTO rin_growth_events (
+                      id, event_type, summary, source_turn_id, source_message_id,
+                      candidate_json, risk_level, review_status, created_at,
+                      applied_at, active, raw_text_included
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+                    """,
+                    (
+                        item.id,
+                        item.eventType,
+                        item.summary,
+                        item.sourceTurnId,
+                        item.sourceMessageId,
+                        json.dumps(item.candidate, sort_keys=True),
+                        item.riskLevel,
+                        item.reviewStatus,
+                        item.createdAt,
+                        item.appliedAt,
+                        int(item.active),
+                    ),
+                )
+                ids.append(item.id)
+            append_audit_event_in_transaction(
+                connection,
+                "mind.rin_growth_events_recorded",
+                {"eventCount": len(events), "rawTextIncluded": False},
+                now,
+            )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+    return ids
+
+
+def create_tool_invocation_requests(
+    layout: RinDataLayout,
+    *,
+    requests: list[ToolInvocationRequest],
+    now: str,
+) -> list[str]:
+    if not requests:
+        return []
+    assert_safe_write_layout(layout)
+    ids: list[str] = []
+    with sqlite3.connect(database_path_for(layout)) as connection:
+        try:
+            connection.execute("BEGIN")
+            ensure_mind_tables(connection)
+            for item in requests:
+                connection.execute(
+                    """
+                    INSERT OR IGNORE INTO tool_invocation_requests (
+                      id, source_turn_id, intent, tool_name, action_summary,
+                      risk_level, requires_owner_approval, status, created_at,
+                      raw_input_included, secret_values_included
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
+                    """,
+                    (
+                        item.id,
+                        item.sourceTurnId,
+                        item.intent,
+                        item.toolName,
+                        item.actionSummary,
+                        item.riskLevel,
+                        int(item.requiresOwnerApproval),
+                        item.status,
+                        item.createdAt,
+                    ),
+                )
+                ids.append(item.id)
+            append_audit_event_in_transaction(
+                connection,
+                "mind.tool_invocation_requests_recorded",
+                {"requestCount": len(requests), "secretValuesIncluded": False},
+                now,
+            )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+    return ids
+
+
+def create_memory_embedding_entries(
+    layout: RinDataLayout,
+    *,
+    entries: list[MemoryEmbeddingEntry],
+    now: str,
+) -> list[str]:
+    if not entries:
+        return []
+    assert_safe_write_layout(layout)
+    ids: list[str] = []
+    with sqlite3.connect(database_path_for(layout)) as connection:
+        try:
+            connection.execute("BEGIN")
+            ensure_mind_tables(connection)
+            for item in entries:
+                connection.execute(
+                    """
+                    INSERT OR REPLACE INTO memory_embeddings (
+                      id, source_kind, source_id, embedding_provider,
+                      embedding_model, vector_json, dimensions, content_hash,
+                      created_at, active, raw_text_included
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+                    """,
+                    (
+                        item.id,
+                        item.sourceKind,
+                        item.sourceId,
+                        item.embeddingProvider,
+                        item.embeddingModel,
+                        json.dumps(item.vector),
+                        item.dimensions,
+                        item.contentHash,
+                        item.createdAt,
+                        int(item.active),
+                    ),
+                )
+                ids.append(item.id)
+            append_audit_event_in_transaction(
+                connection,
+                "mind.memory_embeddings_recorded",
+                {"entryCount": len(entries), "rawTextIncluded": False},
+                now,
+            )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+    return ids
+
+
 def append_audit_event_in_transaction(
     connection: sqlite3.Connection,
     event_type: str,
@@ -593,6 +835,11 @@ def ensure_mind_tables(connection: sqlite3.Connection) -> None:
           memory_retrieval_json TEXT NOT NULL,
           memory_candidates_json TEXT NOT NULL,
           response_plan_json TEXT NOT NULL,
+          conversation_summary_json TEXT,
+          growth_events_json TEXT,
+          tool_requests_json TEXT,
+          lifecycle_json TEXT,
+          policy_json TEXT,
           safe_for_ui INTEGER NOT NULL
         );
         CREATE TABLE IF NOT EXISTS memory_candidates (
@@ -601,6 +848,12 @@ def ensure_mind_tables(connection: sqlite3.Connection) -> None:
           conversation_id TEXT NOT NULL,
           type TEXT NOT NULL,
           summary TEXT NOT NULL,
+          safe_summary TEXT NOT NULL DEFAULT '',
+          normalized_value TEXT,
+          raw_text_included INTEGER NOT NULL DEFAULT 0,
+          redacted INTEGER NOT NULL DEFAULT 0,
+          source_kind TEXT NOT NULL DEFAULT 'owner_message',
+          language TEXT NOT NULL DEFAULT 'unknown',
           confidence REAL NOT NULL,
           salience REAL NOT NULL,
           stability TEXT NOT NULL,
@@ -627,8 +880,149 @@ def ensure_mind_tables(connection: sqlite3.Connection) -> None:
           source_turn_id TEXT,
           active INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS model_summary_candidates (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL,
+          candidate_json TEXT NOT NULL,
+          review_status TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          raw_model_output_included INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS rin_self_model (
+          id TEXT PRIMARY KEY,
+          version INTEGER NOT NULL,
+          active INTEGER NOT NULL,
+          identity_summary TEXT NOT NULL,
+          tone_policy_json TEXT NOT NULL,
+          relationship_policy_json TEXT NOT NULL,
+          memory_policy_json TEXT NOT NULL,
+          boundary_policy_json TEXT NOT NULL,
+          visual_identity_json TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          source_event_id TEXT,
+          raw_text_included INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS rin_growth_events (
+          id TEXT PRIMARY KEY,
+          event_type TEXT NOT NULL,
+          summary TEXT NOT NULL,
+          source_turn_id TEXT NOT NULL,
+          source_message_id TEXT NOT NULL,
+          candidate_json TEXT NOT NULL,
+          risk_level TEXT NOT NULL,
+          review_status TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          applied_at TEXT,
+          active INTEGER NOT NULL,
+          raw_text_included INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS memory_embeddings (
+          id TEXT PRIMARY KEY,
+          source_kind TEXT NOT NULL,
+          source_id TEXT NOT NULL,
+          embedding_provider TEXT NOT NULL,
+          embedding_model TEXT NOT NULL,
+          vector_json TEXT NOT NULL,
+          dimensions INTEGER NOT NULL,
+          content_hash TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          active INTEGER NOT NULL,
+          raw_text_included INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS tool_capabilities (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          enabled INTEGER NOT NULL,
+          safe_metadata_json TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS agent_intents (
+          id TEXT PRIMARY KEY,
+          intent TEXT NOT NULL,
+          safe_metadata_json TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS tool_invocation_requests (
+          id TEXT PRIMARY KEY,
+          source_turn_id TEXT NOT NULL,
+          intent TEXT NOT NULL,
+          tool_name TEXT NOT NULL,
+          action_summary TEXT NOT NULL,
+          risk_level TEXT NOT NULL,
+          requires_owner_approval INTEGER NOT NULL,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          raw_input_included INTEGER NOT NULL,
+          secret_values_included INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS tool_invocation_audit (
+          id TEXT PRIMARY KEY,
+          request_id TEXT NOT NULL,
+          event_type TEXT NOT NULL,
+          safe_metadata_json TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
         """
     )
+    ensure_column(
+        connection,
+        "mind_turn_snapshots",
+        "conversation_summary_json",
+        "TEXT",
+    )
+    ensure_column(connection, "mind_turn_snapshots", "growth_events_json", "TEXT")
+    ensure_column(connection, "mind_turn_snapshots", "tool_requests_json", "TEXT")
+    ensure_column(connection, "mind_turn_snapshots", "lifecycle_json", "TEXT")
+    ensure_column(connection, "mind_turn_snapshots", "policy_json", "TEXT")
+    ensure_column(
+        connection,
+        "memory_candidates",
+        "safe_summary",
+        "TEXT NOT NULL DEFAULT ''",
+    )
+    ensure_column(connection, "memory_candidates", "normalized_value", "TEXT")
+    ensure_column(
+        connection,
+        "memory_candidates",
+        "raw_text_included",
+        "INTEGER NOT NULL DEFAULT 0",
+    )
+    ensure_column(
+        connection,
+        "memory_candidates",
+        "redacted",
+        "INTEGER NOT NULL DEFAULT 0",
+    )
+    ensure_column(
+        connection,
+        "memory_candidates",
+        "source_kind",
+        "TEXT NOT NULL DEFAULT 'owner_message'",
+    )
+    ensure_column(
+        connection,
+        "memory_candidates",
+        "language",
+        "TEXT NOT NULL DEFAULT 'unknown'",
+    )
+
+
+def ensure_column(
+    connection: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+    definition: str,
+) -> None:
+    """Add a column if an older additive table was created before this field."""
+    columns = {
+        str(row[1])
+        for row in connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+    }
+    if column_name not in columns:
+        connection.execute(
+            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {definition}"
+        )
 
 
 SCHEMA_SQL = """

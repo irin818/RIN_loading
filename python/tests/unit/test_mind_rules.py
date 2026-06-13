@@ -3,13 +3,22 @@ from types import SimpleNamespace
 import pytest
 
 from rin.mind import (
+    MindPolicy,
+    build_conversation_summary,
+    build_embedding_entry_for_candidate,
     build_rin_mind_snapshot,
+    cosine_similarity,
+    embedding_allowed_for_candidate,
+    embedding_provider_for_policy,
+    embedding_text_for_candidate,
     generate_memory_candidates,
     infer_owner_state,
+    load_mind_policy,
     memory_trace_signal_summary_from_candidate,
     mind_owner_state_context,
     plan_response,
     response_plan_context,
+    retrieve_relevant_memory_sources,
     retrieve_relevant_memory_traces,
     select_recent_messages_for_mind,
     understand_owner_message,
@@ -97,12 +106,22 @@ def test_memory_candidates_apply_risk_and_review_policy() -> None:
     assert secret.riskLevel == "blocked"
     assert secret.reviewStatus == "rejected"
     assert secret.autoPromote is False
+    assert (
+        secret.safeSummary == "Blocked secret-like content was detected and redacted."
+    )
+    assert secret.normalizedValue is None
+    assert secret.rawTextIncluded is False
+    assert secret.redacted is True
     assert "sk-testsecret" not in secret.summary
+    assert "sk-testsecret" not in secret.safeSummary
 
     assert preference.riskLevel == "low"
     assert preference.reviewStatus == "auto_promoted"
     assert preference.autoPromote is True
     assert preference.active is True
+    assert preference.safeSummary == "Owner prefers concise RIN progress reports."
+    assert preference.normalizedValue == "concise RIN progress reports"
+    assert preference.rawTextIncluded is False
     summary = memory_trace_signal_summary_from_candidate(preference)
     assert summary["rawTextIncluded"] is False
     assert summary["decision"] == "auto_promoted"
@@ -137,6 +156,41 @@ def test_private_preference_requires_review_instead_of_auto_promote() -> None:
     assert high_risk_preference.autoPromote is False
 
 
+def test_direct_aesthetic_preference_becomes_safe_semantic_candidate() -> None:
+    content = "我喜欢黑绿色简洁风格"
+    understanding = understand_owner_message(content)
+    candidates = generate_memory_candidates(
+        owner_message_id="msg-aesthetic",
+        owner_content=content,
+        understanding=understanding,
+    )
+
+    assert understanding.mode == "preference_expression"
+    assert understanding.secondaryModes == ["aesthetic"]
+    assert candidates[0].type == "aesthetic_preference"
+    assert candidates[0].safeSummary == "Owner prefers 黑绿色简洁风格 visual style."
+    assert candidates[0].normalizedValue == "黑绿色简洁风格"
+    assert candidates[0].language == "zh"
+    assert candidates[0].rawTextIncluded is False
+    assert "我喜欢" not in candidates[0].safeSummary
+    assert "我喜欢" not in str(candidates[0].model_dump())
+
+
+def test_preference_semantics_do_not_swallow_following_sentence() -> None:
+    content = "I prefer concise RIN progress reports. RIN 应该保持本地优先。"
+    understanding = understand_owner_message(content)
+    candidate_item = generate_memory_candidates(
+        owner_message_id="msg-mixed-preference",
+        owner_content=content,
+        understanding=understanding,
+    )[0]
+
+    assert candidate_item.safeSummary == "Owner prefers concise RIN progress reports."
+    assert candidate_item.normalizedValue == "concise RIN progress reports"
+    assert "RIN 应该" not in candidate_item.safeSummary
+    assert "RIN 应该" not in str(candidate_item.model_dump())
+
+
 def test_memory_retrieval_is_query_aware_and_safe() -> None:
     understanding = understand_owner_message(
         "What RIN progress report context matters?"
@@ -164,6 +218,291 @@ def test_memory_retrieval_is_query_aware_and_safe() -> None:
     assert "no_query_overlap" in excluded["trace-irrelevant-high"].reasons
     assert "excluded_risk_high" in excluded["trace-high-risk"].reasons
     assert plan.rawMemoryIncluded is False
+
+    allowed = retrieve_relevant_memory_traces(
+        owner_content="What RIN progress report context matters?",
+        understanding=understanding,
+        traces=traces,
+        now=NOW,
+        policy=MindPolicy(allowHighRiskMemoryExport=True),
+    )
+    assert "trace-high-risk" in [item.traceId for item in allowed.selected]
+
+
+def test_unified_retrieval_uses_only_approved_active_memory_candidates() -> None:
+    understanding = understand_owner_message("I prefer concise RIN progress reports.")
+    approved = generate_memory_candidates(
+        owner_message_id="msg-approved",
+        owner_content="I prefer concise RIN progress reports.",
+        understanding=understanding,
+    )[0].model_copy(
+        update={
+            "id": "candidate-owner-approved",
+            "reviewStatus": "owner_approved",
+            "ownerConfirmed": True,
+        }
+    )
+    auto_promoted = generate_memory_candidates(
+        owner_message_id="msg-auto",
+        owner_content="I prefer direct RIN progress reports.",
+        understanding=understanding,
+    )[0].model_copy(update={"id": "candidate-auto-promoted"})
+    rejected = approved.model_copy(
+        update={
+            "id": "candidate-rejected",
+            "reviewStatus": "rejected",
+            "active": False,
+            "ownerConfirmed": False,
+        }
+    )
+    inactive = approved.model_copy(
+        update={
+            "id": "candidate-inactive",
+            "reviewStatus": "inactive",
+            "active": False,
+            "ownerConfirmed": False,
+        }
+    )
+    blocked = generate_memory_candidates(
+        owner_message_id="msg-secret",
+        owner_content="记住我的 api key sk-testsecret123456789",
+        understanding=understand_owner_message(
+            "记住我的 api key sk-testsecret123456789"
+        ),
+    )[0].model_copy(update={"id": "candidate-blocked"})
+    high_risk_approved = approved.model_copy(
+        update={
+            "id": "candidate-high-risk",
+            "riskLevel": "high",
+            "reviewStatus": "owner_approved",
+            "active": True,
+            "ownerConfirmed": True,
+        }
+    )
+
+    plan = retrieve_relevant_memory_sources(
+        owner_content="I prefer concise direct RIN progress reports.",
+        understanding=understanding,
+        traces=[],
+        candidates=[
+            approved,
+            auto_promoted,
+            rejected,
+            inactive,
+            blocked,
+            high_risk_approved,
+        ],
+        now=NOW,
+        limit=5,
+    )
+
+    selected_ids = [item.sourceId for item in plan.selected]
+    excluded = {item.sourceId: item for item in plan.excluded}
+
+    assert set(selected_ids) == {"candidate-owner-approved", "candidate-auto-promoted"}
+    assert all(item.sourceKind == "memory_candidate" for item in plan.selected)
+    assert all(item.rawTextIncluded is False for item in plan.selected)
+    approved_item = next(
+        item for item in plan.selected if item.sourceId == "candidate-owner-approved"
+    )
+    assert approved_item.safeSummary == "Owner prefers concise RIN progress reports."
+    assert approved_item.normalizedValue == "concise RIN progress reports"
+    assert "approved_candidate_source" in approved_item.reasons
+    assert "candidate_not_retrievable" in excluded["candidate-rejected"].reasons
+    assert "candidate_not_retrievable" in excluded["candidate-inactive"].reasons
+    assert "candidate_not_retrievable" in excluded["candidate-blocked"].reasons
+    assert "candidate_not_retrievable" in excluded["candidate-high-risk"].reasons
+    assert "I prefer" not in plan.model_dump_json()
+    assert "sk-testsecret" not in plan.model_dump_json()
+
+    high_risk_allowed = retrieve_relevant_memory_sources(
+        owner_content="I prefer concise direct RIN progress reports.",
+        understanding=understanding,
+        traces=[],
+        candidates=[high_risk_approved],
+        now=NOW,
+        limit=5,
+        policy=MindPolicy(allowHighRiskMemoryExport=True),
+    )
+    assert [item.sourceId for item in high_risk_allowed.selected] == [
+        "candidate-high-risk"
+    ]
+
+
+def test_mind_policy_defaults_overrides_and_invalid_fallbacks() -> None:
+    defaults = load_mind_policy({})
+    assert defaults.contextMaxCharacters == 8000
+    assert defaults.recentHistorySelectedLimit == 8
+    assert defaults.memoryMaxSelected == 5
+    assert defaults.autopromoteConfidence == 0.8
+    assert defaults.ownerStateTtlHours == 6
+    assert defaults.enableEmbeddings is False
+    assert defaults.embeddingProvider == "disabled"
+    assert defaults.enableAgentTools is False
+    assert defaults.allowHighRiskMemoryExport is False
+    assert defaults.metadata().dangerousDefaultsDisabled is True
+    assert defaults.metadata().secretValuesIncluded is False
+
+    override = load_mind_policy(
+        {
+            "RIN_MIND_CONTEXT_MAX_CHARACTERS": "12000",
+            "RIN_MIND_RECENT_HISTORY_LIMIT": "5",
+            "RIN_MIND_RECENT_HISTORY_CANDIDATE_LIMIT": "30",
+            "RIN_MIND_MEMORY_RETRIEVAL_LIMIT": "42",
+            "RIN_MIND_MEMORY_MAX_SELECTED": "3",
+            "RIN_MIND_AUTOPROMOTE_CONFIDENCE": "0.9",
+            "RIN_MIND_OWNER_STATE_TTL_HOURS": "12",
+            "RIN_MIND_ENABLE_EMBEDDINGS": "true",
+            "RIN_MIND_EMBEDDING_PROVIDER": "deterministic",
+            "RIN_MIND_ENABLE_AGENT_TOOLS": "yes",
+            "RIN_MIND_ALLOW_HIGH_RISK_MEMORY_EXPORT": "on",
+            "RIN_MIND_SELF_MODEL_AUTO_APPLY": "1",
+        }
+    )
+    assert override.contextMaxCharacters == 12000
+    assert override.recentHistorySelectedLimit == 5
+    assert override.recentHistoryCandidateLimit == 30
+    assert override.memoryRetrievalCandidateLimit == 42
+    assert override.memoryMaxSelected == 3
+    assert override.autopromoteConfidence == 0.9
+    assert override.ownerStateTtlHours == 12
+    assert override.enableEmbeddings is True
+    assert override.embeddingProvider == "deterministic"
+    assert override.enableAgentTools is True
+    assert override.allowHighRiskMemoryExport is True
+    assert override.selfModelAutoApply is True
+    assert override.metadata().dangerousDefaultsDisabled is False
+
+    invalid = load_mind_policy(
+        {
+            "RIN_MIND_CONTEXT_MAX_CHARACTERS": "10",
+            "RIN_MIND_AUTOPROMOTE_CONFIDENCE": "never",
+            "RIN_MIND_ENABLE_AGENT_TOOLS": "maybe",
+            "RIN_MIND_EMBEDDING_PROVIDER": "",
+        }
+    )
+    assert invalid.contextMaxCharacters == 8000
+    assert invalid.autopromoteConfidence == 0.8
+    assert invalid.enableAgentTools is False
+    assert invalid.embeddingProvider == "disabled"
+    assert len(invalid.warnings) == 4
+
+
+def test_embedding_framework_is_explicit_and_uses_safe_candidate_text() -> None:
+    candidate_item = generate_memory_candidates(
+        owner_message_id="msg-embedding",
+        owner_content="I prefer concise RIN progress reports.",
+        understanding=understand_owner_message(
+            "I prefer concise RIN progress reports."
+        ),
+    )[0]
+    disabled_policy = MindPolicy()
+    enabled_policy = MindPolicy(
+        enableEmbeddings=True,
+        embeddingProvider="deterministic",
+    )
+    provider = embedding_provider_for_policy(enabled_policy)
+
+    assert embedding_provider_for_policy(disabled_policy) is None
+    assert provider is not None
+    assert embedding_allowed_for_candidate(candidate_item, disabled_policy) is False
+    assert embedding_allowed_for_candidate(candidate_item, enabled_policy) is True
+    assert embedding_text_for_candidate(candidate_item) == (
+        "Owner prefers concise RIN progress reports. concise RIN progress reports"
+    )
+    assert "I prefer" not in embedding_text_for_candidate(candidate_item)
+
+    entry = build_embedding_entry_for_candidate(
+        candidate_item,
+        provider=provider,
+        created_at=NOW,
+    )
+    assert entry.sourceKind == "memory_candidate"
+    assert entry.sourceId == candidate_item.id
+    assert entry.dimensions == 8
+    assert entry.rawTextIncluded is False
+    assert cosine_similarity(entry.vector, entry.vector) == 1.0
+
+    blocked = generate_memory_candidates(
+        owner_message_id="msg-blocked-embedding",
+        owner_content="记住我的 api key sk-testsecret123456789",
+        understanding=understand_owner_message(
+            "记住我的 api key sk-testsecret123456789"
+        ),
+    )[0]
+    assert embedding_allowed_for_candidate(blocked, enabled_policy) is False
+
+
+def test_summary_growth_tool_and_lifecycle_are_review_gated() -> None:
+    rin_snapshot = build_rin_mind_snapshot(
+        owner_message_id="msg-rin",
+        owner_content="RIN 应该保持本地优先。",
+        created_at=NOW,
+        prior_messages=[],
+        memory_traces=[],
+        profile_sections=["rin_profile"],
+        budget=6000,
+        turn_id="turn-rin",
+        conversation_id="conv-rin",
+    )
+    assert rin_snapshot.growthEvents
+    assert rin_snapshot.growthEvents[0].reviewStatus == "review_required"
+    assert rin_snapshot.growthEvents[0].rawTextIncluded is False
+    assert rin_snapshot.lifecycle.awaitingReview is True
+    assert rin_snapshot.policy.selfModelAutoApply is False
+
+    tool_default = build_rin_mind_snapshot(
+        owner_message_id="msg-tool-default",
+        owner_content="请帮我修复 install 问题。",
+        created_at=NOW,
+        prior_messages=[],
+        memory_traces=[],
+        profile_sections=["rin_profile"],
+        budget=6000,
+        turn_id="turn-tool-default",
+        conversation_id="conv-tool",
+    )
+    tool_enabled = build_rin_mind_snapshot(
+        owner_message_id="msg-tool-enabled",
+        owner_content="请帮我修复 install 问题。",
+        created_at=NOW,
+        prior_messages=[],
+        memory_traces=[],
+        profile_sections=["rin_profile"],
+        budget=6000,
+        policy=MindPolicy(enableAgentTools=True),
+        turn_id="turn-tool-enabled",
+        conversation_id="conv-tool",
+    )
+
+    assert tool_default.toolInvocationRequests == []
+    assert tool_enabled.toolInvocationRequests[0].status == "proposed"
+    assert tool_enabled.toolInvocationRequests[0].requiresOwnerApproval is True
+    assert tool_enabled.toolInvocationRequests[0].rawInputIncluded is False
+    assert tool_enabled.toolInvocationRequests[0].secretValuesIncluded is False
+
+    preference_snapshot = build_rin_mind_snapshot(
+        owner_message_id="msg-preference-summary",
+        owner_content="I prefer concise RIN progress reports.",
+        created_at=NOW,
+        prior_messages=[],
+        memory_traces=[],
+        profile_sections=["rin_profile"],
+        budget=6000,
+        turn_id="turn-preference-summary",
+        conversation_id="conv-summary",
+    )
+    summary = build_conversation_summary(
+        conversation_id="conv-summary",
+        turn_id="turn-preference-summary",
+        messages=[message("msg-preference-summary", "owner", "raw owner text")],
+        snapshot=preference_snapshot,
+        now=NOW,
+    )
+    assert summary.preferenceHints == ["Owner prefers concise RIN progress reports."]
+    assert summary.modelGenerated is False
+    assert summary.rawTextIncluded is False
+    assert "I prefer" not in summary.model_dump_json()
 
 
 def test_recent_selection_and_response_plan_use_mind_context() -> None:

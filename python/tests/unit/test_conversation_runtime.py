@@ -42,6 +42,7 @@ EXPECTED_SUCCESS_STAGE_NAMES = [
     "sanitization_final_answer",
     "rin_reply_persisted",
     "memory_update",
+    "mind_lifecycle",
     "response_returned",
 ]
 
@@ -227,6 +228,7 @@ async def test_runtime_persists_owner_and_rin_reply_on_success() -> None:
         assert status.counts.conversationTurns == 1
         assert status.counts.mindTurnSnapshots == 1
         assert status.counts.memoryCandidates == 0
+        assert status.counts.conversationSummaries == 1
         assert status.counts.memoryV2Traces == 0
         assert status.counts.apiUsageEvents == 0
         assert adapter.requests[0].messages[-1].content == "hello"
@@ -277,7 +279,7 @@ async def test_runtime_persists_owner_and_rin_reply_on_success() -> None:
         assert context_plan_stage.output["ownerStateIncluded"] is True
         assert response_plan_stage.output["nextActionStyle"]
         assert memory_stage.status == "skipped"
-        assert memory_stage.decision["skipReason"] == "no_memory_v2_traces"
+        assert memory_stage.decision["skipReason"] == "no_memory_sources"
         assert context_stage.output["componentTable"]
         assert request_stage.output["requestOutline"]
         assert request_stage.output["currentOwnerInputLast"] is True

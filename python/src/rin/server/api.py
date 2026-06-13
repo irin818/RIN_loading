@@ -35,9 +35,12 @@ from rin.database import (
     list_api_usage_events,
     list_conversations,
     list_legacy_memories,
+    list_memory_embeddings,
     list_memory_v2_traces,
     list_messages,
     list_mind_memory_candidates,
+    list_rin_growth_events,
+    list_tool_invocation_requests,
     summarize_api_usage,
     update_memory_candidate_review,
 )
@@ -49,7 +52,7 @@ from rin.diagnostics.runtime_trace import (
     short_id,
 )
 from rin.diagnostics.safety import assert_safe_python_write_data_dir
-from rin.mind import RinMindSnapshot
+from rin.mind import RinMindSnapshot, load_mind_policy
 from rin.model import create_api_chat_adapter_from_env
 from rin.profiles import build_profile_report
 from rin.storage import RinDataLayout
@@ -337,9 +340,20 @@ def create_app(
     @app.get("/api/mind/memory-candidates")
     def api_mind_memory_candidates(
         limit: int = 50,
+        reviewStatus: str | None = None,
+        type: str | None = None,
+        riskLevel: str | None = None,
+        active: bool | None = None,
         current_layout: RinDataLayout = layout_dependency,
     ) -> dict[str, object]:
-        candidates = list_mind_memory_candidates(current_layout, limit=limit)
+        candidates = list_mind_memory_candidates(
+            current_layout,
+            limit=limit,
+            review_status=reviewStatus,
+            candidate_type=type,
+            risk_level=riskLevel,
+            active=active,
+        )
         return {
             "ok": True,
             "mode": "rin-mind-memory-candidates",
@@ -360,7 +374,7 @@ def create_app(
         updated = update_memory_candidate_review(
             current_layout,
             candidate_id=candidate_id,
-            review_status="auto_promoted",
+            review_status="owner_approved",
             active=True,
             owner_confirmed=True,
             now=current_clock.now(),
@@ -368,6 +382,99 @@ def create_app(
         if not updated:
             raise HTTPException(status_code=404, detail="Memory candidate not found.")
         return build_memory_candidate_action_response(current_layout, candidate_id)
+
+    @app.post("/api/mind/memory-candidates/{candidate_id}/deactivate")
+    def api_mind_memory_candidate_deactivate(
+        candidate_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+        current_clock: RuntimeClock = clock_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        updated = update_memory_candidate_review(
+            current_layout,
+            candidate_id=candidate_id,
+            review_status="inactive",
+            active=False,
+            owner_confirmed=False,
+            now=current_clock.now(),
+        )
+        if not updated:
+            raise HTTPException(status_code=404, detail="Memory candidate not found.")
+        return build_memory_candidate_action_response(current_layout, candidate_id)
+
+    @app.post("/api/mind/memory-candidates/{candidate_id}/reactivate")
+    def api_mind_memory_candidate_reactivate(
+        candidate_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+        current_clock: RuntimeClock = clock_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        existing = next(
+            (
+                item
+                for item in list_mind_memory_candidates(current_layout, limit=100)
+                if item.id == candidate_id
+            ),
+            None,
+        )
+        if existing is None:
+            raise HTTPException(status_code=404, detail="Memory candidate not found.")
+        if existing.riskLevel == "blocked":
+            raise HTTPException(
+                status_code=409,
+                detail="Blocked memory candidate cannot be reactivated.",
+            )
+        updated = update_memory_candidate_review(
+            current_layout,
+            candidate_id=candidate_id,
+            review_status="candidate",
+            active=True,
+            owner_confirmed=False,
+            now=current_clock.now(),
+        )
+        if not updated:
+            raise HTTPException(status_code=404, detail="Memory candidate not found.")
+        return build_memory_candidate_action_response(current_layout, candidate_id)
+
+    @app.get("/api/mind/growth-events")
+    def api_mind_growth_events(
+        limit: int = 50,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return {
+            "ok": True,
+            "mode": "rin-mind-growth-events",
+            "readOnly": True,
+            "localOnly": True,
+            "events": [
+                item.model_dump(mode="json")
+                for item in list_rin_growth_events(current_layout, limit=limit)
+            ],
+            "rawTextIncluded": False,
+            "secretValuesIncluded": False,
+        }
+
+    @app.get("/api/mind/tool-requests")
+    def api_mind_tool_requests(
+        limit: int = 50,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return {
+            "ok": True,
+            "mode": "rin-mind-tool-requests",
+            "readOnly": True,
+            "localOnly": True,
+            "requests": [
+                item.model_dump(mode="json")
+                for item in list_tool_invocation_requests(
+                    current_layout,
+                    limit=limit,
+                )
+            ],
+            "executionEnabled": False,
+            "rawInputIncluded": False,
+            "secretValuesIncluded": False,
+        }
 
     @app.post("/api/mind/memory-candidates/{candidate_id}/reject")
     def api_mind_memory_candidate_reject(
@@ -1371,6 +1478,10 @@ def build_mind_latest_payload(layout: RinDataLayout) -> dict[str, object]:
     """Build the latest safe RIN Mind snapshot payload for UI/API display."""
     snapshot = get_latest_mind_snapshot(layout)
     candidates = list_mind_memory_candidates(layout, limit=30)
+    growth_events = list_rin_growth_events(layout, limit=20)
+    tool_requests = list_tool_invocation_requests(layout, limit=20)
+    embeddings = list_memory_embeddings(layout, limit=20)
+    policy = load_mind_policy().metadata()
     return {
         "ok": True,
         "mode": "rin-mind-latest",
@@ -1379,6 +1490,17 @@ def build_mind_latest_payload(layout: RinDataLayout) -> dict[str, object]:
         "latest": snapshot.model_dump(mode="json") if snapshot else None,
         "candidateCount": len(candidates),
         "memoryCandidates": [item.model_dump(mode="json") for item in candidates],
+        "policy": policy.model_dump(mode="json"),
+        "growthEvents": [item.model_dump(mode="json") for item in growth_events],
+        "toolInvocationRequests": [
+            item.model_dump(mode="json") for item in tool_requests
+        ],
+        "embeddingStatus": {
+            "enabled": policy.enableEmbeddings,
+            "provider": policy.embeddingProvider,
+            "entryCount": len(embeddings),
+            "rawTextIncluded": False,
+        },
         "safeForUi": True,
         "rawTextIncluded": False,
         "rawPromptIncluded": False,
@@ -1812,7 +1934,7 @@ def build_memory_diagnostics_payload(layout: RinDataLayout) -> dict[str, object]
             "retrievalWiredIntoPrompt": retrieval_wired,
             "retrievalSkipReason": retrieval_skip_reason,
             "memoryInjectedIntoLastContextCount": memory_retrieval_stage.output.get(
-                "selectedTraceCount",
+                "selectedMemorySourceCount",
                 0,
             )
             if memory_retrieval_stage
@@ -1859,9 +1981,9 @@ def build_memory_diagnostics_payload(layout: RinDataLayout) -> dict[str, object]
         },
         "warnings": [
             "Short-term conversation context is active and separate from Memory V2.",
-            "No Memory V2 traces available for retrieval."
-            if retrieval_skip_reason == "no_memory_v2_traces"
-            else "Memory V2 retrieval is active with safe trace summaries.",
+            "No approved memory sources available for retrieval."
+            if retrieval_skip_reason in {"no_memory_sources", "no_memory_v2_traces"}
+            else "Memory retrieval is active with safe source summaries.",
             "Memory curve is not parameterized yet; retention estimates are n/a.",
         ],
         "memoryV2Traces": status.counts.memoryV2Traces,
@@ -1944,6 +2066,11 @@ def local_console_snapshot(layout: RinDataLayout) -> dict[str, object]:
             "mindTurnSnapshots": status.counts.mindTurnSnapshots,
             "memoryCandidates": status.counts.memoryCandidates,
             "conversationSummaries": status.counts.conversationSummaries,
+            "modelSummaryCandidates": status.counts.modelSummaryCandidates,
+            "rinSelfModel": status.counts.rinSelfModel,
+            "rinGrowthEvents": status.counts.rinGrowthEvents,
+            "memoryEmbeddings": status.counts.memoryEmbeddings,
+            "toolInvocationRequests": status.counts.toolInvocationRequests,
         },
         "profile": profile,
         "modelRuntime": {

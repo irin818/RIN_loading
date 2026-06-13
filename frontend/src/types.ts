@@ -194,6 +194,7 @@ export interface MindContextPlan {
   ownerStateIncluded: boolean;
   selectedRecentMessageIds: string[];
   selectedMemoryTraceIds: string[];
+  selectedMemorySourceIds: string[];
   selectedProfileSections: string[];
   selectedSummaryIds: string[];
   excludedItems: Array<{ id: string; kind: string; reason: string }>;
@@ -205,12 +206,17 @@ export interface MindContextPlan {
 }
 
 export interface MindRetrievalItem {
+  sourceKind: string;
+  sourceId: string;
   traceId: string;
   score: number;
   selected: boolean;
   reasons: string[];
   matchedTags: string[];
   salienceScore: number;
+  confidence: number | null;
+  safeSummary: string;
+  normalizedValue: string | null;
   riskLevel: string;
   rawTextIncluded: false;
 }
@@ -228,6 +234,12 @@ export interface MindMemoryCandidate {
   id: string;
   type: string;
   summary: string;
+  safeSummary: string;
+  normalizedValue: string | null;
+  rawTextIncluded: false;
+  redacted: boolean;
+  sourceKind: string;
+  language: string;
   sourceMessageIds: string[];
   confidence: number;
   salience: number;
@@ -243,6 +255,85 @@ export interface MindMemoryCandidate {
   ownerConfirmed: boolean;
   autoPromote: boolean;
   reasons: string[];
+}
+
+export interface MindPolicyMetadata {
+  contextMaxCharacters: number;
+  recentHistorySelectedLimit: number;
+  recentHistoryCandidateLimit: number;
+  memoryRetrievalCandidateLimit: number;
+  memoryMaxSelected: number;
+  autopromoteConfidence: number;
+  ownerStateTtlHours: number;
+  enableEmbeddings: boolean;
+  embeddingProvider: string;
+  enableModelSummaries: boolean;
+  enableAgentTools: boolean;
+  allowHighRiskMemoryExport: boolean;
+  selfModelAutoApply: boolean;
+  warnings: string[];
+  dangerousDefaultsDisabled: boolean;
+  secretValuesIncluded: false;
+}
+
+export interface MindConversationSummary {
+  id: string;
+  conversationId: string;
+  topicTags: string[];
+  activeMode: string;
+  recentDecisionHints: string[];
+  preferenceHints: string[];
+  correctionHints: string[];
+  relationshipHints: string[];
+  unresolvedHints: string[];
+  lastUpdatedTurnId: string;
+  sourceMessageCount: number;
+  reviewStatus: string;
+  modelGenerated: boolean;
+  rawTextIncluded: false;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MindGrowthEvent {
+  id: string;
+  eventType: string;
+  summary: string;
+  sourceTurnId: string;
+  sourceMessageId: string;
+  candidate: Record<string, unknown>;
+  riskLevel: string;
+  reviewStatus: string;
+  createdAt: string;
+  appliedAt: string | null;
+  active: boolean;
+  rawTextIncluded: false;
+}
+
+export interface MindToolInvocationRequest {
+  id: string;
+  sourceTurnId: string;
+  intent: string;
+  toolName: string;
+  actionSummary: string;
+  riskLevel: string;
+  requiresOwnerApproval: boolean;
+  status: string;
+  createdAt: string;
+  rawInputIncluded: false;
+  secretValuesIncluded: false;
+}
+
+export interface MindLifecycle {
+  observed: boolean;
+  understood: boolean;
+  planned: boolean;
+  responded: boolean;
+  candidateGenerated: boolean;
+  stored: boolean;
+  awaitingReview: boolean;
+  stages: string[];
+  rawTextIncluded: false;
 }
 
 export interface MindResponsePlan {
@@ -269,7 +360,12 @@ export interface RinMindSnapshot {
   contextPlan: MindContextPlan;
   memoryRetrieval: MindMemoryRetrieval;
   memoryCandidates: MindMemoryCandidate[];
+  conversationSummary: MindConversationSummary | null;
+  growthEvents: MindGrowthEvent[];
+  toolInvocationRequests: MindToolInvocationRequest[];
   responsePlan: MindResponsePlan;
+  lifecycle: MindLifecycle;
+  policy: MindPolicyMetadata;
   createdAt: string;
   safeForUi: true;
   rawTextIncluded: false;
@@ -284,6 +380,15 @@ export interface RinMindPayload {
   latest: RinMindSnapshot | null;
   candidateCount: number;
   memoryCandidates: MindMemoryCandidate[];
+  policy: MindPolicyMetadata;
+  growthEvents: MindGrowthEvent[];
+  toolInvocationRequests: MindToolInvocationRequest[];
+  embeddingStatus: {
+    enabled: boolean;
+    provider: string;
+    entryCount: number;
+    rawTextIncluded: false;
+  };
   safeForUi: true;
   rawTextIncluded: false;
   rawPromptIncluded: false;

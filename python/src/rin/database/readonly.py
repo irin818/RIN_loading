@@ -14,7 +14,16 @@ from rin.contracts import (
     ConversationRecord,
     MemoryInjectionTrace,
 )
-from rin.mind import MemoryCandidate, RinMindSnapshot
+from rin.mind import (
+    ConversationSummary,
+    MemoryCandidate,
+    MemoryEmbeddingEntry,
+    MindLifecycle,
+    MindPolicyMetadata,
+    RinGrowthEvent,
+    RinMindSnapshot,
+    ToolInvocationRequest,
+)
 from rin.storage import RinDataLayout
 
 DATABASE_FILENAME = "rin.sqlite"
@@ -36,6 +45,14 @@ DATABASE_TABLES: tuple[str, ...] = (
     "mind_turn_snapshots",
     "memory_candidates",
     "conversation_summaries",
+    "model_summary_candidates",
+    "rin_self_model",
+    "rin_growth_events",
+    "memory_embeddings",
+    "tool_capabilities",
+    "agent_intents",
+    "tool_invocation_requests",
+    "tool_invocation_audit",
     "slow_variable_versions",
     "state_history",
     "tool_invocations",
@@ -72,6 +89,14 @@ class DatabaseCounts(BaseModel):
     mindTurnSnapshots: int
     memoryCandidates: int
     conversationSummaries: int
+    modelSummaryCandidates: int
+    rinSelfModel: int
+    rinGrowthEvents: int
+    memoryEmbeddings: int
+    toolCapabilities: int
+    agentIntents: int
+    toolInvocationRequests: int
+    toolInvocationAudit: int
     messageMemoryContexts: int
     slowVariableVersions: int
     stateHistory: int
@@ -274,6 +299,23 @@ def inspect_database(layout: RinDataLayout) -> DatabaseStatus:
                 conversationSummaries=count_rows_if_exists(
                     connection,
                     "conversation_summaries",
+                ),
+                modelSummaryCandidates=count_rows_if_exists(
+                    connection,
+                    "model_summary_candidates",
+                ),
+                rinSelfModel=count_rows_if_exists(connection, "rin_self_model"),
+                rinGrowthEvents=count_rows_if_exists(connection, "rin_growth_events"),
+                memoryEmbeddings=count_rows_if_exists(connection, "memory_embeddings"),
+                toolCapabilities=count_rows_if_exists(connection, "tool_capabilities"),
+                agentIntents=count_rows_if_exists(connection, "agent_intents"),
+                toolInvocationRequests=count_rows_if_exists(
+                    connection,
+                    "tool_invocation_requests",
+                ),
+                toolInvocationAudit=count_rows_if_exists(
+                    connection,
+                    "tool_invocation_audit",
                 ),
                 slowVariableVersions=count_rows_if_exists(
                     connection,
@@ -510,21 +552,122 @@ def list_mind_memory_candidates(
     layout: RinDataLayout,
     *,
     limit: int = 50,
+    review_status: str | None = None,
+    candidate_type: str | None = None,
+    risk_level: str | None = None,
+    active: bool | None = None,
 ) -> list[MemoryCandidate]:
     """List safe RIN Mind memory candidates without raw source message text."""
     safe_limit = max(1, min(limit, 100))
     with open_readonly_database(database_path_for(layout)) as connection:
         if not table_exists(connection, "memory_candidates"):
             return []
+        ensure_projection = "SELECT * FROM memory_candidates"
+        clauses: list[str] = []
+        params: list[object] = []
+        if review_status:
+            clauses.append("review_status = ?")
+            params.append(review_status)
+        if candidate_type:
+            clauses.append("type = ?")
+            params.append(candidate_type)
+        if risk_level:
+            clauses.append("risk_level = ?")
+            params.append(risk_level)
+        if active is not None:
+            clauses.append("active = ?")
+            params.append(1 if active else 0)
+        where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+        params.append(safe_limit)
+        rows = connection.execute(
+            f"""
+            {ensure_projection}
+            {where}
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            params,
+        ).fetchall()
+        return [map_memory_candidate(row) for row in rows]
+
+
+def get_active_conversation_summary(
+    layout: RinDataLayout,
+    conversation_id: str,
+) -> ConversationSummary | None:
+    with open_readonly_database(database_path_for(layout)) as connection:
+        if not table_exists(connection, "conversation_summaries"):
+            return None
+        row = connection.execute(
+            """
+            SELECT * FROM conversation_summaries
+            WHERE conversation_id = ? AND active = 1
+            ORDER BY updated_at DESC, id DESC
+            LIMIT 1
+            """,
+            (conversation_id,),
+        ).fetchone()
+        return map_conversation_summary(row) if row else None
+
+
+def list_rin_growth_events(
+    layout: RinDataLayout,
+    *,
+    limit: int = 50,
+) -> list[RinGrowthEvent]:
+    safe_limit = max(1, min(limit, 100))
+    with open_readonly_database(database_path_for(layout)) as connection:
+        if not table_exists(connection, "rin_growth_events"):
+            return []
         rows = connection.execute(
             """
-            SELECT * FROM memory_candidates
+            SELECT * FROM rin_growth_events
             ORDER BY created_at DESC, id DESC
             LIMIT ?
             """,
             (safe_limit,),
         ).fetchall()
-        return [map_memory_candidate(row) for row in rows]
+        return [map_rin_growth_event(row) for row in rows]
+
+
+def list_tool_invocation_requests(
+    layout: RinDataLayout,
+    *,
+    limit: int = 50,
+) -> list[ToolInvocationRequest]:
+    safe_limit = max(1, min(limit, 100))
+    with open_readonly_database(database_path_for(layout)) as connection:
+        if not table_exists(connection, "tool_invocation_requests"):
+            return []
+        rows = connection.execute(
+            """
+            SELECT * FROM tool_invocation_requests
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            (safe_limit,),
+        ).fetchall()
+        return [map_tool_invocation_request(row) for row in rows]
+
+
+def list_memory_embeddings(
+    layout: RinDataLayout,
+    *,
+    limit: int = 50,
+) -> list[MemoryEmbeddingEntry]:
+    safe_limit = max(1, min(limit, 100))
+    with open_readonly_database(database_path_for(layout)) as connection:
+        if not table_exists(connection, "memory_embeddings"):
+            return []
+        rows = connection.execute(
+            """
+            SELECT * FROM memory_embeddings
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            (safe_limit,),
+        ).fetchall()
+        return [map_memory_embedding(row) for row in rows]
 
 
 def empty_api_usage_summary() -> ApiUsageSummary:
@@ -674,13 +817,62 @@ def map_api_usage_event(row: sqlite3.Row) -> ApiUsageEventRecord:
 
 
 def map_mind_snapshot(row: sqlite3.Row) -> RinMindSnapshot:
+    keys = set(row.keys())
+    lifecycle_payload = (
+        json.loads(str(row["lifecycle_json"]))
+        if "lifecycle_json" in keys and row["lifecycle_json"]
+        else {
+            "observed": True,
+            "understood": True,
+            "planned": True,
+            "responded": True,
+            "candidateGenerated": False,
+            "stored": True,
+            "awaitingReview": False,
+            "stages": [],
+            "rawTextIncluded": False,
+        }
+    )
+    policy_payload = (
+        json.loads(str(row["policy_json"]))
+        if "policy_json" in keys and row["policy_json"]
+        else {
+            "contextMaxCharacters": 6000,
+            "recentHistorySelectedLimit": 6,
+            "recentHistoryCandidateLimit": 20,
+            "memoryRetrievalCandidateLimit": 50,
+            "memoryMaxSelected": 5,
+            "autopromoteConfidence": 0.8,
+            "ownerStateTtlHours": 6,
+            "enableEmbeddings": False,
+            "embeddingProvider": "disabled",
+            "enableModelSummaries": False,
+            "enableAgentTools": False,
+            "allowHighRiskMemoryExport": False,
+            "selfModelAutoApply": False,
+            "warnings": [],
+            "dangerousDefaultsDisabled": True,
+            "secretValuesIncluded": False,
+        }
+    )
     return RinMindSnapshot(
         messageUnderstanding=json.loads(str(row["message_understanding_json"])),
         ownerState=json.loads(str(row["owner_state_json"])),
         contextPlan=json.loads(str(row["context_plan_json"])),
         memoryRetrieval=json.loads(str(row["memory_retrieval_json"])),
         memoryCandidates=json.loads(str(row["memory_candidates_json"])),
+        conversationSummary=json.loads(str(row["conversation_summary_json"]))
+        if "conversation_summary_json" in keys and row["conversation_summary_json"]
+        else None,
+        growthEvents=json.loads(str(row["growth_events_json"]))
+        if "growth_events_json" in keys and row["growth_events_json"]
+        else [],
+        toolInvocationRequests=json.loads(str(row["tool_requests_json"]))
+        if "tool_requests_json" in keys and row["tool_requests_json"]
+        else [],
         responsePlan=json.loads(str(row["response_plan_json"])),
+        lifecycle=MindLifecycle.model_validate(lifecycle_payload),
+        policy=MindPolicyMetadata.model_validate(policy_payload),
         createdAt=str(row["created_at"]),
         safeForUi=True,
         rawTextIncluded=False,
@@ -689,10 +881,24 @@ def map_mind_snapshot(row: sqlite3.Row) -> RinMindSnapshot:
 
 
 def map_memory_candidate(row: sqlite3.Row) -> MemoryCandidate:
+    keys = set(row.keys())
+    summary = str(row["summary"])
     return MemoryCandidate(
         id=str(row["id"]),
         type=str(row["type"]),  # type: ignore[arg-type]
-        summary=str(row["summary"]),
+        summary=summary,
+        safeSummary=str(row["safe_summary"])
+        if "safe_summary" in keys and row["safe_summary"]
+        else summary,
+        normalizedValue=row["normalized_value"] if "normalized_value" in keys else None,
+        rawTextIncluded=False,
+        redacted=bool(row["redacted"]) if "redacted" in keys else False,
+        sourceKind=str(row["source_kind"])
+        if "source_kind" in keys and row["source_kind"]
+        else "owner_message",
+        language=str(row["language"])
+        if "language" in keys and row["language"]
+        else "unknown",
         sourceMessageIds=[str(row["source_message_id"])],
         confidence=float(row["confidence"]),
         salience=float(row["salience"]),
@@ -708,6 +914,60 @@ def map_memory_candidate(row: sqlite3.Row) -> MemoryCandidate:
         ownerConfirmed=bool(row["owner_confirmed"]),
         autoPromote=bool(row["auto_promote"]),
         reasons=list(json.loads(str(row["reasons_json"]))),
+    )
+
+
+def map_conversation_summary(row: sqlite3.Row) -> ConversationSummary:
+    payload = json.loads(str(row["summary_json"]))
+    return ConversationSummary.model_validate(payload)
+
+
+def map_rin_growth_event(row: sqlite3.Row) -> RinGrowthEvent:
+    return RinGrowthEvent(
+        id=str(row["id"]),
+        eventType=str(row["event_type"]),  # type: ignore[arg-type]
+        summary=str(row["summary"]),
+        sourceTurnId=str(row["source_turn_id"]),
+        sourceMessageId=str(row["source_message_id"]),
+        candidate=json.loads(str(row["candidate_json"])),
+        riskLevel=str(row["risk_level"]),  # type: ignore[arg-type]
+        reviewStatus=str(row["review_status"]),  # type: ignore[arg-type]
+        createdAt=str(row["created_at"]),
+        appliedAt=row["applied_at"],
+        active=bool(row["active"]),
+        rawTextIncluded=False,
+    )
+
+
+def map_tool_invocation_request(row: sqlite3.Row) -> ToolInvocationRequest:
+    return ToolInvocationRequest(
+        id=str(row["id"]),
+        sourceTurnId=str(row["source_turn_id"]),
+        intent=str(row["intent"]),
+        toolName=str(row["tool_name"]),
+        actionSummary=str(row["action_summary"]),
+        riskLevel=str(row["risk_level"]),  # type: ignore[arg-type]
+        requiresOwnerApproval=bool(row["requires_owner_approval"]),
+        status=str(row["status"]),  # type: ignore[arg-type]
+        createdAt=str(row["created_at"]),
+        rawInputIncluded=False,
+        secretValuesIncluded=False,
+    )
+
+
+def map_memory_embedding(row: sqlite3.Row) -> MemoryEmbeddingEntry:
+    return MemoryEmbeddingEntry(
+        id=str(row["id"]),
+        sourceKind=str(row["source_kind"]),  # type: ignore[arg-type]
+        sourceId=str(row["source_id"]),
+        embeddingProvider=str(row["embedding_provider"]),
+        embeddingModel=str(row["embedding_model"]),
+        vector=list(json.loads(str(row["vector_json"]))),
+        dimensions=int(row["dimensions"]),
+        contentHash=str(row["content_hash"]),
+        createdAt=str(row["created_at"]),
+        active=bool(row["active"]),
+        rawTextIncluded=False,
     )
 
 

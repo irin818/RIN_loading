@@ -70,11 +70,27 @@ MemoryCandidateType = Literal[
 RiskLevel = Literal["low", "medium", "high", "blocked"]
 ReviewStatus = Literal[
     "auto_promoted",
+    "owner_approved",
     "candidate",
     "review_required",
     "rejected",
     "inactive",
 ]
+MemorySourceKind = Literal["memory_v2_trace", "memory_candidate"]
+SummaryReviewStatus = Literal[
+    "deterministic", "candidate", "owner_approved", "rejected"
+]
+GrowthEventType = Literal[
+    "owner_adjusted_rin_personality",
+    "rin_learned_response_preference",
+    "relationship_milestone",
+    "owner_corrected_rin_misunderstanding",
+    "visual_identity_change",
+    "boundary_policy_change",
+    "failure_case_reflection",
+    "self_summary_candidate",
+]
+ToolRequestStatus = Literal["proposed", "approved", "rejected", "executed", "failed"]
 
 
 class MindBaseModel(BaseModel):
@@ -124,6 +140,7 @@ class ContextPlan(MindBaseModel):
     ownerStateIncluded: bool
     selectedRecentMessageIds: list[str]
     selectedMemoryTraceIds: list[str]
+    selectedMemorySourceIds: list[str]
     selectedProfileSections: list[str]
     selectedSummaryIds: list[str]
     excludedItems: list[ExcludedContextItem]
@@ -135,12 +152,17 @@ class ContextPlan(MindBaseModel):
 
 
 class MemoryRetrievalItem(MindBaseModel):
+    sourceKind: MemorySourceKind
+    sourceId: str
     traceId: str
     score: float
     selected: bool
     reasons: list[str]
     matchedTags: list[str]
     salienceScore: float
+    confidence: float | None
+    safeSummary: str
+    normalizedValue: str | None
     riskLevel: RiskLevel
     rawTextIncluded: Literal[False]
 
@@ -158,6 +180,12 @@ class MemoryCandidate(MindBaseModel):
     id: str
     type: MemoryCandidateType
     summary: str
+    safeSummary: str
+    normalizedValue: str | None
+    rawTextIncluded: Literal[False]
+    redacted: bool
+    sourceKind: str
+    language: str
     sourceMessageIds: list[str]
     confidence: float = Field(ge=0.0, le=1.0)
     salience: float = Field(ge=0.0, le=1.0)
@@ -193,13 +221,141 @@ class ResponsePlan(MindBaseModel):
     reasons: list[str]
 
 
+class MindPolicyMetadata(MindBaseModel):
+    contextMaxCharacters: int
+    recentHistorySelectedLimit: int
+    recentHistoryCandidateLimit: int
+    memoryRetrievalCandidateLimit: int
+    memoryMaxSelected: int
+    autopromoteConfidence: float
+    ownerStateTtlHours: int
+    enableEmbeddings: bool
+    embeddingProvider: str
+    enableModelSummaries: bool
+    enableAgentTools: bool
+    allowHighRiskMemoryExport: bool
+    selfModelAutoApply: bool
+    warnings: list[str]
+    dangerousDefaultsDisabled: bool
+    secretValuesIncluded: Literal[False]
+
+
+class ConversationSummary(MindBaseModel):
+    id: str
+    conversationId: str
+    topicTags: list[str]
+    activeMode: MessageMode
+    recentDecisionHints: list[str]
+    preferenceHints: list[str]
+    correctionHints: list[str]
+    relationshipHints: list[str]
+    unresolvedHints: list[str]
+    lastUpdatedTurnId: str
+    sourceMessageCount: int
+    reviewStatus: SummaryReviewStatus
+    modelGenerated: bool
+    rawTextIncluded: Literal[False]
+    createdAt: str
+    updatedAt: str
+
+
+class ModelSummaryCandidate(MindBaseModel):
+    id: str
+    conversationId: str
+    safeSummary: str
+    provider: str
+    model: str
+    sourceTurnIds: list[str]
+    reviewStatus: ReviewStatus
+    modelGenerated: Literal[True]
+    rawModelOutputIncluded: Literal[False]
+    rawTextIncluded: Literal[False]
+    createdAt: str
+
+
+class RinSelfModel(MindBaseModel):
+    id: str
+    version: int
+    active: bool
+    identitySummary: str
+    tonePolicy: dict[str, object]
+    relationshipPolicy: dict[str, object]
+    memoryPolicy: dict[str, object]
+    boundaryPolicy: dict[str, object]
+    visualIdentity: dict[str, object]
+    createdAt: str
+    updatedAt: str
+    sourceEventId: str | None
+    rawTextIncluded: Literal[False]
+
+
+class RinGrowthEvent(MindBaseModel):
+    id: str
+    eventType: GrowthEventType
+    summary: str
+    sourceTurnId: str
+    sourceMessageId: str
+    candidate: dict[str, object]
+    riskLevel: RiskLevel
+    reviewStatus: ReviewStatus
+    createdAt: str
+    appliedAt: str | None
+    active: bool
+    rawTextIncluded: Literal[False]
+
+
+class ToolInvocationRequest(MindBaseModel):
+    id: str
+    sourceTurnId: str
+    intent: str
+    toolName: str
+    actionSummary: str
+    riskLevel: RiskLevel
+    requiresOwnerApproval: bool
+    status: ToolRequestStatus
+    createdAt: str
+    rawInputIncluded: Literal[False]
+    secretValuesIncluded: Literal[False]
+
+
+class MemoryEmbeddingEntry(MindBaseModel):
+    id: str
+    sourceKind: MemorySourceKind
+    sourceId: str
+    embeddingProvider: str
+    embeddingModel: str
+    vector: list[float]
+    dimensions: int
+    contentHash: str
+    createdAt: str
+    active: bool
+    rawTextIncluded: Literal[False]
+
+
+class MindLifecycle(MindBaseModel):
+    observed: bool
+    understood: bool
+    planned: bool
+    responded: bool
+    candidateGenerated: bool
+    stored: bool
+    awaitingReview: bool
+    stages: list[str]
+    rawTextIncluded: Literal[False]
+
+
 class RinMindSnapshot(MindBaseModel):
     messageUnderstanding: MessageUnderstanding
     ownerState: OwnerStateSnapshot
     contextPlan: ContextPlan
     memoryRetrieval: MemoryRetrievalPlan
     memoryCandidates: list[MemoryCandidate]
+    conversationSummary: ConversationSummary | None
+    growthEvents: list[RinGrowthEvent]
+    toolInvocationRequests: list[ToolInvocationRequest]
     responsePlan: ResponsePlan
+    lifecycle: MindLifecycle
+    policy: MindPolicyMetadata
     createdAt: str
     safeForUi: Literal[True]
     rawTextIncluded: Literal[False]

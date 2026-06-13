@@ -31,6 +31,7 @@ EXPECTED_RUNTIME_TRACE_STAGE_NAMES = [
     "sanitization_final_answer",
     "rin_reply_persisted",
     "memory_update",
+    "mind_lifecycle",
     "response_returned",
 ]
 
@@ -542,7 +543,7 @@ def test_mind_api_exposes_safe_snapshot_and_review_actions() -> None:
 
         assert approved.status_code == 200
         assert approved.json()["readOnly"] is False
-        assert approved.json()["candidate"]["reviewStatus"] == "auto_promoted"
+        assert approved.json()["candidate"]["reviewStatus"] == "owner_approved"
         assert approved.json()["candidate"]["ownerConfirmed"] is True
         assert rejected.status_code == 200
         assert rejected.json()["candidate"]["reviewStatus"] == "rejected"
@@ -811,7 +812,7 @@ def test_memory_page_renders_useful_safe_console_sections() -> None:
         assert "Memory used last request" in response.text
         assert "Last Turn Memory Update" in response.text
         assert "Gaps / Warnings" in response.text
-        assert "No Memory V2 traces available for retrieval." in response.text
+        assert "No approved memory sources available for retrieval." in response.text
         assert "memory page private text" in response.text
 
         memory = client.get("/api/diagnostics/memory")
@@ -851,7 +852,7 @@ def test_runtime_trace_api_is_safe_and_read_only() -> None:
         assert latest_payload["rawPromptIncluded"] is False
         assert latest_payload["rawModelOutputIncluded"] is False
         assert trace["status"] == "success"
-        assert trace["analysis"]["memorySkipReason"] == "no_memory_v2_traces"
+        assert trace["analysis"]["memorySkipReason"] == "no_memory_sources"
         assert [stage["name"] for stage in trace["stages"]] == (
             EXPECTED_RUNTIME_TRACE_STAGE_NAMES
         )
@@ -894,7 +895,7 @@ def test_runtime_trace_api_is_safe_and_read_only() -> None:
 
         assert recent["output"]["selectedPriorMessages"] == 0
         assert memory["status"] == "skipped"
-        assert memory["decision"]["skipReason"] == "no_memory_v2_traces"
+        assert memory["decision"]["skipReason"] == "no_memory_sources"
         assert context["output"]["componentTable"]
         assert request["output"]["requestOutline"]
         assert raw["output"]["providerRawMetadataAvailable"] is False

@@ -87,3 +87,23 @@ export async function rejectMindMemoryCandidate(
   });
   return readJson<MindCandidateActionResult>(response);
 }
+
+export async function deactivateMindMemoryCandidate(
+  candidateId: string
+): Promise<MindCandidateActionResult> {
+  const response = await fetch(`/api/mind/memory-candidates/${candidateId}/deactivate`, {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+  return readJson<MindCandidateActionResult>(response);
+}
+
+export async function reactivateMindMemoryCandidate(
+  candidateId: string
+): Promise<MindCandidateActionResult> {
+  const response = await fetch(`/api/mind/memory-candidates/${candidateId}/reactivate`, {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+  return readJson<MindCandidateActionResult>(response);
+}

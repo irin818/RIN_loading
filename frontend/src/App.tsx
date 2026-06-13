@@ -7,8 +7,10 @@ import type {
 
 import {
   approveMindMemoryCandidate,
+  deactivateMindMemoryCandidate,
   fetchGlitchSnapshot,
   fetchMemoryCards,
+  reactivateMindMemoryCandidate,
   rejectMindMemoryCandidate,
   sendChatMessage
 } from "./api";
@@ -625,12 +627,19 @@ export default function App() {
   }, [memoryQuery, openErrorWindow]);
 
   const reviewMindCandidate = useCallback(
-    async (candidateId: string, action: "approve" | "reject") => {
+    async (
+      candidateId: string,
+      action: "approve" | "reject" | "deactivate" | "reactivate"
+    ) => {
       try {
         if (action === "approve") {
           await approveMindMemoryCandidate(candidateId);
-        } else {
+        } else if (action === "reject") {
           await rejectMindMemoryCandidate(candidateId);
+        } else if (action === "deactivate") {
+          await deactivateMindMemoryCandidate(candidateId);
+        } else {
+          await reactivateMindMemoryCandidate(candidateId);
         }
         await refreshSnapshot();
       } catch (error) {
@@ -994,7 +1003,10 @@ function WindowContent(props: {
   memoryQuery: string;
   setMemoryQuery: (value: string) => void;
   searchMemory: () => Promise<void>;
-  reviewMindCandidate: (candidateId: string, action: "approve" | "reject") => Promise<void>;
+  reviewMindCandidate: (
+    candidateId: string,
+    action: "approve" | "reject" | "deactivate" | "reactivate"
+  ) => Promise<void>;
   openWindow: (type: WindowType, options?: { contextName?: string; payload?: WindowPayload; focusExistingId?: string }) => void;
   openErrorWindow: (error: GlitchErrorItem) => void;
   closeWindow: (id: string) => void;
@@ -1415,10 +1427,15 @@ function CostWindow(props: { snapshot: GlitchSnapshot | null }) {
 
 function MindWindow(props: {
   snapshot: GlitchSnapshot | null;
-  reviewMindCandidate: (candidateId: string, action: "approve" | "reject") => Promise<void>;
+  reviewMindCandidate: (
+    candidateId: string,
+    action: "approve" | "reject" | "deactivate" | "reactivate"
+  ) => Promise<void>;
 }) {
   const mind = props.snapshot?.mind;
   const latest = mind?.latest;
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [riskFilter, setRiskFilter] = useState("all");
   if (!mind || !latest) {
     return <p className="empty-state">No RIN Mind snapshot captured yet.</p>;
   }
@@ -1428,6 +1445,10 @@ function MindWindow(props: {
   const retrieval = latest.memoryRetrieval;
   const responsePlan = latest.responsePlan;
   const candidates = mind.memoryCandidates.length ? mind.memoryCandidates : latest.memoryCandidates;
+  const filteredCandidates = candidates.filter((candidate) => (
+    (statusFilter === "all" || candidate.reviewStatus === statusFilter)
+    && (riskFilter === "all" || candidate.riskLevel === riskFilter)
+  ));
   return (
     <div className="mind-module">
       <div className="module-strip">RIN MIND · SAFE SNAPSHOT</div>
@@ -1439,6 +1460,18 @@ function MindWindow(props: {
         <Metric label="memory" value={retrieval.selected.length} />
         <Metric label="candidates" value={mind.candidateCount} />
       </div>
+      <details>
+        <summary>Mind Policy</summary>
+        <div className="mind-plan-grid">
+          <Metric label="ctx" value={mind.policy.contextMaxCharacters} />
+          <Metric label="memory max" value={mind.policy.memoryMaxSelected} />
+          <Metric label="embeddings" value={mind.policy.enableEmbeddings ? "on" : "off"} />
+          <Metric label="tools" value={mind.policy.enableAgentTools ? "on" : "off"} />
+        </div>
+        {mind.policy.warnings.length ? (
+          <p className="readable-note">{mind.policy.warnings.join(" · ")}</p>
+        ) : null}
+      </details>
       <details open>
         <summary>Overview</summary>
         <p className="readable-note">{understanding.intentSummary}</p>
@@ -1468,7 +1501,9 @@ function MindWindow(props: {
         <pre className="safe-json">{safeDisplayJson({
           selectedRecentMessageIds: contextPlan.selectedRecentMessageIds,
           selectedMemoryTraceIds: contextPlan.selectedMemoryTraceIds,
+          selectedMemorySourceIds: contextPlan.selectedMemorySourceIds,
           selectedProfileSections: contextPlan.selectedProfileSections,
+          selectedSummaryIds: contextPlan.selectedSummaryIds,
           excludedItems: contextPlan.excludedItems.slice(0, 8),
           privacyFlags: contextPlan.privacyFlags,
           exportAllowed: contextPlan.exportAllowed
@@ -1478,25 +1513,90 @@ function MindWindow(props: {
         <summary>Memory Retrieval</summary>
         <div className="mind-list">
           {retrieval.selected.length ? retrieval.selected.map((item) => (
-            <article key={item.traceId} className="mind-row">
-              <strong>{shortLabel(item.traceId)}</strong>
+            <article key={`${item.sourceKind}:${item.sourceId}`} className="mind-row">
+              <strong>{item.sourceKind}</strong>
               <span>score {item.score}</span>
+              <p>{item.safeSummary}</p>
+              {item.normalizedValue ? <small>{item.normalizedValue}</small> : null}
               <small>{item.reasons.join(", ") || "selected"}</small>
             </article>
           )) : <p className="empty-state">No relevant memory selected.</p>}
         </div>
       </details>
       <details open>
-        <summary>Memory Candidates</summary>
+        <summary>Memory Editor</summary>
+        <div className="mind-filter-row">
+          <label>
+            status
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <option value="all">all</option>
+              <option value="candidate">candidate</option>
+              <option value="review_required">review_required</option>
+              <option value="auto_promoted">auto_promoted</option>
+              <option value="owner_approved">owner_approved</option>
+              <option value="rejected">rejected</option>
+              <option value="inactive">inactive</option>
+            </select>
+          </label>
+          <label>
+            risk
+            <select value={riskFilter} onChange={(event) => setRiskFilter(event.target.value)}>
+              <option value="all">all</option>
+              <option value="low">low</option>
+              <option value="medium">medium</option>
+              <option value="high">high</option>
+              <option value="blocked">blocked</option>
+            </select>
+          </label>
+        </div>
         <div className="mind-list">
-          {candidates.length ? candidates.map((candidate) => (
+          {filteredCandidates.length ? filteredCandidates.map((candidate) => (
             <MemoryCandidateRow
               key={candidate.id}
               candidate={candidate}
               reviewMindCandidate={props.reviewMindCandidate}
             />
-          )) : <p className="empty-state">No memory candidates from latest turn.</p>}
+          )) : <p className="empty-state">No memory candidates match filters.</p>}
         </div>
+      </details>
+      <details>
+        <summary>Conversation Summary</summary>
+        {latest.conversationSummary ? (
+          <pre className="safe-json">{safeDisplayJson(latest.conversationSummary)}</pre>
+        ) : (
+          <p className="empty-state">No deterministic summary yet.</p>
+        )}
+      </details>
+      <details>
+        <summary>Self Growth</summary>
+        <div className="mind-list">
+          {mind.growthEvents.length ? mind.growthEvents.map((event) => (
+            <article key={event.id} className={`mind-row ${event.riskLevel}`}>
+              <strong>{event.eventType}</strong>
+              <span>{event.reviewStatus}</span>
+              <p>{event.summary}</p>
+            </article>
+          )) : <p className="empty-state">No self-growth candidates.</p>}
+        </div>
+      </details>
+      <details>
+        <summary>Tool Proposals</summary>
+        <div className="mind-list">
+          {mind.toolInvocationRequests.length ? mind.toolInvocationRequests.map((request) => (
+            <article key={request.id} className={`mind-row ${request.riskLevel}`}>
+              <strong>{request.toolName}</strong>
+              <span>{request.status}</span>
+              <p>{request.actionSummary}</p>
+            </article>
+          )) : <p className="empty-state">Tool execution disabled; no proposals.</p>}
+        </div>
+      </details>
+      <details>
+        <summary>Lifecycle</summary>
+        <pre className="safe-json">{safeDisplayJson({
+          lifecycle: latest.lifecycle,
+          embeddings: mind.embeddingStatus
+        })}</pre>
       </details>
       <details>
         <summary>Response Plan</summary>
@@ -1508,23 +1608,33 @@ function MindWindow(props: {
 
 function MemoryCandidateRow(props: {
   candidate: MindMemoryCandidate;
-  reviewMindCandidate: (candidateId: string, action: "approve" | "reject") => Promise<void>;
+  reviewMindCandidate: (
+    candidateId: string,
+    action: "approve" | "reject" | "deactivate" | "reactivate"
+  ) => Promise<void>;
 }) {
   const candidate = props.candidate;
   const actionable = ["candidate", "review_required"].includes(candidate.reviewStatus)
     && candidate.riskLevel !== "blocked";
+  const canDeactivate = candidate.active && candidate.riskLevel !== "blocked";
+  const canReactivate = !candidate.active && candidate.riskLevel !== "blocked";
   return (
     <article className={`mind-candidate ${candidate.riskLevel}`}>
       <header>
         <strong>{candidate.type}</strong>
         <span>{candidate.reviewStatus}</span>
       </header>
-      <p>{candidate.summary}</p>
+      <p>{candidate.safeSummary}</p>
+      {candidate.normalizedValue ? (
+        <p className="readable-note">{candidate.normalizedValue}</p>
+      ) : null}
       <dl className="detail-list compact">
         <div><dt>risk</dt><dd>{candidate.riskLevel}</dd></div>
         <div><dt>confidence</dt><dd>{candidate.confidence}</dd></div>
         <div><dt>salience</dt><dd>{candidate.salience}</dd></div>
         <div><dt>auto</dt><dd>{candidate.autoPromote ? "yes" : "no"}</dd></div>
+        <div><dt>active</dt><dd>{candidate.active ? "yes" : "no"}</dd></div>
+        <div><dt>redacted</dt><dd>{candidate.redacted ? "yes" : "no"}</dd></div>
       </dl>
       <div className="tag-row">
         {candidate.tags.map((tag) => <span key={tag}>{tag}</span>)}
@@ -1542,6 +1652,26 @@ function MemoryCandidateRow(props: {
             onClick={() => void props.reviewMindCandidate(candidate.id, "reject")}
           >
             REJECT
+          </button>
+        </div>
+      ) : null}
+      {canDeactivate ? (
+        <div className="mind-actions">
+          <button
+            type="button"
+            onClick={() => void props.reviewMindCandidate(candidate.id, "deactivate")}
+          >
+            DEACTIVATE
+          </button>
+        </div>
+      ) : null}
+      {canReactivate ? (
+        <div className="mind-actions">
+          <button
+            type="button"
+            onClick={() => void props.reviewMindCandidate(candidate.id, "reactivate")}
+          >
+            REACTIVATE
           </button>
         </div>
       ) : null}

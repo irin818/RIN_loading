@@ -938,11 +938,35 @@ button {
 .tag-row,
 .error-actions,
 .mind-actions,
+.mind-filter-row,
 .composer-actions,
 .memory-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.mind-filter-row {
+  align-items: center;
+  padding: 0 10px 10px;
+}
+
+.mind-filter-row label {
+  display: grid;
+  gap: 4px;
+  color: var(--rin-muted);
+  font-family: var(--font-hud);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.mind-filter-row select {
+  min-width: 120px;
+  border: 1px solid rgba(var(--window-rgb, 0, 255, 100), 0.36);
+  background: rgba(0, 0, 0, 0.42);
+  color: var(--rin-text);
+  font: inherit;
+  padding: 6px 8px;
 }
 
 .health-pill,
