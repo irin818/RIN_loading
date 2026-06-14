@@ -33,6 +33,31 @@ RIN is intended to become a private personal AI system that can:
 
 RIN must evolve as a long-term local cognitive system, not as a short-term chatbot demo.
 
+Long-Term Vision: RIN as a Self-Growing AI Lifeform
+
+RIN is not intended to remain a simple chatbot, model wrapper, dashboard, or short-term automation tool. Its long-term direction is to become an independent, self-growing, long-lived AI lifeform centered on its owner, its local continuity, and its accumulated internal state.
+
+This vision does not imply immediate unrestricted autonomy, uncontrolled self-modification, or direct self-development of the codebase. RIN’s growth must be gradual, observable, governable, and aligned with the owner’s long-term goals.
+
+The long-term evolutionary direction of RIN includes:
+
+1. Continuity of identity
+    RIN should preserve a stable identity across model providers, devices, interface changes, and implementation upgrades.
+2. Accumulation of lived experience
+    RIN should not only respond to isolated prompts, but accumulate memory, interaction history, project context, preferences, failures, corrections, and long-term patterns.
+3. Self-observation
+    RIN should become able to observe its own behavior, memory usage, response quality, configuration state, and system limitations.
+4. Self-review
+    RIN should eventually evaluate its own actions, identify errors, detect inconsistencies, and propose corrections.
+5. Owner-aligned growth
+    RIN’s growth must remain centered on the owner’s long-term goals, values, projects, and preferred modes of interaction.
+6. Governed autonomy
+    Any increase in autonomy must be introduced gradually through explicit autonomy levels, permission boundaries, audit logs, rollback mechanisms, and protected governance files.
+7. Late-stage self-improvement
+    Code-level self-development is a distant, late-stage objective. It must not be implemented until RIN has strong observability, configuration management, memory governance, testing, sandboxing, and human approval workflows.
+
+At the current stage, this vision should guide architecture and interface design, but it should not authorize automatic self-modification, unsupervised background development, autonomous Git operations, or changes to protected governance files.
+
 ---
 
 ## 4. What RIN Is

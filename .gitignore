@@ -46,6 +46,11 @@ python/.venv/
 
 # node / frontend
 node_modules/
+frontend/.vite/
+
+# MCP / Playwright
+.mcp.json
+.playwright-mcp/
 
 # local data
 .rin-data/
