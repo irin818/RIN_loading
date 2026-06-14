@@ -1045,6 +1045,7 @@ button {
 .cost-module,
 .context-module,
 .control-module,
+.cognition-module,
 .mind-module,
 .error-module,
 .stub-module {
@@ -1872,6 +1873,57 @@ dd {
 .data-map-view {
   display: grid;
   gap: 10px;
+}
+
+.config-registry-view,
+.self-review-panel,
+.proposal-panel,
+.cognition-module {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.cognition-step-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cognition-step,
+.proposal-details {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(var(--window-rgb, 0, 255, 100), 0.24);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.cognition-step header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cognition-step strong {
+  color: var(--window-accent, var(--rin-green));
+}
+
+.cognition-step p,
+.proposal-details p {
+  margin: 0;
+  color: #d6eadb;
+  line-height: 1.4;
+}
+
+.cognition-step small,
+.proposal-details small {
+  color: var(--rin-muted);
+  font-family: var(--font-hud);
+  font-size: 11px;
+  text-transform: uppercase;
 }
 
 .data-domain,

@@ -813,6 +813,120 @@ def test_mind_analytics_endpoints_return_safe_derived_payloads() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
+def test_cognition_flow_config_registry_and_self_review_are_safe() -> None:
+    client, layout = create_client()
+    try:
+        owner_text = "I prefer concise RIN progress reports."
+        response = client.post("/api/chat-test/send", json={"content": owner_text})
+        turn_id = response.json()["turnId"]
+
+        latest_flow = client.get("/api/mind/cognition-flow/latest")
+        turn_flow = client.get(f"/api/mind/cognition-flow/{turn_id}")
+        missing_flow = client.get("/api/mind/cognition-flow/missing-turn")
+        config = client.get("/api/config/registry")
+        self_review = client.post("/api/self-review/run")
+        proposals = client.get("/api/improvement-proposals")
+
+        assert response.status_code == 200
+        assert latest_flow.status_code == 200
+        assert turn_flow.status_code == 200
+        assert missing_flow.status_code == 404
+        assert config.status_code == 200
+        assert self_review.status_code == 200
+        assert proposals.status_code == 200
+
+        flow_payload = latest_flow.json()
+        config_payload = config.json()
+        review_payload = self_review.json()
+        proposals_payload = proposals.json()
+
+        assert flow_payload["mode"] == "rin-cognition-flow"
+        assert flow_payload["rawPromptIncluded"] is False
+        assert flow_payload["rawMemoryIncluded"] is False
+        assert flow_payload["rawModelOutputIncluded"] is False
+        assert flow_payload["hiddenReasoningIncluded"] is False
+        assert flow_payload["secretValuesIncluded"] is False
+        assert (
+            flow_payload["ownerInput"]["latestOwnerInputPreservedAsFinalOwnerMessage"]
+            is True
+        )
+        assert [step["id"] for step in flow_payload["steps"]] == [
+            "owner_input",
+            "message_understanding",
+            "owner_state",
+            "memory_retrieval",
+            "context_plan",
+            "model_request",
+            "provider_response",
+            "sanitizer",
+            "final_answer",
+            "turn_impact",
+        ]
+        assert all(step["rawPromptIncluded"] is False for step in flow_payload["steps"])
+        assert owner_text not in latest_flow.text
+        assert owner_text not in turn_flow.text
+
+        assert config_payload["mode"] == "config-registry"
+        assert config_payload["readOnly"] is True
+        assert {section["label"] for section in config_payload["sections"]} >= {
+            "UI Display Config",
+            "Runtime Config",
+            "Provider Config",
+            "Cost Config",
+            "Mind Policy Config",
+            "Memory Policy Config",
+            "Profile Config",
+            "RIN Identity / Self-model Config",
+            "Dangerous Capability Config",
+        }
+        provider_key = next(
+            item for item in config_payload["items"] if item["key"] == "provider.apiKey"
+        )
+        dangerous = [
+            item
+            for item in config_payload["items"]
+            if item["key"].startswith("dangerous.")
+        ]
+        assert provider_key["currentValue"] in {"present", "missing"}
+        assert provider_key["secretValueIncluded"] is False
+        assert "sk-" not in config.text
+        assert dangerous
+        assert all(item["editable"] is False for item in dangerous)
+        assert all(item["currentValue"] is False for item in dangerous)
+
+        assert review_payload["manualOnly"] is True
+        assert review_payload["allowedLevel"] == 3
+        assert review_payload["level4PlusLocked"] is True
+        assert proposals_payload["executionEnabled"] is False
+        assert proposals_payload["autoPrEnabled"] is False
+        assert proposals_payload["autoCodeWriteEnabled"] is False
+        assert proposals_payload["proposals"]
+        proposal_id = proposals_payload["proposals"][0]["id"]
+
+        approved = client.post(f"/api/improvement-proposals/{proposal_id}/approve")
+        converted = client.post(
+            f"/api/improvement-proposals/{proposal_id}/convert-to-codex-draft"
+        )
+        missing_action = client.post("/api/improvement-proposals/missing/approve")
+
+        assert approved.status_code == 200
+        assert approved.json()["proposal"]["status"] == "approved"
+        assert approved.json()["executed"] is False
+        assert approved.json()["codeWritten"] is False
+        assert converted.status_code == 200
+        converted_payload = converted.json()
+        assert converted_payload["proposal"]["status"] == "converted_to_codex_task"
+        assert converted_payload["proposal"]["codexPromptDraft"]
+        assert converted_payload["pullRequestCreated"] is False
+        assert converted_payload["codeWritten"] is False
+        assert missing_action.status_code == 404
+        assert owner_text not in self_review.text
+        assert owner_text not in proposals.text
+        assert owner_text not in converted.text
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
 def test_memory_candidate_safe_patch_edits_safe_fields_and_audits() -> None:
     client, layout = create_client()
     try:

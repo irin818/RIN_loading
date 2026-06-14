@@ -33,12 +33,16 @@ from rin.conversation import ModelAdapterProtocol, RuntimeClock, run_conversatio
 from rin.database import (
     ApiUsageEventRecord,
     create_conversation,
+    create_self_review_report_record,
     get_conversation,
+    get_improvement_proposal,
     get_latest_mind_snapshot,
     get_mind_snapshot_for_turn,
     inspect_database,
     list_api_usage_events,
+    list_audit_summaries,
     list_conversations,
+    list_improvement_proposals,
     list_legacy_memories,
     list_memory_embeddings,
     list_memory_v2_traces,
@@ -46,8 +50,10 @@ from rin.database import (
     list_mind_memory_candidates,
     list_recent_mind_snapshots,
     list_rin_growth_events,
+    list_self_review_reports,
     list_tool_invocation_requests,
     summarize_api_usage,
+    update_improvement_proposal_status,
     update_memory_candidate_review,
     update_memory_candidate_safe_fields,
     update_rin_growth_event_review,
@@ -451,6 +457,29 @@ def create_app(
     def api_mind_trace_analytics() -> dict[str, object]:
         return build_trace_analytics_payload()
 
+    @app.get("/api/mind/cognition-flow/latest")
+    def api_mind_cognition_flow_latest(
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return build_cognition_flow_payload(current_layout)
+
+    @app.get("/api/mind/cognition-flow/{turn_id}")
+    def api_mind_cognition_flow_turn(
+        turn_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        payload = build_cognition_flow_payload(current_layout, turn_id=turn_id)
+        if payload["traceAvailable"] is False and payload["snapshotAvailable"] is False:
+            raise HTTPException(status_code=404, detail="Cognition flow not found.")
+        return payload
+
+    @app.get("/api/config/registry")
+    def api_config_registry(
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> dict[str, object]:
+        return build_config_registry_payload(current_layout, current_adapter)
+
     @app.patch("/api/mind/memory-candidates/{candidate_id}")
     def api_mind_memory_candidate_patch(
         candidate_id: str,
@@ -677,6 +706,107 @@ def create_app(
         if not updated:
             raise HTTPException(status_code=404, detail="Memory candidate not found.")
         return build_memory_candidate_action_response(current_layout, candidate_id)
+
+    @app.get("/api/self-review/reports")
+    def api_self_review_reports(
+        limit: int = 20,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return build_self_review_reports_payload(current_layout, limit=limit)
+
+    @app.post("/api/self-review/run")
+    def api_self_review_run(
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+        current_clock: RuntimeClock = clock_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        draft = build_manual_self_review_draft(current_layout, current_adapter)
+        report_id = create_self_review_report_record(
+            current_layout,
+            summary=str(draft["summary"]),
+            observations=cast(list[dict[str, object]], draft["observations"]),
+            proposals=cast(list[dict[str, object]], draft["proposals"]),
+            risk_level=str(draft["riskLevel"]),
+            status=str(draft["status"]),
+            now=current_clock.now(),
+        )
+        return build_self_review_reports_payload(
+            current_layout,
+            limit=20,
+            latest_report_id=report_id,
+        )
+
+    @app.get("/api/improvement-proposals")
+    def api_improvement_proposals(
+        limit: int = 50,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return build_improvement_proposals_payload(current_layout, limit=limit)
+
+    @app.post("/api/improvement-proposals/{proposal_id}/approve")
+    def api_improvement_proposal_approve(
+        proposal_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+        current_clock: RuntimeClock = clock_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        updated = update_improvement_proposal_status(
+            current_layout,
+            proposal_id=proposal_id,
+            status="approved",
+            now=current_clock.now(),
+        )
+        if not updated:
+            raise HTTPException(
+                status_code=404, detail="Improvement proposal not found."
+            )
+        return build_improvement_proposal_action_response(current_layout, proposal_id)
+
+    @app.post("/api/improvement-proposals/{proposal_id}/reject")
+    def api_improvement_proposal_reject(
+        proposal_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+        current_clock: RuntimeClock = clock_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        updated = update_improvement_proposal_status(
+            current_layout,
+            proposal_id=proposal_id,
+            status="rejected",
+            now=current_clock.now(),
+        )
+        if not updated:
+            raise HTTPException(
+                status_code=404, detail="Improvement proposal not found."
+            )
+        return build_improvement_proposal_action_response(current_layout, proposal_id)
+
+    @app.post("/api/improvement-proposals/{proposal_id}/convert-to-codex-draft")
+    def api_improvement_proposal_convert(
+        proposal_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+        current_clock: RuntimeClock = clock_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        proposal = get_improvement_proposal(current_layout, proposal_id)
+        if proposal is None:
+            raise HTTPException(
+                status_code=404, detail="Improvement proposal not found."
+            )
+        draft = build_codex_prompt_draft(proposal.model_dump(mode="json"))
+        updated = update_improvement_proposal_status(
+            current_layout,
+            proposal_id=proposal_id,
+            status="converted_to_codex_task",
+            codex_prompt_draft=draft,
+            now=current_clock.now(),
+        )
+        if not updated:
+            raise HTTPException(
+                status_code=404, detail="Improvement proposal not found."
+            )
+        return build_improvement_proposal_action_response(current_layout, proposal_id)
 
     # ---- Diagnostics endpoints ----
     @app.get("/api/diagnostics/overview")
@@ -1373,6 +1503,10 @@ def build_glitch_core_snapshot(
     cost_payload = build_cost_summary_payload(layout, adapter)
     mind_payload = build_mind_latest_payload(layout)
     data_map_payload = build_console_data_map_payload()
+    cognition_flow_payload = build_cognition_flow_payload(layout)
+    config_registry_payload = build_config_registry_payload(layout, adapter)
+    self_review_payload = build_self_review_reports_payload(layout)
+    improvement_proposals_payload = build_improvement_proposals_payload(layout)
     memory_cards = build_glitch_memory_cards(layout, query=memory_query, limit=40)
     latest_trace = RUNTIME_TRACE_STORE.latest()
     latest_trace_payload = latest_trace.to_safe_dict() if latest_trace else None
@@ -1440,6 +1574,10 @@ def build_glitch_core_snapshot(
         ),
         "cost": cost_payload,
         "mind": mind_payload,
+        "cognitionFlow": cognition_flow_payload,
+        "configRegistry": config_registry_payload,
+        "selfReview": self_review_payload,
+        "improvementProposals": improvement_proposals_payload,
         "dataMap": data_map_payload,
         "errors": build_glitch_error_items(latest_trace_payload),
         "windows": {
@@ -1479,6 +1617,14 @@ def build_console_data_map_payload() -> dict[str, object]:
         {"id": "database-storage", "label": "Database / Storage", "color": "green"},
         {"id": "profiles", "label": "Profiles", "color": "cyan"},
         {"id": "errors", "label": "Errors", "color": "red"},
+        {"id": "cognition-flow", "label": "Cognition Flow", "color": "cyan"},
+        {"id": "config-registry", "label": "Config Registry", "color": "blue"},
+        {"id": "self-review", "label": "Self-review", "color": "amber"},
+        {
+            "id": "improvement-proposals",
+            "label": "Improvement Proposals",
+            "color": "purple",
+        },
     ]
     blocks = [
         data_block(
@@ -1655,6 +1801,70 @@ def build_console_data_map_payload() -> dict[str, object]:
             "safe error code, severity, module, trace availability",
             "Runtime / Overview",
             "error list and badges",
+        ),
+        data_block(
+            "cognition-flow",
+            "Cognition Flow",
+            "cognition-flow",
+            "/api/mind/cognition-flow/latest, /api/mind/cognition-flow/{turn_id}",
+            "build_cognition_flow_payload",
+            "safe turn chain, context segments, provider metadata, sanitizer, impact",
+            "Cognition Flow / Mind / Runtime",
+            "causal timeline and source table",
+            data_completeness="partial",
+            notes=(
+                "No raw prompt, raw memory, hidden reasoning, secrets, "
+                "or raw model output."
+            ),
+        ),
+        data_block(
+            "config-registry",
+            "Configuration Registry",
+            "config-registry",
+            "/api/config/registry",
+            "build_config_registry_payload",
+            "key, source, safe current/default values, risk, editability, effects",
+            "Control",
+            "registry table and locked controls",
+            data_completeness="complete",
+            notes="Secrets are represented only as present/missing env metadata.",
+        ),
+        data_block(
+            "self-review-reports",
+            "Self-review reports",
+            "self-review",
+            "/api/self-review/reports, /api/self-review/run",
+            "build_manual_self_review_draft, list_self_review_reports",
+            "manual safe observations, evidence counts, proposal ids",
+            "Control",
+            "report queue",
+            writable=True,
+            control_actions=["run manual self-review"],
+            data_completeness="partial",
+            notes=(
+                "Manual only; no scheduled background review or autonomous execution."
+            ),
+        ),
+        data_block(
+            "improvement-proposals",
+            "Improvement proposals",
+            "improvement-proposals",
+            "/api/improvement-proposals",
+            "list_improvement_proposals, update_improvement_proposal_status",
+            "safe proposal fields, review status, Codex prompt draft",
+            "Control",
+            "proposal queue",
+            writable=True,
+            control_actions=[
+                "approve",
+                "reject",
+                "convert to Codex prompt draft",
+            ],
+            data_completeness="partial",
+            notes=(
+                "Conversion creates an editable prompt only; it does not run "
+                "Codex or write code."
+            ),
         ),
     ]
     return {
@@ -2563,6 +2773,1285 @@ def build_trace_analytics_payload() -> dict[str, object]:
         "rawPromptIncluded": False,
         "rawMemoryIncluded": False,
         "hiddenReasoningIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def build_cognition_flow_payload(
+    layout: RinDataLayout,
+    *,
+    turn_id: str | None = None,
+) -> dict[str, object]:
+    """Build a safe single-turn cognition chain from trace + Mind metadata."""
+    trace = (
+        RUNTIME_TRACE_STORE.get(turn_id) if turn_id else RUNTIME_TRACE_STORE.latest()
+    )
+    snapshot = (
+        get_mind_snapshot_for_turn(layout, turn_id)
+        if turn_id
+        else get_latest_mind_snapshot(layout)
+    )
+    if snapshot is None and trace is not None:
+        snapshot = get_mind_snapshot_for_turn(layout, trace.turnId)
+    context_payload = (
+        build_context_analytics_from_snapshot(snapshot)
+        if snapshot is not None
+        else empty_context_analytics_payload()
+    )
+    trace_payload = trace.to_safe_dict() if trace else None
+    memory_candidates = (
+        [item.model_dump(mode="json") for item in snapshot.memoryCandidates]
+        if snapshot
+        else []
+    )
+    growth_events = (
+        [item.model_dump(mode="json") for item in snapshot.growthEvents]
+        if snapshot
+        else []
+    )
+    tool_requests = (
+        [item.model_dump(mode="json") for item in snapshot.toolInvocationRequests]
+        if snapshot
+        else []
+    )
+    audit_events = [
+        item.model_dump(mode="json") for item in list_audit_summaries(layout, 8)
+    ]
+    request_stage = find_runtime_stage(trace, "model_request")
+    raw_stage = find_runtime_stage(trace, "raw_model_response")
+    sanitizer_stage = find_runtime_stage(trace, "sanitization_final_answer")
+    input_stage = find_runtime_stage(trace, "input_received")
+    model_request = safe_model_request_outline(request_stage)
+    final_answer = {
+        "finalAnswerLength": safe_stage_value(
+            sanitizer_stage,
+            "output",
+            "finalAnswerLength",
+            0,
+        ),
+        "finalAnswerPreview": safe_stage_value(
+            sanitizer_stage,
+            "output",
+            "finalAnswerPreview",
+            "n/a",
+        ),
+        "sanitizedOnly": True,
+        "rawModelOutputIncluded": False,
+        "hiddenReasoningIncluded": False,
+    }
+    return {
+        "ok": True,
+        "mode": "rin-cognition-flow",
+        "readOnly": True,
+        "localOnly": True,
+        "turnId": trace.turnId if trace else turn_id,
+        "turnShortId": short_id(trace.turnId if trace else turn_id),
+        "traceAvailable": trace is not None,
+        "snapshotAvailable": snapshot is not None,
+        "status": trace.status if trace else "snapshot_only" if snapshot else "missing",
+        "createdAt": trace.createdAt
+        if trace
+        else snapshot.createdAt
+        if snapshot
+        else None,
+        "ownerInput": {
+            "inputLength": safe_stage_value(
+                input_stage, "output", "inputLength", "n/a"
+            ),
+            "inputHash": safe_stage_value(input_stage, "output", "inputHash", "n/a"),
+            "latestOwnerInputPreservedAsFinalOwnerMessage": bool(
+                model_request["currentOwnerInputLast"],
+            ),
+            "rawTextIncluded": False,
+        },
+        "steps": build_cognition_steps(
+            snapshot=snapshot,
+            trace=trace,
+            context_payload=context_payload,
+            memory_candidates=memory_candidates,
+            growth_events=growth_events,
+            tool_requests=tool_requests,
+            audit_events=audit_events,
+        ),
+        "contextSegments": context_payload["sources"],
+        "localOnlyDecisions": build_local_only_decisions(snapshot, context_payload),
+        "providerSentContext": {
+            "requestMessageCount": model_request["requestMessageCount"],
+            "requestCharacterCount": model_request["requestCharacterCount"],
+            "roleCounts": model_request["roleCounts"],
+            "messages": model_request["messages"],
+            "currentOwnerInputLast": model_request["currentOwnerInputLast"],
+            "rawPromptIncluded": False,
+        },
+        "providerResponseMetadata": {
+            "providerRawMetadataAvailable": safe_stage_value(
+                raw_stage,
+                "output",
+                "providerRawMetadataAvailable",
+                False,
+            ),
+            "rawContentLength": safe_stage_value(
+                raw_stage, "output", "rawContentLength", "n/a"
+            ),
+            "rawContentHash": safe_stage_value(
+                raw_stage, "output", "rawContentHash", "n/a"
+            ),
+            "adapterContentLength": safe_stage_value(
+                raw_stage,
+                "output",
+                "adapterContentLength",
+                "n/a",
+            ),
+            "rawModelOutputIncluded": False,
+        },
+        "sanitizer": build_sanitizer_summary(sanitizer_stage),
+        "finalAnswer": final_answer,
+        "turnImpact": {
+            "memoryCandidates": memory_candidates,
+            "growthEvents": growth_events,
+            "toolProposals": tool_requests,
+            "auditEvents": audit_events,
+            "rawTextIncluded": False,
+        },
+        "dangerousCapabilities": dangerous_capability_registry(
+            snapshot.policy if snapshot else load_mind_policy().metadata(),
+        ),
+        "trace": trace_payload if trace and turn_id is not None else None,
+        "rawPromptIncluded": False,
+        "rawMemoryIncluded": False,
+        "rawModelOutputIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def build_context_analytics_from_snapshot(
+    snapshot: RinMindSnapshot,
+) -> dict[str, object]:
+    plan = snapshot.contextPlan
+    retrieval = snapshot.memoryRetrieval
+    selected_sources = [
+        {
+            "sourceKind": item.sourceKind,
+            "sourceId": short_id(item.sourceId),
+            "fullSourceIdIncluded": False,
+            "included": item.selected,
+            "reason": ", ".join(item.reasons) or "selected",
+            "riskLevel": item.riskLevel,
+            "estimatedChars": len(item.safeSummary or "")
+            + len(item.normalizedValue or ""),
+            "estimatedTokens": estimate_tokens_from_chars(
+                len(item.safeSummary or "") + len(item.normalizedValue or ""),
+            ),
+            "safePreview": item.safeSummary,
+            "rawTextIncluded": False,
+        }
+        for item in [*retrieval.selected, *retrieval.excluded]
+    ]
+    excluded_sources = [
+        {
+            "sourceKind": item.kind,
+            "sourceId": short_id(item.id),
+            "fullSourceIdIncluded": False,
+            "included": False,
+            "reason": item.reason,
+            "riskLevel": "n/a",
+            "estimatedChars": 0,
+            "estimatedTokens": 0,
+            "safePreview": "",
+            "rawTextIncluded": False,
+        }
+        for item in plan.excludedItems
+    ]
+    segments = [
+        {
+            "type": "recent_history",
+            "included": True,
+            "count": len(plan.selectedRecentMessageIds),
+            "estimatedTokens": estimate_tokens_from_chars(
+                len(plan.selectedRecentMessageIds) * 320,
+            ),
+        },
+        {
+            "type": "memory",
+            "included": True,
+            "count": len(plan.selectedMemoryTraceIds)
+            + len(plan.selectedMemorySourceIds),
+            "estimatedTokens": estimate_tokens_from_chars(
+                sum(
+                    len(item.safeSummary or "") + len(item.normalizedValue or "")
+                    for item in retrieval.selected
+                ),
+            ),
+        },
+        {
+            "type": "profile",
+            "included": bool(plan.selectedProfileSections),
+            "count": len(plan.selectedProfileSections),
+            "estimatedTokens": estimate_tokens_from_chars(
+                len(plan.selectedProfileSections) * 420,
+            ),
+        },
+        {
+            "type": "summary",
+            "included": bool(plan.selectedSummaryIds),
+            "count": len(plan.selectedSummaryIds),
+            "estimatedTokens": estimate_tokens_from_chars(
+                len(plan.selectedSummaryIds) * 280,
+            ),
+        },
+    ]
+    estimated_total = sum(cast(int, item["estimatedTokens"]) for item in segments)
+    return {
+        "ok": True,
+        "mode": "rin-mind-context-analytics",
+        "readOnly": True,
+        "localOnly": True,
+        "turnCreatedAt": snapshot.createdAt,
+        "flow": [
+            "Owner Input",
+            "Message Understanding",
+            "Recent History Selection",
+            "Memory Retrieval",
+            "Profile / Summary / Owner State",
+            "Context Budget",
+            "Provider Request",
+        ],
+        "budget": {
+            "maxCharacters": plan.budget,
+            "estimatedTokens": plan.estimatedTokens or estimated_total,
+            "segments": segments,
+        },
+        "sources": [*selected_sources, *excluded_sources],
+        "providerRequestOutline": {
+            "messageCount": len(plan.selectedRecentMessageIds) + 1,
+            "selectedMemoryCount": len(retrieval.selected),
+            "excludedMemoryCount": len(retrieval.excluded) + len(plan.excludedItems),
+            "currentOwnerInputLast": True,
+            "rawPromptIncluded": False,
+        },
+        "explanation": explain_context_plan(plan, retrieval),
+        "rawReasons": plan.reasons,
+        "privacyFlags": plan.privacyFlags
+        | {
+            "rawPromptIncluded": False,
+            "rawMemoryIncluded": False,
+            "hiddenReasoningIncluded": False,
+            "secretValuesIncluded": False,
+        },
+        "rawTextIncluded": False,
+        "rawPromptIncluded": False,
+        "rawMemoryIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def build_cognition_steps(
+    *,
+    snapshot: RinMindSnapshot | None,
+    trace: object | None,
+    context_payload: dict[str, object],
+    memory_candidates: list[dict[str, object]],
+    growth_events: list[dict[str, object]],
+    tool_requests: list[dict[str, object]],
+    audit_events: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    return [
+        cognition_step(
+            "owner_input",
+            "Owner Input",
+            "Owner message was received and fingerprinted locally.",
+            trace,
+            "input_received",
+            local_only=True,
+            details={
+                "rawTextIncluded": False,
+                "inputLength": safe_stage_value(
+                    find_runtime_stage(trace, "input_received"),
+                    "output",
+                    "inputLength",
+                    "n/a",
+                ),
+                "inputHash": safe_stage_value(
+                    find_runtime_stage(trace, "input_received"),
+                    "output",
+                    "inputHash",
+                    "n/a",
+                ),
+            },
+        ),
+        cognition_step(
+            "message_understanding",
+            "Message Understanding",
+            snapshot.messageUnderstanding.intentSummary
+            if snapshot
+            else "No Mind snapshot available.",
+            trace,
+            "message_understanding",
+            local_only=True,
+            details=snapshot.messageUnderstanding.model_dump(mode="json")
+            if snapshot
+            else {},
+        ),
+        cognition_step(
+            "owner_state",
+            "Owner State",
+            "Local owner-state estimate shapes response planning.",
+            trace,
+            "owner_state_inference",
+            local_only=True,
+            details=snapshot.ownerState.model_dump(mode="json") if snapshot else {},
+        ),
+        cognition_step(
+            "memory_retrieval",
+            "Memory Retrieval",
+            (
+                "Approved/auto-promoted safe memories are selected or excluded "
+                "by local policy."
+            ),
+            trace,
+            "memory_v2_retrieval",
+            local_only=True,
+            details={
+                "selected": [
+                    item.model_dump(mode="json")
+                    for item in snapshot.memoryRetrieval.selected
+                ]
+                if snapshot
+                else [],
+                "excluded": [
+                    item.model_dump(mode="json")
+                    for item in snapshot.memoryRetrieval.excluded
+                ]
+                if snapshot
+                else [],
+                "rawMemoryIncluded": False,
+            },
+        ),
+        cognition_step(
+            "context_plan",
+            "Context Plan",
+            context_payload["explanation"],
+            trace,
+            "context_planning",
+            local_only=True,
+            details={
+                "budget": context_payload["budget"],
+                "sources": context_payload["sources"],
+                "privacyFlags": context_payload["privacyFlags"],
+            },
+        ),
+        cognition_step(
+            "model_request",
+            "Model Request Outline",
+            "Provider request is summarized by roles, segment counts, and sizes only.",
+            trace,
+            "model_request",
+            sent_to_provider=True,
+            details=safe_model_request_outline(
+                find_runtime_stage(trace, "model_request")
+            ),
+        ),
+        cognition_step(
+            "provider_response",
+            "Provider Response Metadata",
+            "Provider response is represented by safe metadata; raw output is hidden.",
+            trace,
+            "raw_model_response",
+            sent_to_provider=True,
+            details={
+                "rawModelOutputIncluded": False,
+                "rawContentLength": safe_stage_value(
+                    find_runtime_stage(trace, "raw_model_response"),
+                    "output",
+                    "rawContentLength",
+                    "n/a",
+                ),
+                "rawContentHash": safe_stage_value(
+                    find_runtime_stage(trace, "raw_model_response"),
+                    "output",
+                    "rawContentHash",
+                    "n/a",
+                ),
+            },
+        ),
+        cognition_step(
+            "sanitizer",
+            "Sanitizer",
+            "Final answer is checked and thinking-like content is removed if detected.",
+            trace,
+            "sanitization_final_answer",
+            local_only=True,
+            details=build_sanitizer_summary(
+                find_runtime_stage(trace, "sanitization_final_answer"),
+            ),
+        ),
+        cognition_step(
+            "final_answer",
+            "Final Answer",
+            "Only the sanitized answer is persisted and returned.",
+            trace,
+            "rin_reply_persisted",
+            details={
+                "storedSanitizedAnswer": safe_stage_value(
+                    find_runtime_stage(trace, "rin_reply_persisted"),
+                    "output",
+                    "storedSanitizedAnswer",
+                    "n/a",
+                ),
+                "storedRawThinking": safe_stage_value(
+                    find_runtime_stage(trace, "rin_reply_persisted"),
+                    "output",
+                    "storedRawThinking",
+                    False,
+                ),
+            },
+        ),
+        cognition_step(
+            "turn_impact",
+            "Turn Impact",
+            (
+                "Memory candidates, growth events, tool proposals, and audit "
+                "events remain owner-governed."
+            ),
+            trace,
+            "mind_lifecycle",
+            local_only=True,
+            details={
+                "memoryCandidateCount": len(memory_candidates),
+                "growthEventCount": len(growth_events),
+                "toolProposalCount": len(tool_requests),
+                "auditEventCount": len(audit_events),
+                "autoExecution": False,
+            },
+        ),
+    ]
+
+
+def cognition_step(
+    step_id: str,
+    label: str,
+    summary: object,
+    trace: object | None,
+    stage_name: str,
+    *,
+    local_only: bool = False,
+    sent_to_provider: bool = False,
+    details: dict[str, object] | None = None,
+) -> dict[str, object]:
+    stage = find_runtime_stage(trace, stage_name)
+    return {
+        "id": step_id,
+        "label": label,
+        "stageName": stage_name,
+        "status": getattr(stage, "status", "unavailable") if stage else "unavailable",
+        "durationMs": getattr(stage, "durationMs", 0) if stage else 0,
+        "summary": str(summary),
+        "localOnly": local_only,
+        "sentToProvider": sent_to_provider,
+        "details": details or {},
+        "rawTextIncluded": False,
+        "rawPromptIncluded": False,
+        "rawMemoryIncluded": False,
+        "rawModelOutputIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def safe_model_request_outline(stage: object | None) -> dict[str, object]:
+    output = getattr(stage, "output", {}) if stage else {}
+    outline = output.get("requestOutline", []) if isinstance(output, dict) else []
+    messages: list[dict[str, object]] = []
+    if isinstance(outline, list):
+        for item in outline:
+            if not isinstance(item, dict):
+                continue
+            messages.append(
+                {
+                    "index": item.get("index"),
+                    "role": item.get("role"),
+                    "characterCount": item.get("characterCount"),
+                    "sourceComponent": item.get("sourceComponent"),
+                    "previewIncluded": False,
+                }
+            )
+    return {
+        "requestMessageCount": safe_stage_value(
+            stage, "output", "requestMessageCount", 0
+        ),
+        "requestCharacterCount": safe_stage_value(
+            stage, "output", "requestCharacterCount", 0
+        ),
+        "roleCounts": {
+            "system": safe_stage_value(stage, "output", "systemMessageCount", 0),
+            "owner": safe_stage_value(stage, "output", "ownerMessageCount", 0),
+            "rin": safe_stage_value(stage, "output", "rinMessageCount", 0),
+        },
+        "messages": messages,
+        "currentOwnerInputPresent": safe_stage_value(
+            stage,
+            "output",
+            "currentOwnerInputPresent",
+            False,
+        ),
+        "currentOwnerInputLast": safe_stage_value(
+            stage,
+            "output",
+            "currentOwnerInputLast",
+            False,
+        ),
+        "rawPromptIncluded": False,
+    }
+
+
+def build_sanitizer_summary(stage: object | None) -> dict[str, object]:
+    return {
+        "thinkingTagDetected": safe_stage_value(
+            stage,
+            "input",
+            "thinkingTagDetected",
+            False,
+        ),
+        "thinkingLikePrefixDetected": safe_stage_value(
+            stage,
+            "input",
+            "thinkingLikePrefixDetected",
+            False,
+        ),
+        "thinkingTagRemoved": safe_stage_value(
+            stage,
+            "operation",
+            "thinkingTagRemoved",
+            False,
+        ),
+        "thinkingLikePrefixRemoved": safe_stage_value(
+            stage,
+            "operation",
+            "thinkingLikePrefixRemoved",
+            False,
+        ),
+        "removedCharacterCount": safe_stage_value(
+            stage,
+            "output",
+            "removedCharacterCount",
+            0,
+        ),
+        "rejected": safe_stage_value(stage, "decision", "rejected", False),
+        "finalAnswerSafe": not bool(
+            safe_stage_value(stage, "decision", "rejected", False),
+        ),
+        "rawModelOutputIncluded": False,
+        "hiddenReasoningIncluded": False,
+    }
+
+
+def build_local_only_decisions(
+    snapshot: RinMindSnapshot | None,
+    context_payload: dict[str, object],
+) -> list[dict[str, object]]:
+    if snapshot is None:
+        return []
+    plan = snapshot.contextPlan
+    return [
+        {
+            "id": "owner_state",
+            "label": "Owner state estimate",
+            "usedFor": "response plan and context policy",
+            "sentToProvider": bool(plan.ownerStateIncluded),
+            "rawTextIncluded": False,
+        },
+        {
+            "id": "excluded_context",
+            "label": "Excluded context sources",
+            "usedFor": "local governance decision only",
+            "count": sum(
+                1
+                for item in cast(list[dict[str, object]], context_payload["sources"])
+                if item.get("included") is False
+            ),
+            "sentToProvider": False,
+            "rawTextIncluded": False,
+        },
+        {
+            "id": "response_plan",
+            "label": "Response plan",
+            "usedFor": "tone, structure, comfort, memory reference choices",
+            "sentToProvider": True,
+            "rawTextIncluded": False,
+        },
+    ]
+
+
+def find_runtime_stage(trace: object | None, name: str) -> object | None:
+    if trace is None:
+        return None
+    stages = getattr(trace, "stages", [])
+    return next((stage for stage in stages if getattr(stage, "name", "") == name), None)
+
+
+def safe_stage_value(
+    stage: object | None,
+    section: str,
+    key: str,
+    default: object,
+) -> object:
+    if stage is None:
+        return default
+    payload = getattr(stage, section, {})
+    if not isinstance(payload, dict):
+        return default
+    return payload.get(key, default)
+
+
+def build_config_registry_payload(
+    layout: RinDataLayout,
+    adapter: ModelAdapterProtocol,
+) -> dict[str, object]:
+    """Expose safe configuration metadata, never secret values."""
+    provider = active_chat_config(adapter)
+    cost = load_cost_config()
+    policy = load_mind_policy().metadata()
+    profile_report = build_profile_report(layout)
+    sections = [
+        config_section("ui-display", "UI Display Config", "frontend local settings"),
+        config_section("runtime", "Runtime Config", "local FastAPI/runtime defaults"),
+        config_section("provider", "Provider Config", "external API adapter metadata"),
+        config_section("cost", "Cost Config", "token-cost estimate controls"),
+        config_section("mind-policy", "Mind Policy Config", "local mind policy"),
+        config_section(
+            "memory-policy", "Memory Policy Config", "memory governance thresholds"
+        ),
+        config_section("profile", "Profile Config", "local profile JSON status"),
+        config_section(
+            "rin-identity",
+            "RIN Identity / Self-model Config",
+            "governed self-model boundary",
+        ),
+        config_section(
+            "dangerous-capability",
+            "Dangerous Capability Config",
+            "locked future capabilities",
+        ),
+    ]
+    items = [
+        config_item(
+            "ui.displayMode",
+            "Display mode",
+            "frontend-localStorage",
+            "basic",
+            "localStorage",
+            True,
+            "low",
+            False,
+            False,
+            ["UI density", "safe JSON visibility"],
+            "Stored in browser localStorage; backend does not receive secrets.",
+        ),
+        config_item(
+            "runtime.traceRetentionCount",
+            "Runtime trace retention",
+            20,
+            20,
+            "code_default",
+            False,
+            "low",
+            True,
+            False,
+            ["Cognition Flow recent turn availability"],
+            "In-memory trace ring buffer. Changing it is not exposed in v1.",
+        ),
+        config_item(
+            "provider.apiKey",
+            "API key presence",
+            "present" if provider.apiKeyPresent else "missing",
+            "missing",
+            "env",
+            False,
+            "high",
+            True,
+            True,
+            ["External chat provider availability"],
+            "Only env name and present/missing state are shown; key value is hidden.",
+            env_name="RIN_API_CHAT_KEY",
+        ),
+        config_item(
+            "provider.model",
+            "Provider model",
+            provider.model,
+            "deepseek-v4-flash",
+            "env",
+            False,
+            "medium",
+            True,
+            True,
+            ["Response style", "cost accounting"],
+            (
+                "Safe non-secret model name. Backend editing is intentionally "
+                "disabled in v1."
+            ),
+        ),
+        config_item(
+            "provider.baseUrl",
+            "Provider base URL",
+            provider.safeBaseUrl or "not_configured",
+            "not_configured",
+            "env",
+            False,
+            "medium",
+            True,
+            True,
+            ["External provider endpoint"],
+            "URL is stripped of query/userinfo before display.",
+        ),
+        config_item(
+            "provider.temperature",
+            "Temperature",
+            provider.temperature,
+            0.5,
+            "env",
+            False,
+            "medium",
+            True,
+            True,
+            ["Response variance"],
+            "Safe scalar only; editing is deferred to future audited config writes.",
+        ),
+        config_item(
+            "cost.pricingProfile",
+            "Pricing profile",
+            cost.pricingProfile,
+            "deepseek-v4-flash",
+            "env",
+            False,
+            "low",
+            False,
+            False,
+            ["Cost estimates"],
+            "Manually maintained estimate profile; not official billing.",
+        ),
+        config_item(
+            "cost.cacheHitRatioEstimate",
+            "Cache hit ratio estimate",
+            cost.cacheHitRatioEstimate,
+            0.0,
+            "env",
+            False,
+            "low",
+            False,
+            False,
+            ["Cost range display"],
+            "Used only when provider cache breakdown is unavailable.",
+        ),
+        config_item(
+            "mind.contextMaxCharacters",
+            "Mind context max characters",
+            policy.contextMaxCharacters,
+            8000,
+            "env",
+            False,
+            "medium",
+            True,
+            True,
+            ["Context budget", "provider prompt size"],
+            "Bounded by local Mind policy.",
+        ),
+        config_item(
+            "mind.recentHistorySelectedLimit",
+            "Recent history selected limit",
+            policy.recentHistorySelectedLimit,
+            8,
+            "env",
+            False,
+            "medium",
+            True,
+            True,
+            ["Recent history sent to provider"],
+            "Controls how many safe recent messages can be selected.",
+        ),
+        config_item(
+            "mind.memoryMaxSelected",
+            "Memory max selected",
+            policy.memoryMaxSelected,
+            5,
+            "env",
+            False,
+            "medium",
+            True,
+            True,
+            ["Accepted memory retrieval"],
+            "Rejected, inactive, high-risk blocked items remain excluded.",
+        ),
+        config_item(
+            "memory.strengthThresholds",
+            "Memory strength thresholds",
+            memory_strength_thresholds(),
+            {"weakening": 0.42, "forgetting": 0.22},
+            "code_default",
+            False,
+            "low",
+            False,
+            False,
+            ["Memory analytics warnings"],
+            "Derived analytics thresholds only; no automatic deletion.",
+        ),
+        config_item(
+            "profile.status",
+            "Profile file status",
+            profile_report.status,
+            "valid",
+            "profile_json",
+            False,
+            "medium",
+            False,
+            True,
+            ["Identity/profile context"],
+            "Profile report exposes file health and counts, not full profile text.",
+            last_updated_at=None,
+        ),
+        config_item(
+            "rin.selfModelAutoApply",
+            "Self-model auto apply",
+            policy.selfModelAutoApply,
+            False,
+            "env",
+            False,
+            "high",
+            True,
+            True,
+            ["RIN identity slow variables"],
+            "Locked disabled; growth events remain review-only.",
+        ),
+    ]
+    items.extend(
+        config_item(
+            f"dangerous.{item['id']}",
+            str(item["label"]),
+            item["enabled"],
+            False,
+            "derived",
+            False,
+            "high",
+            True,
+            True,
+            ["Owner sovereignty", "runtime safety"],
+            str(item["description"]),
+        )
+        for item in dangerous_capability_registry(policy)
+    )
+    return {
+        "ok": True,
+        "mode": "config-registry",
+        "readOnly": True,
+        "localOnly": True,
+        "rawPromptIncluded": False,
+        "rawMemoryIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "secretValuesIncluded": False,
+        "sections": sections,
+        "items": items,
+    }
+
+
+def config_section(section_id: str, label: str, description: str) -> dict[str, object]:
+    return {"id": section_id, "label": label, "description": description}
+
+
+def config_item(
+    key: str,
+    display_name: str,
+    current_value: object,
+    default_value: object,
+    source: str,
+    editable: bool,
+    risk_level: str,
+    requires_restart: bool,
+    requires_owner_confirm: bool,
+    affects: list[str],
+    description: str,
+    *,
+    env_name: str | None = None,
+    last_updated_at: str | None = None,
+) -> dict[str, object]:
+    return {
+        "key": key,
+        "displayName": display_name,
+        "currentValue": current_value,
+        "defaultValue": default_value,
+        "source": source,
+        "editable": editable,
+        "riskLevel": risk_level,
+        "requiresRestart": requires_restart,
+        "requiresOwnerConfirm": requires_owner_confirm,
+        "affects": affects,
+        "description": description,
+        "lastUpdatedAt": last_updated_at,
+        "auditRequired": risk_level in {"medium", "high"},
+        "rollbackAvailable": source in {"localStorage", "database", "profile_json"},
+        "secretValueIncluded": False,
+        "envName": env_name,
+    }
+
+
+def dangerous_capability_registry(policy: object) -> list[dict[str, object]]:
+    return [
+        dangerous_capability("real_tool_execution", "Real tool execution", False),
+        dangerous_capability("browser_automation", "Browser automation", False),
+        dangerous_capability("file_system_writes", "File system writes by RIN", False),
+        dangerous_capability("git_github_writes", "Git/GitHub writes by RIN", False),
+        dangerous_capability(
+            "provider_summaries_auto_apply",
+            "Provider summaries auto-apply",
+            bool(getattr(policy, "enableModelSummaries", False)),
+        ),
+        dangerous_capability(
+            "external_embeddings_auto_use",
+            "External embeddings auto-use",
+            bool(getattr(policy, "enableEmbeddings", False)),
+        ),
+        dangerous_capability(
+            "high_risk_memory_export",
+            "High-risk memory export",
+            bool(getattr(policy, "allowHighRiskMemoryExport", False)),
+        ),
+        dangerous_capability(
+            "self_model_auto_apply",
+            "Self-model auto apply",
+            bool(getattr(policy, "selfModelAutoApply", False)),
+        ),
+        dangerous_capability(
+            "self_code_generation_execution", "Self-code generation/execution", False
+        ),
+        dangerous_capability("self_code_merge_deploy", "Self-code merge/deploy", False),
+    ]
+
+
+def dangerous_capability(
+    capability_id: str,
+    label: str,
+    enabled: bool,
+) -> dict[str, object]:
+    return {
+        "id": capability_id,
+        "label": label,
+        "enabled": enabled,
+        "locked": True,
+        "currentLevel": "locked_disabled" if not enabled else "policy_warning",
+        "description": (
+            "Disabled by default. Future research only; requires owner design review "
+            "and separate implementation."
+        ),
+        "secretValuesIncluded": False,
+    }
+
+
+def build_self_review_reports_payload(
+    layout: RinDataLayout,
+    *,
+    limit: int = 20,
+    latest_report_id: str | None = None,
+) -> dict[str, object]:
+    reports = list_self_review_reports(layout, limit=limit)
+    proposals = list_improvement_proposals(layout, limit=50)
+    return {
+        "ok": True,
+        "mode": "rin-self-review-reports",
+        "readOnly": True,
+        "localOnly": True,
+        "manualOnly": True,
+        "latestReportId": latest_report_id,
+        "reports": [item.model_dump(mode="json") for item in reports],
+        "proposalCount": len(proposals),
+        "allowedLevel": 3,
+        "level4PlusLocked": True,
+        "rawTextIncluded": False,
+        "rawPromptIncluded": False,
+        "rawMemoryIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def build_improvement_proposals_payload(
+    layout: RinDataLayout,
+    *,
+    limit: int = 50,
+) -> dict[str, object]:
+    proposals = list_improvement_proposals(layout, limit=limit)
+    return {
+        "ok": True,
+        "mode": "rin-improvement-proposals",
+        "readOnly": True,
+        "localOnly": True,
+        "executionEnabled": False,
+        "autoPrEnabled": False,
+        "autoCodeWriteEnabled": False,
+        "proposals": [item.model_dump(mode="json") for item in proposals],
+        "rawTextIncluded": False,
+        "rawPromptIncluded": False,
+        "rawMemoryIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def build_manual_self_review_draft(
+    layout: RinDataLayout,
+    adapter: ModelAdapterProtocol,
+) -> dict[str, object]:
+    candidates = list_mind_memory_candidates(layout, limit=100)
+    pending = [
+        item
+        for item in candidates
+        if item.reviewStatus in {"candidate", "review_required"}
+    ]
+    rejected = [item for item in candidates if item.reviewStatus == "rejected"]
+    context = build_context_analytics_payload(layout)
+    trace = build_trace_analytics_payload()
+    latest_trace = cast(dict[str, object], trace["latest"])
+    latest_trace_available = bool(latest_trace.get("turnId"))
+    provider = active_chat_config(adapter)
+    policy = load_mind_policy().metadata()
+    observations: list[dict[str, object]] = [
+        {
+            "area": "answer_quality",
+            "status": "trace_available"
+            if latest_trace_available
+            else "not_enough_data",
+            "summary": (
+                "Runtime trace metadata is available for latest-turn explainability."
+            )
+            if latest_trace_available
+            else "Run a chat turn before deeper answer-quality review.",
+            "rawTextIncluded": False,
+        },
+        {
+            "area": "memory_usage",
+            "status": "pending_review" if pending else "clear",
+            "summary": f"{len(pending)} memory candidates need owner review.",
+            "rawTextIncluded": False,
+        },
+        {
+            "area": "context_selection",
+            "status": "ok" if context["sources"] else "not_enough_data",
+            "summary": (
+                f"{len(cast(list[object], context['sources']))} "
+                "safe context sources recorded."
+            ),
+            "rawTextIncluded": False,
+        },
+        {
+            "area": "dangerous_capabilities",
+            "status": "disabled" if policy.dangerousDefaultsDisabled else "warning",
+            "summary": "Dangerous defaults remain disabled."
+            if policy.dangerousDefaultsDisabled
+            else "One or more dangerous Mind policy flags are enabled.",
+            "rawTextIncluded": False,
+        },
+    ]
+    proposals: list[dict[str, object]] = []
+    if pending:
+        proposals.append(
+            improvement_proposal_draft(
+                "memory_policy_improvement",
+                "Review pending memory candidates",
+                f"{len(pending)} memory candidates are awaiting owner review.",
+                [
+                    {
+                        "kind": "count",
+                        "field": "pendingMemoryCandidates",
+                        "value": len(pending),
+                    }
+                ],
+                ["python/src/rin/memory", "frontend/src/App.tsx"],
+                "low",
+                (
+                    "Reduce stale or ungoverned candidate memory before it "
+                    "influences future context."
+                ),
+                "Use the Memory Editor approval/rejection flow; do not auto-apply.",
+                (
+                    "Run candidate-check and verify memory candidates remain "
+                    "safe payloads."
+                ),
+                "Reject or deactivate mistaken candidates; no raw text restore needed.",
+            )
+        )
+    if not provider.configured and adapter.id != MockApiAdapter.id:
+        proposals.append(
+            improvement_proposal_draft(
+                "conversation_quality_improvement",
+                "Complete provider configuration",
+                "External chat provider is not fully configured.",
+                [{"kind": "providerStatus", "value": provider.configurationStatus}],
+                ["python/src/rin/config/chat_provider.py"],
+                "medium",
+                "Allow real provider smoke tests while keeping keys in env only.",
+                "Set local env vars outside Git; verify API key remains hidden.",
+                "Run provider smoke plus production-check.",
+                "Unset the env vars; no database migration required.",
+            )
+        )
+    if len(rejected) >= 5:
+        proposals.append(
+            improvement_proposal_draft(
+                "memory_policy_improvement",
+                "Investigate repeated rejected memories",
+                f"{len(rejected)} memory candidates are rejected.",
+                [
+                    {
+                        "kind": "count",
+                        "field": "rejectedMemoryCandidates",
+                        "value": len(rejected),
+                    }
+                ],
+                ["python/src/rin/mind/rules.py"],
+                "medium",
+                "Reduce memory pollution and owner review burden.",
+                (
+                    "Tighten deterministic candidate generation rules after "
+                    "reviewing safe categories."
+                ),
+                "Add unit tests around rejected candidate patterns.",
+                "Revert rule changes and keep rejected records inactive.",
+            )
+        )
+    if not proposals:
+        proposals.append(
+            improvement_proposal_draft(
+                "data_visualization_improvement",
+                "Gather more Cognition Flow evidence",
+                (
+                    "Current safe telemetry has no urgent issue, but more turn "
+                    "samples would improve governance decisions."
+                ),
+                [
+                    {
+                        "kind": "status",
+                        "field": "selfReviewEvidence",
+                        "value": "needs_more_turn_samples",
+                    }
+                ],
+                ["frontend/src/App.tsx", "python/src/rin/server/api.py"],
+                "low",
+                (
+                    "Prevent premature memory or policy tuning when the local "
+                    "evidence set is small."
+                ),
+                (
+                    "Keep self-review proposal-only and collect more safe "
+                    "per-turn Cognition Flow snapshots."
+                ),
+                (
+                    "Run candidate-check, production-check, frontend typecheck, "
+                    "and browser QA after future UI changes."
+                ),
+                "Archive the proposal if enough evidence shows no issue.",
+            )
+            | {"status": "needs_more_evidence"}
+        )
+    return {
+        "summary": (
+            "Manual self-review completed from local safe telemetry. "
+            f"{len(proposals)} improvement proposals were created."
+        ),
+        "observations": observations,
+        "proposals": proposals,
+        "riskLevel": "medium"
+        if any(item["riskLevel"] == "medium" for item in proposals)
+        else "low",
+        "status": "owner_review" if proposals else "completed",
+    }
+
+
+def improvement_proposal_draft(
+    proposal_type: str,
+    title: str,
+    problem_summary: str,
+    evidence: list[dict[str, object]],
+    affected_modules: list[str],
+    risk_level: str,
+    expected_benefit: str,
+    implementation_sketch: str,
+    test_plan: str,
+    rollback_plan: str,
+) -> dict[str, object]:
+    return {
+        "type": proposal_type,
+        "title": title,
+        "problemSummary": problem_summary,
+        "evidence": evidence,
+        "affectedModules": affected_modules,
+        "riskLevel": risk_level,
+        "expectedBenefit": expected_benefit,
+        "implementationSketch": implementation_sketch,
+        "testPlan": test_plan,
+        "rollbackPlan": rollback_plan,
+        "requiresCodex": True,
+        "requiresOwnerApproval": True,
+        "priority": "medium" if risk_level == "medium" else "low",
+        "status": "owner_review",
+        "estimatedComplexity": "small",
+        "safetyImpact": "proposal_only_no_execution",
+        "dataPrivacyImpact": "safe_metadata_only_no_raw_text",
+        "codexPromptDraft": None,
+    }
+
+
+def build_codex_prompt_draft(proposal: dict[str, object]) -> str:
+    """Generate an owner-editable task prompt from a safe approved proposal."""
+    return "\n".join(
+        [
+            "You are working in the RIN repository.",
+            f"Task: {proposal.get('title', 'RIN improvement proposal')}",
+            "",
+            "Scope:",
+            str(proposal.get("implementationSketch", "")),
+            "",
+            "Forbidden:",
+            (
+                "- Do not expose raw prompt, raw memory, hidden reasoning, "
+                "API keys, .env values, or secrets."
+            ),
+            (
+                "- Do not enable autonomous tool execution, Git/GitHub writes, "
+                "self-code execution, merge, or deploy."
+            ),
+            "- Do not auto-apply self-model/profile changes.",
+            "",
+            "Required tests/checks:",
+            str(proposal.get("testPlan", "")),
+            "",
+            "Rollback:",
+            str(proposal.get("rollbackPlan", "")),
+            "",
+            "Final report:",
+            "- Changed files",
+            "- Safety guarantees",
+            "- Tests/checks run",
+            "- Remaining risks",
+        ]
+    )
+
+
+def build_improvement_proposal_action_response(
+    layout: RinDataLayout,
+    proposal_id: str,
+) -> dict[str, object]:
+    proposal = get_improvement_proposal(layout, proposal_id)
+    if proposal is None:
+        raise HTTPException(status_code=404, detail="Improvement proposal not found.")
+    return {
+        "ok": True,
+        "mode": "rin-improvement-proposal-action",
+        "readOnly": False,
+        "localOnly": True,
+        "proposal": proposal.model_dump(mode="json"),
+        "executed": False,
+        "codeWritten": False,
+        "pullRequestCreated": False,
+        "rawTextIncluded": False,
         "secretValuesIncluded": False,
     }
 

@@ -53,6 +53,8 @@ DATABASE_TABLES: tuple[str, ...] = (
     "agent_intents",
     "tool_invocation_requests",
     "tool_invocation_audit",
+    "self_review_reports",
+    "improvement_proposals",
     "slow_variable_versions",
     "state_history",
     "tool_invocations",
@@ -97,6 +99,8 @@ class DatabaseCounts(BaseModel):
     agentIntents: int
     toolInvocationRequests: int
     toolInvocationAudit: int
+    selfReviewReports: int
+    improvementProposals: int
     messageMemoryContexts: int
     slowVariableVersions: int
     stateHistory: int
@@ -221,6 +225,54 @@ class ApiUsageSummary(BaseModel):
     secretValuesIncluded: Literal[False]
 
 
+class SelfReviewReportRecord(BaseModel):
+    """Safe deterministic self-review report metadata; no raw conversation text."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    summary: str
+    observations: list[dict[str, Any]]
+    proposalIds: list[str]
+    riskLevel: str
+    status: str
+    createdAt: str
+    rawTextIncluded: Literal[False]
+    secretValuesIncluded: Literal[False]
+
+
+class ImprovementProposalRecord(BaseModel):
+    """Owner-reviewable improvement proposal; never executes code or tools."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    reportId: str | None
+    type: str
+    title: str
+    problemSummary: str
+    evidence: list[dict[str, Any]]
+    affectedModules: list[str]
+    riskLevel: str
+    expectedBenefit: str
+    implementationSketch: str
+    testPlan: str
+    rollbackPlan: str
+    requiresCodex: bool
+    requiresOwnerApproval: bool
+    priority: str
+    status: str
+    estimatedComplexity: str
+    safetyImpact: str
+    dataPrivacyImpact: str
+    codexPromptDraft: str | None
+    createdAt: str
+    updatedAt: str
+    rawTextIncluded: Literal[False]
+    secretValuesIncluded: Literal[False]
+    executionEnabled: Literal[False]
+
+
 def database_path_for(layout: RinDataLayout) -> Path:
     """Return the full path to the SQLite database file for the given layout."""
     return layout.directories["databases"] / DATABASE_FILENAME
@@ -316,6 +368,14 @@ def inspect_database(layout: RinDataLayout) -> DatabaseStatus:
                 toolInvocationAudit=count_rows_if_exists(
                     connection,
                     "tool_invocation_audit",
+                ),
+                selfReviewReports=count_rows_if_exists(
+                    connection,
+                    "self_review_reports",
+                ),
+                improvementProposals=count_rows_if_exists(
+                    connection,
+                    "improvement_proposals",
                 ),
                 slowVariableVersions=count_rows_if_exists(
                     connection,
@@ -691,6 +751,63 @@ def list_memory_embeddings(
         return [map_memory_embedding(row) for row in rows]
 
 
+def list_self_review_reports(
+    layout: RinDataLayout,
+    *,
+    limit: int = 20,
+) -> list[SelfReviewReportRecord]:
+    """List safe self-review reports, returning [] for older DBs without the table."""
+    safe_limit = max(1, min(limit, 100))
+    with open_readonly_database(database_path_for(layout)) as connection:
+        if not table_exists(connection, "self_review_reports"):
+            return []
+        rows = connection.execute(
+            """
+            SELECT * FROM self_review_reports
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            (safe_limit,),
+        ).fetchall()
+        return [map_self_review_report(row) for row in rows]
+
+
+def list_improvement_proposals(
+    layout: RinDataLayout,
+    *,
+    limit: int = 50,
+) -> list[ImprovementProposalRecord]:
+    """List safe improvement proposals, returning [] for older DBs without the table."""
+    safe_limit = max(1, min(limit, 100))
+    with open_readonly_database(database_path_for(layout)) as connection:
+        if not table_exists(connection, "improvement_proposals"):
+            return []
+        rows = connection.execute(
+            """
+            SELECT * FROM improvement_proposals
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            (safe_limit,),
+        ).fetchall()
+        return [map_improvement_proposal(row) for row in rows]
+
+
+def get_improvement_proposal(
+    layout: RinDataLayout,
+    proposal_id: str,
+) -> ImprovementProposalRecord | None:
+    """Return one safe improvement proposal by id, if it exists."""
+    with open_readonly_database(database_path_for(layout)) as connection:
+        if not table_exists(connection, "improvement_proposals"):
+            return None
+        row = connection.execute(
+            "SELECT * FROM improvement_proposals WHERE id = ?",
+            (proposal_id,),
+        ).fetchone()
+        return map_improvement_proposal(row) if row else None
+
+
 def empty_api_usage_summary() -> ApiUsageSummary:
     return ApiUsageSummary(
         eventCount=0,
@@ -937,6 +1054,50 @@ def map_memory_candidate(row: sqlite3.Row) -> MemoryCandidate:
         reasons=list(json.loads(str(row["reasons_json"]))),
         createdAt=str(row["created_at"]) if "created_at" in keys else None,
         updatedAt=str(row["updated_at"]) if "updated_at" in keys else None,
+    )
+
+
+def map_self_review_report(row: sqlite3.Row) -> SelfReviewReportRecord:
+    return SelfReviewReportRecord(
+        id=str(row["id"]),
+        summary=str(row["summary"]),
+        observations=list(json.loads(str(row["observations_json"] or "[]"))),
+        proposalIds=list(json.loads(str(row["proposal_ids_json"] or "[]"))),
+        riskLevel=str(row["risk_level"]),
+        status=str(row["status"]),
+        createdAt=str(row["created_at"]),
+        rawTextIncluded=False,
+        secretValuesIncluded=False,
+    )
+
+
+def map_improvement_proposal(row: sqlite3.Row) -> ImprovementProposalRecord:
+    return ImprovementProposalRecord(
+        id=str(row["id"]),
+        reportId=row["report_id"],
+        type=str(row["type"]),
+        title=str(row["title"]),
+        problemSummary=str(row["problem_summary"]),
+        evidence=list(json.loads(str(row["evidence_json"] or "[]"))),
+        affectedModules=list(json.loads(str(row["affected_modules_json"] or "[]"))),
+        riskLevel=str(row["risk_level"]),
+        expectedBenefit=str(row["expected_benefit"]),
+        implementationSketch=str(row["implementation_sketch"]),
+        testPlan=str(row["test_plan"]),
+        rollbackPlan=str(row["rollback_plan"]),
+        requiresCodex=bool(row["requires_codex"]),
+        requiresOwnerApproval=bool(row["requires_owner_approval"]),
+        priority=str(row["priority"]),
+        status=str(row["status"]),
+        estimatedComplexity=str(row["estimated_complexity"]),
+        safetyImpact=str(row["safety_impact"]),
+        dataPrivacyImpact=str(row["data_privacy_impact"]),
+        codexPromptDraft=row["codex_prompt_draft"],
+        createdAt=str(row["created_at"]),
+        updatedAt=str(row["updated_at"]),
+        rawTextIncluded=False,
+        secretValuesIncluded=False,
+        executionEnabled=False,
     )
 
 

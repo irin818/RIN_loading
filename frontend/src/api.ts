@@ -3,10 +3,12 @@ import type {
   ConsoleDataMap,
   GlitchSnapshot,
   GrowthEventActionResult,
+  ImprovementProposalActionResult,
   MemoryCard,
   MindCandidateActionResult,
   MindCandidateSafePatch,
   RinMindAnalytics,
+  SelfReviewPayload,
   ToolRequestActionResult
 } from "./types";
 
@@ -180,4 +182,45 @@ export async function rejectToolRequest(
     headers: { Accept: "application/json" }
   });
   return readJson<ToolRequestActionResult>(response);
+}
+
+export async function runSelfReview(): Promise<SelfReviewPayload> {
+  const response = await fetch("/api/self-review/run", {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+  return readJson<SelfReviewPayload>(response);
+}
+
+export async function approveImprovementProposal(
+  proposalId: string
+): Promise<ImprovementProposalActionResult> {
+  const response = await fetch(`/api/improvement-proposals/${proposalId}/approve`, {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+  return readJson<ImprovementProposalActionResult>(response);
+}
+
+export async function rejectImprovementProposal(
+  proposalId: string
+): Promise<ImprovementProposalActionResult> {
+  const response = await fetch(`/api/improvement-proposals/${proposalId}/reject`, {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+  return readJson<ImprovementProposalActionResult>(response);
+}
+
+export async function convertImprovementProposalToCodexDraft(
+  proposalId: string
+): Promise<ImprovementProposalActionResult> {
+  const response = await fetch(
+    `/api/improvement-proposals/${proposalId}/convert-to-codex-draft`,
+    {
+      method: "POST",
+      headers: { Accept: "application/json" }
+    }
+  );
+  return readJson<ImprovementProposalActionResult>(response);
 }

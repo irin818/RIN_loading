@@ -9,15 +9,19 @@ import type {
 
 import {
   approveGrowthEvent,
+  approveImprovementProposal,
   approveMindMemoryCandidate,
   approveToolRequest,
+  convertImprovementProposalToCodexDraft,
   deactivateMindMemoryCandidate,
   fetchGlitchSnapshot,
   fetchMemoryCards,
   reactivateMindMemoryCandidate,
   rejectGrowthEvent,
+  rejectImprovementProposal,
   rejectMindMemoryCandidate,
   rejectToolRequest,
+  runSelfReview,
   sendChatMessage,
   updateMindMemoryCandidateSafeFields
 } from "./api";
@@ -25,8 +29,11 @@ import type {
   ChatMessage,
   ConsoleWindow,
   ConsoleDataMapBlock,
+  ConfigRegistryPayload,
+  CognitionFlowPayload,
   GlitchErrorItem,
   GlitchSnapshot,
+  ImprovementProposal,
   MemoryCard,
   MemoryCandidateAnalytics,
   MindCandidateSafePatch,
@@ -67,6 +74,7 @@ const PERSISTENT_TYPES = new Set<WindowType>([
   "memory",
   "context",
   "trace",
+  "cognition",
   "cost",
   "mind",
   "control"
@@ -77,6 +85,7 @@ const REUSABLE_WINDOW_TYPES = new Set<WindowType>([
   "memory",
   "context",
   "trace",
+  "cognition",
   "provider",
   "cost",
   "mind",
@@ -109,6 +118,7 @@ const WINDOW_META: Record<WindowType, WindowMeta> = {
   memoryDetail: { label: "Memory Detail", context: "Memory Record", code: "MEM+" },
   context: { label: "Context", context: "Context Plan", code: "CTX" },
   trace: { label: "Trace", context: "Runtime Trace", code: "TRC" },
+  cognition: { label: "Cognition Flow", context: "Latest Turn", code: "COG" },
   provider: { label: "Provider", context: "API Provider", code: "PRV" },
   cost: { label: "Cost / Token", context: "Usage Ledger", code: "COST" },
   mind: { label: "RIN Mind", context: "Mind Snapshot", code: "MIND" },
@@ -124,6 +134,7 @@ const DOMAIN_NAV_ITEMS: Array<{ label: string; type: WindowType; tone: string }>
   { label: "Overview", type: "core", tone: "overview" },
   { label: "Chat", type: "chat", tone: "chat" },
   { label: "Mind", type: "mind", tone: "mind" },
+  { label: "Cognition", type: "cognition", tone: "runtime" },
   { label: "Memory", type: "memory", tone: "memory" },
   { label: "Context", type: "context", tone: "context" },
   { label: "Runtime", type: "trace", tone: "runtime" },
@@ -159,6 +170,7 @@ const SPAWN_LAYOUT: Record<WindowType, {
   memoryDetail: { x: 520, y: 118, width: 430, height: 420, offsetX: 28, offsetY: 28 },
   context: { x: 474, y: 408, width: 560, height: 330, offsetX: 34, offsetY: -22 },
   trace: { x: 346, y: 396, width: 570, height: 268, offsetX: 38, offsetY: -24 },
+  cognition: { x: 372, y: 74, width: 620, height: 540, offsetX: 30, offsetY: 24 },
   provider: { x: 838, y: 424, width: 390, height: 244, offsetX: -30, offsetY: -18 },
   cost: { x: 54, y: 470, width: 438, height: 300, offsetX: 30, offsetY: -26 },
   mind: { x: 464, y: 156, width: 460, height: 360, offsetX: 26, offsetY: 22 },
@@ -342,6 +354,16 @@ function safeDisplayJson(value: unknown) {
   return JSON.stringify(value, null, 2)
     .replaceAll("<think>", "[thinking-tag]")
     .replaceAll("</think>", "[/thinking-tag]");
+}
+
+function displaySafeValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "n/a";
+  }
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return safeDisplayJson(value);
 }
 
 function topmostVisibleWindow(windows: ConsoleWindow[]) {
@@ -798,6 +820,36 @@ export default function App() {
     [openErrorWindow, refreshSnapshot]
   );
 
+  const runSelfReviewAction = useCallback(async () => {
+    try {
+      await runSelfReview();
+      await refreshSnapshot();
+    } catch (error) {
+      openErrorWindow(compactError(error));
+    }
+  }, [openErrorWindow, refreshSnapshot]);
+
+  const reviewImprovementProposal = useCallback(
+    async (
+      proposalId: string,
+      action: "approve" | "reject" | "convert"
+    ) => {
+      try {
+        if (action === "approve") {
+          await approveImprovementProposal(proposalId);
+        } else if (action === "reject") {
+          await rejectImprovementProposal(proposalId);
+        } else {
+          await convertImprovementProposalToCodexDraft(proposalId);
+        }
+        await refreshSnapshot();
+      } catch (error) {
+        openErrorWindow(compactError(error));
+      }
+    },
+    [openErrorWindow, refreshSnapshot]
+  );
+
   const visibleWindows = windows.filter((item) => item.visible && !item.minimized);
   const minimizedWindows = windows.filter((item) => item.minimized);
   const hiddenWindows = windows.filter((item) => !item.visible);
@@ -867,6 +919,8 @@ export default function App() {
               editMindCandidate={editMindCandidate}
               reviewGrowthEvent={reviewGrowthEvent}
               reviewToolRequest={reviewToolRequest}
+              runSelfReviewAction={runSelfReviewAction}
+              reviewImprovementProposal={reviewImprovementProposal}
               uiSettings={uiSettings}
               setUiSettings={setUiSettings}
               openWindow={openWindow}
@@ -1260,6 +1314,11 @@ function WindowContent(props: {
   editMindCandidate: (candidateId: string, patch: MindCandidateSafePatch) => Promise<void>;
   reviewGrowthEvent: (eventId: string, action: "approve" | "reject") => Promise<void>;
   reviewToolRequest: (requestId: string, action: "approve" | "reject") => Promise<void>;
+  runSelfReviewAction: () => Promise<void>;
+  reviewImprovementProposal: (
+    proposalId: string,
+    action: "approve" | "reject" | "convert"
+  ) => Promise<void>;
   uiSettings: {
     displayMode: DisplayMode;
     displaySize: DisplaySize;
@@ -1303,6 +1362,14 @@ function WindowContent(props: {
           displayMode={props.uiSettings.displayMode}
         />
       );
+    case "cognition":
+      return (
+        <CognitionFlowWindow
+          flow={props.snapshot?.cognitionFlow}
+          displayMode={props.uiSettings.displayMode}
+          openWindow={props.openWindow}
+        />
+      );
     case "provider":
       return (
         <ProviderWindow
@@ -1322,6 +1389,8 @@ function WindowContent(props: {
           setUiSettings={props.setUiSettings}
           reviewGrowthEvent={props.reviewGrowthEvent}
           reviewToolRequest={props.reviewToolRequest}
+          runSelfReviewAction={props.runSelfReviewAction}
+          reviewImprovementProposal={props.reviewImprovementProposal}
           openWindow={props.openWindow}
         />
       );
@@ -1653,6 +1722,163 @@ function TraceWindow(props: {
   );
 }
 
+function CognitionFlowWindow(props: {
+  flow?: CognitionFlowPayload;
+  displayMode: DisplayMode;
+  openWindow: (type: WindowType, options?: { contextName?: string; payload?: WindowPayload }) => void;
+}) {
+  const flow = props.flow;
+  if (!flow) {
+    return <EmptyState message="Cognition Flow loading." />;
+  }
+  const requestMessages = Array.isArray(flow.providerSentContext.messages)
+    ? flow.providerSentContext.messages as Array<Record<string, unknown>>
+    : [];
+  const contextSegments = flow.contextSegments;
+  const turnImpact = flow.turnImpact;
+  return (
+    <div className="cognition-module">
+      <div className="module-strip">COGNITION FLOW · SAFE TURN CHAIN</div>
+      <div className="control-grid">
+        <MetricCard label="turn" value={flow.turnShortId} />
+        <MetricCard label="status" value={<StatusBadge value={flow.status} />} />
+        <MetricCard label="trace" value={flow.traceAvailable ? "available" : "missing"} tone={flow.traceAvailable ? "ok" : "warn"} />
+        <MetricCard label="mind snapshot" value={flow.snapshotAvailable ? "available" : "missing"} tone={flow.snapshotAvailable ? "ok" : "warn"} />
+        <MetricCard label="owner input last" value={flow.ownerInput.latestOwnerInputPreservedAsFinalOwnerMessage ? "yes" : "no"} tone={flow.ownerInput.latestOwnerInputPreservedAsFinalOwnerMessage ? "ok" : "danger"} />
+        <MetricCard label="raw prompt" value="hidden" tone="ok" />
+      </div>
+      <SectionPanel title="Causal Chain" defaultOpen>
+        <Timeline
+          events={flow.steps.map((step) => ({
+            id: step.id,
+            type: step.label,
+            label: `${step.status} · ${step.durationMs}ms`,
+            at: flow.createdAt,
+            status: step.status
+          }))}
+        />
+        <div className="cognition-step-list">
+          {flow.steps.map((step) => (
+            <article key={step.id} className={`cognition-step ${step.status}`}>
+              <header>
+                <strong>{step.label}</strong>
+                <StatusBadge value={step.status} />
+              </header>
+              <p>{step.summary}</p>
+              <small>
+                localOnly={String(step.localOnly)} · sentToProvider={String(step.sentToProvider)}
+              </small>
+              <JsonInspector value={step.details} visible={props.displayMode === "developer"} stringify={safeDisplayJson} />
+            </article>
+          ))}
+        </div>
+      </SectionPanel>
+      <SectionPanel title="Provider Request Structure" defaultOpen={props.displayMode !== "basic"}>
+        <div className="mind-plan-grid">
+          <MetricCard label="messages" value={String(flow.providerSentContext.requestMessageCount ?? "n/a")} />
+          <MetricCard label="chars" value={String(flow.providerSentContext.requestCharacterCount ?? "n/a")} />
+          <MetricCard label="raw prompt" value="not included" tone="ok" />
+          <MetricCard label="latest owner input" value={flow.providerSentContext.currentOwnerInputLast ? "last" : "check"} />
+        </div>
+        <DataTable
+          columns={[
+            { key: "index", label: "index" },
+            { key: "role", label: "role" },
+            { key: "chars", label: "chars" },
+            { key: "source", label: "source" },
+            { key: "preview", label: "preview" }
+          ]}
+          rows={requestMessages.map((message) => ({
+            index: String(message.index ?? "n/a"),
+            role: String(message.role ?? "n/a"),
+            chars: String(message.characterCount ?? "n/a"),
+            source: String(message.sourceComponent ?? "n/a"),
+            preview: message.previewIncluded === false ? "hidden" : "hidden"
+          }))}
+          empty="No provider request outline available."
+        />
+      </SectionPanel>
+      <SectionPanel title="Context Segments" defaultOpen={props.displayMode !== "basic"}>
+        <DataTable
+          columns={[
+            { key: "source", label: "source" },
+            { key: "included", label: "included" },
+            { key: "reason", label: "reason" },
+            { key: "risk", label: "risk" },
+            { key: "tokens", label: "tokens" },
+            { key: "preview", label: "safe preview" }
+          ]}
+          rows={contextSegments.slice(0, props.displayMode === "developer" ? 32 : 14).map((segment) => ({
+            source: `${String(segment.sourceKind ?? "n/a")}:${String(segment.sourceId ?? "n/a")}`,
+            included: String(segment.included ?? false),
+            reason: String(segment.reason ?? "n/a"),
+            risk: String(segment.riskLevel ?? "n/a"),
+            tokens: String(segment.estimatedTokens ?? "n/a"),
+            preview: String(segment.safePreview ?? "")
+          }))}
+          empty="No context segment evidence available yet."
+        />
+      </SectionPanel>
+      <SectionPanel title="Local-only Decisions" defaultOpen={props.displayMode !== "basic"}>
+        <DataTable
+          columns={[
+            { key: "label", label: "decision" },
+            { key: "usedFor", label: "used for" },
+            { key: "sent", label: "sent" },
+            { key: "raw", label: "raw text" }
+          ]}
+          rows={flow.localOnlyDecisions.map((decision) => ({
+            label: String(decision.label ?? decision.id ?? "decision"),
+            usedFor: String(decision.usedFor ?? "n/a"),
+            sent: String(decision.sentToProvider ?? false),
+            raw: "hidden"
+          }))}
+          empty="No local-only decisions recorded."
+        />
+      </SectionPanel>
+      <SectionPanel title="Provider Response And Sanitizer" defaultOpen={props.displayMode !== "basic"}>
+        <div className="mind-plan-grid">
+          <MetricCard label="raw len" value={String(flow.providerResponseMetadata.rawContentLength ?? "n/a")} />
+          <MetricCard label="raw hash" value={String(flow.providerResponseMetadata.rawContentHash ?? "n/a")} />
+          <MetricCard label="thinking tag" value={<StatusBadge value={Boolean(flow.sanitizer.thinkingTagDetected)} />} />
+          <MetricCard label="removed" value={String(flow.sanitizer.removedCharacterCount ?? 0)} />
+          <MetricCard label="final safe" value={<StatusBadge value={Boolean(flow.sanitizer.finalAnswerSafe)} />} />
+          <MetricCard label="raw output" value="hidden" tone="ok" />
+        </div>
+      </SectionPanel>
+      <SectionPanel title="Turn Impact" defaultOpen>
+        <div className="control-grid">
+          <MetricCard label="memory candidates" value={String(turnImpact.memoryCandidates ? (turnImpact.memoryCandidates as unknown[]).length : 0)} />
+          <MetricCard label="growth events" value={String(turnImpact.growthEvents ? (turnImpact.growthEvents as unknown[]).length : 0)} />
+          <MetricCard label="tool proposals" value={String(turnImpact.toolProposals ? (turnImpact.toolProposals as unknown[]).length : 0)} />
+          <MetricCard label="audit events" value={String(turnImpact.auditEvents ? (turnImpact.auditEvents as unknown[]).length : 0)} />
+        </div>
+        <div className="inline-actions">
+          <button type="button" onClick={() => props.openWindow("mind")}>Mind</button>
+          <button type="button" onClick={() => props.openWindow("memory")}>Memory</button>
+          <button type="button" onClick={() => props.openWindow("control")}>Control</button>
+        </div>
+      </SectionPanel>
+      <SectionPanel title="Locked Self-evolution Boundary" defaultOpen={props.displayMode !== "basic"}>
+        <DataTable
+          columns={[
+            { key: "capability", label: "capability" },
+            { key: "enabled", label: "enabled" },
+            { key: "locked", label: "locked" }
+          ]}
+          rows={flow.dangerousCapabilities.map((item) => ({
+            capability: String(item.label ?? item.id ?? "capability"),
+            enabled: String(item.enabled ?? false),
+            locked: String(item.locked ?? true)
+          }))}
+          empty="No capability registry available."
+        />
+      </SectionPanel>
+      <JsonInspector value={flow} visible={props.displayMode === "developer"} stringify={safeDisplayJson} />
+    </div>
+  );
+}
+
 function ProviderWindow(props: {
   snapshot: GlitchSnapshot | null;
   openWindow: (type: WindowType, options?: { contextName?: string; payload?: WindowPayload }) => void;
@@ -1768,10 +1994,18 @@ function ControlWindow(props: {
   }>>;
   reviewGrowthEvent: (eventId: string, action: "approve" | "reject") => Promise<void>;
   reviewToolRequest: (requestId: string, action: "approve" | "reject") => Promise<void>;
+  runSelfReviewAction: () => Promise<void>;
+  reviewImprovementProposal: (
+    proposalId: string,
+    action: "approve" | "reject" | "convert"
+  ) => Promise<void>;
   openWindow: (type: WindowType, options?: { contextName?: string; payload?: WindowPayload }) => void;
 }) {
   const mind = props.snapshot?.mind;
   const dataMap = props.snapshot?.dataMap;
+  const configRegistry = props.snapshot?.configRegistry;
+  const selfReview = props.snapshot?.selfReview;
+  const improvementProposals = props.snapshot?.improvementProposals;
   const growthEvents = mind
     ? (mind.growthEvents.length ? mind.growthEvents : mind.latest?.growthEvents ?? [])
     : [];
@@ -1834,12 +2068,30 @@ function ControlWindow(props: {
           />
         </div>
         <div className="windows-menu-actions inline-actions">
+          <button type="button" onClick={() => props.openWindow("cognition")}>Cognition</button>
           <button type="button" onClick={() => props.openWindow("provider")}>Provider</button>
           <button type="button" onClick={() => props.openWindow("tools")}>Tools</button>
           <button type="button" onClick={() => props.openWindow("tasks")}>Tasks</button>
           <button type="button" onClick={() => props.openWindow("settings")}>Settings</button>
           <button type="button" onClick={() => props.openWindow("system")}>System</button>
         </div>
+      </SectionPanel>
+      <SectionPanel title="Config Registry" defaultOpen>
+        <ConfigRegistryView registry={configRegistry} displayMode={props.displayMode} />
+      </SectionPanel>
+      <SectionPanel title="Self-review Reports" defaultOpen={props.displayMode !== "basic"}>
+        <SelfReviewPanel
+          selfReview={selfReview}
+          onRunSelfReview={props.runSelfReviewAction}
+          displayMode={props.displayMode}
+        />
+      </SectionPanel>
+      <SectionPanel title="Improvement Proposals" defaultOpen>
+        <ImprovementProposalPanel
+          payload={improvementProposals}
+          reviewImprovementProposal={props.reviewImprovementProposal}
+          displayMode={props.displayMode}
+        />
       </SectionPanel>
       <SectionPanel title="Policy Guardrails" defaultOpen>
         <div className="tag-row">
@@ -1920,11 +2172,188 @@ function ControlWindow(props: {
         <p className="readable-note">Provider config is display-only. API keys and env values are never editable from this console.</p>
       </SectionPanel>
       <JsonInspector
-        value={{ dataMap, policy, growthEvents, toolRequests }}
+        value={{ dataMap, policy, growthEvents, toolRequests, configRegistry, selfReview, improvementProposals }}
         visible={props.displayMode === "developer"}
         stringify={safeDisplayJson}
       />
     </div>
+  );
+}
+
+function ConfigRegistryView(props: {
+  registry?: ConfigRegistryPayload;
+  displayMode: DisplayMode;
+}) {
+  const registry = props.registry;
+  if (!registry) {
+    return <EmptyState message="Configuration registry loading." />;
+  }
+  const highRiskCount = registry.items.filter((item) => item.riskLevel === "high").length;
+  const editableCount = registry.items.filter((item) => item.editable).length;
+  if (props.displayMode === "basic") {
+    return (
+      <div className="control-grid">
+        <MetricCard label="sections" value={registry.sections.length} />
+        <MetricCard label="items" value={registry.items.length} />
+        <MetricCard label="high risk" value={highRiskCount} tone={highRiskCount ? "warn" : "ok"} />
+        <MetricCard label="editable" value={editableCount} />
+      </div>
+    );
+  }
+  return (
+    <div className="config-registry-view">
+      <div className="data-map-grid">
+        {registry.sections.map((section) => (
+          <article key={section.id} className="data-domain domain-color-blue">
+            <header>
+              <strong>{section.label}</strong>
+              <span>{registry.items.filter((item) => item.key.startsWith(section.id.split("-")[0])).length} items</span>
+            </header>
+            <small>{section.description}</small>
+          </article>
+        ))}
+      </div>
+      <DataTable
+        columns={[
+          { key: "key", label: "key" },
+          { key: "value", label: "current" },
+          { key: "source", label: "source" },
+          { key: "risk", label: "risk" },
+          { key: "editable", label: "edit" },
+          { key: "effect", label: "affects" }
+        ]}
+        rows={registry.items.map((item) => ({
+          key: item.key,
+          value: displaySafeValue(item.currentValue),
+          source: item.envName ? `${item.source}:${item.envName}` : item.source,
+          risk: item.riskLevel,
+          editable: item.editable ? "yes" : "locked",
+          effect: item.affects.join(", ")
+        }))}
+      />
+      <p className="readable-note">Backend config editing is disabled in v1 except existing safe memory fields. API keys and env values are never shown or edited here.</p>
+      <JsonInspector value={registry} visible={props.displayMode === "developer"} stringify={safeDisplayJson} />
+    </div>
+  );
+}
+
+function SelfReviewPanel(props: {
+  selfReview?: GlitchSnapshot["selfReview"];
+  onRunSelfReview: () => Promise<void>;
+  displayMode: DisplayMode;
+}) {
+  const selfReview = props.selfReview;
+  if (!selfReview) {
+    return <EmptyState message="Self-review reports loading." />;
+  }
+  return (
+    <div className="self-review-panel">
+      <div className="control-grid">
+        <MetricCard label="reports" value={selfReview.reports.length} />
+        <MetricCard label="proposal count" value={selfReview.proposalCount} />
+        <MetricCard label="allowed level" value={`L${selfReview.allowedLevel}`} />
+        <MetricCard label="L4+" value={selfReview.level4PlusLocked ? "locked" : "check"} tone={selfReview.level4PlusLocked ? "ok" : "danger"} />
+      </div>
+      <div className="inline-actions">
+        <button type="button" onClick={() => void props.onRunSelfReview()}>
+          RUN SELF REVIEW
+        </button>
+      </div>
+      <div className="governance-list">
+        {selfReview.reports.length ? selfReview.reports.slice(0, 6).map((report) => (
+          <article key={report.id} className={`governance-row ${report.riskLevel}`}>
+            <header>
+              <strong>{shortLabel(report.createdAt)}</strong>
+              <StatusBadge value={report.status} />
+            </header>
+            <p>{report.summary}</p>
+            <small>proposalIds={report.proposalIds.length} · rawTextIncluded=false</small>
+          </article>
+        )) : <EmptyState message="No self-review report yet. Run manual self review when needed." />}
+      </div>
+      <JsonInspector value={selfReview} visible={props.displayMode === "developer"} stringify={safeDisplayJson} />
+    </div>
+  );
+}
+
+function ImprovementProposalPanel(props: {
+  payload?: GlitchSnapshot["improvementProposals"];
+  reviewImprovementProposal: (
+    proposalId: string,
+    action: "approve" | "reject" | "convert"
+  ) => Promise<void>;
+  displayMode: DisplayMode;
+}) {
+  const payload = props.payload;
+  if (!payload) {
+    return <EmptyState message="Improvement proposals loading." />;
+  }
+  return (
+    <div className="proposal-panel">
+      <div className="control-grid">
+        <MetricCard label="proposals" value={payload.proposals.length} />
+        <MetricCard label="execution" value={payload.executionEnabled ? "enabled" : "disabled"} tone={payload.executionEnabled ? "danger" : "ok"} />
+        <MetricCard label="auto PR" value={payload.autoPrEnabled ? "enabled" : "disabled"} tone={payload.autoPrEnabled ? "danger" : "ok"} />
+        <MetricCard label="code write" value={payload.autoCodeWriteEnabled ? "enabled" : "disabled"} tone={payload.autoCodeWriteEnabled ? "danger" : "ok"} />
+      </div>
+      <div className="governance-list">
+        {payload.proposals.length ? payload.proposals.slice(0, 10).map((proposal) => (
+          <ImprovementProposalRow
+            key={proposal.id}
+            proposal={proposal}
+            reviewImprovementProposal={props.reviewImprovementProposal}
+            displayMode={props.displayMode}
+          />
+        )) : <EmptyState message="No improvement proposals yet. Run manual self review to create safe proposals." />}
+      </div>
+      <JsonInspector value={payload} visible={props.displayMode === "developer"} stringify={safeDisplayJson} />
+    </div>
+  );
+}
+
+function ImprovementProposalRow(props: {
+  proposal: ImprovementProposal;
+  reviewImprovementProposal: (
+    proposalId: string,
+    action: "approve" | "reject" | "convert"
+  ) => Promise<void>;
+  displayMode: DisplayMode;
+}) {
+  const proposal = props.proposal;
+  const actionable = !["rejected", "implemented", "verified", "archived", "blocked"].includes(proposal.status);
+  return (
+    <article className={`governance-row ${proposal.riskLevel}`}>
+      <header>
+        <strong>{proposal.title}</strong>
+        <StatusBadge value={proposal.status} />
+      </header>
+      <p>{proposal.problemSummary}</p>
+      <small>
+        {proposal.type} · priority={proposal.priority} · requiresOwnerApproval={String(proposal.requiresOwnerApproval)}
+      </small>
+      {props.displayMode !== "basic" ? (
+        <div className="proposal-details">
+          <p>{proposal.expectedBenefit}</p>
+          <small>{proposal.safetyImpact} · {proposal.dataPrivacyImpact}</small>
+          {proposal.codexPromptDraft ? (
+            <pre className="safe-json">{proposal.codexPromptDraft}</pre>
+          ) : null}
+        </div>
+      ) : null}
+      {actionable ? (
+        <div className="mind-actions">
+          <button type="button" onClick={() => void props.reviewImprovementProposal(proposal.id, "approve")}>
+            APPROVE
+          </button>
+          <button type="button" onClick={() => void props.reviewImprovementProposal(proposal.id, "reject")}>
+            REJECT
+          </button>
+          <button type="button" onClick={() => void props.reviewImprovementProposal(proposal.id, "convert")}>
+            CODEX DRAFT
+          </button>
+        </div>
+      ) : null}
+    </article>
   );
 }
 

@@ -15,10 +15,12 @@ from rin.database import (
     inspect_database,
     list_audit_summaries,
     list_conversations,
+    list_improvement_proposals,
     list_legacy_memories,
     list_memory_v2_traces,
     list_messages,
     list_mind_memory_candidates,
+    list_self_review_reports,
     open_readonly_database,
 )
 from rin.diagnostics.safety import create_temp_data_dir
@@ -474,6 +476,8 @@ def test_legacy_mind_tables_without_new_columns_read_and_initialize_safely() -> 
     try:
         snapshot = get_latest_mind_snapshot(layout)
         candidates = list_mind_memory_candidates(layout)
+        self_reviews = list_self_review_reports(layout)
+        improvement_proposals = list_improvement_proposals(layout)
 
         assert snapshot is not None
         assert snapshot.conversationSummary is None
@@ -488,6 +492,8 @@ def test_legacy_mind_tables_without_new_columns_read_and_initialize_safely() -> 
         assert candidates[0].normalizedValue is None
         assert candidates[0].rawTextIncluded is False
         assert candidates[0].sourceKind == "owner_message"
+        assert self_reviews == []
+        assert improvement_proposals == []
 
         initialize_temp_database(layout)
         status = inspect_database(layout)
@@ -500,6 +506,8 @@ def test_legacy_mind_tables_without_new_columns_read_and_initialize_safely() -> 
         assert status.counts.rinGrowthEvents == 0
         assert status.counts.memoryEmbeddings == 0
         assert status.counts.toolInvocationRequests == 0
+        assert status.counts.selfReviewReports == 0
+        assert status.counts.improvementProposals == 0
         assert initialized is not None
         assert initialized.policy.recentHistorySelectedLimit == 8
         assert initialized_candidates[0].safeSummary == (

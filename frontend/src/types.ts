@@ -5,6 +5,7 @@ export type WindowType =
   | "memoryDetail"
   | "context"
   | "trace"
+  | "cognition"
   | "provider"
   | "cost"
   | "mind"
@@ -641,6 +642,183 @@ export interface RinMindPayload {
   secretValuesIncluded: false;
 }
 
+export interface CognitionFlowStep {
+  id: string;
+  label: string;
+  stageName: string;
+  status: string;
+  durationMs: number;
+  summary: string;
+  localOnly: boolean;
+  sentToProvider: boolean;
+  details: Record<string, unknown>;
+  rawTextIncluded: false;
+  rawPromptIncluded: false;
+  rawMemoryIncluded: false;
+  rawModelOutputIncluded: false;
+  hiddenReasoningIncluded: false;
+  secretValuesIncluded: false;
+}
+
+export interface CognitionFlowPayload {
+  ok: boolean;
+  mode: string;
+  readOnly: boolean;
+  localOnly: boolean;
+  turnId: string | null;
+  turnShortId: string;
+  traceAvailable: boolean;
+  snapshotAvailable: boolean;
+  status: string;
+  createdAt: string | null;
+  ownerInput: {
+    inputLength: string | number;
+    inputHash: string;
+    latestOwnerInputPreservedAsFinalOwnerMessage: boolean;
+    rawTextIncluded: false;
+  };
+  steps: CognitionFlowStep[];
+  contextSegments: Array<Record<string, unknown>>;
+  localOnlyDecisions: Array<Record<string, unknown>>;
+  providerSentContext: Record<string, unknown>;
+  providerResponseMetadata: Record<string, unknown>;
+  sanitizer: Record<string, unknown>;
+  finalAnswer: Record<string, unknown>;
+  turnImpact: Record<string, unknown>;
+  dangerousCapabilities: Array<Record<string, unknown>>;
+  trace: RuntimeTrace | null;
+  rawPromptIncluded: false;
+  rawMemoryIncluded: false;
+  rawModelOutputIncluded: false;
+  hiddenReasoningIncluded: false;
+  secretValuesIncluded: false;
+}
+
+export interface ConfigRegistrySection {
+  id: string;
+  label: string;
+  description: string;
+}
+
+export interface ConfigRegistryItem {
+  key: string;
+  displayName: string;
+  currentValue: unknown;
+  defaultValue: unknown;
+  source: string;
+  editable: boolean;
+  riskLevel: string;
+  requiresRestart: boolean;
+  requiresOwnerConfirm: boolean;
+  affects: string[];
+  description: string;
+  lastUpdatedAt: string | null;
+  auditRequired: boolean;
+  rollbackAvailable: boolean;
+  secretValueIncluded: false;
+  envName?: string | null;
+}
+
+export interface ConfigRegistryPayload {
+  ok: boolean;
+  mode: string;
+  readOnly: true;
+  localOnly: true;
+  rawPromptIncluded: false;
+  rawMemoryIncluded: false;
+  hiddenReasoningIncluded: false;
+  secretValuesIncluded: false;
+  sections: ConfigRegistrySection[];
+  items: ConfigRegistryItem[];
+}
+
+export interface SelfReviewReport {
+  id: string;
+  summary: string;
+  observations: Array<Record<string, unknown>>;
+  proposalIds: string[];
+  riskLevel: string;
+  status: string;
+  createdAt: string;
+  rawTextIncluded: false;
+  secretValuesIncluded: false;
+}
+
+export interface ImprovementProposal {
+  id: string;
+  reportId: string | null;
+  type: string;
+  title: string;
+  problemSummary: string;
+  evidence: Array<Record<string, unknown>>;
+  affectedModules: string[];
+  riskLevel: string;
+  expectedBenefit: string;
+  implementationSketch: string;
+  testPlan: string;
+  rollbackPlan: string;
+  requiresCodex: boolean;
+  requiresOwnerApproval: boolean;
+  priority: string;
+  status: string;
+  estimatedComplexity: string;
+  safetyImpact: string;
+  dataPrivacyImpact: string;
+  codexPromptDraft: string | null;
+  createdAt: string;
+  updatedAt: string;
+  rawTextIncluded: false;
+  secretValuesIncluded: false;
+  executionEnabled: false;
+}
+
+export interface SelfReviewPayload {
+  ok: boolean;
+  mode: string;
+  readOnly: boolean;
+  localOnly: boolean;
+  manualOnly: boolean;
+  latestReportId: string | null;
+  reports: SelfReviewReport[];
+  proposalCount: number;
+  allowedLevel: number;
+  level4PlusLocked: boolean;
+  rawTextIncluded: false;
+  rawPromptIncluded: false;
+  rawMemoryIncluded: false;
+  hiddenReasoningIncluded: false;
+  secretValuesIncluded: false;
+}
+
+export interface ImprovementProposalsPayload {
+  ok: boolean;
+  mode: string;
+  readOnly: boolean;
+  localOnly: boolean;
+  executionEnabled: false;
+  autoPrEnabled: false;
+  autoCodeWriteEnabled: false;
+  proposals: ImprovementProposal[];
+  rawTextIncluded: false;
+  rawPromptIncluded: false;
+  rawMemoryIncluded: false;
+  hiddenReasoningIncluded: false;
+  secretValuesIncluded: false;
+}
+
+export interface ImprovementProposalActionResult {
+  ok: boolean;
+  mode: string;
+  readOnly: false;
+  localOnly: true;
+  proposal: ImprovementProposal;
+  executed: false;
+  codeWritten: false;
+  pullRequestCreated: false;
+  rawTextIncluded: false;
+  secretValuesIncluded: false;
+}
+
 export interface MindCandidateActionResult {
   ok: boolean;
   mode: string;
@@ -732,6 +910,10 @@ export interface GlitchSnapshot {
   provider: ProviderStatus;
   cost: CostSummary;
   mind: RinMindPayload;
+  cognitionFlow: CognitionFlowPayload;
+  configRegistry: ConfigRegistryPayload;
+  selfReview: SelfReviewPayload;
+  improvementProposals: ImprovementProposalsPayload;
   dataMap: ConsoleDataMap;
   errors: GlitchErrorItem[];
   windows: Record<string, unknown>;

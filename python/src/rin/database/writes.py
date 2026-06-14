@@ -986,6 +986,165 @@ def create_memory_embedding_entries(
     return ids
 
 
+def create_self_review_report_record(
+    layout: RinDataLayout,
+    *,
+    summary: str,
+    observations: list[dict[str, object]],
+    proposals: list[dict[str, object]],
+    risk_level: str,
+    status: str,
+    now: str,
+    report_id: str | None = None,
+) -> str:
+    """Persist a safe manual self-review report and proposal queue entries."""
+    assert_safe_write_layout(layout)
+    report_id = report_id or str(uuid4())
+    proposal_ids = [str(item.get("id") or str(uuid4())) for item in proposals]
+    with sqlite3.connect(database_path_for(layout)) as connection:
+        try:
+            connection.execute("BEGIN")
+            ensure_self_review_tables(connection)
+            for proposal_id, item in zip(proposal_ids, proposals, strict=True):
+                connection.execute(
+                    """
+                    INSERT INTO improvement_proposals (
+                      id, report_id, type, title, problem_summary, evidence_json,
+                      affected_modules_json, risk_level, expected_benefit,
+                      implementation_sketch, test_plan, rollback_plan,
+                      requires_codex, requires_owner_approval, priority, status,
+                      estimated_complexity, safety_impact, data_privacy_impact,
+                      codex_prompt_draft, created_at, updated_at, raw_text_included,
+                      secret_values_included, execution_enabled
+                    )
+                    VALUES (
+                      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                      ?, ?, 0, 0, 0
+                    )
+                    """,
+                    (
+                        proposal_id,
+                        report_id,
+                        str(item.get("type", "ui_improvement")),
+                        str(item.get("title", "Untitled improvement proposal")),
+                        str(item.get("problemSummary", "")),
+                        json.dumps(item.get("evidence", []), sort_keys=True),
+                        json.dumps(item.get("affectedModules", []), sort_keys=True),
+                        str(item.get("riskLevel", "low")),
+                        str(item.get("expectedBenefit", "")),
+                        str(item.get("implementationSketch", "")),
+                        str(item.get("testPlan", "")),
+                        str(item.get("rollbackPlan", "")),
+                        int(bool(item.get("requiresCodex", True))),
+                        int(bool(item.get("requiresOwnerApproval", True))),
+                        str(item.get("priority", "medium")),
+                        str(item.get("status", "owner_review")),
+                        str(item.get("estimatedComplexity", "small")),
+                        str(item.get("safetyImpact", "safe_metadata_only")),
+                        str(item.get("dataPrivacyImpact", "no_raw_text")),
+                        item.get("codexPromptDraft"),
+                        now,
+                        now,
+                    ),
+                )
+            connection.execute(
+                """
+                INSERT INTO self_review_reports (
+                  id, summary, observations_json, proposal_ids_json, risk_level,
+                  status, created_at, raw_text_included, secret_values_included
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0)
+                """,
+                (
+                    report_id,
+                    summary,
+                    json.dumps(observations, sort_keys=True),
+                    json.dumps(proposal_ids, sort_keys=True),
+                    risk_level,
+                    status,
+                    now,
+                ),
+            )
+            append_audit_event_in_transaction(
+                connection,
+                "mind.self_review_report_created",
+                {
+                    "reportId": report_id,
+                    "proposalCount": len(proposal_ids),
+                    "manualOnly": True,
+                    "rawTextIncluded": False,
+                    "secretValuesIncluded": False,
+                    "executed": False,
+                },
+                now,
+            )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+    return report_id
+
+
+def update_improvement_proposal_status(
+    layout: RinDataLayout,
+    *,
+    proposal_id: str,
+    status: str,
+    now: str,
+    codex_prompt_draft: str | None = None,
+) -> bool:
+    """Review or convert a proposal without executing tools, Git, or code writes."""
+    assert_safe_write_layout(layout)
+    with sqlite3.connect(database_path_for(layout)) as connection:
+        try:
+            connection.execute("BEGIN")
+            ensure_self_review_tables(connection)
+            row = connection.execute(
+                "SELECT id FROM improvement_proposals WHERE id = ?",
+                (proposal_id,),
+            ).fetchone()
+            if row is None:
+                connection.rollback()
+                return False
+            if codex_prompt_draft is None:
+                result = connection.execute(
+                    """
+                    UPDATE improvement_proposals
+                    SET status = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (status, now, proposal_id),
+                )
+            else:
+                result = connection.execute(
+                    """
+                    UPDATE improvement_proposals
+                    SET status = ?, codex_prompt_draft = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (status, codex_prompt_draft, now, proposal_id),
+                )
+            append_audit_event_in_transaction(
+                connection,
+                "mind.improvement_proposal_reviewed",
+                {
+                    "proposalId": proposal_id,
+                    "status": status,
+                    "codexPromptDraftIncluded": codex_prompt_draft is not None,
+                    "executed": False,
+                    "pullRequestCreated": False,
+                    "codeWritten": False,
+                    "secretValuesIncluded": False,
+                },
+                now,
+            )
+            connection.commit()
+            return result.rowcount > 0
+        except Exception:
+            connection.rollback()
+            raise
+
+
 def append_audit_event_in_transaction(
     connection: sqlite3.Connection,
     event_type: str,
@@ -1214,6 +1373,53 @@ def ensure_mind_tables(connection: sqlite3.Connection) -> None:
         "memory_candidates",
         "language",
         "TEXT NOT NULL DEFAULT 'unknown'",
+    )
+    ensure_self_review_tables(connection)
+
+
+def ensure_self_review_tables(connection: sqlite3.Connection) -> None:
+    """Create additive self-review/proposal tables for older local databases."""
+    connection.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS self_review_reports (
+          id TEXT PRIMARY KEY,
+          summary TEXT NOT NULL,
+          observations_json TEXT NOT NULL,
+          proposal_ids_json TEXT NOT NULL,
+          risk_level TEXT NOT NULL,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          raw_text_included INTEGER NOT NULL,
+          secret_values_included INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS improvement_proposals (
+          id TEXT PRIMARY KEY,
+          report_id TEXT,
+          type TEXT NOT NULL,
+          title TEXT NOT NULL,
+          problem_summary TEXT NOT NULL,
+          evidence_json TEXT NOT NULL,
+          affected_modules_json TEXT NOT NULL,
+          risk_level TEXT NOT NULL,
+          expected_benefit TEXT NOT NULL,
+          implementation_sketch TEXT NOT NULL,
+          test_plan TEXT NOT NULL,
+          rollback_plan TEXT NOT NULL,
+          requires_codex INTEGER NOT NULL,
+          requires_owner_approval INTEGER NOT NULL,
+          priority TEXT NOT NULL,
+          status TEXT NOT NULL,
+          estimated_complexity TEXT NOT NULL,
+          safety_impact TEXT NOT NULL,
+          data_privacy_impact TEXT NOT NULL,
+          codex_prompt_draft TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          raw_text_included INTEGER NOT NULL,
+          secret_values_included INTEGER NOT NULL,
+          execution_enabled INTEGER NOT NULL
+        );
+        """
     )
 
 
