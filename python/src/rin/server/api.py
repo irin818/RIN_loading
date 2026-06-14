@@ -24,12 +24,14 @@ from pydantic import BaseModel, ConfigDict
 from rin.body import build_body_report
 from rin.config.chat_provider import (
     ChatProviderConfig,
+    CostConfig,
     load_chat_provider_config,
     load_cost_config,
 )
 from rin.contracts import ModelRequest, ModelResponse, ModelResponseMetadata
 from rin.conversation import ModelAdapterProtocol, RuntimeClock, run_conversation_turn
 from rin.database import (
+    ApiUsageEventRecord,
     create_conversation,
     get_conversation,
     get_latest_mind_snapshot,
@@ -48,6 +50,8 @@ from rin.database import (
     summarize_api_usage,
     update_memory_candidate_review,
     update_memory_candidate_safe_fields,
+    update_rin_growth_event_review,
+    update_tool_invocation_request_status,
 )
 from rin.diagnostics.readiness import build_python_readiness_report
 from rin.diagnostics.runtime_trace import (
@@ -59,6 +63,12 @@ from rin.diagnostics.runtime_trace import (
 from rin.diagnostics.safety import assert_safe_python_write_data_dir
 from rin.mind import RinMindSnapshot, load_mind_policy
 from rin.model import create_api_chat_adapter_from_env
+from rin.model.sanitizer import sanitize_assistant_content_details
+from rin.model.usage import (
+    PROVIDER_USAGE_METHOD,
+    TOKEN_ESTIMATE_HEURISTIC,
+    estimate_cost_range,
+)
 from rin.profiles import build_profile_report
 from rin.storage import RinDataLayout
 from rin.version import __version__
@@ -337,6 +347,10 @@ def create_app(
             ),
         }
 
+    @app.get("/api/console/data-map")
+    def api_console_data_map() -> dict[str, object]:
+        return build_console_data_map_payload()
+
     @app.get("/api/cost/summary")
     def api_cost_summary(
         current_layout: RinDataLayout = layout_dependency,
@@ -574,6 +588,76 @@ def create_app(
             "rawInputIncluded": False,
             "secretValuesIncluded": False,
         }
+
+    @app.post("/api/mind/growth-events/{event_id}/approve")
+    def api_mind_growth_event_approve(
+        event_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+        current_clock: RuntimeClock = clock_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        updated = update_rin_growth_event_review(
+            current_layout,
+            event_id=event_id,
+            review_status="owner_approved",
+            active=True,
+            now=current_clock.now(),
+        )
+        if not updated:
+            raise HTTPException(status_code=404, detail="Growth event not found.")
+        return build_growth_event_action_response(current_layout, event_id)
+
+    @app.post("/api/mind/growth-events/{event_id}/reject")
+    def api_mind_growth_event_reject(
+        event_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+        current_clock: RuntimeClock = clock_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        updated = update_rin_growth_event_review(
+            current_layout,
+            event_id=event_id,
+            review_status="rejected",
+            active=False,
+            now=current_clock.now(),
+        )
+        if not updated:
+            raise HTTPException(status_code=404, detail="Growth event not found.")
+        return build_growth_event_action_response(current_layout, event_id)
+
+    @app.post("/api/mind/tool-requests/{request_id}/approve")
+    def api_mind_tool_request_approve(
+        request_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+        current_clock: RuntimeClock = clock_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        updated = update_tool_invocation_request_status(
+            current_layout,
+            request_id=request_id,
+            status="approved",
+            now=current_clock.now(),
+        )
+        if not updated:
+            raise HTTPException(status_code=404, detail="Tool request not found.")
+        return build_tool_request_action_response(current_layout, request_id)
+
+    @app.post("/api/mind/tool-requests/{request_id}/reject")
+    def api_mind_tool_request_reject(
+        request_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+        current_clock: RuntimeClock = clock_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        updated = update_tool_invocation_request_status(
+            current_layout,
+            request_id=request_id,
+            status="rejected",
+            now=current_clock.now(),
+        )
+        if not updated:
+            raise HTTPException(status_code=404, detail="Tool request not found.")
+        return build_tool_request_action_response(current_layout, request_id)
 
     @app.post("/api/mind/memory-candidates/{candidate_id}/reject")
     def api_mind_memory_candidate_reject(
@@ -947,18 +1031,33 @@ def create_app(
 
 def safe_chat_message(message: object | None) -> dict[str, object] | None:
     """
-    Serialize a message for the chat test response, including full text (trusted local
-    context).
+    Serialize a message for chat UI while blocking legacy hidden-reasoning leaks.
     """
     if message is None:
         return None
+    role = str(getattr(message, "role", "n/a"))
+    content = str(getattr(message, "content", ""))
+    hidden_reasoning_redacted = False
+    full_text_included = True
+    if role == "rin":
+        sanitized = sanitize_assistant_content_details(content)
+        if sanitized.rejected:
+            content = "[RIN reply hidden: unsafe reasoning-like content was redacted.]"
+            hidden_reasoning_redacted = True
+            full_text_included = False
+        elif sanitized.removed:
+            content = sanitized.content
+            hidden_reasoning_redacted = True
+            full_text_included = False
     return {
         "id": getattr(message, "id", "n/a"),
         "shortId": short_id(str(getattr(message, "id", ""))),
-        "role": getattr(message, "role", "n/a"),
-        "content": getattr(message, "content", ""),
+        "role": role,
+        "content": content,
         "createdAt": getattr(message, "createdAt", "n/a"),
-        "fullTextIncluded": True,
+        "fullTextIncluded": full_text_included,
+        "hiddenReasoningIncluded": False,
+        "hiddenReasoningRedacted": hidden_reasoning_redacted,
     }
 
 
@@ -1273,6 +1372,7 @@ def build_glitch_core_snapshot(
     model_diagnostics = build_diagnostics_payload(layout, adapter, "model")
     cost_payload = build_cost_summary_payload(layout, adapter)
     mind_payload = build_mind_latest_payload(layout)
+    data_map_payload = build_console_data_map_payload()
     memory_cards = build_glitch_memory_cards(layout, query=memory_query, limit=40)
     latest_trace = RUNTIME_TRACE_STORE.latest()
     latest_trace_payload = latest_trace.to_safe_dict() if latest_trace else None
@@ -1340,6 +1440,7 @@ def build_glitch_core_snapshot(
         ),
         "cost": cost_payload,
         "mind": mind_payload,
+        "dataMap": data_map_payload,
         "errors": build_glitch_error_items(latest_trace_payload),
         "windows": {
             "defaultTypes": [
@@ -1355,6 +1456,256 @@ def build_glitch_core_snapshot(
             "persistentTypes": ["chat", "memory", "trace", "cost", "mind"],
             "layoutPersistence": "browser-local-storage",
         },
+    }
+
+
+def build_console_data_map_payload() -> dict[str, object]:
+    """Return a safe registry of backend data blocks for the governance dashboard."""
+    domains = [
+        {"id": "core-health", "label": "Core / Health", "color": "green"},
+        {"id": "conversation", "label": "Conversation", "color": "green"},
+        {"id": "mind", "label": "Mind", "color": "cyan"},
+        {"id": "memory", "label": "Memory", "color": "green"},
+        {"id": "context", "label": "Context", "color": "blue"},
+        {"id": "runtime-trace", "label": "Runtime Trace", "color": "amber"},
+        {"id": "cost-usage", "label": "Cost / Usage", "color": "purple"},
+        {"id": "provider", "label": "Provider", "color": "cyan"},
+        {"id": "growth-self-model", "label": "Growth / Self-model", "color": "amber"},
+        {
+            "id": "control-tool-proposal",
+            "label": "Control / Tool Proposal",
+            "color": "amber",
+        },
+        {"id": "database-storage", "label": "Database / Storage", "color": "green"},
+        {"id": "profiles", "label": "Profiles", "color": "cyan"},
+        {"id": "errors", "label": "Errors", "color": "red"},
+    ]
+    blocks = [
+        data_block(
+            "readiness-state",
+            "Readiness and core state",
+            "core-health",
+            "/readiness, /state, /api/glitch-core/snapshot.dashboard",
+            "rin.diagnostics.readiness, build_status_dashboard_summary",
+            "readiness, health flags, schema version, counts",
+            "Overview",
+            "status cards",
+            data_completeness="complete",
+        ),
+        data_block(
+            "conversation-messages",
+            "Conversation messages",
+            "conversation",
+            "/api/glitch-core/snapshot.messages",
+            "list_conversations, list_messages, safe_chat_message",
+            "selected conversation, role, bounded content, timestamps",
+            "Chat",
+            "message timeline",
+            writable=True,
+            control_actions=["send owner message"],
+            notes=(
+                "Chat messages intentionally show conversation content "
+                "inside Chat only."
+            ),
+        ),
+        data_block(
+            "mind-latest",
+            "Latest RIN Mind snapshot",
+            "mind",
+            "/api/mind/latest",
+            "build_mind_latest_payload",
+            "message understanding, owner state, response plan, lifecycle",
+            "Mind",
+            "cards, bars, trend table",
+        ),
+        data_block(
+            "memory-candidates",
+            "Memory candidates",
+            "memory",
+            "/api/mind/memory-candidates",
+            "list_mind_memory_candidates",
+            "safeSummary, normalizedValue, risk, review, active state",
+            "Memory",
+            "review table, strength ranking, forgetting curve",
+            writable=True,
+            control_actions=[
+                "approve",
+                "reject",
+                "deactivate",
+                "reactivate",
+                "edit safe fields",
+            ],
+        ),
+        data_block(
+            "memory-analytics",
+            "Memory analytics",
+            "memory",
+            "/api/mind/memory-analytics",
+            "build_memory_analytics_payload",
+            "counts, distributions, derived strength, thresholds",
+            "Memory",
+            "stacked bars, curve, timeline",
+            data_completeness="partial",
+            notes="Forgetting history depends on available audit/retrieval events.",
+        ),
+        data_block(
+            "context-analytics",
+            "Context plan analytics",
+            "context",
+            "/api/mind/context-analytics",
+            "build_context_analytics_payload",
+            "context flow, budget, selected/excluded safe sources",
+            "Context",
+            "flow diagram, budget bar, source table",
+            data_completeness="partial",
+        ),
+        data_block(
+            "runtime-trace",
+            "Runtime trace",
+            "runtime-trace",
+            "/api/diagnostics/runtime-trace/latest, /api/mind/trace-analytics",
+            "safe_trace_response, build_trace_analytics_payload",
+            "pipeline stages, durations, status, warnings/errors",
+            "Runtime",
+            "timeline and duration bars",
+            data_completeness="partial",
+        ),
+        data_block(
+            "cost-usage",
+            "Cost and token usage",
+            "cost-usage",
+            "/api/cost/summary, /api/cost/recent",
+            "summarize_api_usage, build_cost_summary_payload",
+            "token counts, DeepSeek pricing profile, estimate range",
+            "Cost",
+            "token bars, cost trend, range explanation",
+            data_completeness="estimate",
+            notes=(
+                "cost.cacheBreakdownAvailable may be false; official exact "
+                "cost can be unavailable."
+            ),
+        ),
+        data_block(
+            "provider-config",
+            "Provider safe config",
+            "provider",
+            "/api/glitch-core/snapshot.provider",
+            "active_chat_config, build_glitch_provider_payload",
+            "configured state, safe base URL, model, missing env names",
+            "Overview / Cost / Control",
+            "status cards",
+            data_completeness="provider_dependent",
+            notes="API key presence only; key value is never exposed or editable.",
+        ),
+        data_block(
+            "growth-events",
+            "Growth review events",
+            "growth-self-model",
+            "/api/mind/growth-events",
+            "list_rin_growth_events",
+            "safe summary, risk, review status, source short ids",
+            "Control",
+            "review queue and distribution",
+            writable=True,
+            control_actions=["approve", "reject"],
+            data_completeness="partial",
+        ),
+        data_block(
+            "tool-proposals",
+            "Tool proposals",
+            "control-tool-proposal",
+            "/api/mind/tool-requests",
+            "list_tool_invocation_requests",
+            "intent, toolName, actionSummary, risk, approval status",
+            "Control",
+            "proposal queue",
+            writable=True,
+            control_actions=["approve proposal", "reject proposal"],
+            data_completeness="partial",
+            notes="Execution remains disabled by default.",
+        ),
+        data_block(
+            "database-storage",
+            "Database and storage status",
+            "database-storage",
+            "/api/local-state, /api/glitch-core/snapshot.dashboard.database",
+            "inspect_database",
+            "schema version, table counts, local storage status",
+            "Overview / Runtime / Control",
+            "compact table",
+        ),
+        data_block(
+            "profiles",
+            "Profiles",
+            "profiles",
+            "/api/local-state, diagnostics profile payloads",
+            "build_profile_report",
+            "profile health and file status",
+            "Overview / Control",
+            "health cards",
+            data_completeness="partial",
+            notes="Full profile text is not exposed in the console data map.",
+        ),
+        data_block(
+            "errors",
+            "Errors and warnings",
+            "errors",
+            "/api/glitch-core/snapshot.errors",
+            "build_glitch_error_items",
+            "safe error code, severity, module, trace availability",
+            "Runtime / Overview",
+            "error list and badges",
+        ),
+    ]
+    return {
+        "ok": True,
+        "mode": "console-data-map",
+        "readOnly": True,
+        "localOnly": True,
+        "rawPromptIncluded": False,
+        "rawMemoryIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "secretValuesIncluded": False,
+        "domains": domains,
+        "dataBlocks": blocks,
+    }
+
+
+def data_block(
+    block_id: str,
+    label: str,
+    domain: str,
+    source_endpoint: str,
+    source_function: str,
+    field_summary: str,
+    recommended_panel: str,
+    recommended_visualization: str,
+    *,
+    writable: bool = False,
+    control_actions: list[str] | None = None,
+    data_completeness: str = "complete",
+    developer_only: bool = False,
+    notes: str = "",
+) -> dict[str, object]:
+    return {
+        "id": block_id,
+        "label": label,
+        "domain": domain,
+        "sourceEndpoint": source_endpoint,
+        "sourceFunction": source_function,
+        "fieldSummary": field_summary,
+        "safetyLevel": "safe-ui-metadata",
+        "rawTextIncluded": False,
+        "secretValuesIncluded": False,
+        "writable": writable,
+        "controlActions": control_actions or [],
+        "recommendedPanel": recommended_panel,
+        "recommendedVisualization": recommended_visualization,
+        "dataCompleteness": data_completeness,
+        "developerOnly": developer_only,
+        "chartPotential": recommended_visualization not in {"status cards"},
+        "hasGovernanceActions": bool(control_actions),
+        "notes": notes,
     }
 
 
@@ -1521,6 +1872,16 @@ def build_cost_summary_payload(
     usage = summarize_api_usage(layout)
     recent = list_api_usage_events(layout, limit=20)
     cost_config = load_cost_config()
+    aggregate_projection = build_cost_projection(
+        input_tokens=usage.totalInputTokens,
+        output_tokens=usage.totalOutputTokens,
+        estimate_method=usage.latest.estimateMethod if usage.latest else "none",
+        cost_config=cost_config,
+    )
+    recent_payload = [build_cost_record_payload(item, cost_config) for item in recent]
+    latest_payload = (
+        build_cost_record_payload(usage.latest, cost_config) if usage.latest else None
+    )
     return {
         "ok": True,
         "mode": "api-cost-summary",
@@ -1533,13 +1894,33 @@ def build_cost_summary_payload(
         "configurationStatus": config.configurationStatus,
         "currency": usage.currency,
         "priceConfig": cost_config.safe_metadata(),
+        "pricingProfile": cost_config.pricingProfile,
+        "pricingUnit": cost_config.pricingUnit,
+        "currencyOfficial": "USD",
+        "displayCurrency": cost_config.displayCurrency,
+        "usdCnyRate": cost_config.usdCnyRate,
+        "usageSource": aggregate_projection["usageSource"],
+        "cacheBreakdownAvailable": aggregate_projection["cacheBreakdownAvailable"],
+        "inputCacheHitTokens": aggregate_projection["inputCacheHitTokens"],
+        "inputCacheMissTokens": aggregate_projection["inputCacheMissTokens"],
+        "minEstimatedCostUsd": aggregate_projection["minEstimatedCostUsd"],
+        "maxEstimatedCostUsd": aggregate_projection["maxEstimatedCostUsd"],
+        "configuredEstimatedCostUsd": aggregate_projection[
+            "configuredEstimatedCostUsd"
+        ],
+        "configuredEstimatedCostCny": aggregate_projection[
+            "configuredEstimatedCostCny"
+        ],
+        "officialBillingMatch": aggregate_projection["officialBillingMatch"],
+        "cacheHitRatioEstimate": cost_config.cacheHitRatioEstimate,
+        "explanation": aggregate_projection["explanation"],
         "eventCount": usage.eventCount,
         "totalInputTokens": usage.totalInputTokens,
         "totalOutputTokens": usage.totalOutputTokens,
         "totalTokens": usage.totalTokens,
         "totalEstimatedCost": usage.totalEstimatedCost,
-        "latest": usage.latest.model_dump(mode="json") if usage.latest else None,
-        "recent": [item.model_dump(mode="json") for item in recent],
+        "latest": latest_payload,
+        "recent": recent_payload,
         "rawPromptIncluded": False,
         "rawResponseIncluded": False,
         "hiddenReasoningIncluded": False,
@@ -1556,6 +1937,7 @@ def build_cost_recent_payload(
     """Build recent token/cost records for the Web UI."""
     config = active_chat_config(adapter)
     records = list_api_usage_events(layout, limit=limit)
+    cost_config = load_cost_config()
     return {
         "ok": True,
         "mode": "api-cost-recent",
@@ -1565,11 +1947,69 @@ def build_cost_recent_payload(
         "adapter": adapter.id,
         "model": getattr(adapter, "model", config.model),
         "configurationStatus": config.configurationStatus,
-        "records": [item.model_dump(mode="json") for item in records],
+        "pricingProfile": cost_config.pricingProfile,
+        "pricingUnit": cost_config.pricingUnit,
+        "records": [build_cost_record_payload(item, cost_config) for item in records],
         "rawPromptIncluded": False,
         "rawResponseIncluded": False,
         "hiddenReasoningIncluded": False,
         "secretValuesIncluded": False,
+    }
+
+
+def build_cost_record_payload(
+    record: ApiUsageEventRecord,
+    cost_config: CostConfig,
+) -> dict[str, object]:
+    payload = record.model_dump(mode="json")
+    payload.update(
+        build_cost_projection(
+            input_tokens=record.inputTokens,
+            output_tokens=record.outputTokens,
+            estimate_method=record.estimateMethod,
+            cost_config=cost_config,
+        )
+    )
+    return payload
+
+
+def build_cost_projection(
+    *,
+    input_tokens: int,
+    output_tokens: int,
+    estimate_method: str,
+    cost_config: CostConfig,
+) -> dict[str, object]:
+    usage_source = (
+        PROVIDER_USAGE_METHOD
+        if estimate_method == PROVIDER_USAGE_METHOD
+        else "heuristic"
+        if estimate_method == TOKEN_ESTIMATE_HEURISTIC
+        else "none"
+    )
+    estimate = estimate_cost_range(
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        input_cache_hit_tokens=None,
+        input_cache_miss_tokens=None,
+        usage_source=usage_source,
+        cost_config=cost_config,
+    )
+    return {
+        "pricingProfile": getattr(cost_config, "pricingProfile", "legacy-per-1k"),
+        "pricingUnit": getattr(cost_config, "pricingUnit", "per_1k_tokens"),
+        "currencyOfficial": "USD",
+        "displayCurrency": estimate.displayCurrency,
+        "usageSource": usage_source,
+        "cacheBreakdownAvailable": estimate.cacheBreakdownAvailable,
+        "inputCacheHitTokens": estimate.inputCacheHitTokens,
+        "inputCacheMissTokens": estimate.inputCacheMissTokens,
+        "minEstimatedCostUsd": estimate.minEstimatedCostUsd,
+        "maxEstimatedCostUsd": estimate.maxEstimatedCostUsd,
+        "configuredEstimatedCostUsd": estimate.configuredEstimatedCostUsd,
+        "configuredEstimatedCostCny": estimate.configuredEstimatedCostCny,
+        "officialBillingMatch": estimate.officialBillingMatch,
+        "explanation": estimate.explanation,
     }
 
 
@@ -2327,6 +2767,47 @@ def build_memory_candidate_action_response(
         "localOnly": True,
         "candidate": candidate.model_dump(mode="json"),
         "rawTextIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def build_growth_event_action_response(
+    layout: RinDataLayout,
+    event_id: str,
+) -> dict[str, object]:
+    events = list_rin_growth_events(layout, limit=100)
+    event = next((item for item in events if item.id == event_id), None)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Growth event not found.")
+    return {
+        "ok": True,
+        "mode": "rin-growth-event-action",
+        "readOnly": False,
+        "localOnly": True,
+        "event": event.model_dump(mode="json"),
+        "autoApplied": False,
+        "rawTextIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def build_tool_request_action_response(
+    layout: RinDataLayout,
+    request_id: str,
+) -> dict[str, object]:
+    requests = list_tool_invocation_requests(layout, limit=100)
+    request = next((item for item in requests if item.id == request_id), None)
+    if request is None:
+        raise HTTPException(status_code=404, detail="Tool request not found.")
+    return {
+        "ok": True,
+        "mode": "rin-tool-request-action",
+        "readOnly": False,
+        "localOnly": True,
+        "request": request.model_dump(mode="json"),
+        "executed": False,
+        "executionDisabledByDefault": True,
+        "rawInputIncluded": False,
         "secretValuesIncluded": False,
     }
 

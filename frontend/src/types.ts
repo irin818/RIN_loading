@@ -3,6 +3,7 @@ export type WindowType =
   | "chat"
   | "memory"
   | "memoryDetail"
+  | "context"
   | "trace"
   | "provider"
   | "cost"
@@ -10,6 +11,7 @@ export type WindowType =
   | "error"
   | "tasks"
   | "tools"
+  | "control"
   | "settings"
   | "system";
 
@@ -47,6 +49,8 @@ export interface ChatMessage {
   content: string;
   createdAt: string;
   fullTextIncluded: boolean;
+  hiddenReasoningIncluded?: false;
+  hiddenReasoningRedacted?: boolean;
 }
 
 export interface MemoryCard {
@@ -126,6 +130,20 @@ export interface CostUsageRecord {
   estimatedCost: number;
   currency: string;
   estimateMethod: string;
+  pricingProfile?: string;
+  pricingUnit?: string;
+  currencyOfficial?: string;
+  displayCurrency?: string;
+  usageSource?: string;
+  cacheBreakdownAvailable?: boolean;
+  inputCacheHitTokens?: number | null;
+  inputCacheMissTokens?: number | null;
+  minEstimatedCostUsd?: number | null;
+  maxEstimatedCostUsd?: number | null;
+  configuredEstimatedCostUsd?: number | null;
+  configuredEstimatedCostCny?: number | null;
+  officialBillingMatch?: "exact" | "estimate" | "unavailable" | string;
+  explanation?: string;
   contextCharacterCount: number;
   createdAt: string;
   rawPromptIncluded: false;
@@ -146,6 +164,22 @@ export interface CostSummary {
   configurationStatus: string;
   currency: string;
   priceConfig: Record<string, unknown>;
+  pricingProfile: string;
+  pricingUnit: string;
+  currencyOfficial: string;
+  displayCurrency: string;
+  usdCnyRate: number | null;
+  usageSource: string;
+  cacheBreakdownAvailable: boolean;
+  inputCacheHitTokens: number | null;
+  inputCacheMissTokens: number | null;
+  minEstimatedCostUsd: number | null;
+  maxEstimatedCostUsd: number | null;
+  configuredEstimatedCostUsd: number | null;
+  configuredEstimatedCostCny: number | null;
+  officialBillingMatch: "exact" | "estimate" | "unavailable" | string;
+  cacheHitRatioEstimate: number;
+  explanation: string;
   eventCount: number;
   totalInputTokens: number;
   totalOutputTokens: number;
@@ -157,6 +191,46 @@ export interface CostSummary {
   rawResponseIncluded: false;
   hiddenReasoningIncluded: false;
   secretValuesIncluded: false;
+}
+
+export interface ConsoleDataMapDomain {
+  id: string;
+  label: string;
+  color: string;
+}
+
+export interface ConsoleDataMapBlock {
+  id: string;
+  label: string;
+  domain: string;
+  sourceEndpoint: string;
+  sourceFunction: string;
+  fieldSummary: string;
+  safetyLevel: string;
+  rawTextIncluded: false;
+  secretValuesIncluded: false;
+  writable: boolean;
+  controlActions: string[];
+  recommendedPanel: string;
+  recommendedVisualization: string;
+  dataCompleteness: string;
+  developerOnly: boolean;
+  chartPotential: boolean;
+  hasGovernanceActions: boolean;
+  notes: string;
+}
+
+export interface ConsoleDataMap {
+  ok: boolean;
+  mode: "console-data-map";
+  readOnly: true;
+  localOnly: true;
+  rawPromptIncluded: false;
+  rawMemoryIncluded: false;
+  hiddenReasoningIncluded: false;
+  secretValuesIncluded: false;
+  domains: ConsoleDataMapDomain[];
+  dataBlocks: ConsoleDataMapBlock[];
 }
 
 export interface MindMessageUnderstanding {
@@ -658,8 +732,32 @@ export interface GlitchSnapshot {
   provider: ProviderStatus;
   cost: CostSummary;
   mind: RinMindPayload;
+  dataMap: ConsoleDataMap;
   errors: GlitchErrorItem[];
   windows: Record<string, unknown>;
+}
+
+export interface GrowthEventActionResult {
+  ok: boolean;
+  mode: string;
+  readOnly: false;
+  localOnly: true;
+  event: MindGrowthEvent;
+  autoApplied: false;
+  rawTextIncluded: false;
+  secretValuesIncluded: false;
+}
+
+export interface ToolRequestActionResult {
+  ok: boolean;
+  mode: string;
+  readOnly: false;
+  localOnly: true;
+  request: MindToolInvocationRequest;
+  executed: false;
+  executionDisabledByDefault: true;
+  rawInputIncluded: false;
+  secretValuesIncluded: false;
 }
 
 export interface ChatSendResult {

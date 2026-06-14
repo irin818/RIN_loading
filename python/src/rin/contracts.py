@@ -370,6 +370,8 @@ class ModelResponseMetadata(RinBaseModel):
     promptTokens: int | None = Field(default=None, exclude=True)
     completionTokens: int | None = Field(default=None, exclude=True)
     totalTokens: int | None = Field(default=None, exclude=True)
+    inputCacheHitTokens: int | None = Field(default=None, exclude=True)
+    inputCacheMissTokens: int | None = Field(default=None, exclude=True)
     usageSource: str | None = Field(default=None, exclude=True)
     secretValuesIncluded: bool = Field(default=False, exclude=True)
     rawContentLength: int | None = Field(default=None, exclude=True)

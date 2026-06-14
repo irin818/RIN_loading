@@ -344,6 +344,10 @@ def create_api_usage_event(
                     "model": accounting.model,
                     "totalTokens": accounting.totalTokens,
                     "estimateMethod": accounting.estimateMethod,
+                    "pricingProfile": accounting.pricingProfile,
+                    "pricingUnit": accounting.pricingUnit,
+                    "cacheBreakdownAvailable": accounting.cacheBreakdownAvailable,
+                    "officialBillingMatch": accounting.officialBillingMatch,
                     "rawPromptIncluded": False,
                     "rawResponseIncluded": False,
                     "secretValuesIncluded": False,
@@ -825,6 +829,110 @@ def create_tool_invocation_requests(
             connection.rollback()
             raise
     return ids
+
+
+def update_rin_growth_event_review(
+    layout: RinDataLayout,
+    *,
+    event_id: str,
+    review_status: str,
+    active: bool,
+    now: str,
+) -> bool:
+    """Review a growth event without applying self-model/profile changes."""
+    assert_safe_write_layout(layout)
+    with sqlite3.connect(database_path_for(layout)) as connection:
+        try:
+            connection.execute("BEGIN")
+            ensure_mind_tables(connection)
+            result = connection.execute(
+                """
+                UPDATE rin_growth_events
+                SET review_status = ?, active = ?
+                WHERE id = ?
+                """,
+                (review_status, int(active), event_id),
+            )
+            if result.rowcount:
+                append_audit_event_in_transaction(
+                    connection,
+                    "mind.rin_growth_event_reviewed",
+                    {
+                        "eventId": event_id,
+                        "reviewStatus": review_status,
+                        "active": active,
+                        "autoApplied": False,
+                        "rawTextIncluded": False,
+                    },
+                    now,
+                )
+            connection.commit()
+            return result.rowcount > 0
+        except Exception:
+            connection.rollback()
+            raise
+
+
+def update_tool_invocation_request_status(
+    layout: RinDataLayout,
+    *,
+    request_id: str,
+    status: str,
+    now: str,
+) -> bool:
+    """Review a tool proposal without executing any tool."""
+    assert_safe_write_layout(layout)
+    with sqlite3.connect(database_path_for(layout)) as connection:
+        try:
+            connection.execute("BEGIN")
+            ensure_mind_tables(connection)
+            result = connection.execute(
+                """
+                UPDATE tool_invocation_requests
+                SET status = ?
+                WHERE id = ?
+                """,
+                (status, request_id),
+            )
+            if result.rowcount:
+                append_audit_event_in_transaction(
+                    connection,
+                    "mind.tool_invocation_request_reviewed",
+                    {
+                        "requestId": request_id,
+                        "status": status,
+                        "executed": False,
+                        "secretValuesIncluded": False,
+                    },
+                    now,
+                )
+                connection.execute(
+                    """
+                    INSERT INTO tool_invocation_audit (
+                      id, request_id, event_type, safe_metadata_json, created_at
+                    )
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        str(uuid4()),
+                        request_id,
+                        "reviewed",
+                        json.dumps(
+                            {
+                                "status": status,
+                                "executed": False,
+                                "secretValuesIncluded": False,
+                            },
+                            sort_keys=True,
+                        ),
+                        now,
+                    ),
+                )
+            connection.commit()
+            return result.rowcount > 0
+        except Exception:
+            connection.rollback()
+            raise
 
 
 def create_memory_embedding_entries(

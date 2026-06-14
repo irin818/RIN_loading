@@ -56,6 +56,8 @@ async def test_openai_compatible_request_shape_and_usage_metadata() -> None:
                     "prompt_tokens": 11,
                     "completion_tokens": 7,
                     "total_tokens": 18,
+                    "prompt_cache_hit_tokens": 3,
+                    "prompt_cache_miss_tokens": 8,
                 },
             },
         )
@@ -93,6 +95,8 @@ async def test_openai_compatible_request_shape_and_usage_metadata() -> None:
     assert response.metadata.promptTokens == 11
     assert response.metadata.completionTokens == 7
     assert response.metadata.totalTokens == 18
+    assert response.metadata.inputCacheHitTokens == 3
+    assert response.metadata.inputCacheMissTokens == 8
     assert response.metadata.rawModelOutputIncluded is False
     assert response.metadata.secretValuesIncluded is False
     assert response.metadata.rawPreview is None
