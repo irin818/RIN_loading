@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   CSSProperties,
+  Dispatch,
   PointerEvent as ReactPointerEvent,
-  ReactNode
+  ReactNode,
+  SetStateAction
 } from "react";
 
 import {
@@ -12,7 +14,8 @@ import {
   fetchMemoryCards,
   reactivateMindMemoryCandidate,
   rejectMindMemoryCandidate,
-  sendChatMessage
+  sendChatMessage,
+  updateMindMemoryCandidateSafeFields
 } from "./api";
 import type {
   ChatMessage,
@@ -20,13 +23,40 @@ import type {
   GlitchErrorItem,
   GlitchSnapshot,
   MemoryCard,
+  MemoryCandidateAnalytics,
+  MindCandidateSafePatch,
+  MindContextAnalytics,
+  MindMemoryAnalytics,
   MindMemoryCandidate,
+  MindContextPlan,
+  MindOwnerState,
+  MindOwnerStateTrend,
+  MindResponsePlan,
+  MindTraceAnalytics,
   RuntimeTrace,
   WindowPayload,
   WindowType
 } from "./types";
+import {
+  ChartCard,
+  DataTable,
+  EmptyState,
+  ExplanationList,
+  JsonInspector,
+  MetricCard,
+  MiniBar,
+  ReviewStatusBadge,
+  RiskBadge,
+  SectionPanel,
+  SegmentedControl,
+  StackedBar,
+  StatusBadge,
+  Timeline
+} from "./visualization";
+import type { Density, DisplayMode, DisplaySize } from "./visualization";
 
 const LAYOUT_KEY = "rin.glitch-core.window-layout.v2";
+const UI_SETTINGS_KEY = "rin.glitch-core.ui-settings.v1";
 const PERSISTENT_TYPES = new Set<WindowType>([
   "chat",
   "memory",
@@ -245,6 +275,44 @@ function initialInstanceCounts(windows: ConsoleWindow[]) {
   }, {});
 }
 
+function loadUiSettings(): {
+  displayMode: DisplayMode;
+  displaySize: DisplaySize;
+  density: Density;
+} {
+  const fallback = {
+    displayMode: "advanced" as DisplayMode,
+    displaySize: "normal" as DisplaySize,
+    density: "normal" as Density
+  };
+  const raw = localStorage.getItem(UI_SETTINGS_KEY);
+  if (!raw) {
+    return fallback;
+  }
+  try {
+    const parsed = JSON.parse(raw) as Partial<typeof fallback>;
+    return {
+      displayMode: isDisplayMode(parsed.displayMode) ? parsed.displayMode : fallback.displayMode,
+      displaySize: isDisplaySize(parsed.displaySize) ? parsed.displaySize : fallback.displaySize,
+      density: isDensity(parsed.density) ? parsed.density : fallback.density
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function isDisplayMode(value: unknown): value is DisplayMode {
+  return value === "basic" || value === "advanced" || value === "developer";
+}
+
+function isDisplaySize(value: unknown): value is DisplaySize {
+  return value === "small" || value === "normal" || value === "large" || value === "xl";
+}
+
+function isDensity(value: unknown): value is Density {
+  return value === "compact" || value === "normal" || value === "detailed";
+}
+
 function compactError(error: unknown): GlitchErrorItem {
   const message = error instanceof Error ? error.message : String(error);
   return {
@@ -326,6 +394,7 @@ export default function App() {
   const [memoryQuery, setMemoryQuery] = useState("");
   const [memoryCompact, setMemoryCompact] = useState(true);
   const [lastChatContent, setLastChatContent] = useState("");
+  const [uiSettings, setUiSettings] = useState(() => loadUiSettings());
   const instanceCounts = useRef(initialInstanceCounts(windows));
   const zCounter = useRef(Math.max(40, ...windows.map((item) => item.zIndex)));
   const openedTraceErrorIds = useRef(new Set<string>());
@@ -344,6 +413,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(LAYOUT_KEY, JSON.stringify(windows));
   }, [windows]);
+
+  useEffect(() => {
+    localStorage.setItem(UI_SETTINGS_KEY, JSON.stringify(uiSettings));
+  }, [uiSettings]);
 
   useEffect(() => {
     if (!activeWindowId && windows[0]) {
@@ -566,6 +639,30 @@ export default function App() {
     focusWindow(id);
   }, [focusWindow]);
 
+  const focusPanel = useCallback((id: string) => {
+    zCounter.current += 1;
+    setWindows((items) =>
+      items.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              zIndex: zCounter.current,
+              maximized: true,
+              minimized: false,
+              visible: true
+            }
+          : item.maximized
+            ? { ...item, maximized: false }
+            : item
+      )
+    );
+    setActiveWindowId(id);
+  }, []);
+
+  const restoreFocusMode = useCallback(() => {
+    setWindows((items) => items.map((item) => ({ ...item, maximized: false })));
+  }, []);
+
   const resetLayout = useCallback(() => {
     const next = defaultWindows();
     instanceCounts.current = initialInstanceCounts(next);
@@ -649,14 +746,27 @@ export default function App() {
     [openErrorWindow, refreshSnapshot]
   );
 
+  const editMindCandidate = useCallback(
+    async (candidateId: string, patch: MindCandidateSafePatch) => {
+      try {
+        await updateMindMemoryCandidateSafeFields(candidateId, patch);
+        await refreshSnapshot();
+      } catch (error) {
+        openErrorWindow(compactError(error));
+      }
+    },
+    [openErrorWindow, refreshSnapshot]
+  );
+
   const visibleWindows = windows.filter((item) => item.visible && !item.minimized);
   const minimizedWindows = windows.filter((item) => item.minimized);
   const hiddenWindows = windows.filter((item) => !item.visible);
+  const focusedWindow = visibleWindows.find((item) => item.maximized);
   const errorCount = snapshot?.errors.length ?? 0;
 
   return (
     <div
-      className={`rin-os core-state-${coreVisualState}`}
+      className={`rin-os core-state-${coreVisualState} display-${uiSettings.displayMode} size-${uiSettings.displaySize} density-${uiSettings.density}`}
       onPointerMove={handleBackgroundPointerMove}
     >
       <div className="scanline-layer" />
@@ -675,9 +785,19 @@ export default function App() {
         restoreAll={restoreAll}
         minimizeAll={minimizeAll}
         resetLayout={resetLayout}
+        uiSettings={uiSettings}
+        setUiSettings={setUiSettings}
       />
       <main className="workspace">
         <CoreBackground snapshot={snapshot} visualState={coreVisualState} />
+        {focusedWindow ? (
+          <FocusNav
+            windows={visibleWindows}
+            activeWindowId={focusedWindow.id}
+            onFocusPanel={focusPanel}
+            onRestore={restoreFocusMode}
+          />
+        ) : null}
         {visibleWindows.map((item) => (
           <WindowFrame
             key={item.id}
@@ -704,6 +824,8 @@ export default function App() {
               setMemoryQuery={setMemoryQuery}
               searchMemory={searchMemory}
               reviewMindCandidate={reviewMindCandidate}
+              editMindCandidate={editMindCandidate}
+              uiSettings={uiSettings}
               openWindow={openWindow}
               openErrorWindow={openErrorWindow}
               closeWindow={closeWindow}
@@ -729,6 +851,16 @@ function TopMenu(props: {
   restoreAll: () => void;
   minimizeAll: () => void;
   resetLayout: () => void;
+  uiSettings: {
+    displayMode: DisplayMode;
+    displaySize: DisplaySize;
+    density: Density;
+  };
+  setUiSettings: Dispatch<SetStateAction<{
+    displayMode: DisplayMode;
+    displaySize: DisplaySize;
+    density: Density;
+  }>>;
 }) {
   const coreStatus = props.snapshot?.core.status ?? "booting";
   const providerName = props.snapshot?.provider.activeProvider ?? "provider";
@@ -771,6 +903,30 @@ function TopMenu(props: {
         )}
       </nav>
       <div className="menu-zone menu-right">
+        <SegmentedControl
+          label="Mode"
+          value={props.uiSettings.displayMode}
+          options={["basic", "advanced", "developer"]}
+          onChange={(displayMode) =>
+            props.setUiSettings((current) => ({ ...current, displayMode }))
+          }
+        />
+        <SegmentedControl
+          label="Size"
+          value={props.uiSettings.displaySize}
+          options={["small", "normal", "large", "xl"]}
+          onChange={(displaySize) =>
+            props.setUiSettings((current) => ({ ...current, displaySize }))
+          }
+        />
+        <SegmentedControl
+          label="Density"
+          value={props.uiSettings.density}
+          options={["compact", "normal", "detailed"]}
+          onChange={(density) =>
+            props.setUiSettings((current) => ({ ...current, density }))
+          }
+        />
         <button
           type="button"
           className="status-chip provider-chip"
@@ -843,6 +999,32 @@ function WindowMenuList(props: {
         <p>none</p>
       )}
     </div>
+  );
+}
+
+function FocusNav(props: {
+  windows: ConsoleWindow[];
+  activeWindowId: string;
+  onFocusPanel: (id: string) => void;
+  onRestore: () => void;
+}) {
+  const majorWindows = props.windows.filter((item) =>
+    ["core", "chat", "memory", "trace", "provider", "cost", "mind"].includes(item.type)
+  );
+  return (
+    <nav className="focus-nav" aria-label="Focus mode navigation">
+      {majorWindows.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          className={item.id === props.activeWindowId ? "active" : ""}
+          onClick={() => props.onFocusPanel(item.id)}
+        >
+          {WINDOW_META[item.type].code}
+        </button>
+      ))}
+      <button type="button" onClick={props.onRestore}>RESTORE</button>
+    </nav>
   );
 }
 
@@ -1007,6 +1189,12 @@ function WindowContent(props: {
     candidateId: string,
     action: "approve" | "reject" | "deactivate" | "reactivate"
   ) => Promise<void>;
+  editMindCandidate: (candidateId: string, patch: MindCandidateSafePatch) => Promise<void>;
+  uiSettings: {
+    displayMode: DisplayMode;
+    displaySize: DisplaySize;
+    density: Density;
+  };
   openWindow: (type: WindowType, options?: { contextName?: string; payload?: WindowPayload; focusExistingId?: string }) => void;
   openErrorWindow: (error: GlitchErrorItem) => void;
   closeWindow: (id: string) => void;
@@ -1019,18 +1207,37 @@ function WindowContent(props: {
     case "memory":
       return <MemoryWindow {...props} />;
     case "memoryDetail":
-      return <MemoryDetailWindow card={props.win.payload?.card as MemoryCard | undefined} />;
+      return (
+        <MemoryDetailWindow
+          card={props.win.payload?.card as MemoryCard | undefined}
+          displayMode={props.uiSettings.displayMode}
+        />
+      );
     case "trace":
-      return <TraceWindow trace={props.snapshot?.trace.latest ?? null} openWindow={props.openWindow} />;
+      return (
+        <TraceWindow
+          trace={props.snapshot?.trace.latest ?? null}
+          analytics={props.snapshot?.mind.analytics?.trace}
+          displayMode={props.uiSettings.displayMode}
+        />
+      );
     case "provider":
-      return <ProviderWindow snapshot={props.snapshot} openWindow={props.openWindow} />;
+      return (
+        <ProviderWindow
+          snapshot={props.snapshot}
+          openWindow={props.openWindow}
+          displayMode={props.uiSettings.displayMode}
+        />
+      );
     case "cost":
-      return <CostWindow snapshot={props.snapshot} />;
+      return <CostWindow snapshot={props.snapshot} displayMode={props.uiSettings.displayMode} />;
     case "mind":
       return (
         <MindWindow
           snapshot={props.snapshot}
           reviewMindCandidate={props.reviewMindCandidate}
+          editMindCandidate={props.editMindCandidate}
+          displayMode={props.uiSettings.displayMode}
         />
       );
     case "error":
@@ -1236,7 +1443,13 @@ function MemoryWindow(props: {
   );
 }
 
-function MemoryDetailWindow({ card }: { card?: MemoryCard }) {
+function MemoryDetailWindow({
+  card,
+  displayMode
+}: {
+  card?: MemoryCard;
+  displayMode: DisplayMode;
+}) {
   if (!card) {
     return <p className="empty-state">No memory card selected.</p>;
   }
@@ -1259,74 +1472,94 @@ function MemoryDetailWindow({ card }: { card?: MemoryCard }) {
       <div className="tag-row">
         {card.tags.map((tag) => <span key={tag}>{tag}</span>)}
       </div>
-      <pre className="safe-json">{safeDisplayJson(card.metadata)}</pre>
+      <JsonInspector
+        value={card.metadata}
+        visible={displayMode === "developer"}
+        stringify={safeDisplayJson}
+      />
     </div>
   );
 }
 
 function TraceWindow(props: {
   trace: RuntimeTrace | null;
-  openWindow: (type: WindowType, options?: { contextName?: string; payload?: WindowPayload }) => void;
+  analytics?: MindTraceAnalytics;
+  displayMode: DisplayMode;
 }) {
   const trace = props.trace;
   if (!trace) {
     return <p className="empty-state">No runtime trace captured yet.</p>;
   }
-  const hasError = trace.status === "failed";
+  const analytics = props.analytics;
+  const stages = analytics?.stages ?? trace.stages.map((stage) => ({
+    name: stage.name,
+    displayName: stage.displayName,
+    status: stage.status,
+    durationMs: stage.durationMs,
+    summary: stage.summary,
+    startedAt: stage.startedAt,
+    endedAt: stage.endedAt
+  }));
+  const maxDuration = Math.max(1, ...stages.map((stage) => stage.durationMs));
+  const hasError = trace.status === "failed" || (analytics?.latest.errorCount ?? 0) > 0;
   return (
     <div className="trace-module">
       <div className="module-strip">TRACE · {trace.status}</div>
-      <details open>
-        <summary>Run Summary</summary>
-        <div className="trace-summary-grid">
-          <Metric label="turn" value={trace.turnShortId} />
-          <Metric label="duration" value={`${trace.totalDurationMs}ms`} />
-          <Metric label="privacy" value={trace.privacyMode} />
-          <Metric label="error" value={trace.errorCode ?? "none"} />
+      <div className="trace-summary-grid">
+        <MetricCard label="turn" value={trace.turnShortId} />
+        <MetricCard label="status" value={<StatusBadge value={trace.status} />} tone={hasError ? "danger" : "ok"} />
+        <MetricCard label="elapsed" value={`${trace.totalDurationMs}ms`} />
+        <MetricCard label="provider" value={`${analytics?.latest.providerDurationMs ?? "n/a"}ms`} />
+        <MetricCard label="warnings" value={analytics?.latest.warningCount ?? 0} tone="warn" />
+        <MetricCard label="errors" value={analytics?.latest.errorCount ?? (hasError ? 1 : 0)} tone={hasError ? "danger" : "ok"} />
+        <MetricCard label="owner input last" value={analytics?.latest.currentOwnerInputLast ? "yes" : "n/a"} />
+        <MetricCard label="raw prompt" value="hidden" tone="ok" />
+      </div>
+      <SectionPanel title="Pipeline Timeline" defaultOpen>
+        <Timeline
+          events={stages.map((stage) => ({
+            id: `${stage.name}-${stage.startedAt}`,
+            type: stage.displayName,
+            label: `${stage.durationMs}ms`,
+            at: stage.startedAt,
+            status: stage.status
+          }))}
+        />
+      </SectionPanel>
+      {props.displayMode !== "basic" ? (
+        <SectionPanel title="Stage Durations" defaultOpen>
+          <div className="duration-list">
+            {stages.map((stage) => (
+              <article key={`${stage.name}-duration`}>
+                <header>
+                  <strong>{stage.displayName}</strong>
+                  <span>{stage.durationMs}ms</span>
+                </header>
+                <MiniBar value={stage.durationMs} max={maxDuration} label={stage.summary} />
+                <p>{stage.summary}</p>
+              </article>
+            ))}
+          </div>
+        </SectionPanel>
+      ) : null}
+      <SectionPanel title="Safety Flags" defaultOpen={props.displayMode !== "basic"}>
+        <div className="tag-row">
+          <span>rawPromptIncluded=false</span>
+          <span>hiddenReasoningIncluded=false</span>
+          <span>rawModelOutputIncluded=false</span>
+          <span>privacy={trace.privacyMode}</span>
         </div>
-      </details>
-      <details open>
-        <summary>Timeline</summary>
-        <ol className="trace-timeline-list">
-          {trace.stages.map((stage) => (
-            <li key={`${stage.name}-${stage.startedAt}`} className={stage.status}>
-              <span>{stage.displayName}</span>
-              <b>{stage.durationMs}ms</b>
-              <p>{stage.summary}</p>
-            </li>
-          ))}
-        </ol>
-      </details>
-      <TraceSection title="Provider" trace={trace} names={["model_request", "raw_model_response"]} />
-      <TraceSection title="Memory" trace={trace} names={["memory_v2_retrieval", "memory_update"]} />
-      <TraceSection title="Sanitizer" trace={trace} names={["sanitization_final_answer"]} />
-      <TraceSection title="Storage" trace={trace} names={["persist_owner_message", "store_reply"]} />
-      <details open={hasError}>
-        <summary>Error</summary>
-        <pre className="safe-json">
-          {safeDisplayJson({
-            status: trace.status,
-            errorCode: trace.errorCode ?? "none"
-          })}
-        </pre>
-      </details>
+        {hasError ? <p className="readable-note">Latest trace reports {trace.errorCode ?? "a runtime error"}.</p> : null}
+      </SectionPanel>
+      <JsonInspector value={trace} visible={props.displayMode === "developer"} stringify={safeDisplayJson} />
     </div>
-  );
-}
-
-function TraceSection(props: { title: string; trace: RuntimeTrace; names: string[] }) {
-  const stages = props.trace.stages.filter((stage) => props.names.includes(stage.name));
-  return (
-    <details>
-      <summary>{props.title}</summary>
-      <pre className="safe-json">{safeDisplayJson(stages)}</pre>
-    </details>
   );
 }
 
 function ProviderWindow(props: {
   snapshot: GlitchSnapshot | null;
   openWindow: (type: WindowType, options?: { contextName?: string; payload?: WindowPayload }) => void;
+  displayMode: DisplayMode;
 }) {
   const provider = props.snapshot?.provider;
   if (!provider) {
@@ -1336,14 +1569,14 @@ function ProviderWindow(props: {
     <div className="provider-module">
       <div className="module-strip">PROVIDER STATUS · SAFE CONFIG</div>
       <div className="provider-grid">
-        <Metric label="provider" value={provider.activeProvider} />
-        <Metric label="adapter" value={provider.activeAdapter} />
-        <Metric label="model" value={provider.activeModel} />
-        <Metric label="health" value={provider.health} />
-        <Metric label="latency" value={provider.lastLatencyMs} />
-        <Metric label="streaming" value={provider.streamingSupport} />
+        <MetricCard label="provider" value={provider.activeProvider} />
+        <MetricCard label="adapter" value={provider.activeAdapter} />
+        <MetricCard label="model" value={provider.activeModel} />
+        <MetricCard label="health" value={<StatusBadge value={provider.health} />} />
+        <MetricCard label="latency" value={provider.lastLatencyMs} />
+        <MetricCard label="streaming" value={provider.streamingSupport} />
       </div>
-      <pre className="safe-json">{safeDisplayJson(provider.safeConfig)}</pre>
+      <JsonInspector value={provider.safeConfig} visible={props.displayMode === "developer"} stringify={safeDisplayJson} />
       {provider.lastError !== "n/a" ? (
         <button
           type="button"
@@ -1372,26 +1605,32 @@ function ProviderWindow(props: {
   );
 }
 
-function CostWindow(props: { snapshot: GlitchSnapshot | null }) {
+function CostWindow(props: { snapshot: GlitchSnapshot | null; displayMode: DisplayMode }) {
   const cost = props.snapshot?.cost;
   if (!cost) {
     return <p className="empty-state">Cost and token usage loading.</p>;
   }
   const latest = cost.latest;
   const maxRecentTokens = Math.max(1, ...cost.recent.map((item) => item.totalTokens));
+  const avgTokens = cost.eventCount ? Math.round(cost.totalTokens / cost.eventCount) : 0;
+  const avgCost = cost.eventCount ? cost.totalEstimatedCost / cost.eventCount : 0;
+  const providerDistribution = distribution(cost.recent.map((item) => item.providerId));
+  const modelDistribution = distribution(cost.recent.map((item) => item.model));
   return (
     <div className="cost-module">
       <div className="module-strip">COST / TOKEN · SAFE LEDGER</div>
       <div className="cost-grid">
-        <Metric label="provider" value={cost.provider} />
-        <Metric label="model" value={cost.model} />
-        <Metric label="config" value={cost.configurationStatus} />
-        <Metric label="records" value={cost.eventCount} />
-        <Metric label="total tokens" value={cost.totalTokens} />
-        <Metric
+        <MetricCard label="provider" value={cost.provider} />
+        <MetricCard label="model" value={cost.model} />
+        <MetricCard label="config" value={<StatusBadge value={cost.configurationStatus} />} />
+        <MetricCard label="records" value={cost.eventCount} />
+        <MetricCard label="total tokens" value={cost.totalTokens} />
+        <MetricCard
           label="total cost"
           value={`${formatCost(cost.totalEstimatedCost)} ${cost.currency}`}
         />
+        <MetricCard label="avg tokens" value={avgTokens} />
+        <MetricCard label="avg cost" value={`${formatCost(avgCost)} ${cost.currency}`} />
       </div>
       <div className="cost-latest">
         <span>latest turn</span>
@@ -1403,6 +1642,19 @@ function CostWindow(props: { snapshot: GlitchSnapshot | null }) {
           <strong>no usage records yet</strong>
         )}
       </div>
+      {latest ? (
+        <ChartCard title="Latest Input / Output Split">
+          <StackedBar
+            segments={[
+              { label: "input", value: latest.inputTokens, tone: "input" },
+              { label: "output", value: latest.outputTokens, tone: "output" }
+            ]}
+          />
+          <p className="readable-note">
+            Context characters: {latest.contextCharacterCount}. Raw prompt text is not exposed.
+          </p>
+        </ChartCard>
+      ) : null}
       <div className="cost-record-list">
         {cost.recent.length ? (
           cost.recent.slice(0, 20).map((item) => (
@@ -1421,6 +1673,28 @@ function CostWindow(props: { snapshot: GlitchSnapshot | null }) {
           <p className="empty-state">Configure API chat and complete a turn to record usage.</p>
         )}
       </div>
+      {props.displayMode !== "basic" ? (
+        <>
+          <ChartCard title="Provider Distribution">
+            <DataTable
+              columns={[
+                { key: "label", label: "provider/model" },
+                { key: "value", label: "turns" }
+              ]}
+              rows={[...providerDistribution, ...modelDistribution]}
+              empty="No provider usage records."
+            />
+          </ChartCard>
+          <ExplanationList
+            items={[
+              "Token records are stored as safe usage metadata only.",
+              "Context size is shown next to token use so high-cost turns can be diagnosed without exposing prompt text.",
+              "Daily trend needs more dated records; v1 keeps per-turn bars when history is short."
+            ]}
+          />
+        </>
+      ) : null}
+      <JsonInspector value={cost} visible={props.displayMode === "developer"} stringify={safeDisplayJson} />
     </div>
   );
 }
@@ -1431,11 +1705,17 @@ function MindWindow(props: {
     candidateId: string,
     action: "approve" | "reject" | "deactivate" | "reactivate"
   ) => Promise<void>;
+  editMindCandidate: (candidateId: string, patch: MindCandidateSafePatch) => Promise<void>;
+  displayMode: DisplayMode;
 }) {
   const mind = props.snapshot?.mind;
   const latest = mind?.latest;
   const [statusFilter, setStatusFilter] = useState("all");
   const [riskFilter, setRiskFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [candidateSearch, setCandidateSearch] = useState("");
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   if (!mind || !latest) {
     return <p className="empty-state">No RIN Mind snapshot captured yet.</p>;
   }
@@ -1445,87 +1725,143 @@ function MindWindow(props: {
   const retrieval = latest.memoryRetrieval;
   const responsePlan = latest.responsePlan;
   const candidates = mind.memoryCandidates.length ? mind.memoryCandidates : latest.memoryCandidates;
-  const filteredCandidates = candidates.filter((candidate) => (
-    (statusFilter === "all" || candidate.reviewStatus === statusFilter)
-    && (riskFilter === "all" || candidate.riskLevel === riskFilter)
-  ));
+  const analytics = mind.analytics;
+  const memoryAnalytics = analytics?.memory;
+  const contextAnalytics = analytics?.context;
+  const candidateAnalytics = memoryAnalytics?.candidates ?? [];
+  const analyticsById = new Map(candidateAnalytics.map((item) => [item.candidateId, item]));
+  const typeOptions = uniqueValues(candidates.map((candidate) => candidate.type));
+  const filteredCandidates = candidates.filter((candidate) => {
+    const searchable = [
+      candidate.safeSummary,
+      candidate.normalizedValue ?? "",
+      candidate.type,
+      candidate.reviewStatus,
+      candidate.riskLevel,
+      candidate.tags.join(" ")
+    ].join(" ").toLowerCase();
+    const activeMatch = activeFilter === "all"
+      || (activeFilter === "active" && candidate.active)
+      || (activeFilter === "inactive" && !candidate.active);
+    return (
+      (statusFilter === "all" || candidate.reviewStatus === statusFilter)
+      && (riskFilter === "all" || candidate.riskLevel === riskFilter)
+      && (typeFilter === "all" || candidate.type === typeFilter)
+      && activeMatch
+      && (!candidateSearch.trim() || searchable.includes(candidateSearch.trim().toLowerCase()))
+    );
+  });
+  const selectedCandidate = (
+    selectedCandidateId
+      ? candidateAnalytics.find((item) => item.candidateId === selectedCandidateId)
+      : undefined
+  ) ?? candidateAnalytics[0];
+  const disabledFeatures: Array<[string, boolean]> = [
+    ["embeddings", mind.policy.enableEmbeddings],
+    ["model summaries", mind.policy.enableModelSummaries],
+    ["agent tools", mind.policy.enableAgentTools],
+    ["high-risk memory export", mind.policy.allowHighRiskMemoryExport],
+    ["self-model auto apply", mind.policy.selfModelAutoApply]
+  ];
   return (
     <div className="mind-module">
       <div className="module-strip">RIN MIND · SAFE SNAPSHOT</div>
       <div className="mind-grid">
-        <Metric label="mode" value={understanding.mode} />
-        <Metric label="support" value={ownerState.supportNeed} />
-        <Metric label="urgency" value={understanding.urgency} />
-        <Metric label="risk" value={understanding.privacyRisk} />
-        <Metric label="memory" value={retrieval.selected.length} />
-        <Metric label="candidates" value={mind.candidateCount} />
+        <MetricCard label="mode" value={understanding.mode} />
+        <MetricCard label="support" value={ownerState.supportNeed} />
+        <MetricCard label="urgency" value={<StatusBadge value={understanding.urgency} />} />
+        <MetricCard label="risk" value={<RiskBadge value={understanding.privacyRisk} />} />
+        <MetricCard label="memory selected" value={retrieval.selected.length} />
+        <MetricCard label="candidates" value={mind.candidateCount} />
       </div>
-      <details>
-        <summary>Mind Policy</summary>
+      <SectionPanel title="Mind Policy" defaultOpen={props.displayMode !== "basic"}>
         <div className="mind-plan-grid">
-          <Metric label="ctx" value={mind.policy.contextMaxCharacters} />
-          <Metric label="memory max" value={mind.policy.memoryMaxSelected} />
-          <Metric label="embeddings" value={mind.policy.enableEmbeddings ? "on" : "off"} />
-          <Metric label="tools" value={mind.policy.enableAgentTools ? "on" : "off"} />
+          <MetricCard label="ctx" value={mind.policy.contextMaxCharacters} />
+          <MetricCard label="recent max" value={mind.policy.recentHistorySelectedLimit} />
+          <MetricCard label="memory max" value={mind.policy.memoryMaxSelected} />
+          <MetricCard label="dangerous defaults" value={mind.policy.dangerousDefaultsDisabled ? "disabled" : "check"} tone={mind.policy.dangerousDefaultsDisabled ? "ok" : "danger"} />
+        </div>
+        <div className="tag-row">
+          {disabledFeatures.map(([label, enabled]) => (
+            <span key={String(label)}>{label}: {enabled ? "enabled" : "disabled"}</span>
+          ))}
         </div>
         {mind.policy.warnings.length ? (
           <p className="readable-note">{mind.policy.warnings.join(" · ")}</p>
         ) : null}
-      </details>
-      <details open>
-        <summary>Overview</summary>
+      </SectionPanel>
+      <SectionPanel title="Message Understanding" defaultOpen>
         <p className="readable-note">{understanding.intentSummary}</p>
         <div className="tag-row">
           {understanding.topicTags.map((tag) => <span key={tag}>{tag}</span>)}
         </div>
-      </details>
-      <details>
-        <summary>Owner State</summary>
-        <dl className="detail-list compact">
-          <div><dt>energy</dt><dd>{ownerState.energyLevel}</dd></div>
-          <div><dt>mood</dt><dd>{ownerState.moodValence}</dd></div>
-          <div><dt>focus</dt><dd>{ownerState.focusState}</dd></div>
-          <div><dt>motivation</dt><dd>{ownerState.motivationState}</dd></div>
-          <div><dt>interrupt</dt><dd>{ownerState.interruptionRisk}</dd></div>
-          <div><dt>expires</dt><dd>{shortLabel(ownerState.expiresAt)}</dd></div>
-        </dl>
-      </details>
-      <details>
-        <summary>Context Plan</summary>
-        <div className="mind-plan-grid">
-          <Metric label="budget" value={contextPlan.budget} />
-          <Metric label="est tokens" value={contextPlan.estimatedTokens} />
-          <Metric label="recent" value={contextPlan.selectedRecentMessageIds.length} />
-          <Metric label="memory" value={contextPlan.selectedMemoryTraceIds.length} />
-        </div>
-        <pre className="safe-json">{safeDisplayJson({
-          selectedRecentMessageIds: contextPlan.selectedRecentMessageIds,
-          selectedMemoryTraceIds: contextPlan.selectedMemoryTraceIds,
-          selectedMemorySourceIds: contextPlan.selectedMemorySourceIds,
-          selectedProfileSections: contextPlan.selectedProfileSections,
-          selectedSummaryIds: contextPlan.selectedSummaryIds,
-          excludedItems: contextPlan.excludedItems.slice(0, 8),
-          privacyFlags: contextPlan.privacyFlags,
-          exportAllowed: contextPlan.exportAllowed
-        })}</pre>
-      </details>
-      <details>
-        <summary>Memory Retrieval</summary>
-        <div className="mind-list">
-          {retrieval.selected.length ? retrieval.selected.map((item) => (
-            <article key={`${item.sourceKind}:${item.sourceId}`} className="mind-row">
-              <strong>{item.sourceKind}</strong>
-              <span>score {item.score}</span>
-              <p>{item.safeSummary}</p>
-              {item.normalizedValue ? <small>{item.normalizedValue}</small> : null}
-              <small>{item.reasons.join(", ") || "selected"}</small>
-            </article>
-          )) : <p className="empty-state">No relevant memory selected.</p>}
-        </div>
-      </details>
-      <details open>
-        <summary>Memory Editor</summary>
+        {props.displayMode !== "basic" ? (
+          <div className="mind-plan-grid">
+            <MetricCard label="confidence" value={understanding.confidence.toFixed(2)} />
+            <MetricCard label="tone" value={understanding.emotionalTone} />
+            <MetricCard label="relationship" value={understanding.relationshipRelevance} />
+            <MetricCard label="memory signal" value={understanding.memorySignalType} />
+          </div>
+        ) : null}
+        <ExplanationList items={understanding.reasons.slice(0, props.displayMode === "basic" ? 3 : 8)} />
+      </SectionPanel>
+      <SectionPanel title="Owner State" defaultOpen>
+        <OwnerStateView ownerState={ownerState} trend={analytics?.ownerStateTrend} displayMode={props.displayMode} />
+      </SectionPanel>
+      <SectionPanel title="Response Plan" defaultOpen={props.displayMode !== "basic"}>
+        <ResponsePlanView
+          responsePlan={responsePlan}
+          ownerState={ownerState}
+          selectedMemoryCount={retrieval.selected.length}
+          displayMode={props.displayMode}
+        />
+      </SectionPanel>
+      <SectionPanel title="Memory Visualization" defaultOpen>
+        <MemoryAnalyticsView
+          analytics={memoryAnalytics}
+          candidates={candidates}
+          selectedCandidate={selectedCandidate}
+          setSelectedCandidateId={setSelectedCandidateId}
+          displayMode={props.displayMode}
+        />
+      </SectionPanel>
+      {props.displayMode !== "basic" ? (
+        <SectionPanel title="Context Plan Explainability" defaultOpen>
+          <ContextPlanView analytics={contextAnalytics} fallbackPlan={contextPlan} displayMode={props.displayMode} />
+        </SectionPanel>
+      ) : null}
+      {props.displayMode !== "basic" ? (
+        <SectionPanel title="Memory Retrieval" defaultOpen>
+          <div className="mind-list">
+            {retrieval.selected.length ? retrieval.selected.map((item) => (
+              <article key={`${item.sourceKind}:${item.sourceId}`} className="mind-row">
+                <strong>{item.sourceKind}</strong>
+                <span>score {item.score}</span>
+                <p>{item.safeSummary}</p>
+                {item.normalizedValue ? <small>{item.normalizedValue}</small> : null}
+                <small>{item.reasons.join(", ") || "selected"}</small>
+              </article>
+            )) : <p className="empty-state">No relevant memory selected.</p>}
+          </div>
+        </SectionPanel>
+      ) : null}
+      <SectionPanel title="Memory Editor" defaultOpen={props.displayMode !== "basic"}>
         <div className="mind-filter-row">
+          <label>
+            search
+            <input
+              value={candidateSearch}
+              onChange={(event) => setCandidateSearch(event.target.value)}
+              placeholder="safe summary / value / tag"
+            />
+          </label>
+          <label>
+            type
+            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+              <option value="all">all</option>
+              {typeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </label>
           <label>
             status
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
@@ -1548,97 +1884,442 @@ function MindWindow(props: {
               <option value="blocked">blocked</option>
             </select>
           </label>
+          <label>
+            active
+            <select value={activeFilter} onChange={(event) => setActiveFilter(event.target.value)}>
+              <option value="all">all</option>
+              <option value="active">active</option>
+              <option value="inactive">inactive</option>
+            </select>
+          </label>
         </div>
         <div className="mind-list">
           {filteredCandidates.length ? filteredCandidates.map((candidate) => (
             <MemoryCandidateRow
               key={candidate.id}
               candidate={candidate}
+              analytics={analyticsById.get(candidate.id)}
               reviewMindCandidate={props.reviewMindCandidate}
+              editMindCandidate={props.editMindCandidate}
+              setSelectedCandidateId={setSelectedCandidateId}
+              displayMode={props.displayMode}
             />
           )) : <p className="empty-state">No memory candidates match filters.</p>}
         </div>
-      </details>
-      <details>
-        <summary>Conversation Summary</summary>
+      </SectionPanel>
+      <SectionPanel title="Conversation Summary">
         {latest.conversationSummary ? (
-          <pre className="safe-json">{safeDisplayJson(latest.conversationSummary)}</pre>
+          <div className="mind-list">
+            <article className="mind-row">
+              <strong>{latest.conversationSummary.activeMode}</strong>
+              <p>{latest.conversationSummary.topicTags.join(", ") || "No topic tags."}</p>
+              <small>modelGenerated={String(latest.conversationSummary.modelGenerated)} rawTextIncluded=false</small>
+            </article>
+          </div>
         ) : (
           <p className="empty-state">No deterministic summary yet.</p>
         )}
-      </details>
-      <details>
-        <summary>Self Growth</summary>
+        <JsonInspector value={latest.conversationSummary} visible={props.displayMode === "developer"} stringify={safeDisplayJson} />
+      </SectionPanel>
+      <SectionPanel title="Self Growth">
         <div className="mind-list">
           {mind.growthEvents.length ? mind.growthEvents.map((event) => (
             <article key={event.id} className={`mind-row ${event.riskLevel}`}>
               <strong>{event.eventType}</strong>
-              <span>{event.reviewStatus}</span>
+              <ReviewStatusBadge value={event.reviewStatus} />
               <p>{event.summary}</p>
+              <small>safe summary only · rawTextIncluded=false</small>
             </article>
           )) : <p className="empty-state">No self-growth candidates.</p>}
         </div>
-      </details>
-      <details>
-        <summary>Tool Proposals</summary>
+      </SectionPanel>
+      <SectionPanel title="Tool Proposals">
         <div className="mind-list">
           {mind.toolInvocationRequests.length ? mind.toolInvocationRequests.map((request) => (
             <article key={request.id} className={`mind-row ${request.riskLevel}`}>
               <strong>{request.toolName}</strong>
-              <span>{request.status}</span>
+              <StatusBadge value={request.status} />
               <p>{request.actionSummary}</p>
+              <small>execution disabled by default · requiresOwnerApproval={String(request.requiresOwnerApproval)}</small>
             </article>
           )) : <p className="empty-state">Tool execution disabled; no proposals.</p>}
         </div>
-      </details>
-      <details>
-        <summary>Lifecycle</summary>
-        <pre className="safe-json">{safeDisplayJson({
-          lifecycle: latest.lifecycle,
-          embeddings: mind.embeddingStatus
-        })}</pre>
-      </details>
-      <details>
-        <summary>Response Plan</summary>
-        <pre className="safe-json">{safeDisplayJson(responsePlan)}</pre>
-      </details>
+      </SectionPanel>
+      <SectionPanel title="Lifecycle">
+        <Timeline
+          events={latest.lifecycle.stages.map((stage, index) => ({
+            id: `${stage}-${index}`,
+            type: stage,
+            label: "complete",
+            at: latest.createdAt,
+            status: "ok"
+          }))}
+        />
+        <JsonInspector
+          value={{ lifecycle: latest.lifecycle, embeddings: mind.embeddingStatus }}
+          visible={props.displayMode === "developer"}
+          stringify={safeDisplayJson}
+        />
+      </SectionPanel>
+      <JsonInspector
+        value={{ latest, memoryAnalytics, contextAnalytics }}
+        visible={props.displayMode === "developer"}
+        stringify={safeDisplayJson}
+      />
+    </div>
+  );
+}
+
+function OwnerStateView(props: {
+  ownerState: MindOwnerState;
+  trend?: MindOwnerStateTrend;
+  displayMode: DisplayMode;
+}) {
+  const rows = [
+    ["energy", props.ownerState.energyLevel],
+    ["mood", props.ownerState.moodValence],
+    ["arousal", props.ownerState.arousalLevel],
+    ["focus", props.ownerState.focusState],
+    ["motivation", props.ownerState.motivationState],
+    ["immersion", props.ownerState.immersionInertia],
+    ["interrupt", props.ownerState.interruptionRisk],
+    ["urgency", props.ownerState.resultUrgency]
+  ];
+  return (
+    <div className="owner-state-view">
+      <div className="state-bar-grid">
+        {rows.map(([label, value]) => (
+          <article key={label}>
+            <header>
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </header>
+            <MiniBar value={levelValue(value)} />
+          </article>
+        ))}
+      </div>
+      <div className="mind-plan-grid">
+        <MetricCard label="support" value={props.ownerState.supportNeed} />
+        <MetricCard label="confidence" value={props.ownerState.confidence.toFixed(2)} />
+        <MetricCard label="ttl" value={`${props.ownerState.ttlHours}h`} />
+        <MetricCard label="expires" value={shortLabel(props.ownerState.expiresAt)} />
+      </div>
+      {props.displayMode !== "basic" && props.trend?.points.length ? (
+        <ChartCard title="Recent Owner State Trend" note={props.trend.explanation}>
+          <DataTable
+            columns={[
+              { key: "createdAt", label: "time" },
+              { key: "moodValence", label: "mood" },
+              { key: "focusState", label: "focus" },
+              { key: "supportNeed", label: "support" },
+              { key: "confidence", label: "conf" }
+            ]}
+            rows={props.trend.points.slice(-8).map((point) => ({
+              createdAt: shortLabel(String(point.createdAt ?? "")),
+              moodValence: String(point.moodValence ?? "n/a"),
+              focusState: String(point.focusState ?? "n/a"),
+              supportNeed: String(point.supportNeed ?? "n/a"),
+              confidence: String(point.confidence ?? "n/a")
+            }))}
+          />
+        </ChartCard>
+      ) : null}
+    </div>
+  );
+}
+
+function ResponsePlanView(props: {
+  responsePlan: MindResponsePlan;
+  ownerState: MindOwnerState;
+  selectedMemoryCount: number;
+  displayMode: DisplayMode;
+}) {
+  const explanations = [
+    props.responsePlan.provideComfort || props.ownerState.moodValence === "negative"
+      ? "RIN uses a warmer or more supportive tone because owner state indicates comfort may help."
+      : "RIN keeps the tone direct because owner state does not require comfort-first handling.",
+    props.responsePlan.provideStructure
+      ? "RIN provides structure because the response plan requests organized next steps."
+      : "RIN avoids extra structure because the current plan is conversational.",
+    props.responsePlan.referenceMemory && props.selectedMemoryCount
+      ? "RIN may reference memory because safe approved memory was selected for this turn."
+      : "RIN will not force memory references when no safe selected memory is needed."
+  ];
+  return (
+    <div className="response-plan-view">
+      <div className="mind-plan-grid">
+        <MetricCard label="tone" value={props.responsePlan.tone} />
+        <MetricCard label="length" value={props.responsePlan.length} />
+        <MetricCard label="directness" value={props.responsePlan.directness} />
+        <MetricCard label="warmth" value={props.responsePlan.warmth} />
+        <MetricCard label="initiative" value={props.responsePlan.initiativeLevel} />
+        <MetricCard label="next action" value={props.responsePlan.nextActionStyle} />
+      </div>
+      <div className="tag-row">
+        <span>comfort={String(props.responsePlan.provideComfort)}</span>
+        <span>structure={String(props.responsePlan.provideStructure)}</span>
+        <span>referenceMemory={String(props.responsePlan.referenceMemory)}</span>
+        <span>avoidOverexplaining={String(props.responsePlan.avoidOverexplaining)}</span>
+      </div>
+      <ExplanationList items={props.displayMode === "basic" ? explanations.slice(0, 2) : [...explanations, ...props.responsePlan.reasons]} />
+      <JsonInspector value={props.responsePlan} visible={props.displayMode === "developer"} stringify={safeDisplayJson} />
+    </div>
+  );
+}
+
+function MemoryAnalyticsView(props: {
+  analytics?: MindMemoryAnalytics;
+  candidates: MindMemoryCandidate[];
+  selectedCandidate?: MemoryCandidateAnalytics;
+  setSelectedCandidateId: (candidateId: string) => void;
+  displayMode: DisplayMode;
+}) {
+  const counts = props.analytics?.counts;
+  if (!props.analytics) {
+    return <EmptyState message="Memory analytics not available yet." />;
+  }
+  const reviewSegments = recordDistributionSegments(counts?.byReviewStatus ?? {});
+  const riskSegments = recordDistributionSegments(counts?.byRiskLevel ?? {});
+  return (
+    <div className="memory-analytics-view">
+      <div className="mind-plan-grid">
+        <MetricCard label="total" value={counts?.total ?? props.candidates.length} />
+        <MetricCard label="active" value={counts?.active ?? 0} tone="ok" />
+        <MetricCard label="inactive" value={counts?.inactive ?? 0} />
+        <MetricCard label="pending" value={props.analytics.pendingReview.length} tone="warn" />
+        <MetricCard label="near decay" value={props.analytics.nearDecayThreshold.length} tone="warn" />
+        <MetricCard label="selected now" value={props.analytics.selectedInCurrentContextIds.length} />
+      </div>
+      <ChartCard title="Review Status Distribution">
+        <StackedBar segments={reviewSegments} />
+      </ChartCard>
+      <ChartCard title="Risk Distribution">
+        <StackedBar segments={riskSegments} />
+      </ChartCard>
+      {props.displayMode !== "basic" ? (
+        <ChartCard title="Memory Strength Ranking" note={props.analytics.formula}>
+          <div className="strength-ranking">
+            {props.analytics.strongest.length ? props.analytics.strongest.map((item) => (
+              <button
+                key={item.candidateId}
+                type="button"
+                onClick={() => props.setSelectedCandidateId(item.candidateId)}
+              >
+                <span>{item.shortId}</span>
+                <strong>{item.type}</strong>
+                <MiniBar value={item.memoryStrength} />
+                <small>{item.safeSummary}</small>
+              </button>
+            )) : <EmptyState message="No memory candidates yet." />}
+          </div>
+        </ChartCard>
+      ) : null}
+      {props.selectedCandidate && props.displayMode !== "basic" ? (
+        <MemoryCandidateDetail analytics={props.selectedCandidate} displayMode={props.displayMode} />
+      ) : null}
+    </div>
+  );
+}
+
+function MemoryCandidateDetail(props: {
+  analytics: MemoryCandidateAnalytics;
+  displayMode: DisplayMode;
+}) {
+  return (
+    <ChartCard title="Selected Memory Detail" note={props.analytics.explanation}>
+      <div className="mind-plan-grid">
+        <MetricCard label="strength" value={props.analytics.memoryStrength} />
+        <MetricCard label="risk" value={<RiskBadge value={props.analytics.riskLevel} />} />
+        <MetricCard label="review" value={<ReviewStatusBadge value={props.analytics.reviewStatus} />} />
+        <MetricCard label="decay" value={props.analytics.decayPolicy} />
+      </div>
+      <p className="readable-note">{props.analytics.safeSummary}</p>
+      {props.analytics.normalizedValue ? <p className="readable-note">{props.analytics.normalizedValue}</p> : null}
+      <ForgettingCurve analytics={props.analytics} />
+      <Timeline events={props.analytics.eventMarkers.map((event) => ({
+        type: event.type,
+        label: event.label,
+        at: event.at
+      }))} />
+      <div className="mind-plan-grid">
+        <MetricCard label="retrieval events" value={props.analytics.retrievalEvents.length} />
+        <MetricCard label="context injections" value={props.analytics.contextInjectionEvents.length} />
+        <MetricCard label="conflict" value={props.analytics.contradictionOf ?? "none"} />
+        <MetricCard label="supersedes" value={props.analytics.supersedes ?? "none"} />
+      </div>
+      <JsonInspector value={props.analytics} visible={props.displayMode === "developer"} stringify={safeDisplayJson} />
+    </ChartCard>
+  );
+}
+
+function ForgettingCurve({ analytics }: { analytics: MemoryCandidateAnalytics }) {
+  const width = 520;
+  const height = 160;
+  const padding = 24;
+  const points = analytics.predictedDecayPoints;
+  if (!points.length) {
+    return <EmptyState message="Not enough history for a forgetting curve." />;
+  }
+  const maxHours = Math.max(1, ...points.map((point) => point.elapsedHours));
+  const path = points.map((point, index) => {
+    const x = padding + (point.elapsedHours / maxHours) * (width - padding * 2);
+    const y = height - padding - point.memoryStrength * (height - padding * 2);
+    return `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join(" ");
+  const weakeningY = height - padding - analytics.thresholds.weakening * (height - padding * 2);
+  const forgettingY = height - padding - analytics.thresholds.forgetting * (height - padding * 2);
+  return (
+    <svg className="forgetting-curve" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Memory forgetting curve">
+      <line x1={padding} y1={weakeningY} x2={width - padding} y2={weakeningY} className="threshold weakening" />
+      <line x1={padding} y1={forgettingY} x2={width - padding} y2={forgettingY} className="threshold forgetting" />
+      <path d={path} />
+      {points.map((point) => {
+        const x = padding + (point.elapsedHours / maxHours) * (width - padding * 2);
+        const y = height - padding - point.memoryStrength * (height - padding * 2);
+        return (
+          <circle key={point.at} cx={x} cy={y} r="4">
+            <title>{`${point.at} · ${point.memoryStrength}`}</title>
+          </circle>
+        );
+      })}
+      <text x={padding} y={16}>memory strength</text>
+      <text x={width - padding - 86} y={height - 7}>time</text>
+    </svg>
+  );
+}
+
+function ContextPlanView(props: {
+  analytics?: MindContextAnalytics;
+  fallbackPlan: MindContextPlan;
+  displayMode: DisplayMode;
+}) {
+  const analytics = props.analytics;
+  if (!analytics) {
+    return <EmptyState message="Context analytics not available yet." />;
+  }
+  return (
+    <div className="context-plan-view">
+      <div className="context-flow">
+        {analytics.flow.map((step) => <span key={step}>{step}</span>)}
+      </div>
+      <ChartCard title="Context Budget">
+        <StackedBar
+          segments={analytics.budget.segments.map((segment) => ({
+            label: segment.type,
+            value: segment.estimatedTokens,
+            tone: segment.type
+          }))}
+        />
+        <p className="readable-note">{analytics.explanation}</p>
+      </ChartCard>
+      <DataTable
+        columns={[
+          { key: "source", label: "source" },
+          { key: "included", label: "included" },
+          { key: "reason", label: "reason" },
+          { key: "risk", label: "risk" },
+          { key: "tokens", label: "tokens" },
+          { key: "preview", label: "safe preview" }
+        ]}
+        rows={analytics.sources.slice(0, 16).map((source) => ({
+          source: `${source.sourceKind}:${source.sourceId}`,
+          included: source.included ? "yes" : "no",
+          reason: source.reason,
+          risk: source.riskLevel,
+          tokens: String(source.estimatedTokens),
+          preview: source.safePreview || "n/a"
+        }))}
+      />
+      <div className="mind-plan-grid">
+        <MetricCard label="messages" value={analytics.providerRequestOutline.messageCount} />
+        <MetricCard label="memory selected" value={analytics.providerRequestOutline.selectedMemoryCount} />
+        <MetricCard label="excluded" value={analytics.providerRequestOutline.excludedMemoryCount} />
+        <MetricCard label="owner input last" value={analytics.providerRequestOutline.currentOwnerInputLast ? "yes" : "no"} tone={analytics.providerRequestOutline.currentOwnerInputLast ? "ok" : "danger"} />
+      </div>
+      <JsonInspector
+        value={{ analytics, fallbackPlan: props.fallbackPlan }}
+        visible={props.displayMode === "developer"}
+        stringify={safeDisplayJson}
+      />
     </div>
   );
 }
 
 function MemoryCandidateRow(props: {
   candidate: MindMemoryCandidate;
+  analytics?: MemoryCandidateAnalytics;
   reviewMindCandidate: (
     candidateId: string,
     action: "approve" | "reject" | "deactivate" | "reactivate"
   ) => Promise<void>;
+  editMindCandidate: (candidateId: string, patch: MindCandidateSafePatch) => Promise<void>;
+  setSelectedCandidateId: (candidateId: string) => void;
+  displayMode: DisplayMode;
 }) {
   const candidate = props.candidate;
+  const [safeSummary, setSafeSummary] = useState(candidate.safeSummary);
+  const [normalizedValue, setNormalizedValue] = useState(candidate.normalizedValue ?? "");
+  const [tagsText, setTagsText] = useState(candidate.tags.join(", "));
   const actionable = ["candidate", "review_required"].includes(candidate.reviewStatus)
     && candidate.riskLevel !== "blocked";
   const canDeactivate = candidate.active && candidate.riskLevel !== "blocked";
   const canReactivate = !candidate.active && candidate.riskLevel !== "blocked";
+  const canSafeEdit = candidate.riskLevel !== "blocked"
+    && ["low", "medium"].includes(candidate.riskLevel)
+    && props.displayMode !== "basic";
   return (
     <article className={`mind-candidate ${candidate.riskLevel}`}>
       <header>
-        <strong>{candidate.type}</strong>
-        <span>{candidate.reviewStatus}</span>
+        <button type="button" className="link-button" onClick={() => props.setSelectedCandidateId(candidate.id)}>
+          {candidate.type}
+        </button>
+        <ReviewStatusBadge value={candidate.reviewStatus} />
       </header>
       <p>{candidate.safeSummary}</p>
       {candidate.normalizedValue ? (
         <p className="readable-note">{candidate.normalizedValue}</p>
       ) : null}
       <dl className="detail-list compact">
-        <div><dt>risk</dt><dd>{candidate.riskLevel}</dd></div>
+        <div><dt>risk</dt><dd><RiskBadge value={candidate.riskLevel} /></dd></div>
         <div><dt>confidence</dt><dd>{candidate.confidence}</dd></div>
         <div><dt>salience</dt><dd>{candidate.salience}</dd></div>
+        <div><dt>strength</dt><dd>{props.analytics?.memoryStrength ?? "n/a"}</dd></div>
         <div><dt>auto</dt><dd>{candidate.autoPromote ? "yes" : "no"}</dd></div>
         <div><dt>active</dt><dd>{candidate.active ? "yes" : "no"}</dd></div>
         <div><dt>redacted</dt><dd>{candidate.redacted ? "yes" : "no"}</dd></div>
       </dl>
+      {props.analytics ? <MiniBar value={props.analytics.memoryStrength} /> : null}
       <div className="tag-row">
         {candidate.tags.map((tag) => <span key={tag}>{tag}</span>)}
       </div>
+      {canSafeEdit ? (
+        <div className="candidate-editor">
+          <label>
+            safeSummary
+            <textarea value={safeSummary} onChange={(event) => setSafeSummary(event.target.value)} />
+          </label>
+          <label>
+            normalizedValue
+            <textarea value={normalizedValue} onChange={(event) => setNormalizedValue(event.target.value)} />
+          </label>
+          <label>
+            tags
+            <input value={tagsText} onChange={(event) => setTagsText(event.target.value)} />
+          </label>
+          <button
+            type="button"
+            onClick={() =>
+              void props.editMindCandidate(candidate.id, {
+                safeSummary,
+                normalizedValue: normalizedValue.trim() ? normalizedValue : null,
+                tags: tagsText.split(",").map((item) => item.trim()).filter(Boolean)
+              })
+            }
+          >
+            SAVE SAFE EDIT
+          </button>
+        </div>
+      ) : null}
       {actionable ? (
         <div className="mind-actions">
           <button
@@ -1675,6 +2356,7 @@ function MemoryCandidateRow(props: {
           </button>
         </div>
       ) : null}
+      <JsonInspector value={{ candidate, analytics: props.analytics }} visible={props.displayMode === "developer"} stringify={safeDisplayJson} />
     </article>
   );
 }
@@ -1684,6 +2366,43 @@ function formatCost(value: number) {
     return "0.000000";
   }
   return value.toFixed(6);
+}
+
+function distribution(values: string[]) {
+  const counts = values.reduce<Record<string, number>>((items, value) => {
+    items[value] = (items[value] ?? 0) + 1;
+    return items;
+  }, {});
+  return Object.entries(counts).map(([label, value]) => ({ label, value: String(value) }));
+}
+
+function uniqueValues(values: string[]) {
+  return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
+}
+
+function recordDistributionSegments(counts: Record<string, number>) {
+  return Object.entries(counts).map(([label, value]) => ({
+    label,
+    value,
+    tone: label
+  }));
+}
+
+function levelValue(value: string | number) {
+  if (typeof value === "number") {
+    return Math.max(0, Math.min(1, value));
+  }
+  const normalized = value.toLowerCase();
+  if (["high", "positive", "immersed", "stable", "activated"].includes(normalized)) {
+    return 0.82;
+  }
+  if (["medium", "normal", "neutral", "calm"].includes(normalized)) {
+    return 0.58;
+  }
+  if (["low", "negative", "scattered", "blocked", "stressed", "unstable"].includes(normalized)) {
+    return 0.28;
+  }
+  return 0.12;
 }
 
 function shortLabel(value: string) {

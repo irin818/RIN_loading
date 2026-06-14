@@ -8,7 +8,10 @@ profile/memory status, and safe serialization helpers.
 
 from __future__ import annotations
 
+import math
+import re
 from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import cast
 
@@ -39,10 +42,12 @@ from rin.database import (
     list_memory_v2_traces,
     list_messages,
     list_mind_memory_candidates,
+    list_recent_mind_snapshots,
     list_rin_growth_events,
     list_tool_invocation_requests,
     summarize_api_usage,
     update_memory_candidate_review,
+    update_memory_candidate_safe_fields,
 )
 from rin.diagnostics.readiness import build_python_readiness_report
 from rin.diagnostics.runtime_trace import (
@@ -68,6 +73,17 @@ FRONTEND_INDEX = FRONTEND_DIST_DIR / "index.html"
 FRONTEND_ASSETS_DIR = FRONTEND_DIST_DIR / "assets"
 FRONTEND_PUBLIC_PICTURE_DIR = REPO_ROOT / "frontend" / "public" / "picture"
 FRONTEND_DIST_PICTURE_DIR = FRONTEND_DIST_DIR / "picture"
+SECRET_LIKE_PATTERNS = (
+    re.compile(r"sk-[A-Za-z0-9_-]{12,}", re.IGNORECASE),
+    re.compile(r"github_pat_[A-Za-z0-9_]{12,}", re.IGNORECASE),
+    re.compile(r"ghp_[A-Za-z0-9_]{12,}", re.IGNORECASE),
+    re.compile(r"xox[baprs]-[A-Za-z0-9-]{12,}", re.IGNORECASE),
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----", re.IGNORECASE),
+    re.compile(
+        r"\b(api[_ -]?key|access[_ -]?token|refresh[_ -]?token|password|secret)\b",
+        re.IGNORECASE,
+    ),
+)
 
 
 class ConversationCreateBody(BaseModel):
@@ -89,6 +105,16 @@ class ConversationSendBody(BaseModel):
     content: str
     conversationId: str | None = None
     turnId: str | None = None
+
+
+class MemoryCandidateSafePatchBody(BaseModel):
+    """Safe editable fields for a memory candidate. Raw source text is not accepted."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    safeSummary: str | None = None
+    normalizedValue: str | None = None
+    tags: list[str] | None = None
 
 
 class ApiState(BaseModel):
@@ -136,6 +162,11 @@ def create_app(
     app = FastAPI(title="RIN Python Compatibility API", version="0.0.0")
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     if FRONTEND_ASSETS_DIR.is_dir():
+        app.mount(
+            "/assets",
+            StaticFiles(directory=FRONTEND_ASSETS_DIR),
+            name="frontend-assets",
+        )
         app.mount(
             "/glitch-core/assets",
             StaticFiles(directory=FRONTEND_ASSETS_DIR),
@@ -363,6 +394,74 @@ def create_app(
             "rawTextIncluded": False,
             "secretValuesIncluded": False,
         }
+
+    @app.get("/api/mind/analytics")
+    def api_mind_analytics(
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return build_mind_analytics_payload(current_layout)
+
+    @app.get("/api/mind/memory-analytics")
+    def api_mind_memory_analytics(
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return build_memory_analytics_payload(current_layout)
+
+    @app.get("/api/mind/memory-candidates/{candidate_id}/analytics")
+    def api_mind_memory_candidate_analytics(
+        candidate_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        payload = build_memory_candidate_analytics_payload(
+            current_layout,
+            candidate_id,
+        )
+        if payload is None:
+            raise HTTPException(status_code=404, detail="Memory candidate not found.")
+        return payload
+
+    @app.get("/api/mind/context-analytics")
+    def api_mind_context_analytics(
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return build_context_analytics_payload(current_layout)
+
+    @app.get("/api/mind/owner-state-trend")
+    def api_mind_owner_state_trend(
+        limit: int = 20,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return build_owner_state_trend_payload(current_layout, limit=limit)
+
+    @app.get("/api/mind/trace-analytics")
+    def api_mind_trace_analytics() -> dict[str, object]:
+        return build_trace_analytics_payload()
+
+    @app.patch("/api/mind/memory-candidates/{candidate_id}")
+    def api_mind_memory_candidate_patch(
+        candidate_id: str,
+        body: MemoryCandidateSafePatchBody,
+        current_layout: RinDataLayout = layout_dependency,
+        current_clock: RuntimeClock = clock_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        updates = validate_memory_candidate_safe_patch(body)
+        result = update_memory_candidate_safe_fields(
+            current_layout,
+            candidate_id=candidate_id,
+            updates=updates,
+            now=current_clock.now(),
+        )
+        if result == "missing":
+            raise HTTPException(status_code=404, detail="Memory candidate not found.")
+        if result == "blocked":
+            raise HTTPException(
+                status_code=409,
+                detail="Blocked memory candidate cannot be edited.",
+            )
+        if result == "no_changes":
+            raise HTTPException(status_code=400, detail="No safe edit fields provided.")
+        return build_memory_candidate_action_response(current_layout, candidate_id)
 
     @app.post("/api/mind/memory-candidates/{candidate_id}/approve")
     def api_mind_memory_candidate_approve(
@@ -1491,6 +1590,7 @@ def build_mind_latest_payload(layout: RinDataLayout) -> dict[str, object]:
         "candidateCount": len(candidates),
         "memoryCandidates": [item.model_dump(mode="json") for item in candidates],
         "policy": policy.model_dump(mode="json"),
+        "analytics": build_mind_analytics_payload(layout),
         "growthEvents": [item.model_dump(mode="json") for item in growth_events],
         "toolInvocationRequests": [
             item.model_dump(mode="json") for item in tool_requests
@@ -1525,6 +1625,690 @@ def build_mind_snapshot_response(snapshot: RinMindSnapshot) -> dict[str, object]
         "hiddenReasoningIncluded": False,
         "secretValuesIncluded": False,
     }
+
+
+def build_mind_analytics_payload(layout: RinDataLayout) -> dict[str, object]:
+    """Return the combined safe explainability payload for the cognitive dashboard."""
+    return {
+        "ok": True,
+        "mode": "rin-mind-analytics",
+        "readOnly": True,
+        "localOnly": True,
+        "memory": build_memory_analytics_payload(layout),
+        "context": build_context_analytics_payload(layout),
+        "ownerStateTrend": build_owner_state_trend_payload(layout),
+        "trace": build_trace_analytics_payload(),
+        "rawTextIncluded": False,
+        "rawPromptIncluded": False,
+        "rawMemoryIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def build_memory_analytics_payload(layout: RinDataLayout) -> dict[str, object]:
+    """Build safe memory candidate analytics from persisted candidate metadata."""
+    candidates = list_mind_memory_candidates(layout, limit=100)
+    latest = get_latest_mind_snapshot(layout)
+    selected_ids = (
+        {
+            item.sourceId
+            for item in latest.memoryRetrieval.selected
+            if item.sourceKind == "memory_candidate"
+        }
+        if latest
+        else set()
+    )
+    candidate_payloads = [
+        build_memory_candidate_analytics(item, latest=latest, selected_ids=selected_ids)
+        for item in candidates
+    ]
+    counts = {
+        "total": len(candidate_payloads),
+        "byReviewStatus": count_by(candidate_payloads, "reviewStatus"),
+        "byRiskLevel": count_by(candidate_payloads, "riskLevel"),
+        "byType": count_by(candidate_payloads, "type"),
+        "active": sum(1 for item in candidate_payloads if item["active"] is True),
+        "inactive": sum(1 for item in candidate_payloads if item["active"] is False),
+    }
+    strongest = sorted(
+        candidate_payloads,
+        key=lambda item: float(cast(float, item["memoryStrength"])),
+        reverse=True,
+    )[:8]
+    pending = [
+        item
+        for item in candidate_payloads
+        if item["reviewStatus"] in {"candidate", "review_required"}
+    ][:12]
+    near_decay = [
+        item
+        for item in candidate_payloads
+        if float(cast(float, item["memoryStrength"]))
+        <= cast(dict[str, float], item["thresholds"])["weakening"]
+        and item["active"] is True
+    ][:8]
+    return {
+        "ok": True,
+        "mode": "rin-mind-memory-analytics",
+        "readOnly": True,
+        "localOnly": True,
+        "counts": counts,
+        "strongest": strongest,
+        "pendingReview": pending,
+        "nearDecayThreshold": near_decay,
+        "selectedInCurrentContextIds": sorted(selected_ids),
+        "candidates": candidate_payloads,
+        "thresholds": memory_strength_thresholds(),
+        "formula": (
+            "strength = bounded weighted salience, confidence, status, stability, "
+            "risk, active flag, and elapsed-time decay from candidate timestamps"
+        ),
+        "explanation": (
+            "Memory analytics are deterministic local projections from safeSummary, "
+            "normalizedValue, risk/status metadata, salience, confidence, and "
+            "timestamps."
+        ),
+        "rawTextIncluded": False,
+        "rawPromptIncluded": False,
+        "rawMemoryIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def build_memory_candidate_analytics_payload(
+    layout: RinDataLayout,
+    candidate_id: str,
+) -> dict[str, object] | None:
+    """Return safe analytics for one memory candidate."""
+    candidates = list_mind_memory_candidates(layout, limit=100)
+    candidate = next((item for item in candidates if item.id == candidate_id), None)
+    if candidate is None:
+        return None
+    latest = get_latest_mind_snapshot(layout)
+    selected_ids = (
+        {
+            item.sourceId
+            for item in latest.memoryRetrieval.selected
+            if item.sourceKind == "memory_candidate"
+        }
+        if latest
+        else set()
+    )
+    analytics = build_memory_candidate_analytics(
+        candidate,
+        latest=latest,
+        selected_ids=selected_ids,
+    )
+    return {
+        "ok": True,
+        "mode": "rin-mind-memory-candidate-analytics",
+        "readOnly": True,
+        "localOnly": True,
+        "candidate": analytics,
+        "rawTextIncluded": False,
+        "rawPromptIncluded": False,
+        "rawMemoryIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def build_memory_candidate_analytics(
+    candidate: object,
+    *,
+    latest: RinMindSnapshot | None,
+    selected_ids: set[str],
+) -> dict[str, object]:
+    """Project one candidate into chartable safe memory analytics."""
+    created_at = getattr(candidate, "createdAt", None) or getattr(
+        candidate,
+        "updatedAt",
+        None,
+    )
+    updated_at = getattr(candidate, "updatedAt", None) or created_at
+    created_dt = parse_iso_datetime(created_at)
+    updated_dt = parse_iso_datetime(updated_at) or created_dt
+    now = datetime.now(UTC)
+    strength = memory_strength_score(candidate, now=now)
+    thresholds = memory_strength_thresholds()
+    event_markers: list[dict[str, object]] = [
+        {
+            "type": "created",
+            "at": iso_or_na(created_dt, created_at),
+            "label": "created",
+        }
+    ]
+    review_status = str(getattr(candidate, "reviewStatus", "candidate"))
+    if review_status in {"auto_promoted", "owner_approved", "rejected", "inactive"}:
+        event_markers.append(
+            {
+                "type": review_status,
+                "at": iso_or_na(updated_dt, updated_at),
+                "label": review_status,
+            }
+        )
+    if getattr(candidate, "active", False) is False:
+        event_markers.append(
+            {
+                "type": "deactivated",
+                "at": iso_or_na(updated_dt, updated_at),
+                "label": "inactive" if review_status == "inactive" else "not active",
+            }
+        )
+    if getattr(candidate, "id", "") in selected_ids and latest is not None:
+        event_markers.append(
+            {
+                "type": "injected_into_context",
+                "at": latest.createdAt,
+                "label": "selected in latest context",
+            }
+        )
+    if strength <= thresholds["forgetting"]:
+        event_markers.append(
+            {
+                "type": "threshold_crossed",
+                "at": now.isoformat().replace("+00:00", "Z"),
+                "label": "forgetting threshold",
+            }
+        )
+    elif strength <= thresholds["weakening"]:
+        event_markers.append(
+            {
+                "type": "threshold_crossed",
+                "at": now.isoformat().replace("+00:00", "Z"),
+                "label": "weakening threshold",
+            }
+        )
+    retrieval_events = (
+        [
+            {
+                "type": "retrieved",
+                "at": latest.createdAt,
+                "source": "latest_mind_snapshot",
+            }
+        ]
+        if getattr(candidate, "id", "") in selected_ids and latest is not None
+        else []
+    )
+    return {
+        "candidateId": getattr(candidate, "id", "n/a"),
+        "shortId": short_id(str(getattr(candidate, "id", ""))),
+        "type": getattr(candidate, "type", "n/a"),
+        "safeSummary": getattr(candidate, "safeSummary", ""),
+        "normalizedValue": getattr(candidate, "normalizedValue", None),
+        "riskLevel": getattr(candidate, "riskLevel", "n/a"),
+        "reviewStatus": review_status,
+        "active": bool(getattr(candidate, "active", False)),
+        "ownerConfirmed": bool(getattr(candidate, "ownerConfirmed", False)),
+        "autoPromote": bool(getattr(candidate, "autoPromote", False)),
+        "salience": round(float(getattr(candidate, "salience", 0.0)), 4),
+        "confidence": round(float(getattr(candidate, "confidence", 0.0)), 4),
+        "stability": getattr(candidate, "stability", "n/a"),
+        "decayPolicy": getattr(candidate, "decayPolicy", "n/a"),
+        "memoryStrength": strength,
+        "thresholds": thresholds,
+        "predictedDecayPoints": predicted_decay_points(candidate, now=now),
+        "eventMarkers": event_markers,
+        "retrievalEvents": retrieval_events,
+        "contextInjectionEvents": retrieval_events,
+        "selectedInCurrentContext": getattr(candidate, "id", "") in selected_ids,
+        "tags": list(getattr(candidate, "tags", [])),
+        "reasons": list(getattr(candidate, "reasons", [])),
+        "contradictionOf": getattr(candidate, "contradictionOf", None),
+        "supersedes": getattr(candidate, "supersedes", None),
+        "sourceKind": getattr(candidate, "sourceKind", "n/a"),
+        "createdAt": created_at,
+        "updatedAt": updated_at,
+        "explanation": explain_memory_candidate(candidate, strength),
+        "historyStatus": "derived_from_candidate_metadata",
+        "rawTextIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def build_context_analytics_payload(layout: RinDataLayout) -> dict[str, object]:
+    """Return safe context-plan analytics for the latest Mind snapshot."""
+    latest = get_latest_mind_snapshot(layout)
+    if latest is None:
+        return empty_context_analytics_payload()
+    plan = latest.contextPlan
+    retrieval = latest.memoryRetrieval
+    selected_sources = [
+        {
+            "sourceKind": item.sourceKind,
+            "sourceId": short_id(item.sourceId),
+            "fullSourceIdIncluded": False,
+            "included": item.selected,
+            "reason": ", ".join(item.reasons) or "selected",
+            "riskLevel": item.riskLevel,
+            "estimatedChars": len(item.safeSummary or "")
+            + len(item.normalizedValue or ""),
+            "estimatedTokens": estimate_tokens_from_chars(
+                len(item.safeSummary or "") + len(item.normalizedValue or ""),
+            ),
+            "safePreview": item.safeSummary,
+            "rawTextIncluded": False,
+        }
+        for item in [*retrieval.selected, *retrieval.excluded]
+    ]
+    excluded_sources = [
+        {
+            "sourceKind": item.kind,
+            "sourceId": short_id(item.id),
+            "fullSourceIdIncluded": False,
+            "included": False,
+            "reason": item.reason,
+            "riskLevel": "n/a",
+            "estimatedChars": 0,
+            "estimatedTokens": 0,
+            "safePreview": "",
+            "rawTextIncluded": False,
+        }
+        for item in plan.excludedItems
+    ]
+    segments = [
+        {
+            "type": "recent_history",
+            "included": True,
+            "count": len(plan.selectedRecentMessageIds),
+            "estimatedTokens": estimate_tokens_from_chars(
+                len(plan.selectedRecentMessageIds) * 320,
+            ),
+        },
+        {
+            "type": "memory",
+            "included": True,
+            "count": len(plan.selectedMemoryTraceIds)
+            + len(plan.selectedMemorySourceIds),
+            "estimatedTokens": estimate_tokens_from_chars(
+                sum(
+                    len(item.safeSummary or "") + len(item.normalizedValue or "")
+                    for item in retrieval.selected
+                ),
+            ),
+        },
+        {
+            "type": "profile",
+            "included": bool(plan.selectedProfileSections),
+            "count": len(plan.selectedProfileSections),
+            "estimatedTokens": estimate_tokens_from_chars(
+                len(plan.selectedProfileSections) * 420,
+            ),
+        },
+        {
+            "type": "summary",
+            "included": bool(plan.selectedSummaryIds),
+            "count": len(plan.selectedSummaryIds),
+            "estimatedTokens": estimate_tokens_from_chars(
+                len(plan.selectedSummaryIds) * 280,
+            ),
+        },
+    ]
+    estimated_total = sum(cast(int, item["estimatedTokens"]) for item in segments)
+    return {
+        "ok": True,
+        "mode": "rin-mind-context-analytics",
+        "readOnly": True,
+        "localOnly": True,
+        "turnCreatedAt": latest.createdAt,
+        "flow": [
+            "Owner Input",
+            "Message Understanding",
+            "Recent History Selection",
+            "Memory Retrieval",
+            "Profile / Summary / Owner State",
+            "Context Budget",
+            "Provider Request",
+        ],
+        "budget": {
+            "maxCharacters": plan.budget,
+            "estimatedTokens": plan.estimatedTokens or estimated_total,
+            "segments": segments,
+        },
+        "sources": [*selected_sources, *excluded_sources],
+        "providerRequestOutline": {
+            "messageCount": len(plan.selectedRecentMessageIds) + 1,
+            "selectedMemoryCount": len(retrieval.selected),
+            "excludedMemoryCount": len(retrieval.excluded) + len(plan.excludedItems),
+            "currentOwnerInputLast": True,
+            "rawPromptIncluded": False,
+        },
+        "explanation": explain_context_plan(plan, retrieval),
+        "rawReasons": plan.reasons,
+        "privacyFlags": plan.privacyFlags
+        | {
+            "rawPromptIncluded": False,
+            "rawMemoryIncluded": False,
+            "hiddenReasoningIncluded": False,
+            "secretValuesIncluded": False,
+        },
+        "rawTextIncluded": False,
+        "rawPromptIncluded": False,
+        "rawMemoryIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def empty_context_analytics_payload() -> dict[str, object]:
+    return {
+        "ok": True,
+        "mode": "rin-mind-context-analytics",
+        "readOnly": True,
+        "localOnly": True,
+        "turnCreatedAt": None,
+        "flow": [],
+        "budget": {"maxCharacters": 0, "estimatedTokens": 0, "segments": []},
+        "sources": [],
+        "providerRequestOutline": {
+            "messageCount": 0,
+            "selectedMemoryCount": 0,
+            "excludedMemoryCount": 0,
+            "currentOwnerInputLast": False,
+            "rawPromptIncluded": False,
+        },
+        "explanation": "No RIN Mind snapshot has been recorded yet.",
+        "rawReasons": [],
+        "privacyFlags": {
+            "rawPromptIncluded": False,
+            "rawMemoryIncluded": False,
+            "hiddenReasoningIncluded": False,
+            "secretValuesIncluded": False,
+        },
+        "rawTextIncluded": False,
+        "rawPromptIncluded": False,
+        "rawMemoryIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def build_owner_state_trend_payload(
+    layout: RinDataLayout,
+    *,
+    limit: int = 20,
+) -> dict[str, object]:
+    """Build a recent owner-state trend from safe persisted Mind snapshots."""
+    snapshots = list_recent_mind_snapshots(layout, limit=limit)
+    points = [
+        {
+            "turnIndex": index,
+            "createdAt": snapshot.createdAt,
+            "energyLevel": snapshot.ownerState.energyLevel,
+            "moodValence": snapshot.ownerState.moodValence,
+            "arousalLevel": snapshot.ownerState.arousalLevel,
+            "focusState": snapshot.ownerState.focusState,
+            "motivationState": snapshot.ownerState.motivationState,
+            "immersionInertia": snapshot.ownerState.immersionInertia,
+            "interruptionRisk": snapshot.ownerState.interruptionRisk,
+            "resultUrgency": snapshot.ownerState.resultUrgency,
+            "supportNeed": snapshot.ownerState.supportNeed,
+            "confidence": snapshot.ownerState.confidence,
+        }
+        for index, snapshot in enumerate(reversed(snapshots), start=1)
+    ]
+    return {
+        "ok": True,
+        "mode": "rin-mind-owner-state-trend",
+        "readOnly": True,
+        "localOnly": True,
+        "recentLimit": max(1, min(limit, 100)),
+        "points": points,
+        "explanation": (
+            "Recent owner-state trend is derived from safe mind_turn_snapshots."
+            if points
+            else "No owner-state snapshots have been recorded yet."
+        ),
+        "rawTextIncluded": False,
+        "rawPromptIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def build_trace_analytics_payload() -> dict[str, object]:
+    """Build safe runtime trace chart data from in-memory trace store metadata."""
+    latest = RUNTIME_TRACE_STORE.latest()
+    traces = RUNTIME_TRACE_STORE.list()
+    stage_payloads = []
+    warning_count = 0
+    error_count = 0
+    if latest is not None:
+        for stage in latest.stages:
+            if stage.status == "warning":
+                warning_count += 1
+            if stage.status == "error":
+                error_count += 1
+            stage_payloads.append(
+                {
+                    "name": stage.name,
+                    "displayName": stage.displayName,
+                    "status": stage.status,
+                    "durationMs": stage.durationMs,
+                    "summary": stage.summary,
+                    "startedAt": stage.recordedAt,
+                    "endedAt": stage.recordedAt,
+                }
+            )
+    return {
+        "ok": True,
+        "mode": "rin-mind-trace-analytics",
+        "readOnly": True,
+        "localOnly": True,
+        "latest": {
+            "turnId": latest.turnId if latest else None,
+            "turnShortId": short_id(latest.turnId) if latest else "n/a",
+            "status": latest.status if latest else "n/a",
+            "totalDurationMs": latest.totalDurationMs if latest else 0,
+            "providerDurationMs": provider_duration_from_stages(stage_payloads),
+            "stageCount": len(stage_payloads),
+            "warningCount": warning_count,
+            "errorCount": error_count,
+            "currentOwnerInputLast": bool(latest),
+            "rawPromptIncluded": False,
+            "hiddenReasoningIncluded": False,
+        },
+        "stages": stage_payloads,
+        "recent": [
+            {
+                "turnId": trace.turnId,
+                "turnShortId": short_id(trace.turnId),
+                "status": trace.status,
+                "totalDurationMs": trace.totalDurationMs,
+            }
+            for trace in traces[:20]
+        ],
+        "rawTextIncluded": False,
+        "rawPromptIncluded": False,
+        "rawMemoryIncluded": False,
+        "hiddenReasoningIncluded": False,
+        "secretValuesIncluded": False,
+    }
+
+
+def validate_memory_candidate_safe_patch(
+    body: MemoryCandidateSafePatchBody,
+) -> dict[str, object]:
+    """Validate safe display-field edits and translate API names to DB names."""
+    updates: dict[str, object] = {}
+    if "safeSummary" in body.model_fields_set:
+        value = normalize_safe_edit_string(body.safeSummary, "safeSummary", 240)
+        updates["safe_summary"] = value
+    if "normalizedValue" in body.model_fields_set:
+        normalized_value = (
+            normalize_safe_edit_string(body.normalizedValue, "normalizedValue", 320)
+            if body.normalizedValue is not None
+            else None
+        )
+        updates["normalized_value"] = normalized_value
+    if "tags" in body.model_fields_set:
+        if body.tags is None:
+            tags: list[str] = []
+        else:
+            tags = [normalize_safe_edit_string(tag, "tag", 40) for tag in body.tags]
+        normalized_tags = sorted({tag for tag in tags if tag})
+        if len(normalized_tags) > 20:
+            raise HTTPException(status_code=400, detail="At most 20 tags are allowed.")
+        updates["tags"] = normalized_tags
+    if not updates:
+        raise HTTPException(status_code=400, detail="No safe edit fields provided.")
+    return updates
+
+
+def normalize_safe_edit_string(
+    value: str | None,
+    field_name: str,
+    max_length: int,
+) -> str:
+    if value is None:
+        return ""
+    normalized = value.strip()
+    if len(normalized) > max_length:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{field_name} exceeds {max_length} characters.",
+        )
+    if secret_like(normalized):
+        raise HTTPException(
+            status_code=400,
+            detail=f"{field_name} contains secret-like content.",
+        )
+    return normalized
+
+
+def secret_like(value: str) -> bool:
+    return any(pattern.search(value) for pattern in SECRET_LIKE_PATTERNS)
+
+
+def count_by(items: Sequence[dict[str, object]], key: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in items:
+        label = str(item.get(key, "unknown"))
+        counts[label] = counts.get(label, 0) + 1
+    return counts
+
+
+def memory_strength_thresholds() -> dict[str, float]:
+    return {"weakening": 0.42, "forgetting": 0.22}
+
+
+def memory_strength_score(candidate: object, *, now: datetime) -> float:
+    salience = float(getattr(candidate, "salience", 0.0))
+    confidence = float(getattr(candidate, "confidence", 0.0))
+    review_status = str(getattr(candidate, "reviewStatus", "candidate"))
+    risk_level = str(getattr(candidate, "riskLevel", "low"))
+    stability = str(getattr(candidate, "stability", "medium"))
+    active = bool(getattr(candidate, "active", False))
+    base = salience * 0.55 + confidence * 0.35
+    base += {"stable": 0.08, "medium": 0.04, "volatile": -0.03}.get(stability, 0.0)
+    base += {"owner_approved": 0.08, "auto_promoted": 0.05}.get(review_status, 0.0)
+    base -= {"medium": 0.04, "high": 0.12, "blocked": 0.45}.get(risk_level, 0.0)
+    if not active:
+        base -= 0.28
+    created_at = parse_iso_datetime(getattr(candidate, "createdAt", None))
+    if created_at is not None:
+        age_hours = max(0.0, (now - created_at).total_seconds() / 3600)
+        half_life_hours = decay_half_life_hours(candidate)
+        base *= 0.5 ** (age_hours / half_life_hours)
+    return round(max(0.0, min(1.0, base)), 4)
+
+
+def predicted_decay_points(
+    candidate: object,
+    *,
+    now: datetime,
+) -> list[dict[str, object]]:
+    created_at = parse_iso_datetime(getattr(candidate, "createdAt", None)) or now
+    base = memory_strength_score(candidate, now=created_at)
+    half_life_hours = decay_half_life_hours(candidate)
+    offsets = [0, 24, 24 * 7, 24 * 30, 24 * 90]
+    return [
+        {
+            "at": (created_at + timedelta(hours=hours))
+            .isoformat()
+            .replace("+00:00", "Z"),
+            "elapsedHours": hours,
+            "memoryStrength": round(base * (0.5 ** (hours / half_life_hours)), 4),
+        }
+        for hours in offsets
+    ]
+
+
+def decay_half_life_hours(candidate: object) -> float:
+    policy = str(getattr(candidate, "decayPolicy", "long")).lower()
+    risk = str(getattr(candidate, "riskLevel", "low"))
+    if risk in {"high", "blocked"}:
+        return 24 * 7
+    if "review" in policy:
+        return 24 * 14
+    if "temporary" in policy or "short" in policy:
+        return 24 * 3
+    return 24 * 90
+
+
+def parse_iso_datetime(value: object) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        normalized = value.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+    except ValueError:
+        return None
+
+
+def iso_or_na(value: datetime | None, fallback: object) -> object:
+    if value is None:
+        return fallback or "n/a"
+    return value.isoformat().replace("+00:00", "Z")
+
+
+def explain_memory_candidate(candidate: object, strength: float) -> str:
+    status = str(getattr(candidate, "reviewStatus", "candidate"))
+    risk = str(getattr(candidate, "riskLevel", "low"))
+    if risk == "blocked":
+        return "This memory is blocked and unavailable for retrieval."
+    if status in {"owner_approved", "auto_promoted"}:
+        return (
+            "This memory can be retrieved because it is approved or auto-promoted, "
+            f"active, and has derived strength {strength:.2f}."
+        )
+    if status in {"candidate", "review_required"}:
+        return "This memory remains in review and will not be used as accepted context."
+    if status == "inactive":
+        return "This memory is inactive and excluded from retrieval."
+    return "This memory is rejected and excluded from retrieval."
+
+
+def estimate_tokens_from_chars(characters: int) -> int:
+    return int(math.ceil(max(0, characters) / 4))
+
+
+def explain_context_plan(plan: object, retrieval: object) -> str:
+    selected_count = len(getattr(retrieval, "selected", []))
+    excluded_count = len(getattr(retrieval, "excluded", [])) + len(
+        getattr(plan, "excludedItems", []),
+    )
+    return (
+        f"Context uses {len(getattr(plan, 'selectedRecentMessageIds', []))} recent "
+        f"messages and {selected_count} safe memory items. {excluded_count} sources "
+        "were excluded by local relevance, risk, or budget policy."
+    )
+
+
+def provider_duration_from_stages(stages: Sequence[dict[str, object]]) -> int:
+    for stage in stages:
+        if stage.get("name") in {"raw_model_response", "provider_response"}:
+            duration = stage.get("durationMs", 0)
+            if isinstance(duration, int):
+                return duration
+            if isinstance(duration, float):
+                return int(duration)
+            if isinstance(duration, str) and duration.isdigit():
+                return int(duration)
+            return 0
+    return 0
 
 
 def build_memory_candidate_action_response(

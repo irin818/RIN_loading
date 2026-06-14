@@ -548,6 +548,27 @@ def get_mind_snapshot_for_turn(
         return map_mind_snapshot(row) if row else None
 
 
+def list_recent_mind_snapshots(
+    layout: RinDataLayout,
+    *,
+    limit: int = 20,
+) -> list[RinMindSnapshot]:
+    """Return recent safe RIN Mind snapshots for trend visualizations."""
+    safe_limit = max(1, min(limit, 100))
+    with open_readonly_database(database_path_for(layout)) as connection:
+        if not table_exists(connection, "mind_turn_snapshots"):
+            return []
+        rows = connection.execute(
+            """
+            SELECT * FROM mind_turn_snapshots
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            (safe_limit,),
+        ).fetchall()
+        return [map_mind_snapshot(row) for row in rows]
+
+
 def list_mind_memory_candidates(
     layout: RinDataLayout,
     *,
@@ -914,6 +935,8 @@ def map_memory_candidate(row: sqlite3.Row) -> MemoryCandidate:
         ownerConfirmed=bool(row["owner_confirmed"]),
         autoPromote=bool(row["auto_promote"]),
         reasons=list(json.loads(str(row["reasons_json"]))),
+        createdAt=str(row["created_at"]) if "created_at" in keys else None,
+        updatedAt=str(row["updated_at"]) if "updated_at" in keys else None,
     )
 
 

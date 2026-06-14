@@ -2,7 +2,9 @@ import type {
   ChatSendResult,
   GlitchSnapshot,
   MemoryCard,
-  MindCandidateActionResult
+  MindCandidateActionResult,
+  MindCandidateSafePatch,
+  RinMindAnalytics
 } from "./types";
 
 async function readJson<T>(response: Response): Promise<T> {
@@ -106,4 +108,26 @@ export async function reactivateMindMemoryCandidate(
     headers: { Accept: "application/json" }
   });
   return readJson<MindCandidateActionResult>(response);
+}
+
+export async function updateMindMemoryCandidateSafeFields(
+  candidateId: string,
+  patch: MindCandidateSafePatch
+): Promise<MindCandidateActionResult> {
+  const response = await fetch(`/api/mind/memory-candidates/${candidateId}`, {
+    method: "PATCH",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(patch)
+  });
+  return readJson<MindCandidateActionResult>(response);
+}
+
+export async function fetchMindAnalytics(): Promise<RinMindAnalytics> {
+  const response = await fetch("/api/mind/analytics", {
+    headers: { Accept: "application/json" }
+  });
+  return readJson<RinMindAnalytics>(response);
 }

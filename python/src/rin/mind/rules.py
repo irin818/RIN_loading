@@ -518,7 +518,10 @@ def retrieve_relevant_memory_sources(
         cjk_overlap = len(query_profile.cjkBigrams & profile.cjkBigrams)
         tag_overlap = sorted(set(query_tags) & set(candidate_item.tags))
         salience = candidate_item.salience
-        recency_bonus = recency_score(getattr(candidate_item, "updatedAt", now), now)
+        recency_bonus = recency_score(
+            getattr(candidate_item, "updatedAt", None) or now,
+            now,
+        )
         score = (
             latin_overlap * 0.14
             + cjk_overlap * 0.1

@@ -201,6 +201,8 @@ class MemoryCandidate(MindBaseModel):
     ownerConfirmed: bool
     autoPromote: bool
     reasons: list[str]
+    createdAt: str | None = None
+    updatedAt: str | None = None
 
 
 class ResponsePlan(MindBaseModel):

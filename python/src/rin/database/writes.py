@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from hashlib import sha256
 from pathlib import Path
 from uuid import uuid4
 
@@ -568,6 +569,106 @@ def update_memory_candidate_review(
                 )
             connection.commit()
             return result.rowcount > 0
+        except Exception:
+            connection.rollback()
+            raise
+
+
+def update_memory_candidate_safe_fields(
+    layout: RinDataLayout,
+    *,
+    candidate_id: str,
+    updates: dict[str, object],
+    now: str,
+) -> str:
+    """
+    Edit only display-safe memory candidate fields and write a privacy-safe audit event.
+
+    Returns:
+        updated: update was applied.
+        missing: candidate id was not found.
+        blocked: blocked/high-risk field edit was refused by policy.
+        no_changes: no allowed update fields were provided.
+    """
+    assert_safe_write_layout(layout)
+    allowed_fields = {"safe_summary", "normalized_value", "tags"}
+    safe_updates = {
+        key: value for key, value in updates.items() if key in allowed_fields
+    }
+    if not safe_updates:
+        return "no_changes"
+    with sqlite3.connect(database_path_for(layout)) as connection:
+        try:
+            connection.execute("BEGIN")
+            ensure_mind_tables(connection)
+            row = connection.execute(
+                "SELECT risk_level FROM memory_candidates WHERE id = ?",
+                (candidate_id,),
+            ).fetchone()
+            if row is None:
+                connection.rollback()
+                return "missing"
+            if str(row[0]) == "blocked":
+                connection.rollback()
+                return "blocked"
+
+            assignments: list[str] = []
+            params: list[object] = []
+            audit_payload: dict[str, object] = {
+                "candidateId": candidate_id,
+                "updatedFields": sorted(safe_updates),
+            }
+            if "safe_summary" in safe_updates:
+                value = str(safe_updates["safe_summary"]).strip()
+                assignments.append("safe_summary = ?")
+                params.append(value)
+                audit_payload["safeSummaryLength"] = len(value)
+                audit_payload["safeSummaryHash"] = sha256(
+                    value.encode("utf-8"),
+                ).hexdigest()
+            if "normalized_value" in safe_updates:
+                raw_value = safe_updates["normalized_value"]
+                normalized_value = (
+                    str(raw_value).strip() if raw_value is not None else None
+                )
+                assignments.append("normalized_value = ?")
+                params.append(normalized_value)
+                audit_payload["normalizedValueLength"] = len(normalized_value or "")
+                audit_payload["normalizedValueHash"] = (
+                    sha256(normalized_value.encode("utf-8")).hexdigest()
+                    if normalized_value
+                    else None
+                )
+            if "tags" in safe_updates:
+                raw_tags = safe_updates["tags"]
+                tags = (
+                    [str(item).strip() for item in raw_tags]
+                    if isinstance(raw_tags, list)
+                    else []
+                )
+                assignments.append("tags_json = ?")
+                params.append(json.dumps(tags, sort_keys=True))
+                audit_payload["tagCount"] = len(tags)
+
+            assignments.append("updated_at = ?")
+            params.append(now)
+            params.append(candidate_id)
+            connection.execute(
+                f"""
+                UPDATE memory_candidates
+                SET {", ".join(assignments)}
+                WHERE id = ?
+                """,
+                params,
+            )
+            append_audit_event_in_transaction(
+                connection,
+                "mind.memory_candidate_safe_fields_edited",
+                audit_payload,
+                now,
+            )
+            connection.commit()
+            return "updated"
         except Exception:
             connection.rollback()
             raise

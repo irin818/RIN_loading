@@ -255,6 +255,175 @@ export interface MindMemoryCandidate {
   ownerConfirmed: boolean;
   autoPromote: boolean;
   reasons: string[];
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface MemoryCandidateAnalytics {
+  candidateId: string;
+  shortId: string;
+  type: string;
+  safeSummary: string;
+  normalizedValue: string | null;
+  riskLevel: string;
+  reviewStatus: string;
+  active: boolean;
+  ownerConfirmed: boolean;
+  autoPromote: boolean;
+  salience: number;
+  confidence: number;
+  stability: string;
+  decayPolicy: string;
+  memoryStrength: number;
+  thresholds: { weakening: number; forgetting: number };
+  predictedDecayPoints: Array<{ at: string; elapsedHours: number; memoryStrength: number }>;
+  eventMarkers: Array<{ type: string; at: string | null; label: string }>;
+  retrievalEvents: Array<Record<string, unknown>>;
+  contextInjectionEvents: Array<Record<string, unknown>>;
+  selectedInCurrentContext: boolean;
+  tags: string[];
+  reasons: string[];
+  contradictionOf: string | null;
+  supersedes: string | null;
+  sourceKind: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+  explanation: string;
+  historyStatus: string;
+  rawTextIncluded: false;
+  secretValuesIncluded: false;
+}
+
+export interface MindMemoryAnalytics {
+  ok: boolean;
+  mode: string;
+  readOnly: boolean;
+  localOnly: boolean;
+  counts: {
+    total: number;
+    byReviewStatus: Record<string, number>;
+    byRiskLevel: Record<string, number>;
+    byType: Record<string, number>;
+    active: number;
+    inactive: number;
+  };
+  strongest: MemoryCandidateAnalytics[];
+  pendingReview: MemoryCandidateAnalytics[];
+  nearDecayThreshold: MemoryCandidateAnalytics[];
+  selectedInCurrentContextIds: string[];
+  candidates: MemoryCandidateAnalytics[];
+  thresholds: { weakening: number; forgetting: number };
+  formula: string;
+  explanation: string;
+  rawTextIncluded: false;
+  rawPromptIncluded: false;
+  rawMemoryIncluded: false;
+  hiddenReasoningIncluded: false;
+  secretValuesIncluded: false;
+}
+
+export interface MindContextAnalytics {
+  ok: boolean;
+  mode: string;
+  readOnly: boolean;
+  localOnly: boolean;
+  turnCreatedAt: string | null;
+  flow: string[];
+  budget: {
+    maxCharacters: number;
+    estimatedTokens: number;
+    segments: Array<{ type: string; included: boolean; count: number; estimatedTokens: number }>;
+  };
+  sources: Array<{
+    sourceKind: string;
+    sourceId: string;
+    fullSourceIdIncluded: false;
+    included: boolean;
+    reason: string;
+    riskLevel: string;
+    estimatedChars: number;
+    estimatedTokens: number;
+    safePreview: string;
+    rawTextIncluded: false;
+  }>;
+  providerRequestOutline: {
+    messageCount: number;
+    selectedMemoryCount: number;
+    excludedMemoryCount: number;
+    currentOwnerInputLast: boolean;
+    rawPromptIncluded: false;
+  };
+  explanation: string;
+  rawReasons: string[];
+  privacyFlags: Record<string, boolean>;
+  rawTextIncluded: false;
+  rawPromptIncluded: false;
+  rawMemoryIncluded: false;
+  hiddenReasoningIncluded: false;
+  secretValuesIncluded: false;
+}
+
+export interface MindOwnerStateTrend {
+  ok: boolean;
+  mode: string;
+  readOnly: boolean;
+  localOnly: boolean;
+  recentLimit: number;
+  points: Array<Record<string, string | number>>;
+  explanation: string;
+  rawTextIncluded: false;
+  rawPromptIncluded: false;
+  secretValuesIncluded: false;
+}
+
+export interface MindTraceAnalytics {
+  ok: boolean;
+  mode: string;
+  readOnly: boolean;
+  localOnly: boolean;
+  latest: {
+    turnId: string | null;
+    turnShortId: string;
+    status: string;
+    totalDurationMs: number;
+    providerDurationMs: number;
+    stageCount: number;
+    warningCount: number;
+    errorCount: number;
+    currentOwnerInputLast: boolean;
+    rawPromptIncluded: false;
+    hiddenReasoningIncluded: false;
+  };
+  stages: Array<{
+    name: string;
+    displayName: string;
+    status: string;
+    durationMs: number;
+    summary: string;
+    startedAt: string;
+    endedAt: string;
+  }>;
+  recent: Array<{ turnId: string; turnShortId: string; status: string; totalDurationMs: number }>;
+  rawPromptIncluded: false;
+  rawMemoryIncluded: false;
+  hiddenReasoningIncluded: false;
+  secretValuesIncluded: false;
+}
+
+export interface RinMindAnalytics {
+  ok: boolean;
+  mode: string;
+  readOnly: boolean;
+  localOnly: boolean;
+  memory: MindMemoryAnalytics;
+  context: MindContextAnalytics;
+  ownerStateTrend: MindOwnerStateTrend;
+  trace: MindTraceAnalytics;
+  rawTextIncluded: false;
+  rawPromptIncluded: false;
+  rawMemoryIncluded: false;
+  hiddenReasoningIncluded: false;
+  secretValuesIncluded: false;
 }
 
 export interface MindPolicyMetadata {
@@ -381,6 +550,7 @@ export interface RinMindPayload {
   candidateCount: number;
   memoryCandidates: MindMemoryCandidate[];
   policy: MindPolicyMetadata;
+  analytics?: RinMindAnalytics;
   growthEvents: MindGrowthEvent[];
   toolInvocationRequests: MindToolInvocationRequest[];
   embeddingStatus: {
@@ -405,6 +575,12 @@ export interface MindCandidateActionResult {
   candidate: MindMemoryCandidate;
   rawTextIncluded: false;
   secretValuesIncluded: false;
+}
+
+export interface MindCandidateSafePatch {
+  safeSummary?: string;
+  normalizedValue?: string | null;
+  tags?: string[];
 }
 
 export interface GlitchErrorItem {

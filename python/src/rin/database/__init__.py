@@ -20,6 +20,7 @@ from rin.database.readonly import (
     list_memory_v2_traces,
     list_messages,
     list_mind_memory_candidates,
+    list_recent_mind_snapshots,
     list_rin_growth_events,
     list_tool_invocation_requests,
     list_top_memory_v2_traces,
@@ -43,6 +44,7 @@ from rin.database.writes import (
     record_completed_turn,
     record_failed_turn,
     update_memory_candidate_review,
+    update_memory_candidate_safe_fields,
     upsert_conversation_summary,
 )
 
@@ -69,6 +71,7 @@ __all__ = [
     "list_memory_v2_traces",
     "list_messages",
     "list_rin_growth_events",
+    "list_recent_mind_snapshots",
     "list_top_memory_v2_traces",
     "list_tool_invocation_requests",
     "open_readonly_database",
@@ -88,6 +91,7 @@ __all__ = [
     "initialize_temp_database",
     "record_completed_turn",
     "record_failed_turn",
+    "update_memory_candidate_safe_fields",
     "update_memory_candidate_review",
     "upsert_conversation_summary",
 ]

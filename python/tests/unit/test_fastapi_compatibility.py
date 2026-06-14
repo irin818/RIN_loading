@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from rin.contracts import ModelRequest, ModelResponse, ModelResponseMetadata
 from rin.conversation import ModelAdapterProtocol
-from rin.database import create_temp_layout_database
+from rin.database import create_temp_layout_database, list_audit_summaries
 from rin.diagnostics.runtime_trace import RUNTIME_TRACE_STORE
 from rin.diagnostics.safety import create_temp_data_dir
 from rin.server import create_app
@@ -423,6 +423,15 @@ def test_glitch_core_entry_reports_frontend_build_state() -> None:
 
         assert response.status_code in {200, 503}
         assert "RIN Glitch Core Console" in response.text
+        if response.status_code == 200:
+            asset_paths = re.findall(
+                r'(?:src|href)="([^"]*assets/[^"]+)"',
+                response.text,
+            )
+            assert asset_paths
+            for asset_path in asset_paths:
+                asset = client.get(asset_path)
+                assert asset.status_code == 200
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
@@ -569,6 +578,111 @@ def test_mind_api_exposes_safe_snapshot_and_review_actions() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
+def test_mind_analytics_endpoints_return_safe_derived_payloads() -> None:
+    client, layout = create_client()
+    try:
+        response = client.post(
+            "/api/chat-test/send",
+            json={"content": "I prefer concise RIN progress reports."},
+        )
+        assert response.status_code == 200
+
+        candidates = client.get("/api/mind/memory-candidates").json()["candidates"]
+        candidate_id = candidates[0]["id"]
+        analytics = client.get("/api/mind/analytics")
+        memory = client.get("/api/mind/memory-analytics")
+        candidate = client.get(f"/api/mind/memory-candidates/{candidate_id}/analytics")
+        context = client.get("/api/mind/context-analytics")
+        owner_trend = client.get("/api/mind/owner-state-trend")
+        trace = client.get("/api/mind/trace-analytics")
+
+        assert analytics.status_code == 200
+        assert memory.status_code == 200
+        assert candidate.status_code == 200
+        assert context.status_code == 200
+        assert owner_trend.status_code == 200
+        assert trace.status_code == 200
+
+        analytics_payload = analytics.json()
+        memory_payload = memory.json()
+        candidate_payload = candidate.json()["candidate"]
+        context_payload = context.json()
+        trace_payload = trace.json()
+
+        for payload in (
+            analytics_payload,
+            memory_payload,
+            candidate.json(),
+            context_payload,
+            owner_trend.json(),
+            trace_payload,
+        ):
+            assert payload["rawTextIncluded"] is False
+            assert payload["secretValuesIncluded"] is False
+            assert "I prefer concise RIN progress reports." not in str(payload)
+
+        assert analytics_payload["memory"]["rawMemoryIncluded"] is False
+        assert memory_payload["thresholds"] == {"weakening": 0.42, "forgetting": 0.22}
+        assert candidate_payload["rawTextIncluded"] is False
+        assert candidate_payload["secretValuesIncluded"] is False
+        assert candidate_payload["predictedDecayPoints"]
+        assert candidate_payload["thresholds"]["weakening"] == 0.42
+        assert context_payload["rawPromptIncluded"] is False
+        assert (
+            context_payload["providerRequestOutline"]["currentOwnerInputLast"] is True
+        )
+        assert trace_payload["latest"]["rawPromptIncluded"] is False
+        assert trace_payload["latest"]["hiddenReasoningIncluded"] is False
+        assert owner_trend.json()["points"]
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_memory_candidate_safe_patch_edits_safe_fields_and_audits() -> None:
+    client, layout = create_client()
+    try:
+        response = client.post(
+            "/api/chat-test/send",
+            json={"content": "I prefer concise RIN progress reports."},
+        )
+        assert response.status_code == 200
+        candidate_id = client.get("/api/mind/memory-candidates").json()["candidates"][
+            0
+        ]["id"]
+
+        patched = client.patch(
+            f"/api/mind/memory-candidates/{candidate_id}",
+            json={
+                "safeSummary": "Owner prefers concise progress reports.",
+                "normalizedValue": "concise progress reports",
+                "tags": ["preference", "progress"],
+            },
+        )
+        secret_like = client.patch(
+            f"/api/mind/memory-candidates/{candidate_id}",
+            json={"safeSummary": "api key sk-testsecret123456789"},
+        )
+
+        assert patched.status_code == 200
+        payload = patched.json()
+        assert payload["candidate"]["safeSummary"] == (
+            "Owner prefers concise progress reports."
+        )
+        assert payload["candidate"]["normalizedValue"] == "concise progress reports"
+        assert payload["candidate"]["tags"] == ["preference", "progress"]
+        assert payload["rawTextIncluded"] is False
+        assert payload["secretValuesIncluded"] is False
+        assert secret_like.status_code == 400
+        audits = list_audit_summaries(layout)
+        assert audits[0].eventType == "mind.memory_candidate_safe_fields_edited"
+        assert "safeSummaryHash" in audits[0].payloadKeys
+        assert (
+            "Owner prefers concise progress reports." not in audits[0].model_dump_json()
+        )
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
 def test_mind_api_and_snapshot_redact_secret_like_owner_input() -> None:
     client, layout = create_client()
     try:
@@ -623,6 +737,12 @@ def test_mind_api_and_snapshot_redact_secret_like_owner_input() -> None:
         assert glitch.json()["mind"]["rawPromptIncluded"] is False
         assert glitch.json()["mind"]["hiddenReasoningIncluded"] is False
         assert glitch.json()["mind"]["secretValuesIncluded"] is False
+
+        blocked_edit = client.patch(
+            f"/api/mind/memory-candidates/{candidate_payload['id']}",
+            json={"safeSummary": "safe display text"},
+        )
+        assert blocked_edit.status_code == 409
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
