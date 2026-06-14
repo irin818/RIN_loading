@@ -1,10 +1,13 @@
 import type {
   ChatSendResult,
+  ConsoleDataMap,
   GlitchSnapshot,
+  GrowthEventActionResult,
   MemoryCard,
   MindCandidateActionResult,
   MindCandidateSafePatch,
-  RinMindAnalytics
+  RinMindAnalytics,
+  ToolRequestActionResult
 } from "./types";
 
 async function readJson<T>(response: Response): Promise<T> {
@@ -130,4 +133,51 @@ export async function fetchMindAnalytics(): Promise<RinMindAnalytics> {
     headers: { Accept: "application/json" }
   });
   return readJson<RinMindAnalytics>(response);
+}
+
+export async function fetchConsoleDataMap(): Promise<ConsoleDataMap> {
+  const response = await fetch("/api/console/data-map", {
+    headers: { Accept: "application/json" }
+  });
+  return readJson<ConsoleDataMap>(response);
+}
+
+export async function approveGrowthEvent(
+  eventId: string
+): Promise<GrowthEventActionResult> {
+  const response = await fetch(`/api/mind/growth-events/${eventId}/approve`, {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+  return readJson<GrowthEventActionResult>(response);
+}
+
+export async function rejectGrowthEvent(
+  eventId: string
+): Promise<GrowthEventActionResult> {
+  const response = await fetch(`/api/mind/growth-events/${eventId}/reject`, {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+  return readJson<GrowthEventActionResult>(response);
+}
+
+export async function approveToolRequest(
+  requestId: string
+): Promise<ToolRequestActionResult> {
+  const response = await fetch(`/api/mind/tool-requests/${requestId}/approve`, {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+  return readJson<ToolRequestActionResult>(response);
+}
+
+export async function rejectToolRequest(
+  requestId: string
+): Promise<ToolRequestActionResult> {
+  const response = await fetch(`/api/mind/tool-requests/${requestId}/reject`, {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+  return readJson<ToolRequestActionResult>(response);
 }

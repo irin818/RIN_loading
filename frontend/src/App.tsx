@@ -8,18 +8,23 @@ import type {
 } from "react";
 
 import {
+  approveGrowthEvent,
   approveMindMemoryCandidate,
+  approveToolRequest,
   deactivateMindMemoryCandidate,
   fetchGlitchSnapshot,
   fetchMemoryCards,
   reactivateMindMemoryCandidate,
+  rejectGrowthEvent,
   rejectMindMemoryCandidate,
+  rejectToolRequest,
   sendChatMessage,
   updateMindMemoryCandidateSafeFields
 } from "./api";
 import type {
   ChatMessage,
   ConsoleWindow,
+  ConsoleDataMapBlock,
   GlitchErrorItem,
   GlitchSnapshot,
   MemoryCard,
@@ -60,18 +65,22 @@ const UI_SETTINGS_KEY = "rin.glitch-core.ui-settings.v1";
 const PERSISTENT_TYPES = new Set<WindowType>([
   "chat",
   "memory",
+  "context",
   "trace",
   "cost",
-  "mind"
+  "mind",
+  "control"
 ]);
 const REUSABLE_WINDOW_TYPES = new Set<WindowType>([
   "core",
   "chat",
   "memory",
+  "context",
   "trace",
   "provider",
   "cost",
   "mind",
+  "control",
   "tasks",
   "tools",
   "settings",
@@ -98,6 +107,7 @@ const WINDOW_META: Record<WindowType, WindowMeta> = {
   chat: { label: "Chat", context: "Default Session", code: "CHAT" },
   memory: { label: "Memory", context: "Recent Memories", code: "MEM" },
   memoryDetail: { label: "Memory Detail", context: "Memory Record", code: "MEM+" },
+  context: { label: "Context", context: "Context Plan", code: "CTX" },
   trace: { label: "Trace", context: "Runtime Trace", code: "TRC" },
   provider: { label: "Provider", context: "API Provider", code: "PRV" },
   cost: { label: "Cost / Token", context: "Usage Ledger", code: "COST" },
@@ -105,38 +115,34 @@ const WINDOW_META: Record<WindowType, WindowMeta> = {
   error: { label: "Error", context: "Runtime Error", code: "ERR" },
   tasks: { label: "Tasks", context: "Mission Queue", code: "TASK" },
   tools: { label: "Tools", context: "Tool Layer", code: "TOOL" },
+  control: { label: "Control", context: "Governance", code: "CTRL" },
   settings: { label: "Settings", context: "Local UI", code: "SET" },
   system: { label: "System", context: "Health", code: "SYS" }
 };
 
-const MENU_ITEMS: Array<{ label: string; type?: WindowType }> = [
-  { label: "RIN_CORE_OS", type: "core" },
-  { label: "CHAT", type: "chat" },
-  { label: "MEMORY", type: "memory" },
-  { label: "TRACE", type: "trace" },
-  { label: "PROVIDERS", type: "provider" },
-  { label: "COST", type: "cost" },
-  { label: "RIN MIND", type: "mind" },
-  { label: "TASKS", type: "tasks" },
-  { label: "TOOLS", type: "tools" },
-  { label: "SETTINGS", type: "settings" },
-  { label: "WINDOWS" },
-  { label: "SYSTEM", type: "system" }
+const DOMAIN_NAV_ITEMS: Array<{ label: string; type: WindowType; tone: string }> = [
+  { label: "Overview", type: "core", tone: "overview" },
+  { label: "Chat", type: "chat", tone: "chat" },
+  { label: "Mind", type: "mind", tone: "mind" },
+  { label: "Memory", type: "memory", tone: "memory" },
+  { label: "Context", type: "context", tone: "context" },
+  { label: "Runtime", type: "trace", tone: "runtime" },
+  { label: "Cost", type: "cost", tone: "cost" },
+  { label: "Control", type: "control", tone: "control" }
 ];
-
-const CENTER_MENU_ITEMS = MENU_ITEMS.filter((item) => item.label !== "RIN_CORE_OS");
 
 const DEFAULT_LAYOUT: Array<Pick<
   ConsoleWindow,
   "type" | "contextName" | "x" | "y" | "width" | "height"
 >> = [
-  { type: "core", contextName: "RIN Core", x: 440, y: 58, width: 410, height: 250 },
-  { type: "chat", contextName: "Default Session", x: 28, y: 76, width: 410, height: 516 },
-  { type: "memory", contextName: "Recent Memories", x: 850, y: 82, width: 406, height: 488 },
-  { type: "trace", contextName: "Latest Turn", x: 372, y: 432, width: 548, height: 236 },
-  { type: "provider", contextName: "API Provider", x: 888, y: 492, width: 360, height: 200 },
-  { type: "cost", contextName: "Usage Ledger", x: 498, y: 104, width: 382, height: 248 },
-  { type: "mind", contextName: "Mind Snapshot", x: 486, y: 214, width: 438, height: 328 }
+  { type: "core", contextName: "RIN Overview", x: 20, y: 52, width: 300, height: 230 },
+  { type: "chat", contextName: "Default Session", x: 20, y: 298, width: 300, height: 300 },
+  { type: "mind", contextName: "Mind Snapshot", x: 332, y: 52, width: 300, height: 230 },
+  { type: "memory", contextName: "Memory Governance", x: 644, y: 52, width: 300, height: 230 },
+  { type: "context", contextName: "Context Plan", x: 956, y: 52, width: 300, height: 230 },
+  { type: "trace", contextName: "Runtime Trace", x: 332, y: 298, width: 300, height: 300 },
+  { type: "cost", contextName: "DeepSeek Usage", x: 644, y: 298, width: 300, height: 300 },
+  { type: "control", contextName: "Governance", x: 956, y: 298, width: 300, height: 300 }
 ];
 
 const SPAWN_LAYOUT: Record<WindowType, {
@@ -151,6 +157,7 @@ const SPAWN_LAYOUT: Record<WindowType, {
   chat: { x: 44, y: 84, width: 430, height: 516, offsetX: 34, offsetY: 28 },
   memory: { x: 828, y: 84, width: 420, height: 488, offsetX: -34, offsetY: 28 },
   memoryDetail: { x: 520, y: 118, width: 430, height: 420, offsetX: 28, offsetY: 28 },
+  context: { x: 474, y: 408, width: 560, height: 330, offsetX: 34, offsetY: -22 },
   trace: { x: 346, y: 396, width: 570, height: 268, offsetX: 38, offsetY: -24 },
   provider: { x: 838, y: 424, width: 390, height: 244, offsetX: -30, offsetY: -18 },
   cost: { x: 54, y: 470, width: 438, height: 300, offsetX: 30, offsetY: -26 },
@@ -158,6 +165,7 @@ const SPAWN_LAYOUT: Record<WindowType, {
   error: { x: 500, y: 124, width: 460, height: 340, offsetX: 28, offsetY: 30 },
   tasks: { x: 96, y: 128, width: 420, height: 320, offsetX: 32, offsetY: 30 },
   tools: { x: 744, y: 154, width: 410, height: 318, offsetX: -32, offsetY: 30 },
+  control: { x: 708, y: 118, width: 520, height: 430, offsetX: -28, offsetY: 28 },
   settings: { x: 510, y: 166, width: 430, height: 320, offsetX: 26, offsetY: 26 },
   system: { x: 496, y: 96, width: 460, height: 360, offsetX: 24, offsetY: 26 }
 };
@@ -758,6 +766,38 @@ export default function App() {
     [openErrorWindow, refreshSnapshot]
   );
 
+  const reviewGrowthEvent = useCallback(
+    async (eventId: string, action: "approve" | "reject") => {
+      try {
+        if (action === "approve") {
+          await approveGrowthEvent(eventId);
+        } else {
+          await rejectGrowthEvent(eventId);
+        }
+        await refreshSnapshot();
+      } catch (error) {
+        openErrorWindow(compactError(error));
+      }
+    },
+    [openErrorWindow, refreshSnapshot]
+  );
+
+  const reviewToolRequest = useCallback(
+    async (requestId: string, action: "approve" | "reject") => {
+      try {
+        if (action === "approve") {
+          await approveToolRequest(requestId);
+        } else {
+          await rejectToolRequest(requestId);
+        }
+        await refreshSnapshot();
+      } catch (error) {
+        openErrorWindow(compactError(error));
+      }
+    },
+    [openErrorWindow, refreshSnapshot]
+  );
+
   const visibleWindows = windows.filter((item) => item.visible && !item.minimized);
   const minimizedWindows = windows.filter((item) => item.minimized);
   const hiddenWindows = windows.filter((item) => !item.visible);
@@ -825,7 +865,10 @@ export default function App() {
               searchMemory={searchMemory}
               reviewMindCandidate={reviewMindCandidate}
               editMindCandidate={editMindCandidate}
+              reviewGrowthEvent={reviewGrowthEvent}
+              reviewToolRequest={reviewToolRequest}
               uiSettings={uiSettings}
+              setUiSettings={setUiSettings}
               openWindow={openWindow}
               openErrorWindow={openErrorWindow}
               closeWindow={closeWindow}
@@ -866,6 +909,17 @@ function TopMenu(props: {
   const providerName = props.snapshot?.provider.activeProvider ?? "provider";
   const providerHealth = props.snapshot?.provider.health ?? "loading";
   const memoryCount = props.snapshot?.memory.totalVisible ?? 0;
+  const activeTypes = new Set(
+    props.windows
+      .filter((item) => item.visible && !item.minimized)
+      .map((item) => item.type)
+  );
+  const cost = props.snapshot?.cost;
+  const displayCurrency = cost?.displayCurrency ?? cost?.currency ?? "USD";
+  const costValue = cost?.configuredEstimatedCostCny
+    ?? cost?.configuredEstimatedCostUsd
+    ?? cost?.totalEstimatedCost
+    ?? 0;
 
   return (
     <header className="system-menu">
@@ -879,54 +933,28 @@ function TopMenu(props: {
           <small className={`core-status-dot ${props.coreVisualState}`}>{coreStatus}</small>
         </button>
       </div>
-      <nav className="menu-zone menu-center" aria-label="RIN system menu">
-        {CENTER_MENU_ITEMS.map((item) =>
-          item.label === "WINDOWS" ? (
-            <button
-              key={item.label}
-              type="button"
-              className={`menu-button ${props.windowsMenuOpen ? "active" : ""}`}
-              onClick={() => props.setWindowsMenuOpen(!props.windowsMenuOpen)}
-            >
-              WINDOWS
-            </button>
-          ) : (
-            <button
-              key={item.label}
-              type="button"
-              className="menu-button"
-              onClick={() => item.type && props.openWindow(item.type)}
-            >
-              {item.label}
-            </button>
-          )
-        )}
+      <nav className="menu-zone menu-center" aria-label="RIN data domains">
+        {DOMAIN_NAV_ITEMS.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            className={`menu-button domain-${item.tone} ${activeTypes.has(item.type) ? "active" : ""}`}
+            onClick={() => props.openWindow(item.type)}
+          >
+            {item.label}
+          </button>
+        ))}
       </nav>
       <div className="menu-zone menu-right">
-        <SegmentedControl
-          label="Mode"
-          value={props.uiSettings.displayMode}
-          options={["basic", "advanced", "developer"]}
-          onChange={(displayMode) =>
-            props.setUiSettings((current) => ({ ...current, displayMode }))
-          }
-        />
-        <SegmentedControl
-          label="Size"
-          value={props.uiSettings.displaySize}
-          options={["small", "normal", "large", "xl"]}
-          onChange={(displaySize) =>
-            props.setUiSettings((current) => ({ ...current, displaySize }))
-          }
-        />
-        <SegmentedControl
-          label="Density"
-          value={props.uiSettings.density}
-          options={["compact", "normal", "detailed"]}
-          onChange={(density) =>
-            props.setUiSettings((current) => ({ ...current, density }))
-          }
-        />
+        <button
+          type="button"
+          className={`status-chip windows-chip ${props.windowsMenuOpen ? "active" : ""}`}
+          onClick={() => props.setWindowsMenuOpen(!props.windowsMenuOpen)}
+          title="Window and view controls"
+        >
+          <span>VIEW</span>
+          <small>{props.uiSettings.displayMode}/{props.uiSettings.density}</small>
+        </button>
         <button
           type="button"
           className="status-chip provider-chip"
@@ -935,6 +963,15 @@ function TopMenu(props: {
         >
           <span>PRV</span>
           <small>{providerName} / {providerHealth}</small>
+        </button>
+        <button
+          type="button"
+          className="status-chip cost-chip"
+          onClick={() => props.openWindow("cost")}
+          title="Cost and token usage"
+        >
+          <span>COST</span>
+          <small>{formatCost(costValue)} {displayCurrency}</small>
         </button>
         <button
           type="button"
@@ -955,10 +992,41 @@ function TopMenu(props: {
       </div>
       {props.windowsMenuOpen ? (
         <section className="windows-menu">
+          <div className="window-view-controls">
+            <SegmentedControl
+              label="Mode"
+              value={props.uiSettings.displayMode}
+              options={["basic", "advanced", "developer"]}
+              onChange={(displayMode) =>
+                props.setUiSettings((current) => ({ ...current, displayMode }))
+              }
+            />
+            <SegmentedControl
+              label="Size"
+              value={props.uiSettings.displaySize}
+              options={["small", "normal", "large", "xl"]}
+              onChange={(displaySize) =>
+                props.setUiSettings((current) => ({ ...current, displaySize }))
+              }
+            />
+            <SegmentedControl
+              label="Density"
+              value={props.uiSettings.density}
+              options={["compact", "normal", "detailed"]}
+              onChange={(density) =>
+                props.setUiSettings((current) => ({ ...current, density }))
+              }
+            />
+          </div>
           <div className="windows-menu-actions">
             <button type="button" onClick={props.restoreAll}>Restore all</button>
             <button type="button" onClick={props.minimizeAll}>Minimize all</button>
             <button type="button" onClick={props.resetLayout}>Reset layout</button>
+            <button type="button" onClick={() => props.openWindow("provider")}>Provider</button>
+            <button type="button" onClick={() => props.openWindow("tools")}>Tools</button>
+            <button type="button" onClick={() => props.openWindow("tasks")}>Tasks</button>
+            <button type="button" onClick={() => props.openWindow("settings")}>Settings</button>
+            <button type="button" onClick={() => props.openWindow("system")}>System</button>
           </div>
           <WindowMenuList
             title="Open windows"
@@ -1009,7 +1077,7 @@ function FocusNav(props: {
   onRestore: () => void;
 }) {
   const majorWindows = props.windows.filter((item) =>
-    ["core", "chat", "memory", "trace", "provider", "cost", "mind"].includes(item.type)
+    ["core", "chat", "mind", "memory", "context", "trace", "cost", "control"].includes(item.type)
   );
   return (
     <nav className="focus-nav" aria-label="Focus mode navigation">
@@ -1190,11 +1258,18 @@ function WindowContent(props: {
     action: "approve" | "reject" | "deactivate" | "reactivate"
   ) => Promise<void>;
   editMindCandidate: (candidateId: string, patch: MindCandidateSafePatch) => Promise<void>;
+  reviewGrowthEvent: (eventId: string, action: "approve" | "reject") => Promise<void>;
+  reviewToolRequest: (requestId: string, action: "approve" | "reject") => Promise<void>;
   uiSettings: {
     displayMode: DisplayMode;
     displaySize: DisplaySize;
     density: Density;
   };
+  setUiSettings: Dispatch<SetStateAction<{
+    displayMode: DisplayMode;
+    displaySize: DisplaySize;
+    density: Density;
+  }>>;
   openWindow: (type: WindowType, options?: { contextName?: string; payload?: WindowPayload; focusExistingId?: string }) => void;
   openErrorWindow: (error: GlitchErrorItem) => void;
   closeWindow: (id: string) => void;
@@ -1210,6 +1285,13 @@ function WindowContent(props: {
       return (
         <MemoryDetailWindow
           card={props.win.payload?.card as MemoryCard | undefined}
+          displayMode={props.uiSettings.displayMode}
+        />
+      );
+    case "context":
+      return (
+        <ContextWindow
+          snapshot={props.snapshot}
           displayMode={props.uiSettings.displayMode}
         />
       );
@@ -1231,6 +1313,18 @@ function WindowContent(props: {
       );
     case "cost":
       return <CostWindow snapshot={props.snapshot} displayMode={props.uiSettings.displayMode} />;
+    case "control":
+      return (
+        <ControlWindow
+          snapshot={props.snapshot}
+          displayMode={props.uiSettings.displayMode}
+          uiSettings={props.uiSettings}
+          setUiSettings={props.setUiSettings}
+          reviewGrowthEvent={props.reviewGrowthEvent}
+          reviewToolRequest={props.reviewToolRequest}
+          openWindow={props.openWindow}
+        />
+      );
     case "mind":
       return (
         <MindWindow
@@ -1378,6 +1472,9 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         <small>{message.shortId}</small>
       </header>
       <p>{message.content}</p>
+      {message.hiddenReasoningRedacted ? (
+        <small className="message-safety-note">hidden reasoning redacted</small>
+      ) : null}
     </article>
   );
 }
@@ -1605,6 +1702,296 @@ function ProviderWindow(props: {
   );
 }
 
+function ContextWindow(props: { snapshot: GlitchSnapshot | null; displayMode: DisplayMode }) {
+  const latest = props.snapshot?.mind.latest;
+  const analytics = props.snapshot?.mind.analytics?.context;
+  if (!latest) {
+    return <p className="empty-state">No context plan captured yet.</p>;
+  }
+  const outline = analytics?.providerRequestOutline;
+  return (
+    <div className="context-module">
+      <div className="module-strip">CONTEXT · PROVIDER REQUEST SHAPE</div>
+      <div className="mind-plan-grid">
+        <MetricCard label="messages" value={outline?.messageCount ?? "n/a"} />
+        <MetricCard label="memory selected" value={outline?.selectedMemoryCount ?? latest.memoryRetrieval.selected.length} />
+        <MetricCard label="memory excluded" value={outline?.excludedMemoryCount ?? latest.memoryRetrieval.excluded.length} />
+        <MetricCard
+          label="owner input last"
+          value={outline?.currentOwnerInputLast ? "yes" : "n/a"}
+          tone={outline?.currentOwnerInputLast ? "ok" : "warn"}
+        />
+      </div>
+      <SectionPanel title="Context Budget" defaultOpen>
+        <ContextPlanView
+          analytics={analytics}
+          fallbackPlan={latest.contextPlan}
+          displayMode={props.displayMode}
+        />
+      </SectionPanel>
+      <SectionPanel title="Safe Retrieval Inputs" defaultOpen={props.displayMode !== "basic"}>
+        <div className="mind-list">
+          {latest.memoryRetrieval.selected.length ? latest.memoryRetrieval.selected.map((item) => (
+            <article key={`${item.sourceKind}:${item.sourceId}`} className="mind-row">
+              <strong>{item.sourceKind}</strong>
+              <p>{item.safeSummary}</p>
+              {item.normalizedValue ? <small>{item.normalizedValue}</small> : null}
+              <small>score={item.score} · rawTextIncluded=false</small>
+            </article>
+          )) : <EmptyState message="No memory selected for current provider context." />}
+        </div>
+      </SectionPanel>
+      <SectionPanel title="Safety Flags" defaultOpen={props.displayMode !== "basic"}>
+        <div className="tag-row">
+          <span>rawPromptIncluded=false</span>
+          <span>rawMemoryIncluded=false</span>
+          <span>hiddenReasoningIncluded=false</span>
+          <span>latestOwnerInputLast={String(outline?.currentOwnerInputLast ?? false)}</span>
+        </div>
+      </SectionPanel>
+    </div>
+  );
+}
+
+function ControlWindow(props: {
+  snapshot: GlitchSnapshot | null;
+  displayMode: DisplayMode;
+  uiSettings: {
+    displayMode: DisplayMode;
+    displaySize: DisplaySize;
+    density: Density;
+  };
+  setUiSettings: Dispatch<SetStateAction<{
+    displayMode: DisplayMode;
+    displaySize: DisplaySize;
+    density: Density;
+  }>>;
+  reviewGrowthEvent: (eventId: string, action: "approve" | "reject") => Promise<void>;
+  reviewToolRequest: (requestId: string, action: "approve" | "reject") => Promise<void>;
+  openWindow: (type: WindowType, options?: { contextName?: string; payload?: WindowPayload }) => void;
+}) {
+  const mind = props.snapshot?.mind;
+  const dataMap = props.snapshot?.dataMap;
+  const growthEvents = mind
+    ? (mind.growthEvents.length ? mind.growthEvents : mind.latest?.growthEvents ?? [])
+    : [];
+  const toolRequests = mind
+    ? (mind.toolInvocationRequests.length
+      ? mind.toolInvocationRequests
+      : mind.latest?.toolInvocationRequests ?? [])
+    : [];
+  const pendingGrowth = growthEvents.filter(
+    (event) => !["owner_approved", "rejected"].includes(event.reviewStatus)
+  );
+  const pendingTools = toolRequests.filter(
+    (request) => !["approved", "rejected", "executed", "blocked"].includes(request.status)
+  );
+  const policy = mind?.policy;
+  const dangerousFlags = policy ? [
+    ["embeddings", policy.enableEmbeddings],
+    ["model summaries", policy.enableModelSummaries],
+    ["agent tools", policy.enableAgentTools],
+    ["high-risk memory export", policy.allowHighRiskMemoryExport],
+    ["self-model auto apply", policy.selfModelAutoApply]
+  ] : [];
+
+  return (
+    <div className="control-module">
+      <div className="module-strip">CONTROL · GOVERNANCE CENTER</div>
+      <div className="control-grid">
+        <MetricCard label="data blocks" value={dataMap?.dataBlocks.length ?? 0} />
+        <MetricCard label="memory candidates" value={mind?.candidateCount ?? 0} />
+        <MetricCard label="growth pending" value={pendingGrowth.length} tone={pendingGrowth.length ? "warn" : "ok"} />
+        <MetricCard label="tool proposals" value={pendingTools.length} tone={pendingTools.length ? "warn" : "ok"} />
+        <MetricCard label="danger defaults" value={policy?.dangerousDefaultsDisabled ? "disabled" : "check"} tone={policy?.dangerousDefaultsDisabled ? "ok" : "danger"} />
+        <MetricCard label="provider keys" value="hidden" tone="ok" />
+      </div>
+      <SectionPanel title="View Controls" defaultOpen>
+        <div className="control-settings">
+          <SegmentedControl
+            label="Mode"
+            value={props.uiSettings.displayMode}
+            options={["basic", "advanced", "developer"]}
+            onChange={(displayMode) =>
+              props.setUiSettings((current) => ({ ...current, displayMode }))
+            }
+          />
+          <SegmentedControl
+            label="Size"
+            value={props.uiSettings.displaySize}
+            options={["small", "normal", "large", "xl"]}
+            onChange={(displaySize) =>
+              props.setUiSettings((current) => ({ ...current, displaySize }))
+            }
+          />
+          <SegmentedControl
+            label="Density"
+            value={props.uiSettings.density}
+            options={["compact", "normal", "detailed"]}
+            onChange={(density) =>
+              props.setUiSettings((current) => ({ ...current, density }))
+            }
+          />
+        </div>
+        <div className="windows-menu-actions inline-actions">
+          <button type="button" onClick={() => props.openWindow("provider")}>Provider</button>
+          <button type="button" onClick={() => props.openWindow("tools")}>Tools</button>
+          <button type="button" onClick={() => props.openWindow("tasks")}>Tasks</button>
+          <button type="button" onClick={() => props.openWindow("settings")}>Settings</button>
+          <button type="button" onClick={() => props.openWindow("system")}>System</button>
+        </div>
+      </SectionPanel>
+      <SectionPanel title="Policy Guardrails" defaultOpen>
+        <div className="tag-row">
+          {dangerousFlags.map(([label, enabled]) => (
+            <span key={String(label)}>{label}: {enabled ? "enabled" : "disabled"}</span>
+          ))}
+        </div>
+        {policy?.warnings.length ? (
+          <ExplanationList items={policy.warnings} />
+        ) : (
+          <p className="readable-note">Dangerous capabilities are disabled by default and policy writes are not exposed here.</p>
+        )}
+      </SectionPanel>
+      <SectionPanel title="Growth Governance" defaultOpen={props.displayMode !== "basic"}>
+        <div className="governance-list">
+          {growthEvents.length ? growthEvents.slice(0, 12).map((event) => {
+            const actionable = !["owner_approved", "rejected"].includes(event.reviewStatus);
+            return (
+              <article key={event.id} className={`governance-row ${event.riskLevel}`}>
+                <header>
+                  <strong>{event.eventType}</strong>
+                  <ReviewStatusBadge value={event.reviewStatus} />
+                </header>
+                <p>{event.summary}</p>
+                <small>autoApplied=false · rawTextIncluded=false · active={String(event.active)}</small>
+                {actionable ? (
+                  <div className="mind-actions">
+                    <button type="button" onClick={() => void props.reviewGrowthEvent(event.id, "approve")}>
+                      APPROVE
+                    </button>
+                    <button type="button" onClick={() => void props.reviewGrowthEvent(event.id, "reject")}>
+                      REJECT
+                    </button>
+                  </div>
+                ) : null}
+              </article>
+            );
+          }) : <EmptyState message="No growth events awaiting review." />}
+        </div>
+      </SectionPanel>
+      <SectionPanel title="Tool Proposal Governance" defaultOpen={props.displayMode !== "basic"}>
+        <div className="governance-list">
+          {toolRequests.length ? toolRequests.slice(0, 12).map((request) => {
+            const actionable = !["approved", "rejected", "executed", "blocked"].includes(request.status);
+            return (
+              <article key={request.id} className={`governance-row ${request.riskLevel}`}>
+                <header>
+                  <strong>{request.toolName}</strong>
+                  <StatusBadge value={request.status} />
+                </header>
+                <p>{request.actionSummary}</p>
+                <small>executionDisabledByDefault=true · rawInputIncluded=false</small>
+                {actionable ? (
+                  <div className="mind-actions">
+                    <button type="button" onClick={() => void props.reviewToolRequest(request.id, "approve")}>
+                      APPROVE PROPOSAL
+                    </button>
+                    <button type="button" onClick={() => void props.reviewToolRequest(request.id, "reject")}>
+                      REJECT
+                    </button>
+                  </div>
+                ) : null}
+              </article>
+            );
+          }) : <EmptyState message="Tool execution remains disabled; no proposals." />}
+        </div>
+      </SectionPanel>
+      <SectionPanel title="Data Map" defaultOpen={props.displayMode !== "basic"}>
+        <DataMapView dataMap={dataMap} displayMode={props.displayMode} />
+      </SectionPanel>
+      <SectionPanel title="Provider And Cost Control" defaultOpen={props.displayMode === "developer"}>
+        <div className="control-grid">
+          <MetricCard label="provider" value={props.snapshot?.provider.activeProvider ?? "n/a"} />
+          <MetricCard label="model" value={props.snapshot?.provider.activeModel ?? "n/a"} />
+          <MetricCard label="pricing profile" value={props.snapshot?.cost.pricingProfile ?? "n/a"} />
+          <MetricCard label="billing match" value={props.snapshot?.cost.officialBillingMatch ?? "n/a"} />
+        </div>
+        <p className="readable-note">Provider config is display-only. API keys and env values are never editable from this console.</p>
+      </SectionPanel>
+      <JsonInspector
+        value={{ dataMap, policy, growthEvents, toolRequests }}
+        visible={props.displayMode === "developer"}
+        stringify={safeDisplayJson}
+      />
+    </div>
+  );
+}
+
+function DataMapView(props: {
+  dataMap?: GlitchSnapshot["dataMap"];
+  displayMode: DisplayMode;
+}) {
+  const dataMap = props.dataMap;
+  if (!dataMap) {
+    return <EmptyState message="Console data map loading." />;
+  }
+  const blocksByDomain = new Map<string, ConsoleDataMapBlock[]>();
+  for (const block of dataMap.dataBlocks) {
+    blocksByDomain.set(block.domain, [...(blocksByDomain.get(block.domain) ?? []), block]);
+  }
+  if (props.displayMode === "basic") {
+    return (
+      <div className="data-map-basic">
+        <MetricCard label="domains" value={dataMap.domains.length} />
+        <MetricCard label="blocks" value={dataMap.dataBlocks.length} />
+        <MetricCard label="raw prompt" value="hidden" tone="ok" />
+        <MetricCard label="secrets" value="hidden" tone="ok" />
+      </div>
+    );
+  }
+  return (
+    <div className="data-map-view">
+      <div className="data-map-grid">
+        {dataMap.domains.map((domain) => {
+          const blocks = blocksByDomain.get(domain.id) ?? [];
+          const writable = blocks.filter((block) => block.writable).length;
+          return (
+            <article key={domain.id} className={`data-domain domain-color-${domain.color}`}>
+              <header>
+                <strong>{domain.label}</strong>
+                <span>{blocks.length} blocks</span>
+              </header>
+              <small>{writable} writable · {blocks.filter((block) => block.hasGovernanceActions).length} governed</small>
+            </article>
+          );
+        })}
+      </div>
+      {props.displayMode === "developer" ? (
+        <DataTable
+          columns={[
+            { key: "label", label: "block" },
+            { key: "domain", label: "domain" },
+            { key: "panel", label: "panel" },
+            { key: "writable", label: "write" },
+            { key: "actions", label: "actions" },
+            { key: "safety", label: "safety" }
+          ]}
+          rows={dataMap.dataBlocks.map((block) => ({
+            label: block.label,
+            domain: block.domain,
+            panel: block.recommendedPanel,
+            writable: block.writable ? "yes" : "no",
+            actions: block.controlActions.join(", ") || "none",
+            safety: `${block.safetyLevel} / raw=${String(block.rawTextIncluded)}`
+          }))}
+          empty="No data blocks registered."
+        />
+      ) : null}
+    </div>
+  );
+}
+
 function CostWindow(props: { snapshot: GlitchSnapshot | null; displayMode: DisplayMode }) {
   const cost = props.snapshot?.cost;
   if (!cost) {
@@ -1613,9 +2000,16 @@ function CostWindow(props: { snapshot: GlitchSnapshot | null; displayMode: Displ
   const latest = cost.latest;
   const maxRecentTokens = Math.max(1, ...cost.recent.map((item) => item.totalTokens));
   const avgTokens = cost.eventCount ? Math.round(cost.totalTokens / cost.eventCount) : 0;
-  const avgCost = cost.eventCount ? cost.totalEstimatedCost / cost.eventCount : 0;
+  const displayCurrency = cost.displayCurrency ?? cost.currency;
+  const displayTotal = cost.configuredEstimatedCostCny
+    ?? cost.configuredEstimatedCostUsd
+    ?? cost.totalEstimatedCost;
+  const avgCost = cost.eventCount ? displayTotal / cost.eventCount : 0;
   const providerDistribution = distribution(cost.recent.map((item) => item.providerId));
   const modelDistribution = distribution(cost.recent.map((item) => item.model));
+  const rangeAvailable = cost.minEstimatedCostUsd !== null
+    && cost.maxEstimatedCostUsd !== null
+    && cost.configuredEstimatedCostUsd !== null;
   return (
     <div className="cost-module">
       <div className="module-strip">COST / TOKEN · SAFE LEDGER</div>
@@ -1623,25 +2017,47 @@ function CostWindow(props: { snapshot: GlitchSnapshot | null; displayMode: Displ
         <MetricCard label="provider" value={cost.provider} />
         <MetricCard label="model" value={cost.model} />
         <MetricCard label="config" value={<StatusBadge value={cost.configurationStatus} />} />
+        <MetricCard label="pricing" value={cost.pricingProfile} />
+        <MetricCard label="unit" value={cost.pricingUnit} />
+        <MetricCard label="billing match" value={<StatusBadge value={cost.officialBillingMatch} />} />
         <MetricCard label="records" value={cost.eventCount} />
         <MetricCard label="total tokens" value={cost.totalTokens} />
         <MetricCard
           label="total cost"
-          value={`${formatCost(cost.totalEstimatedCost)} ${cost.currency}`}
+          value={`${formatCost(displayTotal)} ${displayCurrency}`}
         />
         <MetricCard label="avg tokens" value={avgTokens} />
-        <MetricCard label="avg cost" value={`${formatCost(avgCost)} ${cost.currency}`} />
+        <MetricCard label="avg cost" value={`${formatCost(avgCost)} ${displayCurrency}`} />
+        <MetricCard label="cache split" value={cost.cacheBreakdownAvailable ? "provider" : "estimated"} />
       </div>
       <div className="cost-latest">
         <span>latest turn</span>
         {latest ? (
           <strong>
-            {latest.inputTokens} in / {latest.outputTokens} out / {latest.totalTokens} total · {formatCost(latest.estimatedCost)} {latest.currency}
+            {latest.inputTokens} in / {latest.outputTokens} out / {latest.totalTokens} total · {formatCost(latest.configuredEstimatedCostCny ?? latest.configuredEstimatedCostUsd ?? latest.estimatedCost)} {latest.displayCurrency ?? latest.currency}
           </strong>
         ) : (
           <strong>no usage records yet</strong>
         )}
       </div>
+      <ChartCard title="DeepSeek Cost Range" note={cost.cacheBreakdownAvailable ? "provider cache tokens available" : "cache breakdown unavailable"}>
+        <div className="cost-range-grid">
+          <MetricCard label="min usd" value={cost.minEstimatedCostUsd === null ? "n/a" : formatCost(cost.minEstimatedCostUsd)} />
+          <MetricCard label="configured usd" value={cost.configuredEstimatedCostUsd === null ? "n/a" : formatCost(cost.configuredEstimatedCostUsd)} />
+          <MetricCard label="max usd" value={cost.maxEstimatedCostUsd === null ? "n/a" : formatCost(cost.maxEstimatedCostUsd)} />
+          <MetricCard label="configured cny" value={cost.configuredEstimatedCostCny === null ? "n/a" : formatCost(cost.configuredEstimatedCostCny)} />
+        </div>
+        {rangeAvailable ? (
+          <StackedBar
+            segments={[
+              { label: "min", value: cost.minEstimatedCostUsd ?? 0, tone: "input" },
+              { label: "configured", value: cost.configuredEstimatedCostUsd ?? 0, tone: "candidate" },
+              { label: "max", value: cost.maxEstimatedCostUsd ?? 0, tone: "output" }
+            ]}
+          />
+        ) : null}
+        <p className="readable-note">{cost.explanation}</p>
+      </ChartCard>
       {latest ? (
         <ChartCard title="Latest Input / Output Split">
           <StackedBar
@@ -1666,7 +2082,10 @@ function CostWindow(props: { snapshot: GlitchSnapshot | null; displayMode: Displ
               <div className="cost-bar" aria-hidden="true">
                 <span style={{ width: `${Math.max(4, (item.totalTokens / maxRecentTokens) * 100)}%` }} />
               </div>
-              <small>{formatCost(item.estimatedCost)} {item.currency} · {item.estimateMethod}</small>
+              <small>
+                {formatCost(item.configuredEstimatedCostCny ?? item.configuredEstimatedCostUsd ?? item.estimatedCost)} {item.displayCurrency ?? item.currency}
+                {" "}· {item.estimateMethod} · {item.officialBillingMatch ?? "estimate"}
+              </small>
             </article>
           ))
         ) : (
@@ -1689,6 +2108,7 @@ function CostWindow(props: { snapshot: GlitchSnapshot | null; displayMode: Displ
             items={[
               "Token records are stored as safe usage metadata only.",
               "Context size is shown next to token use so high-cost turns can be diagnosed without exposing prompt text.",
+              "DeepSeek official cache-hit billing can only be exact when provider usage includes cache hit and miss token counts.",
               "Daily trend needs more dated records; v1 keeps per-turn bars when history is short."
             ]}
           />

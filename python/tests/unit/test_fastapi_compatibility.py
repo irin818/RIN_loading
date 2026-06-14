@@ -7,9 +7,19 @@ from fastapi.testclient import TestClient
 
 from rin.contracts import ModelRequest, ModelResponse, ModelResponseMetadata
 from rin.conversation import ModelAdapterProtocol
-from rin.database import create_temp_layout_database, list_audit_summaries
+from rin.database import (
+    append_message,
+    create_conversation,
+    create_rin_growth_events,
+    create_temp_layout_database,
+    create_tool_invocation_requests,
+    list_audit_summaries,
+    list_rin_growth_events,
+    list_tool_invocation_requests,
+)
 from rin.diagnostics.runtime_trace import RUNTIME_TRACE_STORE
 from rin.diagnostics.safety import create_temp_data_dir
+from rin.mind import RinGrowthEvent, ToolInvocationRequest
 from rin.server import create_app
 from rin.server.api import MockApiAdapter
 from rin.storage import RinDataLayout, create_data_layout
@@ -378,6 +388,53 @@ def test_glitch_core_snapshot_and_memory_api_are_safe_read_only() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
+def test_glitch_core_snapshot_redacts_legacy_hidden_reasoning_chat_message() -> None:
+    client, layout = create_client()
+    try:
+        now = "2026-05-22T12:00:00Z"
+        conversation = create_conversation(layout, "legacy reasoning", now)
+        append_message(
+            layout,
+            conversation.id,
+            "owner",
+            "hello",
+            now,
+            message_id="owner-legacy-reasoning",
+        )
+        leaked_text = (
+            "Okay, the user asked hello. I need to analyze the system and "
+            "decide how to answer before writing the response."
+        )
+        append_message(
+            layout,
+            conversation.id,
+            "rin",
+            leaked_text,
+            now,
+            message_id="rin-legacy-reasoning",
+            model_adapter="legacy",
+        )
+
+        response = client.get(
+            f"/api/glitch-core/snapshot?conversationId={conversation.id}"
+        )
+        payload = response.json()
+        rin_message = payload["messages"][-1]
+
+        assert response.status_code == 200
+        assert payload["hiddenReasoningIncluded"] is False
+        assert leaked_text not in response.text
+        assert "the user asked hello" not in response.text
+        assert rin_message["content"] == (
+            "[RIN reply hidden: unsafe reasoning-like content was redacted.]"
+        )
+        assert rin_message["fullTextIncluded"] is False
+        assert rin_message["hiddenReasoningIncluded"] is False
+        assert rin_message["hiddenReasoningRedacted"] is True
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
 def test_cost_api_responses_are_safe_after_mocked_external_turn() -> None:
     client, layout = create_client(adapter=ExternalUsageAdapter())
     try:
@@ -398,8 +455,18 @@ def test_cost_api_responses_are_safe_after_mocked_external_turn() -> None:
         assert summary_payload["eventCount"] == 1
         assert summary_payload["totalTokens"] == 15
         assert summary_payload["latest"]["estimateMethod"] == "provider_usage"
+        assert summary_payload["pricingProfile"] == "deepseek-v4-flash"
+        assert summary_payload["pricingUnit"] == "per_1m_tokens"
+        assert summary_payload["currencyOfficial"] == "USD"
+        assert summary_payload["cacheBreakdownAvailable"] is False
+        assert summary_payload["officialBillingMatch"] == "estimate"
+        assert "DeepSeek official billing may differ" in summary_payload["explanation"]
+        assert summary_payload["latest"]["usageSource"] == "provider_usage"
+        assert summary_payload["latest"]["officialBillingMatch"] == "estimate"
         assert recent_payload["records"][0]["totalTokens"] == 15
+        assert recent_payload["records"][0]["pricingProfile"] == "deepseek-v4-flash"
         assert snapshot_payload["cost"]["eventCount"] == 1
+        assert snapshot_payload["dataMap"]["mode"] == "console-data-map"
         for response in (summary, recent):
             assert "private cost prompt" not in response.text
             assert "External API mock reply." not in response.text
@@ -412,6 +479,114 @@ def test_cost_api_responses_are_safe_after_mocked_external_turn() -> None:
         assert summary_payload["rawResponseIncluded"] is False
         assert summary_payload["hiddenReasoningIncluded"] is False
         assert summary_payload["secretValuesIncluded"] is False
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_console_data_map_is_safe_and_covers_required_domains() -> None:
+    client, layout = create_client()
+    try:
+        response = client.get("/api/console/data-map")
+
+        assert response.status_code == 200
+        payload = response.json()
+        domain_ids = {item["id"] for item in payload["domains"]}
+        block_ids = {item["id"] for item in payload["dataBlocks"]}
+        assert payload["mode"] == "console-data-map"
+        assert payload["readOnly"] is True
+        assert payload["rawPromptIncluded"] is False
+        assert payload["rawMemoryIncluded"] is False
+        assert payload["hiddenReasoningIncluded"] is False
+        assert payload["secretValuesIncluded"] is False
+        assert {
+            "core-health",
+            "conversation",
+            "mind",
+            "memory",
+            "context",
+            "runtime-trace",
+            "cost-usage",
+            "provider",
+            "growth-self-model",
+            "control-tool-proposal",
+            "database-storage",
+            "profiles",
+            "errors",
+        }.issubset(domain_ids)
+        assert {
+            "cost-usage",
+            "memory-candidates",
+            "context-analytics",
+            "tool-proposals",
+        }.issubset(block_ids)
+        assert "private prompt" not in response.text.lower()
+        assert "api-key" not in response.text.lower()
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_growth_and_tool_review_actions_are_audited_and_non_executing() -> None:
+    client, layout = create_client()
+    now = "2026-06-14T00:00:00.000Z"
+    try:
+        create_rin_growth_events(
+            layout,
+            events=[
+                RinGrowthEvent(
+                    id="growth-test",
+                    eventType="relationship_milestone",
+                    summary="Safe growth summary.",
+                    sourceTurnId="turn-1",
+                    sourceMessageId="message-1",
+                    candidate={"candidateId": "candidate-1"},
+                    riskLevel="medium",
+                    reviewStatus="review_required",
+                    createdAt=now,
+                    appliedAt=None,
+                    active=True,
+                    rawTextIncluded=False,
+                )
+            ],
+            now=now,
+        )
+        create_tool_invocation_requests(
+            layout,
+            requests=[
+                ToolInvocationRequest(
+                    id="tool-test",
+                    sourceTurnId="turn-1",
+                    intent="safe intent",
+                    toolName="future_manual_tool_proposal",
+                    actionSummary="Safe proposed action.",
+                    riskLevel="medium",
+                    requiresOwnerApproval=True,
+                    status="proposed",
+                    createdAt=now,
+                    rawInputIncluded=False,
+                    secretValuesIncluded=False,
+                )
+            ],
+            now=now,
+        )
+
+        growth = client.post("/api/mind/growth-events/growth-test/approve")
+        tool = client.post("/api/mind/tool-requests/tool-test/reject")
+        audit = list_audit_summaries(layout, limit=20)
+
+        assert growth.status_code == 200
+        assert growth.json()["autoApplied"] is False
+        assert growth.json()["event"]["reviewStatus"] == "owner_approved"
+        assert tool.status_code == 200
+        assert tool.json()["executed"] is False
+        assert tool.json()["executionDisabledByDefault"] is True
+        assert tool.json()["request"]["status"] == "rejected"
+        assert list_rin_growth_events(layout)[0].reviewStatus == "owner_approved"
+        assert list_tool_invocation_requests(layout)[0].status == "rejected"
+        event_types = {item.eventType for item in audit}
+        assert "mind.rin_growth_event_reviewed" in event_types
+        assert "mind.tool_invocation_request_reviewed" in event_types
+        assert "Safe growth summary." not in str([item.model_dump() for item in audit])
+        assert "Safe proposed action." not in str([item.model_dump() for item in audit])
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 

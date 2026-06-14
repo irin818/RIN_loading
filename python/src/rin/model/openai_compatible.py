@@ -117,6 +117,8 @@ class OpenAICompatibleChatAdapter:
                 promptTokens=usage.get("prompt_tokens"),
                 completionTokens=usage.get("completion_tokens"),
                 totalTokens=usage.get("total_tokens"),
+                inputCacheHitTokens=usage.get("input_cache_hit_tokens"),
+                inputCacheMissTokens=usage.get("input_cache_miss_tokens"),
                 usageSource="provider" if usage else None,
                 rawContentLength=len(content),
                 rawContentHash=short_hash(content),
@@ -266,7 +268,7 @@ def invalid_response(
 
 
 def read_usage(payload: Any) -> dict[str, int]:
-    """Read provider token usage when present and complete."""
+    """Read provider token usage and optional cache token metadata when present."""
     if not isinstance(payload, dict) or not isinstance(payload.get("usage"), dict):
         return {}
     usage = payload["usage"]
@@ -275,7 +277,48 @@ def read_usage(payload: Any) -> dict[str, int]:
         value = usage.get(source_key)
         if isinstance(value, int) and value >= 0:
             result[source_key] = value
+    cache_hit = first_non_negative_int(
+        usage,
+        (
+            "input_cache_hit_tokens",
+            "prompt_cache_hit_tokens",
+            "cache_hit_tokens",
+        ),
+    )
+    cache_miss = first_non_negative_int(
+        usage,
+        (
+            "input_cache_miss_tokens",
+            "prompt_cache_miss_tokens",
+            "cache_miss_tokens",
+        ),
+    )
+    details = usage.get("prompt_tokens_details")
+    if cache_hit is None and isinstance(details, dict):
+        cache_hit = first_non_negative_int(details, ("cached_tokens",))
+    if (
+        cache_hit is not None
+        and cache_miss is None
+        and "prompt_tokens" in result
+        and result["prompt_tokens"] >= cache_hit
+    ):
+        cache_miss = result["prompt_tokens"] - cache_hit
+    if cache_hit is not None:
+        result["input_cache_hit_tokens"] = cache_hit
+    if cache_miss is not None:
+        result["input_cache_miss_tokens"] = cache_miss
     return result
+
+
+def first_non_negative_int(
+    payload: dict[str, Any],
+    keys: tuple[str, ...],
+) -> int | None:
+    for key in keys:
+        value = payload.get(key)
+        if isinstance(value, int) and value >= 0:
+            return value
+    return None
 
 
 def provider_error_code_from_payload(payload: Any) -> str | None:

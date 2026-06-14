@@ -21,6 +21,9 @@ DEFAULT_API_CHAT_TEMPERATURE = 0.5
 DEFAULT_API_CHAT_MAX_TOKENS = 1024
 DEFAULT_API_CHAT_TOP_P = 0.9
 DEFAULT_COST_CURRENCY = "CNY"
+DEFAULT_COST_PRICING_PROFILE = "deepseek-v4-flash"
+DEFAULT_COST_PRICE_UNIT = "per_1m_tokens"
+DEFAULT_COST_CACHE_HIT_RATIO_ESTIMATE = 0.0
 
 CHAT_PROVIDER_ENV_VARS = (
     "RIN_CHAT_PROVIDER",
@@ -37,10 +40,38 @@ CHAT_PROVIDER_ENV_VARS = (
 THINKING_MODE_VALUES = ("disabled", "enabled")
 
 COST_ENV_VARS = (
+    "RIN_COST_PRICING_PROFILE",
+    "RIN_COST_PRICE_UNIT",
+    "RIN_COST_INPUT_CACHE_HIT_USD_PER_1M",
+    "RIN_COST_INPUT_CACHE_MISS_USD_PER_1M",
+    "RIN_COST_OUTPUT_USD_PER_1M",
+    "RIN_COST_USD_CNY_RATE",
+    "RIN_COST_CACHE_HIT_RATIO_ESTIMATE",
     "RIN_COST_INPUT_PER_1K_TOKENS_CNY",
     "RIN_COST_OUTPUT_PER_1K_TOKENS_CNY",
     "RIN_COST_CURRENCY",
 )
+
+LEGACY_COST_ENV_VARS = (
+    "RIN_COST_INPUT_PER_1K_TOKENS_CNY",
+    "RIN_COST_OUTPUT_PER_1K_TOKENS_CNY",
+    "RIN_COST_CURRENCY",
+)
+
+# Manually maintained DeepSeek V4 pricing defaults. Override with env when billing
+# terms change or a different account-specific rate applies.
+DEEPSEEK_PRICING_PROFILES: dict[str, dict[str, float]] = {
+    "deepseek-v4-flash": {
+        "inputCacheHitUsdPer1M": 0.0028,
+        "inputCacheMissUsdPer1M": 0.14,
+        "outputUsdPer1M": 0.28,
+    },
+    "deepseek-v4-pro": {
+        "inputCacheHitUsdPer1M": 0.003625,
+        "inputCacheMissUsdPer1M": 0.435,
+        "outputUsdPer1M": 0.87,
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -121,15 +152,50 @@ class CostConfig:
     inputPer1KTokens: float
     outputPer1KTokens: float
     currency: str
+    pricingProfile: str = "legacy-per-1k"
+    pricingUnit: str = "per_1k_tokens"
+    inputCacheHitUsdPer1M: float | None = None
+    inputCacheMissUsdPer1M: float | None = None
+    outputUsdPer1M: float | None = None
+    usdCnyRate: float | None = None
+    cacheHitRatioEstimate: float = DEFAULT_COST_CACHE_HIT_RATIO_ESTIMATE
+    legacyPer1K: bool = True
+    manuallyMaintainedProfile: bool = False
 
     def safe_metadata(self) -> dict[str, object]:
         return {
+            "pricingProfile": self.pricingProfile,
+            "pricingUnit": self.pricingUnit,
             "inputPer1KTokens": self.inputPer1KTokens,
             "outputPer1KTokens": self.outputPer1KTokens,
             "currency": self.currency,
+            "currencyOfficial": "USD" if not self.legacyPer1K else self.currency,
+            "displayCurrency": self.displayCurrency,
+            "inputCacheHitUsdPer1M": self.inputCacheHitUsdPer1M,
+            "inputCacheMissUsdPer1M": self.inputCacheMissUsdPer1M,
+            "outputUsdPer1M": self.outputUsdPer1M,
+            "usdCnyRate": self.usdCnyRate,
+            "cacheHitRatioEstimate": self.cacheHitRatioEstimate,
+            "legacyPer1K": self.legacyPer1K,
+            "manuallyMaintainedProfile": self.manuallyMaintainedProfile,
             "estimateOnly": True,
             "envVars": COST_ENV_VARS,
+            "legacyEnvVars": LEGACY_COST_ENV_VARS,
         }
+
+    @property
+    def displayCurrency(self) -> str:
+        if self.legacyPer1K:
+            return self.currency
+        return "CNY" if self.usdCnyRate is not None else "USD"
+
+    @property
+    def deepseekPricingAvailable(self) -> bool:
+        return (
+            self.inputCacheHitUsdPer1M is not None
+            and self.inputCacheMissUsdPer1M is not None
+            and self.outputUsdPer1M is not None
+        )
 
 
 def load_chat_provider_config(
@@ -165,6 +231,34 @@ def load_chat_provider_config(
 def load_cost_config(env: Mapping[str, str] | None = None) -> CostConfig:
     """Load token-cost estimate config from environment variables."""
     source = env or os.environ
+    if any(source.get(name) for name in LEGACY_COST_ENV_VARS):
+        return CostConfig(
+            inputPer1KTokens=read_float_env(
+                source,
+                "RIN_COST_INPUT_PER_1K_TOKENS_CNY",
+                DEFAULT_COST_INPUT_PER_1K_TOKENS_CNY,
+            ),
+            outputPer1KTokens=read_float_env(
+                source,
+                "RIN_COST_OUTPUT_PER_1K_TOKENS_CNY",
+                DEFAULT_COST_OUTPUT_PER_1K_TOKENS_CNY,
+            ),
+            currency=read_text_env(source, "RIN_COST_CURRENCY", DEFAULT_COST_CURRENCY),
+            pricingProfile="legacy-per-1k",
+            pricingUnit="per_1k_tokens",
+            legacyPer1K=True,
+        )
+
+    pricing_profile = read_text_env(
+        source,
+        "RIN_COST_PRICING_PROFILE",
+        DEFAULT_COST_PRICING_PROFILE,
+    )
+    profile_defaults = DEEPSEEK_PRICING_PROFILES.get(
+        pricing_profile,
+        DEEPSEEK_PRICING_PROFILES[DEFAULT_COST_PRICING_PROFILE],
+    )
+    usd_cny_rate = read_optional_float_env(source, "RIN_COST_USD_CNY_RATE")
     return CostConfig(
         inputPer1KTokens=read_float_env(
             source,
@@ -176,7 +270,36 @@ def load_cost_config(env: Mapping[str, str] | None = None) -> CostConfig:
             "RIN_COST_OUTPUT_PER_1K_TOKENS_CNY",
             DEFAULT_COST_OUTPUT_PER_1K_TOKENS_CNY,
         ),
-        currency=read_text_env(source, "RIN_COST_CURRENCY", DEFAULT_COST_CURRENCY),
+        currency="CNY" if usd_cny_rate is not None else "USD",
+        pricingProfile=pricing_profile,
+        pricingUnit=read_text_env(
+            source,
+            "RIN_COST_PRICE_UNIT",
+            DEFAULT_COST_PRICE_UNIT,
+        ),
+        inputCacheHitUsdPer1M=read_float_env(
+            source,
+            "RIN_COST_INPUT_CACHE_HIT_USD_PER_1M",
+            profile_defaults["inputCacheHitUsdPer1M"],
+        ),
+        inputCacheMissUsdPer1M=read_float_env(
+            source,
+            "RIN_COST_INPUT_CACHE_MISS_USD_PER_1M",
+            profile_defaults["inputCacheMissUsdPer1M"],
+        ),
+        outputUsdPer1M=read_float_env(
+            source,
+            "RIN_COST_OUTPUT_USD_PER_1M",
+            profile_defaults["outputUsdPer1M"],
+        ),
+        usdCnyRate=usd_cny_rate,
+        cacheHitRatioEstimate=read_ratio_env(
+            source,
+            "RIN_COST_CACHE_HIT_RATIO_ESTIMATE",
+            DEFAULT_COST_CACHE_HIT_RATIO_ESTIMATE,
+        ),
+        legacyPer1K=False,
+        manuallyMaintainedProfile=pricing_profile in DEEPSEEK_PRICING_PROFILES,
     )
 
 
@@ -221,6 +344,22 @@ def read_float_env(source: Mapping[str, str], name: str, default: float) -> floa
     except ValueError:
         return default
     return value if value >= 0 else default
+
+
+def read_optional_float_env(source: Mapping[str, str], name: str) -> float | None:
+    value = source.get(name)
+    if value is None or not value.strip():
+        return None
+    try:
+        parsed = float(value)
+    except ValueError:
+        return None
+    return parsed if parsed >= 0 else None
+
+
+def read_ratio_env(source: Mapping[str, str], name: str, default: float) -> float:
+    value = read_float_env(source, name, default)
+    return min(1.0, max(0.0, value))
 
 
 def read_thinking_mode_env(

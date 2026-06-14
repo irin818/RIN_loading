@@ -45,6 +45,8 @@ from rin.database.writes import (
     record_failed_turn,
     update_memory_candidate_review,
     update_memory_candidate_safe_fields,
+    update_rin_growth_event_review,
+    update_tool_invocation_request_status,
     upsert_conversation_summary,
 )
 
@@ -93,6 +95,8 @@ __all__ = [
     "record_failed_turn",
     "update_memory_candidate_safe_fields",
     "update_memory_candidate_review",
+    "update_rin_growth_event_review",
+    "update_tool_invocation_request_status",
     "upsert_conversation_summary",
 ]
 """SQLite database helpers for the Python RIN runtime."""
