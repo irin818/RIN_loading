@@ -1,5 +1,6 @@
 export type WindowType =
   | "core"
+  | "body"
   | "chat"
   | "memory"
   | "memoryDetail"
@@ -232,6 +233,100 @@ export interface ConsoleDataMap {
   secretValuesIncluded: false;
   domains: ConsoleDataMapDomain[];
   dataBlocks: ConsoleDataMapBlock[];
+}
+
+export type BodyModelAvailability =
+  | "available"
+  | "missing"
+  | "invalid"
+  | "partial"
+  | "fallback";
+
+export type BodyActivity =
+  | "idle"
+  | "thinking"
+  | "speaking"
+  | "listening"
+  | "memory"
+  | "warning"
+  | "error"
+  | "sleeping"
+  | "reviewing";
+
+export interface BodyRuntimeState {
+  activity: BodyActivity | string;
+  expression: string;
+  motion: string;
+  intensity: number;
+  speechState: string;
+  attentionState: string;
+  mood: string;
+  warningLevel: string;
+  source: string;
+  reason: string;
+}
+
+export interface BodyModelStatus {
+  expectedPath: string;
+  installPath: string;
+  frontendInstallPath: string;
+  status: BodyModelAvailability | string;
+  statusDetail: string;
+  standardModelInstalled: boolean;
+  standardModelValid: boolean;
+  standardModelErrors: string[];
+  missingRequiredFiles: string[];
+  runtimeManifestPath: string | null;
+  assetModelPath: string | null;
+  cubismExportPresent: boolean;
+  cubismModelPath: string | null;
+  cubismRuntimeActive: boolean;
+  runtimeDependency: string;
+  activeRenderer: string;
+  fallbackModeAvailable: boolean;
+  fallbackAssets: Record<string, string>;
+  safeToLoad: boolean;
+  externalDownloadRequired: boolean;
+  paidAssetRequired: boolean;
+}
+
+export interface BodyStatePayload {
+  ok: boolean;
+  mode: "body-state" | string;
+  readOnly: boolean;
+  localOnly: boolean;
+  rawPromptIncluded: false;
+  rawMemoryIncluded: false;
+  rawModelOutputIncluded: false;
+  hiddenReasoningIncluded: false;
+  secretValuesIncluded: false;
+  externalProviderCallCount: number;
+  bodyState: BodyRuntimeState;
+  model: BodyModelStatus;
+  autonomy: {
+    level: string;
+    localOnly: boolean;
+    startsConversation: boolean;
+    executesTools: boolean;
+    readsFiles: boolean;
+    operatesOS: boolean;
+    externalApiCalls: boolean;
+    writesBackendData: boolean;
+    allowedBehaviors: string[];
+  };
+  controls: {
+    manualPreviewFrontendOnly: boolean;
+    reloadModelFrontendOnly: boolean;
+    fallbackToggleFrontendOnly: boolean;
+    backendMutationAvailable: boolean;
+  };
+  installInstructions: {
+    message: string;
+    placeModelFilesUnder: string;
+    expectedLocalPath: string;
+    expectedFrontendPublicPath: string;
+    runtimeDownloads: string;
+  };
 }
 
 export interface MindMessageUnderstanding {
@@ -886,6 +981,15 @@ export interface GlitchSnapshot {
       ownerMessages: number;
       rinMessages: number;
     };
+    body: {
+      status: string;
+      activity: string;
+      expression: string;
+      motion: string;
+      modelStatus: string;
+      fallbackModeAvailable: boolean;
+      cubismRuntimeActive: boolean;
+    };
     health: Record<string, string>;
   };
   conversations: ConversationSummary[];
@@ -910,6 +1014,7 @@ export interface GlitchSnapshot {
   provider: ProviderStatus;
   cost: CostSummary;
   mind: RinMindPayload;
+  body: BodyStatePayload;
   cognitionFlow: CognitionFlowPayload;
   configRegistry: ConfigRegistryPayload;
   selfReview: SelfReviewPayload;
