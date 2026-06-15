@@ -1,4 +1,5 @@
 import type {
+  BodyStatePayload,
   ChatSendResult,
   ConsoleDataMap,
   GlitchSnapshot,
@@ -142,6 +143,13 @@ export async function fetchConsoleDataMap(): Promise<ConsoleDataMap> {
     headers: { Accept: "application/json" }
   });
   return readJson<ConsoleDataMap>(response);
+}
+
+export async function fetchBodyState(): Promise<BodyStatePayload> {
+  const response = await fetch("/api/body/state", {
+    headers: { Accept: "application/json" }
+  });
+  return readJson<BodyStatePayload>(response);
 }
 
 export async function approveGrowthEvent(

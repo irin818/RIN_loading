@@ -25,6 +25,7 @@ import {
   sendChatMessage,
   updateMindMemoryCandidateSafeFields
 } from "./api";
+import { BodyOnlyPage, BodyPanel } from "./body";
 import type {
   ChatMessage,
   ConsoleWindow,
@@ -70,6 +71,7 @@ import type { Density, DisplayMode, DisplaySize } from "./visualization";
 const LAYOUT_KEY = "rin.glitch-core.window-layout.v2";
 const UI_SETTINGS_KEY = "rin.glitch-core.ui-settings.v1";
 const PERSISTENT_TYPES = new Set<WindowType>([
+  "body",
   "chat",
   "memory",
   "context",
@@ -81,6 +83,7 @@ const PERSISTENT_TYPES = new Set<WindowType>([
 ]);
 const REUSABLE_WINDOW_TYPES = new Set<WindowType>([
   "core",
+  "body",
   "chat",
   "memory",
   "context",
@@ -113,6 +116,7 @@ type WindowMeta = {
 
 const WINDOW_META: Record<WindowType, WindowMeta> = {
   core: { label: "Core Status", context: "RIN Core", code: "CORE" },
+  body: { label: "Body", context: "Live2D Presence", code: "BODY" },
   chat: { label: "Chat", context: "Default Session", code: "CHAT" },
   memory: { label: "Memory", context: "Recent Memories", code: "MEM" },
   memoryDetail: { label: "Memory Detail", context: "Memory Record", code: "MEM+" },
@@ -132,6 +136,7 @@ const WINDOW_META: Record<WindowType, WindowMeta> = {
 
 const DOMAIN_NAV_ITEMS: Array<{ label: string; type: WindowType; tone: string }> = [
   { label: "Overview", type: "core", tone: "overview" },
+  { label: "Body", type: "body", tone: "runtime" },
   { label: "Chat", type: "chat", tone: "chat" },
   { label: "Mind", type: "mind", tone: "mind" },
   { label: "Cognition", type: "cognition", tone: "runtime" },
@@ -147,11 +152,12 @@ const DEFAULT_LAYOUT: Array<Pick<
   "type" | "contextName" | "x" | "y" | "width" | "height"
 >> = [
   { type: "core", contextName: "RIN Overview", x: 20, y: 52, width: 300, height: 230 },
-  { type: "chat", contextName: "Default Session", x: 20, y: 298, width: 300, height: 300 },
+  { type: "body", contextName: "Live2D Presence", x: 20, y: 298, width: 300, height: 300 },
+  { type: "chat", contextName: "Default Session", x: 332, y: 298, width: 300, height: 300 },
   { type: "mind", contextName: "Mind Snapshot", x: 332, y: 52, width: 300, height: 230 },
   { type: "memory", contextName: "Memory Governance", x: 644, y: 52, width: 300, height: 230 },
   { type: "context", contextName: "Context Plan", x: 956, y: 52, width: 300, height: 230 },
-  { type: "trace", contextName: "Runtime Trace", x: 332, y: 298, width: 300, height: 300 },
+  { type: "trace", contextName: "Runtime Trace", x: 20, y: 612, width: 612, height: 300 },
   { type: "cost", contextName: "DeepSeek Usage", x: 644, y: 298, width: 300, height: 300 },
   { type: "control", contextName: "Governance", x: 956, y: 298, width: 300, height: 300 }
 ];
@@ -165,6 +171,7 @@ const SPAWN_LAYOUT: Record<WindowType, {
   offsetY: number;
 }> = {
   core: { x: 440, y: 58, width: 410, height: 250, offsetX: 18, offsetY: 18 },
+  body: { x: 72, y: 90, width: 420, height: 560, offsetX: 24, offsetY: 20 },
   chat: { x: 44, y: 84, width: 430, height: 516, offsetX: 34, offsetY: 28 },
   memory: { x: 828, y: 84, width: 420, height: 488, offsetX: -34, offsetY: 28 },
   memoryDetail: { x: 520, y: 118, width: 430, height: 420, offsetX: 28, offsetY: 28 },
@@ -366,6 +373,16 @@ function displaySafeValue(value: unknown): string {
   return safeDisplayJson(value);
 }
 
+function latestRinMessageId(snapshot: GlitchSnapshot | null): string | null {
+  const messages = snapshot?.messages ?? [];
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index].role === "rin") {
+      return messages[index].id;
+    }
+  }
+  return null;
+}
+
 function topmostVisibleWindow(windows: ConsoleWindow[]) {
   return windows
     .filter((item) => item.visible && !item.minimized)
@@ -415,6 +432,10 @@ function deriveCoreVisualState(
 }
 
 export default function App() {
+  if (typeof window !== "undefined" && ["/body", "/body/floating"].includes(window.location.pathname)) {
+    return <BodyOnlyPage />;
+  }
+
   const [snapshot, setSnapshot] = useState<GlitchSnapshot | null>(null);
   const [windows, setWindows] = useState<ConsoleWindow[]>(() => loadLayout());
   const [activeWindowId, setActiveWindowId] = useState<string | null>(null);
@@ -1336,6 +1357,15 @@ function WindowContent(props: {
   switch (props.win.type) {
     case "core":
       return <CoreStatus snapshot={props.snapshot} />;
+    case "body":
+      return (
+        <BodyPanel
+          snapshotBody={props.snapshot?.body}
+          chatBusy={props.chatBusy}
+          latestRinMessageId={latestRinMessageId(props.snapshot)}
+          displayMode={props.uiSettings.displayMode}
+        />
+      );
     case "chat":
       return <ChatWindow {...props} />;
     case "memory":
@@ -2006,6 +2036,7 @@ function ControlWindow(props: {
   const configRegistry = props.snapshot?.configRegistry;
   const selfReview = props.snapshot?.selfReview;
   const improvementProposals = props.snapshot?.improvementProposals;
+  const body = props.snapshot?.body;
   const growthEvents = mind
     ? (mind.growthEvents.length ? mind.growthEvents : mind.latest?.growthEvents ?? [])
     : [];
@@ -2037,6 +2068,7 @@ function ControlWindow(props: {
         <MetricCard label="memory candidates" value={mind?.candidateCount ?? 0} />
         <MetricCard label="growth pending" value={pendingGrowth.length} tone={pendingGrowth.length ? "warn" : "ok"} />
         <MetricCard label="tool proposals" value={pendingTools.length} tone={pendingTools.length ? "warn" : "ok"} />
+        <MetricCard label="body" value={body?.bodyState.activity ?? "loading"} />
         <MetricCard label="danger defaults" value={policy?.dangerousDefaultsDisabled ? "disabled" : "check"} tone={policy?.dangerousDefaultsDisabled ? "ok" : "danger"} />
         <MetricCard label="provider keys" value="hidden" tone="ok" />
       </div>
@@ -2068,6 +2100,7 @@ function ControlWindow(props: {
           />
         </div>
         <div className="windows-menu-actions inline-actions">
+          <button type="button" onClick={() => props.openWindow("body")}>Body</button>
           <button type="button" onClick={() => props.openWindow("cognition")}>Cognition</button>
           <button type="button" onClick={() => props.openWindow("provider")}>Provider</button>
           <button type="button" onClick={() => props.openWindow("tools")}>Tools</button>
@@ -2078,6 +2111,21 @@ function ControlWindow(props: {
       </SectionPanel>
       <SectionPanel title="Config Registry" defaultOpen>
         <ConfigRegistryView registry={configRegistry} displayMode={props.displayMode} />
+      </SectionPanel>
+      <SectionPanel title="Body / Live2D Control" defaultOpen>
+        <div className="control-grid">
+          <MetricCard label="activity" value={body?.bodyState.activity ?? "loading"} />
+          <MetricCard label="expression" value={body?.bodyState.expression ?? "n/a"} />
+          <MetricCard label="motion" value={body?.bodyState.motion ?? "n/a"} />
+          <MetricCard label="model" value={body?.model.status ?? "loading"} tone={body?.model.status === "available" ? "ok" : "warn"} />
+        </div>
+        <p className="readable-note">
+          Body controls are visual-only. Backend config, model files, tools, OS automation, and provider calls are not triggered from this panel.
+        </p>
+        <div className="inline-actions">
+          <button type="button" onClick={() => props.openWindow("body")}>Open Body</button>
+          <a href="/body" target="_blank" rel="noreferrer">Open body-only view</a>
+        </div>
       </SectionPanel>
       <SectionPanel title="Self-review Reports" defaultOpen={props.displayMode !== "basic"}>
         <SelfReviewPanel
@@ -2172,7 +2220,7 @@ function ControlWindow(props: {
         <p className="readable-note">Provider config is display-only. API keys and env values are never editable from this console.</p>
       </SectionPanel>
       <JsonInspector
-        value={{ dataMap, policy, growthEvents, toolRequests, configRegistry, selfReview, improvementProposals }}
+        value={{ dataMap, policy, growthEvents, toolRequests, configRegistry, selfReview, improvementProposals, body }}
         visible={props.displayMode === "developer"}
         stringify={safeDisplayJson}
       />
