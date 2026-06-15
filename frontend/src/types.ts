@@ -306,6 +306,10 @@ export interface BodyModelStatus {
   partialCubismExports: Array<Record<string, unknown>>;
   cubismRuntimeActive: boolean;
   runtimeDependency: string;
+  browserRendererDependency: string;
+  browserRendererCompatible: boolean;
+  browserRendererStatus: string;
+  browserRendererBlocker: string | null;
   runtimeCoreScriptPath: string;
   runtimeCoreScriptPresent: boolean;
   runtimeCoreRequired: boolean;
@@ -1019,6 +1023,8 @@ export interface GlitchSnapshot {
       modelStatus: string;
       fallbackModeAvailable: boolean;
       cubismRuntimeActive: boolean;
+      browserRendererStatus: string;
+      browserRendererCompatible: boolean;
     };
     health: Record<string, string>;
   };

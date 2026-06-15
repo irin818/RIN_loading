@@ -140,7 +140,7 @@ def test_live2d_model_status_accepts_loadable_standard_model_without_motion_asse
     assert status["safeToLoad"] is False
 
 
-def test_live2d_model_status_marks_web_runtime_ready_when_core_script_exists(
+def test_live2d_model_status_keeps_runtime_blocked_when_renderer_is_incompatible(
     tmp_path: Path,
 ) -> None:
     rin_root = tmp_path / "rin"
@@ -169,6 +169,47 @@ def test_live2d_model_status_marks_web_runtime_ready_when_core_script_exists(
 
     assert status["status"] == "available"
     assert status["runtimeCoreScriptPresent"] is True
+    assert status["browserRendererCompatible"] is False
+    assert status["browserRendererStatus"] == "blocked"
+    assert status["browserRendererBlocker"]
+    assert status["runtimeReady"] is False
+    assert status["cubismRuntimeActive"] is False
+    assert status["activeRenderer"] == "fallback"
+    assert status["safeToLoad"] is False
+
+
+def test_live2d_model_status_marks_web_runtime_ready_with_compatible_renderer(
+    tmp_path: Path,
+) -> None:
+    rin_root = tmp_path / "rin"
+    (rin_root / "textures").mkdir(parents=True)
+    (tmp_path / "cubism-core").mkdir()
+    (tmp_path / "cubism-core" / "live2dcubismcore.min.js").write_text(
+        "window.Live2DCubismCore = {};",
+        encoding="utf-8",
+    )
+    (rin_root / "rin.moc3").write_bytes(b"moc")
+    (rin_root / "textures" / "texture_00.png").write_bytes(b"texture")
+    (rin_root / "rin.model3.json").write_text(
+        """
+        {
+          "Version": 3,
+          "FileReferences": {
+            "Moc": "rin.moc3",
+            "Textures": ["textures/texture_00.png"]
+          }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    status = build_live2d_model_status(tmp_path, browser_renderer_compatible=True)
+
+    assert status["status"] == "available"
+    assert status["runtimeCoreScriptPresent"] is True
+    assert status["browserRendererCompatible"] is True
+    assert status["browserRendererStatus"] == "compatible"
+    assert status["browserRendererBlocker"] is None
     assert status["runtimeReady"] is True
     assert status["cubismRuntimeActive"] is True
     assert status["activeRenderer"] == "live2d"
@@ -298,4 +339,45 @@ def test_body_state_payload_explains_missing_cubism_core(tmp_path: Path) -> None
     )
     assert payload["installInstructions"]["expectedRuntimeCorePath"] == (
         "public/live2d/cubism-core/live2dcubismcore.min.js"
+    )
+
+
+def test_body_state_payload_explains_blocked_browser_renderer(tmp_path: Path) -> None:
+    rin_root = tmp_path / "rin"
+    (rin_root / "textures").mkdir(parents=True)
+    (tmp_path / "cubism-core").mkdir()
+    (tmp_path / "cubism-core" / "live2dcubismcore.min.js").write_text(
+        "window.Live2DCubismCore = {};",
+        encoding="utf-8",
+    )
+    (rin_root / "rin.moc3").write_bytes(b"moc")
+    (rin_root / "textures" / "texture_00.png").write_bytes(b"texture")
+    (rin_root / "rin.model3.json").write_text(
+        """
+        {
+          "Version": 3,
+          "FileReferences": {
+            "Moc": "rin.moc3",
+            "Textures": ["textures/texture_00.png"]
+          }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    payload = build_body_state_payload(
+        live2d_root=tmp_path,
+        provider_configured=True,
+        provider_health="ok",
+        pending_memory_review_count=0,
+    )
+
+    assert payload["model"]["status"] == "available"
+    assert payload["model"]["runtimeCoreScriptPresent"] is True
+    assert payload["model"]["browserRendererCompatible"] is False
+    assert payload["model"]["runtimeReady"] is False
+    assert payload["model"]["safeToLoad"] is False
+    assert payload["installInstructions"]["message"] == (
+        "Live2D model and Cubism Core are installed; browser renderer is "
+        "blocked by Cubism Core 6 / MOC v6 compatibility"
     )

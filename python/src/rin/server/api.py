@@ -4530,6 +4530,8 @@ def build_status_dashboard_summary(
             "modelStatus": body_model["status"],
             "fallbackModeAvailable": body_model["fallbackModeAvailable"],
             "cubismRuntimeActive": body_model["cubismRuntimeActive"],
+            "browserRendererStatus": body_model["browserRendererStatus"],
+            "browserRendererCompatible": body_model["browserRendererCompatible"],
         },
         "health": {
             "database": "ok" if schema_version >= 6 else "warning",
@@ -4656,6 +4658,9 @@ def build_diagnostics_payload(
             "adapterId": body_report["adapterId"],
             "staticPresenceAsset": body_model["fallbackAssets"],
             "cubismRuntimeActive": body_model["cubismRuntimeActive"],
+            "browserRendererStatus": body_model["browserRendererStatus"],
+            "browserRendererCompatible": body_model["browserRendererCompatible"],
+            "browserRendererBlocker": body_model["browserRendererBlocker"],
             "modelStatus": body_model["status"],
             "expectedPath": body_model["expectedPath"],
             "fallbackModeAvailable": body_model["fallbackModeAvailable"],

@@ -60,8 +60,11 @@ def main() -> int:
         print(f"pose present: {model['posePresent']}")
         print(f"runtime package ready: {model['runtimePackageReady']}")
         print(f"cubism core present: {model['runtimeCoreScriptPresent']}")
+        print(f"browser renderer: {model['browserRendererStatus']}")
         print(f"runtime ready: {model['runtimeReady']}")
         print(f"fallback active: {model['fallbackActive']}")
+        if model["browserRendererBlocker"]:
+            print(f"browser renderer blocker: {model['browserRendererBlocker']}")
         if model["missingRequiredFiles"]:
             print("missing required:")
             for item in model["missingRequiredFiles"]:

@@ -310,7 +310,9 @@ def test_body_state_api_snapshot_and_diagnostics_are_safe() -> None:
         assert payload["model"]["status"] == "available"
         assert payload["model"]["standardModelInstalled"] is True
         assert payload["model"]["runtimePackageReady"] is True
-        assert payload["model"]["runtimeCoreScriptPresent"] is False
+        assert payload["model"]["runtimeCoreScriptPresent"] is True
+        assert payload["model"]["browserRendererCompatible"] is False
+        assert payload["model"]["browserRendererStatus"] == "blocked"
         assert payload["model"]["runtimeReady"] is False
         assert payload["model"]["safeToLoad"] is False
         assert payload["model"]["cubismExportPresent"] is True

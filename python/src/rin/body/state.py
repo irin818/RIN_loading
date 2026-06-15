@@ -27,6 +27,12 @@ STANDARD_MODEL_RELATIVE_PATH = "rin/rin.model3.json"
 REQUIRED_RUNTIME_DIRS = ("textures",)
 OPTIONAL_RUNTIME_DIRS = ("motions", "expressions")
 CUBISM_CORE_SCRIPT_RELATIVE_PATH = "cubism-core/live2dcubismcore.min.js"
+LIVE2D_BROWSER_RENDERER_DEPENDENCY = "live2d-renderer@0.6.6"
+LIVE2D_BROWSER_RENDERER_COMPATIBLE = False
+LIVE2D_BROWSER_RENDERER_BLOCKER = (
+    "live2d-renderer@0.6.6 bundles a Cubism Framework build that cannot draw "
+    "the current Cubism Core 6 / MOC version 6 RIN export."
+)
 FALLBACK_ASSET_FILES = {
     "bustFront": "rin-bust-front.png",
     "frontFullBody": "rin-front-fullbody.png",
@@ -106,7 +112,11 @@ def build_body_report() -> BodyReport:
     )
 
 
-def build_live2d_model_status(live2d_root: Path) -> dict[str, object]:
+def build_live2d_model_status(
+    live2d_root: Path,
+    *,
+    browser_renderer_compatible: bool = LIVE2D_BROWSER_RENDERER_COMPATIBLE,
+) -> dict[str, object]:
     """Inspect local Live2D runtime assets without requiring a Cubism SDK."""
     rin_root = live2d_root / "rin"
     standard_model = live2d_root / STANDARD_MODEL_RELATIVE_PATH
@@ -185,7 +195,15 @@ def build_live2d_model_status(live2d_root: Path) -> dict[str, object]:
 
     standard_runtime_available = status == "available"
     cubism_core_present = cubism_core_script.is_file()
-    web_runtime_ready = standard_runtime_available and cubism_core_present
+    web_runtime_ready = (
+        standard_runtime_available
+        and cubism_core_present
+        and browser_renderer_compatible
+    )
+    browser_renderer_status = "compatible" if browser_renderer_compatible else "blocked"
+    browser_renderer_blocker = (
+        None if browser_renderer_compatible else LIVE2D_BROWSER_RENDERER_BLOCKER
+    )
     validation_missing_optional = model_validation["missingOptionalFiles"]
     missing_optional_files = [
         *missing_optional_capabilities,
@@ -232,7 +250,11 @@ def build_live2d_model_status(live2d_root: Path) -> dict[str, object]:
         "cubismModelPath": cubism_model_url,
         "partialCubismExports": partial_exports,
         "cubismRuntimeActive": web_runtime_ready,
-        "runtimeDependency": "live2d-renderer",
+        "runtimeDependency": LIVE2D_BROWSER_RENDERER_DEPENDENCY,
+        "browserRendererDependency": LIVE2D_BROWSER_RENDERER_DEPENDENCY,
+        "browserRendererCompatible": browser_renderer_compatible,
+        "browserRendererStatus": browser_renderer_status,
+        "browserRendererBlocker": browser_renderer_blocker,
         "runtimeCoreScriptPath": "/live2d/cubism-core/live2dcubismcore.min.js",
         "runtimeCoreScriptPresent": cubism_core_present,
         "runtimeCoreRequired": True,
@@ -488,7 +510,8 @@ def build_body_asset_diagnostics_payload(live2d_root: Path) -> dict[str, object]
                 "referenced pose3.json",
             ],
             "webRuntime": [
-                "frontend dependency: live2d-renderer",
+                f"frontend dependency: {LIVE2D_BROWSER_RENDERER_DEPENDENCY}",
+                f"browser renderer status: {model['browserRendererStatus']}",
                 "local Cubism Core script: live2dcubismcore.min.js",
             ],
             "fallbackIsLive2D": False,
@@ -517,6 +540,14 @@ def build_body_state_payload(
     if model["status"] == "available" and model["runtimeCoreScriptPresent"] is not True:
         install_message = (
             "Live2D model is installed; Cubism Core runtime script is missing"
+        )
+    elif (
+        model["status"] == "available"
+        and model["browserRendererCompatible"] is not True
+    ):
+        install_message = (
+            "Live2D model and Cubism Core are installed; browser renderer is "
+            "blocked by Cubism Core 6 / MOC v6 compatibility"
         )
     return {
         "ok": True,

@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { fetchBodyState } from "./api";
 import type {
   BodyActivity,
+  BodyModelStatus,
   BodyRuntimeState,
   BodyStatePayload
 } from "./types";
@@ -52,6 +53,23 @@ const BODY_VISUAL_AUTONOMY = {
   defaultAnimationIntensity: 0.3,
 };
 
+function runtimeStatusLabel(model: BodyModelStatus | null | undefined): string {
+  if (!model) {
+    return "loading";
+  }
+  if (model.runtimeReady) {
+    return "ready";
+  }
+  if (
+    model.runtimePackageReady
+    && model.runtimeCoreScriptPresent
+    && model.browserRendererCompatible === false
+  ) {
+    return "renderer blocked";
+  }
+  return model.runtimePackageReady ? "core missing" : "disabled";
+}
+
 export function BodyPanel(props: {
   snapshotBody?: BodyStatePayload | null;
   chatBusy?: boolean;
@@ -83,11 +101,7 @@ export function BodyPanel(props: {
     : bodyState.warningLevel === "warning" || (model ? model.status !== "available" || !model.runtimeReady : true)
       ? "warn"
       : "ok";
-  const runtimeMetric = model?.runtimeReady
-    ? "ready"
-    : model?.runtimePackageReady
-      ? "core missing"
-      : "disabled";
+  const runtimeMetric = runtimeStatusLabel(model);
 
   return (
     <div className={`body-module activity-${bodyState.activity} ${props.compact ? "compact" : ""}`}>
@@ -150,6 +164,14 @@ export function BodyPanel(props: {
               <b>{String(model.runtimeReady)}</b>
               <span>Cubism Core</span>
               <b>{model.runtimeCoreScriptPresent ? "present" : model.runtimeCoreScriptPath}</b>
+              <span>Browser renderer</span>
+              <b>{model.browserRendererStatus}</b>
+              {model.browserRendererBlocker ? (
+                <>
+                  <span>Renderer blocker</span>
+                  <b>{model.browserRendererBlocker}</b>
+                </>
+              ) : null}
               <span>Renderer</span>
               <b>{model.activeRenderer}</b>
             </div>
@@ -264,12 +286,25 @@ function Live2DModelRenderer(props: {
     let disposed = false;
     let resizeObserver: ResizeObserver | null = null;
 
+    const destroyModel = (model: Live2DModelInstance | null) => {
+      if (!model) {
+        return;
+      }
+      try {
+        model.destroy();
+      } catch {
+        // The renderer can throw while cleaning up a partially initialized model.
+      }
+    };
+
     const resizeCanvas = () => {
       const rect = canvas.getBoundingClientRect();
       const pixelRatio = window.devicePixelRatio || 1;
       canvas.width = Math.max(1, Math.round(rect.width * pixelRatio));
       canvas.height = Math.max(1, Math.round(rect.height * pixelRatio));
-      modelRef.current?.resize();
+      if (modelRef.current?.loaded) {
+        modelRef.current.resize();
+      }
     };
 
     const loadModel = async () => {
@@ -302,20 +337,25 @@ function Live2DModelRenderer(props: {
         modelRef.current = model;
         await model.load(props.modelPath);
         if (disposed) {
-          model.destroy();
+          destroyModel(model);
           return;
         }
         model.centerModel();
+        model.resize();
         setLoadState("ready");
         setLoadMessage("Live2D runtime loaded.");
       } catch (error) {
         if (disposed) {
           return;
         }
-        modelRef.current?.destroy();
+        destroyModel(modelRef.current);
         modelRef.current = null;
         setLoadState("error");
-        setLoadMessage(error instanceof Error ? error.message : "Live2D load failed.");
+        setLoadMessage(
+          error instanceof Error
+            ? error.message
+            : "Live2D load failed."
+        );
       }
     };
 
@@ -324,7 +364,7 @@ function Live2DModelRenderer(props: {
     return () => {
       disposed = true;
       resizeObserver?.disconnect();
-      modelRef.current?.destroy();
+      destroyModel(modelRef.current);
       modelRef.current = null;
     };
   }, [props.coreScriptPath, props.modelPath, props.reducedMotion]);
@@ -419,9 +459,15 @@ function BodyStatusStrip(props: {
   const model = props.payload?.model;
   const installMessage = props.payload?.installInstructions.message
     ?? "Live2D model not installed yet";
-  const installTarget = model?.runtimePackageReady && !model.runtimeReady
+  const rendererBlocked = model?.runtimePackageReady
+    && model.runtimeCoreScriptPresent
+    && model.browserRendererCompatible === false;
+  const installTarget = rendererBlocked
+    ? model.browserRendererDependency
+    : model?.runtimePackageReady && !model.runtimeReady
     ? model.runtimeCoreScriptPath
     : model?.expectedPath;
+  const runtimeLabel = runtimeStatusLabel(model);
   return (
     <aside className={`body-status-strip ${props.tone}`}>
       <header>
@@ -439,7 +485,7 @@ function BodyStatusStrip(props: {
       </div>
       <div>
         <span>runtime</span>
-        <b>{model?.runtimeReady ? "ready" : model?.runtimePackageReady ? "core missing" : "disabled"}</b>
+        <b>{runtimeLabel}</b>
       </div>
       <div>
         <span>core</span>
