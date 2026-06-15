@@ -5,9 +5,10 @@ Place the production RIN Live2D runtime export here when the model is ready:
 ```text
 public/live2d/rin/
   rin.model3.json
+  rin.moc3
   textures/
-  motions/
-  expressions/
+  motions/ optional
+  expressions/ optional
   physics.json optional
   pose.json optional
 ```
@@ -19,15 +20,20 @@ do not keep divergent copies of the same model in both locations.
 
 Current state:
 
-- `rin.model3.json` is not installed at the standard runtime path.
+- `rin.model3.json` is installed at the standard runtime path and references
+  the existing RIN `.moc3` plus `textures/texture_00.png`.
+- Production motions, expressions, physics, and pose are not installed.
+- The web adapter uses `live2d-renderer`, but it still requires the official
+  local Cubism Core script at
+  `public/live2d/cubism-core/live2dcubismcore.min.js`. That proprietary runtime
+  file is not committed here.
 - `rin-runtime-manifest.json` and `rin-asset-model.json` describe the current
   PNG fallback body. The PNG fallback is not Live2D and must not be reported as
   a loaded Cubism model.
 - `cubism/rin-layered-source/` contains an interim static Cubism export with a
   `.model3.json`, `.moc3`, display info, and one texture atlas. It is preserved
-  as the current continuation artifact, but it is not the standard runtime
-  contract because it is not installed at `/live2d/rin/rin.model3.json` and has
-  no production motions or expressions.
+  as the current continuation artifact. The standardized runtime files were
+  copied from this export; no motions or expressions were fabricated.
 - The Cubism authoring project is
   `live2d-development/03_cubism_project/rin-layered-source.cmo3`.
 
@@ -38,7 +44,8 @@ python3 python/scripts/validate_live2d_assets.py
 python3 python/scripts/validate_live2d_assets.py --json
 ```
 
-Expected status before the production model export is completed: `partial`.
+Expected status after standardization: `available` for the asset package, with
+`runtimeReady=false` until the official Cubism Core script is installed locally.
 
 Manual Cubism export checklist:
 
@@ -50,6 +57,8 @@ Manual Cubism export checklist:
 5. Place the exported model at `public/live2d/rin/rin.model3.json`.
 6. Place referenced `.moc3`, textures, motions, expressions, and optional
    physics/pose files under `public/live2d/rin/` using relative references.
-7. Run the validator above and reload `/body` or `/body/floating`.
+7. Install the official Cubism Core Web runtime locally at
+   `public/live2d/cubism-core/live2dcubismcore.min.js`.
+8. Run the validator above and reload `/body` or `/body/floating`.
 
 Do not commit paid, proprietary, private, or unlicensed model assets.

@@ -307,8 +307,12 @@ def test_body_state_api_snapshot_and_diagnostics_are_safe() -> None:
         assert payload["bodyState"]["activity"] == "idle"
         assert payload["bodyState"]["reason"] == "No active chat request."
         assert payload["model"]["expectedPath"] == "/live2d/rin/rin.model3.json"
-        assert payload["model"]["status"] == "partial"
-        assert payload["model"]["standardModelInstalled"] is False
+        assert payload["model"]["status"] == "available"
+        assert payload["model"]["standardModelInstalled"] is True
+        assert payload["model"]["runtimePackageReady"] is True
+        assert payload["model"]["runtimeCoreScriptPresent"] is False
+        assert payload["model"]["runtimeReady"] is False
+        assert payload["model"]["safeToLoad"] is False
         assert payload["model"]["cubismExportPresent"] is True
         assert payload["model"]["fallbackModeAvailable"] is True
         assert payload["model"]["externalDownloadRequired"] is False
@@ -345,7 +349,7 @@ def test_body_state_api_snapshot_and_diagnostics_are_safe() -> None:
         assert diagnostics.status_code == 200
         diagnostic_payload = diagnostics.json()
         assert diagnostic_payload["mode"] == "diagnostics-body"
-        assert diagnostic_payload["modelStatus"] == "partial"
+        assert diagnostic_payload["modelStatus"] == "available"
         assert diagnostic_payload["cubismRuntimeActive"] is False
         assert diagnostic_payload["rawPromptIncluded"] is False
         assert diagnostic_payload["rawMemoryIncluded"] is False

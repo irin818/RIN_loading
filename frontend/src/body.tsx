@@ -17,6 +17,8 @@ import {
 import type { DisplayMode } from "./visualization";
 
 type BodyPreviewMode = "auto" | BodyActivity;
+type Live2DModule = typeof import("live2d-renderer");
+type Live2DModelInstance = InstanceType<Live2DModule["Live2DCubismModel"]>;
 
 const BODY_PREVIEW_OPTIONS: BodyPreviewMode[] = [
   "auto",
@@ -27,6 +29,7 @@ const BODY_PREVIEW_OPTIONS: BodyPreviewMode[] = [
   "memory",
   "reviewing",
   "warning",
+  "error",
   "sleeping",
 ];
 
@@ -41,6 +44,12 @@ const DEFAULT_BODY_STATE: BodyRuntimeState = {
   warningLevel: "none",
   source: "frontend_default",
   reason: "Body state is loading.",
+};
+
+const BODY_VISUAL_AUTONOMY = {
+  autonomousIdleEnabled: true,
+  idleVariationIntervalMs: 11000,
+  defaultAnimationIntensity: 0.3,
 };
 
 export function BodyPanel(props: {
@@ -71,9 +80,14 @@ export function BodyPanel(props: {
   const fallbackActive = forceFallback || (model?.fallbackActive ?? true);
   const statusTone = bodyState.warningLevel === "error"
     ? "danger"
-    : bodyState.warningLevel === "warning" || (model ? model.status !== "available" : true)
+    : bodyState.warningLevel === "warning" || (model ? model.status !== "available" || !model.runtimeReady : true)
       ? "warn"
       : "ok";
+  const runtimeMetric = model?.runtimeReady
+    ? "ready"
+    : model?.runtimePackageReady
+      ? "core missing"
+      : "disabled";
 
   return (
     <div className={`body-module activity-${bodyState.activity} ${props.compact ? "compact" : ""}`}>
@@ -110,7 +124,7 @@ export function BodyPanel(props: {
         <MetricCard label="activity" value={bodyState.activity} tone={statusTone} />
         <MetricCard label="expression" value={bodyState.expression} />
         <MetricCard label="motion" value={bodyState.motion} />
-        <MetricCard label="runtime" value={model?.runtimeReady ? "ready" : "disabled"} tone={statusTone} />
+        <MetricCard label="runtime" value={runtimeMetric} tone={statusTone} />
       </div>
       {props.compact ? null : (
       <SectionPanel title="Asset Contract" defaultOpen={props.displayMode === "developer"}>
@@ -134,6 +148,10 @@ export function BodyPanel(props: {
               <b>{model.motionsPresent ? "motions ok" : "motions missing"} / {model.expressionsPresent ? "expressions ok" : "expressions missing"}</b>
               <span>Runtime ready</span>
               <b>{String(model.runtimeReady)}</b>
+              <span>Cubism Core</span>
+              <b>{model.runtimeCoreScriptPresent ? "present" : model.runtimeCoreScriptPath}</b>
+              <span>Renderer</span>
+              <b>{model.activeRenderer}</b>
             </div>
             {[...model.missingRequiredFiles, ...model.missingReferencedFiles].length ? (
               <div className="tag-row">
@@ -157,6 +175,10 @@ export function BodyPanel(props: {
       {props.compact ? null : (
       <SectionPanel title="Visual Autonomy" defaultOpen={props.displayMode === "developer"}>
         <div className="body-contract-grid">
+          <span>idle variation</span>
+          <b>{BODY_VISUAL_AUTONOMY.autonomousIdleEnabled ? `${BODY_VISUAL_AUTONOMY.idleVariationIntervalMs / 1000}s` : "off"}</b>
+          <span>default intensity</span>
+          <b>{BODY_VISUAL_AUTONOMY.defaultAnimationIntensity}</b>
           <span>starts conversation</span>
           <b>{String(payload?.autonomy.startsConversation ?? false)}</b>
           <span>executes tools</span>
@@ -201,8 +223,16 @@ function BodyStage(props: {
   if (!model) {
     return <div className="body-stage loading">Loading body state</div>;
   }
-  if (model.cubismRuntimeActive && model.runtimeReady && !props.forceFallback) {
-    return <Live2DModelRenderer state={props.state} modelPath={model.expectedPath} />;
+  if (model.cubismRuntimeActive && model.runtimeReady && model.safeToLoad && !props.forceFallback) {
+    return (
+      <Live2DModelRenderer
+        state={props.state}
+        modelPath={model.expectedPath}
+        coreScriptPath={model.runtimeCoreScriptPath}
+        fallbackAssets={model.fallbackAssets}
+        reducedMotion={props.reducedMotion}
+      />
+    );
   }
   return (
     <FallbackAvatarRenderer
@@ -216,19 +246,131 @@ function BodyStage(props: {
 function Live2DModelRenderer(props: {
   state: BodyRuntimeState;
   modelPath: string;
+  coreScriptPath: string;
+  fallbackAssets: Record<string, string>;
+  reducedMotion: boolean;
 }) {
-  return (
-    <div className="body-live2d-adapter" data-model-path={props.modelPath}>
-      <FallbackAdapterNotice state={props.state} />
-    </div>
-  );
-}
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const modelRef = useRef<Live2DModelInstance | null>(null);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
+  const [loadMessage, setLoadMessage] = useState("Loading Cubism model.");
 
-function FallbackAdapterNotice({ state }: { state: BodyRuntimeState }) {
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    let disposed = false;
+    let resizeObserver: ResizeObserver | null = null;
+
+    const resizeCanvas = () => {
+      const rect = canvas.getBoundingClientRect();
+      const pixelRatio = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.round(rect.width * pixelRatio));
+      canvas.height = Math.max(1, Math.round(rect.height * pixelRatio));
+      modelRef.current?.resize();
+    };
+
+    const loadModel = async () => {
+      try {
+        setLoadState("loading");
+        setLoadMessage("Loading Cubism model.");
+        resizeCanvas();
+        resizeObserver = new ResizeObserver(resizeCanvas);
+        resizeObserver.observe(canvas);
+
+        const module = await import("live2d-renderer");
+        if (disposed) {
+          return;
+        }
+        const model = new module.Live2DCubismModel(canvas, {
+          autoAnimate: !props.reducedMotion,
+          autoInteraction: false,
+          tapInteraction: false,
+          randomMotion: false,
+          keepAspect: true,
+          cubismCorePath: props.coreScriptPath,
+          enablePhysics: false,
+          enableLipsync: true,
+          enableMotion: true,
+          enableExpression: true,
+          enablePose: true,
+          scale: 1,
+          appendYOffset: 0.02,
+        });
+        modelRef.current = model;
+        await model.load(props.modelPath);
+        if (disposed) {
+          model.destroy();
+          return;
+        }
+        model.centerModel();
+        setLoadState("ready");
+        setLoadMessage("Live2D runtime loaded.");
+      } catch (error) {
+        if (disposed) {
+          return;
+        }
+        modelRef.current?.destroy();
+        modelRef.current = null;
+        setLoadState("error");
+        setLoadMessage(error instanceof Error ? error.message : "Live2D load failed.");
+      }
+    };
+
+    void loadModel();
+
+    return () => {
+      disposed = true;
+      resizeObserver?.disconnect();
+      modelRef.current?.destroy();
+      modelRef.current = null;
+    };
+  }, [props.coreScriptPath, props.modelPath, props.reducedMotion]);
+
+  useEffect(() => {
+    const model = modelRef.current;
+    if (!model || loadState !== "ready") {
+      return;
+    }
+    try {
+      const availableExpressions = model.getExpressions();
+      if (availableExpressions.includes(props.state.expression)) {
+        model.setExpression(props.state.expression);
+      }
+    } catch {
+      // Some early model packages have no expression assets. State effects still render in CSS.
+    }
+  }, [loadState, props.state.expression]);
+
+  if (loadState === "error") {
+    return (
+      <div className="body-live2d-fallback">
+        <FallbackAvatarRenderer
+          assets={props.fallbackAssets}
+          state={props.state}
+          reducedMotion={props.reducedMotion}
+        />
+        <div className="body-live2d-status error">
+          <strong>Live2D load failed</strong>
+          <span>{loadMessage}</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="body-fallback-notice">
-      <strong>{state.expression}</strong>
-      <span>Live2D runtime adapter boundary</span>
+    <div
+      className="body-live2d-adapter"
+      data-model-path={props.modelPath}
+      data-load-state={loadState}
+    >
+      <canvas ref={canvasRef} className="body-live2d-canvas" aria-label="RIN Live2D canvas" />
+      <div className={`body-live2d-status ${loadState}`}>
+        <strong>{props.state.expression}</strong>
+        <span>{loadMessage}</span>
+      </div>
     </div>
   );
 }
@@ -277,6 +419,9 @@ function BodyStatusStrip(props: {
   const model = props.payload?.model;
   const installMessage = props.payload?.installInstructions.message
     ?? "Live2D model not installed yet";
+  const installTarget = model?.runtimePackageReady && !model.runtimeReady
+    ? model.runtimeCoreScriptPath
+    : model?.expectedPath;
   return (
     <aside className={`body-status-strip ${props.tone}`}>
       <header>
@@ -294,10 +439,14 @@ function BodyStatusStrip(props: {
       </div>
       <div>
         <span>runtime</span>
-        <b>{model?.runtimeReady ? "ready" : "disabled"}</b>
+        <b>{model?.runtimeReady ? "ready" : model?.runtimePackageReady ? "core missing" : "disabled"}</b>
       </div>
-      {model && model.status !== "available" ? (
-        <small>{installMessage}: {model.expectedPath}</small>
+      <div>
+        <span>core</span>
+        <b>{model?.runtimeCoreScriptPresent ? "present" : "missing"}</b>
+      </div>
+      {model && (model.status !== "available" || !model.runtimeReady) ? (
+        <small>{installMessage}: {installTarget}</small>
       ) : null}
     </aside>
   );
@@ -478,13 +627,13 @@ function useReducedMotion() {
 function useIdleVariant(reducedMotion: boolean) {
   const [variant, setVariant] = useState(0);
   useEffect(() => {
-    if (reducedMotion) {
+    if (reducedMotion || !BODY_VISUAL_AUTONOMY.autonomousIdleEnabled) {
       setVariant(0);
       return;
     }
     const timer = window.setInterval(() => {
       setVariant((current) => (current + 1) % 3);
-    }, 11000);
+    }, BODY_VISUAL_AUTONOMY.idleVariationIntervalMs);
     return () => window.clearInterval(timer);
   }, [reducedMotion]);
   return variant;
