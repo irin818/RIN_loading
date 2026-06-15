@@ -58,6 +58,8 @@ def main() -> int:
         print(f"expressions present: {model['expressionsPresent']}")
         print(f"physics present: {model['physicsPresent']}")
         print(f"pose present: {model['posePresent']}")
+        print(f"runtime package ready: {model['runtimePackageReady']}")
+        print(f"cubism core present: {model['runtimeCoreScriptPresent']}")
         print(f"runtime ready: {model['runtimeReady']}")
         print(f"fallback active: {model['fallbackActive']}")
         if model["missingRequiredFiles"]:

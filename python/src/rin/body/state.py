@@ -24,7 +24,9 @@ ModelAvailability = Literal["available", "missing", "invalid", "partial", "fallb
 
 STANDARD_MODEL_URL = "/live2d/rin/rin.model3.json"
 STANDARD_MODEL_RELATIVE_PATH = "rin/rin.model3.json"
-EXPECTED_RUNTIME_DIRS = ("textures", "motions", "expressions")
+REQUIRED_RUNTIME_DIRS = ("textures",)
+OPTIONAL_RUNTIME_DIRS = ("motions", "expressions")
+CUBISM_CORE_SCRIPT_RELATIVE_PATH = "cubism-core/live2dcubismcore.min.js"
 FALLBACK_ASSET_FILES = {
     "bustFront": "rin-bust-front.png",
     "frontFullBody": "rin-front-fullbody.png",
@@ -108,6 +110,7 @@ def build_live2d_model_status(live2d_root: Path) -> dict[str, object]:
     """Inspect local Live2D runtime assets without requiring a Cubism SDK."""
     rin_root = live2d_root / "rin"
     standard_model = live2d_root / STANDARD_MODEL_RELATIVE_PATH
+    cubism_core_script = live2d_root / CUBISM_CORE_SCRIPT_RELATIVE_PATH
     runtime_manifest = rin_root / "rin-runtime-manifest.json"
     asset_model = rin_root / "rin-asset-model.json"
     fallback_assets = {
@@ -128,10 +131,15 @@ def build_live2d_model_status(live2d_root: Path) -> dict[str, object]:
             ("rin.model3.json", standard_model.is_file()),
             *(
                 (f"{dirname}/", (rin_root / dirname).is_dir())
-                for dirname in EXPECTED_RUNTIME_DIRS
+                for dirname in REQUIRED_RUNTIME_DIRS
             ),
         )
         if not exists
+    ]
+    missing_optional_capabilities = [
+        f"{dirname}/"
+        for dirname in OPTIONAL_RUNTIME_DIRS
+        if not (rin_root / dirname).is_dir()
     ]
 
     status: ModelAvailability
@@ -144,19 +152,21 @@ def build_live2d_model_status(live2d_root: Path) -> dict[str, object]:
         if isinstance(raw_referenced_missing, list)
         else []
     )
-    incomplete_contract = bool(missing_contract_files or referenced_missing) or not (
-        model_validation["motionsPresent"] is True
-        and model_validation["expressionsPresent"] is True
-    )
-    if standard_model.is_file() and model_json_valid and required_references_valid:
-        if incomplete_contract:
-            status = "partial"
+    if (
+        standard_model.is_file()
+        and model_json_valid
+        and required_references_valid
+        and not referenced_missing
+    ):
+        status = "available"
+        if missing_optional_capabilities:
             status_detail = (
-                "Standard model3 file exists, but the runtime contract is incomplete."
+                "Standard Live2D model package is available; motions and "
+                "expressions are not installed, so state rendering uses "
+                "parameter/effect fallbacks."
             )
         else:
-            status = "available"
-            status_detail = "Standard Live2D model contract is available."
+            status_detail = "Standard Live2D model package is available."
     elif standard_model.is_file():
         status = "invalid"
         status_detail = "Standard model3 file exists but failed safe validation."
@@ -173,15 +183,29 @@ def build_live2d_model_status(live2d_root: Path) -> dict[str, object]:
         status = "missing"
         status_detail = "No standard Live2D model or fallback avatar assets found."
 
+    standard_runtime_available = status == "available"
+    cubism_core_present = cubism_core_script.is_file()
+    web_runtime_ready = standard_runtime_available and cubism_core_present
+    validation_missing_optional = model_validation["missingOptionalFiles"]
+    missing_optional_files = [
+        *missing_optional_capabilities,
+        *(
+            validation_missing_optional
+            if isinstance(validation_missing_optional, list)
+            else []
+        ),
+    ]
+
     return {
         "expectedPath": STANDARD_MODEL_URL,
         "installPath": "public/live2d/rin/rin.model3.json",
         "frontendInstallPath": "frontend/public/live2d/rin/rin.model3.json",
         "status": status,
         "statusDetail": status_detail,
-        "assetContractReady": status == "available",
-        "runtimeReady": False,
-        "fallbackActive": fallback_available,
+        "assetContractReady": standard_runtime_available,
+        "runtimePackageReady": standard_runtime_available,
+        "runtimeReady": web_runtime_ready,
+        "fallbackActive": fallback_available and not web_runtime_ready,
         "standardModelInstalled": standard_model.is_file(),
         "standardModelValid": model_validation["valid"],
         "standardModelJsonValid": model_json_valid,
@@ -190,7 +214,7 @@ def build_live2d_model_status(live2d_root: Path) -> dict[str, object]:
         "standardModelWarnings": model_validation["warnings"],
         "missingRequiredFiles": missing_contract_files,
         "missingReferencedFiles": referenced_missing,
-        "missingOptionalFiles": model_validation["missingOptionalFiles"],
+        "missingOptionalFiles": missing_optional_files,
         "mocPresent": model_validation["mocPresent"],
         "texturesPresent": model_validation["texturesPresent"],
         "motionsPresent": model_validation["motionsPresent"],
@@ -207,12 +231,15 @@ def build_live2d_model_status(live2d_root: Path) -> dict[str, object]:
         "cubismExportPresent": has_partial_cubism_export,
         "cubismModelPath": cubism_model_url,
         "partialCubismExports": partial_exports,
-        "cubismRuntimeActive": False,
-        "runtimeDependency": "not-installed",
-        "activeRenderer": "fallback",
+        "cubismRuntimeActive": web_runtime_ready,
+        "runtimeDependency": "live2d-renderer",
+        "runtimeCoreScriptPath": "/live2d/cubism-core/live2dcubismcore.min.js",
+        "runtimeCoreScriptPresent": cubism_core_present,
+        "runtimeCoreRequired": True,
+        "activeRenderer": "live2d" if web_runtime_ready else "fallback",
         "fallbackModeAvailable": fallback_available,
         "fallbackAssets": fallback_assets,
-        "safeToLoad": status == "available",
+        "safeToLoad": web_runtime_ready,
         "externalDownloadRequired": False,
         "paidAssetRequired": False,
         "rawTextIncluded": False,
@@ -453,10 +480,17 @@ def build_body_asset_diagnostics_payload(live2d_root: Path) -> dict[str, object]
                 "rin.model3.json",
                 "referenced .moc3",
                 "referenced textures",
+            ],
+            "optional": [
                 "motions/",
                 "expressions/",
+                "referenced physics3.json",
+                "referenced pose3.json",
             ],
-            "optional": ["referenced physics3.json", "referenced pose3.json"],
+            "webRuntime": [
+                "frontend dependency: live2d-renderer",
+                "local Cubism Core script: live2dcubismcore.min.js",
+            ],
             "fallbackIsLive2D": False,
         },
     }
@@ -479,6 +513,11 @@ def build_body_state_payload(
         pending_memory_review_count=pending_memory_review_count,
         model_status=str(model["status"]),
     )
+    install_message = "Live2D model not installed yet"
+    if model["status"] == "available" and model["runtimeCoreScriptPresent"] is not True:
+        install_message = (
+            "Live2D model is installed; Cubism Core runtime script is missing"
+        )
     return {
         "ok": True,
         "mode": "body-state",
@@ -516,10 +555,13 @@ def build_body_state_payload(
             "backendMutationAvailable": False,
         },
         "installInstructions": {
-            "message": "Live2D model not installed yet",
+            "message": install_message,
             "placeModelFilesUnder": "/live2d/rin/rin.model3.json",
             "expectedLocalPath": "public/live2d/rin/rin.model3.json",
             "expectedFrontendPublicPath": "frontend/public/live2d/rin/rin.model3.json",
+            "expectedRuntimeCorePath": (
+                "public/live2d/cubism-core/live2dcubismcore.min.js"
+            ),
             "runtimeDownloads": "disabled",
         },
     }

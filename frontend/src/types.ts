@@ -273,6 +273,7 @@ export interface BodyModelStatus {
   status: BodyModelAvailability | string;
   statusDetail: string;
   assetContractReady: boolean;
+  runtimePackageReady: boolean;
   runtimeReady: boolean;
   fallbackActive: boolean;
   standardModelInstalled: boolean;
@@ -305,6 +306,9 @@ export interface BodyModelStatus {
   partialCubismExports: Array<Record<string, unknown>>;
   cubismRuntimeActive: boolean;
   runtimeDependency: string;
+  runtimeCoreScriptPath: string;
+  runtimeCoreScriptPresent: boolean;
+  runtimeCoreRequired: boolean;
   activeRenderer: string;
   fallbackModeAvailable: boolean;
   fallbackAssets: Record<string, string>;
@@ -350,6 +354,7 @@ export interface BodyStatePayload {
     placeModelFilesUnder: string;
     expectedLocalPath: string;
     expectedFrontendPublicPath: string;
+    expectedRuntimeCorePath: string;
     runtimeDownloads: string;
   };
 }

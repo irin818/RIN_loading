@@ -4536,9 +4536,7 @@ def build_status_dashboard_summary(
             "model": "ok" if provider_configured else "warning",
             "profile": "ok" if profile_status == "valid" else "warning",
             "memory": "ok" if memory_available else "warning",
-            "body": "warning"
-            if body_model["status"] in {"missing", "invalid"}
-            else "ok",
+            "body": "ok" if body_model["runtimeReady"] is True else "warning",
             "local": "ok" if snapshot["localOnly"] is True else "warning",
         },
     }

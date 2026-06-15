@@ -1,0 +1,27 @@
+{
+  "Version": 3,
+  "FileReferences": {
+    "Moc": "rin.moc3",
+    "Textures": [
+      "textures/texture_00.png"
+    ],
+    "DisplayInfo": "rin.cdi3.json"
+  },
+  "Groups": [
+    {
+      "Target": "Parameter",
+      "Name": "EyeBlink",
+      "Ids": [
+        "ParamEyeLOpen",
+        "ParamEyeROpen"
+      ]
+    },
+    {
+      "Target": "Parameter",
+      "Name": "LipSync",
+      "Ids": [
+        "ParamMouthOpenY"
+      ]
+    }
+  ]
+}

@@ -2102,13 +2102,64 @@ dd {
 }
 
 .body-stage.loading,
-.body-live2d-adapter,
 .fallback-avatar.missing {
   display: grid;
   place-items: center;
   padding: 18px;
   color: var(--rin-cyan);
   text-align: center;
+}
+
+.body-live2d-adapter,
+.body-live2d-fallback {
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.body-live2d-adapter {
+  background:
+    radial-gradient(circle at 50% 24%, rgba(56, 248, 255, 0.12), transparent 38%),
+    rgba(0, 10, 6, 0.38);
+}
+
+.body-live2d-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.body-live2d-status {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 5;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid rgba(56, 248, 255, 0.28);
+  background: rgba(0, 10, 6, 0.78);
+  color: #d9f9ff;
+  font-size: 11px;
+  font-family: var(--font-hud);
+  text-transform: uppercase;
+  overflow: hidden;
+}
+
+.body-live2d-status span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body-live2d-status.error {
+  border-color: rgba(255, 51, 92, 0.5);
+  color: #ffdce4;
 }
 
 .fallback-avatar {
@@ -2404,7 +2455,7 @@ dd {
 }
 
 .body-module.compact .body-status-strip {
-  grid-template-columns: minmax(120px, 0.8fr) repeat(3, minmax(96px, 1fr));
+  grid-template-columns: minmax(120px, 0.8fr) repeat(4, minmax(82px, 1fr));
   align-items: center;
   margin: 0;
   padding: 8px 10px;
