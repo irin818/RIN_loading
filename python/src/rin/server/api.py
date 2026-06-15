@@ -21,7 +21,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict
 
-from rin.body import build_body_report
+from rin.body import (
+    build_body_asset_diagnostics_payload,
+    build_body_report,
+    build_body_state_payload,
+)
 from rin.config.chat_provider import (
     ChatProviderConfig,
     CostConfig,
@@ -262,6 +266,14 @@ def create_app(
 
     @app.get("/glitch-core/{spa_path:path}", response_class=HTMLResponse)
     def glitch_core_spa(spa_path: str) -> Response:
+        return render_glitch_core_entry()
+
+    @app.get("/body", response_class=HTMLResponse)
+    def body_only_index() -> Response:
+        return render_glitch_core_entry()
+
+    @app.get("/body/{spa_path:path}", response_class=HTMLResponse)
+    def body_only_spa(spa_path: str) -> Response:
         return render_glitch_core_entry()
 
     @app.get("/legacy-ui-v2", response_class=HTMLResponse)
@@ -857,6 +869,17 @@ def create_app(
         current_adapter: ModelAdapterProtocol = adapter_dependency,
     ) -> dict[str, object]:
         return build_diagnostics_payload(current_layout, current_adapter, "body")
+
+    @app.get("/api/body/state")
+    def api_body_state(
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> dict[str, object]:
+        return build_body_state_api_payload(current_layout, current_adapter)
+
+    @app.get("/api/body/assets")
+    def api_body_assets() -> dict[str, object]:
+        return build_body_asset_diagnostics_payload(PUBLIC_LIVE2D_DIR)
 
     @app.get("/api/diagnostics/events")
     def diagnostics_events(
@@ -1480,6 +1503,30 @@ def build_console_v2_snapshot(
     }
 
 
+def build_body_state_api_payload(
+    layout: RinDataLayout,
+    adapter: ModelAdapterProtocol,
+) -> dict[str, object]:
+    """Build the safe Body API payload from display-safe runtime metadata."""
+    chat_config = active_chat_config(adapter)
+    provider_configured = adapter.id == MockApiAdapter.id or chat_config.configured
+    provider_health = "ok" if provider_configured else "warning"
+    latest_trace = RUNTIME_TRACE_STORE.latest()
+    candidates = list_mind_memory_candidates(layout, limit=100)
+    pending_memory_review_count = sum(
+        1
+        for candidate in candidates
+        if candidate.reviewStatus in {"candidate", "review_required"}
+    )
+    return build_body_state_payload(
+        live2d_root=PUBLIC_LIVE2D_DIR,
+        latest_trace=latest_trace.to_safe_dict() if latest_trace else None,
+        provider_configured=provider_configured,
+        provider_health=provider_health,
+        pending_memory_review_count=pending_memory_review_count,
+    )
+
+
 def build_glitch_core_snapshot(
     layout: RinDataLayout,
     adapter: ModelAdapterProtocol,
@@ -1502,6 +1549,7 @@ def build_glitch_core_snapshot(
     model_diagnostics = build_diagnostics_payload(layout, adapter, "model")
     cost_payload = build_cost_summary_payload(layout, adapter)
     mind_payload = build_mind_latest_payload(layout)
+    body_payload = build_body_state_api_payload(layout, adapter)
     data_map_payload = build_console_data_map_payload()
     cognition_flow_payload = build_cognition_flow_payload(layout)
     config_registry_payload = build_config_registry_payload(layout, adapter)
@@ -1574,6 +1622,7 @@ def build_glitch_core_snapshot(
         ),
         "cost": cost_payload,
         "mind": mind_payload,
+        "body": body_payload,
         "cognitionFlow": cognition_flow_payload,
         "configRegistry": config_registry_payload,
         "selfReview": self_review_payload,
@@ -1583,6 +1632,7 @@ def build_glitch_core_snapshot(
         "windows": {
             "defaultTypes": [
                 "core",
+                "body",
                 "chat",
                 "memory",
                 "trace",
@@ -1591,7 +1641,7 @@ def build_glitch_core_snapshot(
                 "mind",
             ],
             "temporaryTypes": ["error", "settings", "tasks", "tools", "system"],
-            "persistentTypes": ["chat", "memory", "trace", "cost", "mind"],
+            "persistentTypes": ["body", "chat", "memory", "trace", "cost", "mind"],
             "layoutPersistence": "browser-local-storage",
         },
     }
@@ -1608,6 +1658,7 @@ def build_console_data_map_payload() -> dict[str, object]:
         {"id": "runtime-trace", "label": "Runtime Trace", "color": "amber"},
         {"id": "cost-usage", "label": "Cost / Usage", "color": "purple"},
         {"id": "provider", "label": "Provider", "color": "cyan"},
+        {"id": "body-live2d", "label": "Body / Live2D", "color": "green"},
         {"id": "growth-self-model", "label": "Growth / Self-model", "color": "amber"},
         {
             "id": "control-tool-proposal",
@@ -1742,6 +1793,24 @@ def build_console_data_map_payload() -> dict[str, object]:
             "status cards",
             data_completeness="provider_dependent",
             notes="API key presence only; key value is never exposed or editable.",
+        ),
+        data_block(
+            "body-state",
+            "Body state and Live2D asset status",
+            "body-live2d",
+            "/api/body/state, /api/glitch-core/snapshot.body",
+            "build_body_state_api_payload, rin.body.build_body_state_payload",
+            (
+                "activity, expression, motion, warning level, model status, "
+                "fallback assets"
+            ),
+            "Body / Control",
+            "body panel and state cards",
+            data_completeness="partial",
+            notes=(
+                "Visual-only local state; no raw prompt, raw memory, secrets, "
+                "tool execution, or external model calls."
+            ),
         ),
         data_block(
             "growth-events",
@@ -4372,7 +4441,9 @@ def build_status_dashboard_summary(
     database = cast(dict[str, object], snapshot["database"])
     memory_context = cast(dict[str, object], snapshot["memoryContext"])
     readiness = build_python_readiness_report().to_dict()
-    body_report = build_body_report().to_dict()
+    body_payload = build_body_state_api_payload(layout, adapter)
+    body_state = cast(dict[str, object], body_payload["bodyState"])
+    body_model = cast(dict[str, object], body_payload["model"])
     profile = snapshot["profile"]
     profile_status = (
         profile.get("status", "unknown") if isinstance(profile, dict) else "unknown"
@@ -4452,14 +4523,22 @@ def build_status_dashboard_summary(
             "rinMessagePercent": rin_message_percent,
         },
         "body": {
-            "status": body_report["status"],
-            "adapterId": body_report["adapterId"],
+            "status": body_state["activity"],
+            "activity": body_state["activity"],
+            "expression": body_state["expression"],
+            "motion": body_state["motion"],
+            "modelStatus": body_model["status"],
+            "fallbackModeAvailable": body_model["fallbackModeAvailable"],
+            "cubismRuntimeActive": body_model["cubismRuntimeActive"],
         },
         "health": {
             "database": "ok" if schema_version >= 6 else "warning",
             "model": "ok" if provider_configured else "warning",
             "profile": "ok" if profile_status == "valid" else "warning",
             "memory": "ok" if memory_available else "warning",
+            "body": "warning"
+            if body_model["status"] in {"missing", "invalid"}
+            else "ok",
             "local": "ok" if snapshot["localOnly"] is True else "warning",
         },
     }
@@ -4485,6 +4564,9 @@ def build_diagnostics_payload(
     profile_files = profile.get("files", []) if isinstance(profile, dict) else []
     profile_file_count = len(profile_files) if isinstance(profile_files, list) else 0
     body_report = build_body_report().to_dict()
+    body_payload = build_body_state_api_payload(layout, adapter)
+    body_state = cast(dict[str, object], body_payload["bodyState"])
+    body_model = cast(dict[str, object], body_payload["model"])
     conversations = list_conversations(layout, limit=8)
     conversation_summaries = []
     for conversation in conversations:
@@ -4572,11 +4654,24 @@ def build_diagnostics_payload(
         "body": {
             "mode": "diagnostics-body",
             "readOnly": True,
-            "status": body_report["status"],
+            "status": body_state["activity"],
             "adapterId": body_report["adapterId"],
-            "staticPresenceAsset": "/picture/rin-core-background.png",
-            "cubismRuntimeActive": False,
-            "futureDesktopBody": "future Live2D body may run separately",
+            "staticPresenceAsset": body_model["fallbackAssets"],
+            "cubismRuntimeActive": body_model["cubismRuntimeActive"],
+            "modelStatus": body_model["status"],
+            "expectedPath": body_model["expectedPath"],
+            "fallbackModeAvailable": body_model["fallbackModeAvailable"],
+            "activity": body_state["activity"],
+            "expression": body_state["expression"],
+            "motion": body_state["motion"],
+            "futureDesktopBody": "future floating body can use /body or /body/floating",
+            "bodyState": body_state,
+            "model": body_model,
+            "rawPromptIncluded": False,
+            "rawMemoryIncluded": False,
+            "rawModelOutputIncluded": False,
+            "hiddenReasoningIncluded": False,
+            "secretValuesIncluded": False,
         },
         "events": {
             "mode": "diagnostics-events",

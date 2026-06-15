@@ -283,6 +283,109 @@ def test_python_ui_static_assets_are_served() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
+def test_body_state_api_snapshot_and_diagnostics_are_safe() -> None:
+    client, layout = create_client()
+    try:
+        before = client.get("/api/local-state").json()
+        response = client.get("/api/body/state")
+        assets = client.get("/api/body/assets")
+        snapshot = client.get("/api/glitch-core/snapshot")
+        diagnostics = client.get("/api/diagnostics/body")
+        after = client.get("/api/local-state").json()
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["mode"] == "body-state"
+        assert payload["readOnly"] is True
+        assert payload["localOnly"] is True
+        assert payload["rawPromptIncluded"] is False
+        assert payload["rawMemoryIncluded"] is False
+        assert payload["rawModelOutputIncluded"] is False
+        assert payload["hiddenReasoningIncluded"] is False
+        assert payload["secretValuesIncluded"] is False
+        assert payload["externalProviderCallCount"] == 0
+        assert payload["bodyState"]["activity"] == "idle"
+        assert payload["bodyState"]["reason"] == "No active chat request."
+        assert payload["model"]["expectedPath"] == "/live2d/rin/rin.model3.json"
+        assert payload["model"]["status"] == "partial"
+        assert payload["model"]["standardModelInstalled"] is False
+        assert payload["model"]["cubismExportPresent"] is True
+        assert payload["model"]["fallbackModeAvailable"] is True
+        assert payload["model"]["externalDownloadRequired"] is False
+        assert payload["autonomy"]["executesTools"] is False
+        assert payload["autonomy"]["externalApiCalls"] is False
+        assert payload["controls"]["backendMutationAvailable"] is False
+        assert "sk-" not in response.text
+        assert ".env" not in response.text
+
+        assert assets.status_code == 200
+        asset_payload = assets.json()
+        assert asset_payload["mode"] == "body-assets"
+        assert asset_payload["readOnly"] is True
+        assert asset_payload["rawPromptIncluded"] is False
+        assert asset_payload["rawMemoryIncluded"] is False
+        assert asset_payload["rawModelOutputIncluded"] is False
+        assert asset_payload["hiddenReasoningIncluded"] is False
+        assert asset_payload["secretValuesIncluded"] is False
+        assert asset_payload["model"]["expectedPath"] == "/live2d/rin/rin.model3.json"
+        assert asset_payload["contract"]["fallbackIsLive2D"] is False
+        assert "sk-" not in assets.text
+        assert ".env" not in assets.text
+
+        assert snapshot.status_code == 200
+        snapshot_payload = snapshot.json()
+        assert snapshot_payload["body"]["mode"] == "body-state"
+        assert snapshot_payload["body"]["rawPromptIncluded"] is False
+        assert snapshot_payload["body"]["secretValuesIncluded"] is False
+        assert any(
+            block["id"] == "body-state"
+            for block in snapshot_payload["dataMap"]["dataBlocks"]
+        )
+
+        assert diagnostics.status_code == 200
+        diagnostic_payload = diagnostics.json()
+        assert diagnostic_payload["mode"] == "diagnostics-body"
+        assert diagnostic_payload["modelStatus"] == "partial"
+        assert diagnostic_payload["cubismRuntimeActive"] is False
+        assert diagnostic_payload["rawPromptIncluded"] is False
+        assert diagnostic_payload["rawMemoryIncluded"] is False
+        assert diagnostic_payload["rawModelOutputIncluded"] is False
+        assert diagnostic_payload["secretValuesIncluded"] is False
+        assert after["database"] == before["database"]
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_body_state_derives_error_from_safe_failed_trace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("RIN_API_CHAT_BASE_URL", raising=False)
+    monkeypatch.delenv("RIN_API_CHAT_KEY", raising=False)
+    monkeypatch.delenv("RIN_API_CHAT_MODEL", raising=False)
+    RUNTIME_TRACE_STORE.clear()
+    temp = create_temp_data_dir()
+    layout = create_temp_layout_database(temp.path)
+    client = TestClient(create_app(layout))
+    try:
+        submitted = client.post(
+            "/api/chat-test/send",
+            json={"content": "body failure private prompt"},
+        )
+        response = client.get("/api/body/state")
+
+        assert submitted.status_code == 200
+        assert submitted.json()["status"] == "failed"
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["bodyState"]["activity"] == "error"
+        assert payload["bodyState"]["warningLevel"] == "error"
+        assert payload["bodyState"]["source"] == "runtime_trace"
+        assert payload["rawPromptIncluded"] is False
+        assert "body failure private prompt" not in response.text
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
 def test_console_v2_route_assets_and_snapshot_are_safe() -> None:
     client, layout = create_client()
     try:
@@ -595,9 +698,15 @@ def test_glitch_core_entry_reports_frontend_build_state() -> None:
     client, layout = create_client()
     try:
         response = client.get("/glitch-core")
+        body = client.get("/body")
+        floating = client.get("/body/floating")
 
         assert response.status_code in {200, 503}
         assert "RIN Glitch Core Console" in response.text
+        assert body.status_code in {200, 503}
+        assert "RIN Glitch Core Console" in body.text
+        assert floating.status_code in {200, 503}
+        assert "RIN Glitch Core Console" in floating.text
         if response.status_code == 200:
             asset_paths = re.findall(
                 r'(?:src|href)="([^"]*assets/[^"]+)"',
