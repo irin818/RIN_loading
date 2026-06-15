@@ -16,7 +16,6 @@ the RIN body renderer.
 Do not replace this file with copies from mirrors, third-party model projects,
 forums, or unknown repositories.
 
-Integration status: this Core matches the current RIN MOC v6 export, but the
-current `live2d-renderer@0.6.6` browser dependency is not compatible with the
-Core 6 / MOC v6 draw path. The web UI keeps fallback rendering active until that
-renderer boundary is replaced.
+Integration status: this Core matches the current RIN MOC v6 export. The web UI
+uses the vendored official Cubism SDK for Web R5 Framework renderer and the
+shader resources documented in `public/live2d/cubism-framework/README.md`.

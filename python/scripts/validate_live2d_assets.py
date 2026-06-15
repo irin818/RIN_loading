@@ -60,6 +60,7 @@ def main() -> int:
         print(f"pose present: {model['posePresent']}")
         print(f"runtime package ready: {model['runtimePackageReady']}")
         print(f"cubism core present: {model['runtimeCoreScriptPresent']}")
+        print(f"cubism shaders present: {model['runtimeShaderFilesPresent']}")
         print(f"browser renderer: {model['browserRendererStatus']}")
         print(f"runtime ready: {model['runtimeReady']}")
         print(f"fallback active: {model['fallbackActive']}")
@@ -72,6 +73,10 @@ def main() -> int:
         if model["missingReferencedFiles"]:
             print("missing referenced:")
             for item in model["missingReferencedFiles"]:
+                print(f"  - {item}")
+        if model["runtimeShaderMissingFiles"]:
+            print("missing runtime shaders:")
+            for item in model["runtimeShaderMissingFiles"]:
                 print(f"  - {item}")
         if model["partialCubismExports"]:
             print("partial Cubism exports:")

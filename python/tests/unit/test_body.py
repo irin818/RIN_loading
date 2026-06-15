@@ -6,6 +6,20 @@ from rin.body import (
     build_body_state_payload,
     build_live2d_model_status,
 )
+from rin.body.state import CUBISM_SHADER_BASE_RELATIVE_PATH, CUBISM_SHADER_FILES
+
+
+def write_cubism_runtime_files(root: Path) -> None:
+    core_root = root / "cubism-core"
+    core_root.mkdir()
+    (core_root / "live2dcubismcore.min.js").write_text(
+        "window.Live2DCubismCore = {};",
+        encoding="utf-8",
+    )
+    shader_root = root / CUBISM_SHADER_BASE_RELATIVE_PATH
+    shader_root.mkdir(parents=True)
+    for filename in CUBISM_SHADER_FILES:
+        (shader_root / filename).write_text("void main() {}", encoding="utf-8")
 
 
 def test_body_report_is_replaceable_and_policy_free() -> None:
@@ -38,7 +52,7 @@ def test_body_report_payload_is_safe_summary() -> None:
 
 
 def test_live2d_model_status_handles_missing_assets(tmp_path: Path) -> None:
-    status = build_live2d_model_status(tmp_path)
+    status = build_live2d_model_status(tmp_path, browser_renderer_compatible=False)
 
     assert status["status"] == "missing"
     assert status["expectedPath"] == "/live2d/rin/rin.model3.json"
@@ -55,7 +69,7 @@ def test_live2d_model_status_uses_fallback_when_png_assets_exist(
     rin_root.mkdir()
     (rin_root / "rin-bust-front.png").write_bytes(b"placeholder")
 
-    status = build_live2d_model_status(tmp_path)
+    status = build_live2d_model_status(tmp_path, browser_renderer_compatible=False)
 
     assert status["status"] == "fallback"
     assert status["fallbackModeAvailable"] is True
@@ -145,11 +159,7 @@ def test_live2d_model_status_keeps_runtime_blocked_when_renderer_is_incompatible
 ) -> None:
     rin_root = tmp_path / "rin"
     (rin_root / "textures").mkdir(parents=True)
-    (tmp_path / "cubism-core").mkdir()
-    (tmp_path / "cubism-core" / "live2dcubismcore.min.js").write_text(
-        "window.Live2DCubismCore = {};",
-        encoding="utf-8",
-    )
+    write_cubism_runtime_files(tmp_path)
     (rin_root / "rin.moc3").write_bytes(b"moc")
     (rin_root / "textures" / "texture_00.png").write_bytes(b"texture")
     (rin_root / "rin.model3.json").write_text(
@@ -165,10 +175,11 @@ def test_live2d_model_status_keeps_runtime_blocked_when_renderer_is_incompatible
         encoding="utf-8",
     )
 
-    status = build_live2d_model_status(tmp_path)
+    status = build_live2d_model_status(tmp_path, browser_renderer_compatible=False)
 
     assert status["status"] == "available"
     assert status["runtimeCoreScriptPresent"] is True
+    assert status["runtimeShaderFilesPresent"] is True
     assert status["browserRendererCompatible"] is False
     assert status["browserRendererStatus"] == "blocked"
     assert status["browserRendererBlocker"]
@@ -183,11 +194,7 @@ def test_live2d_model_status_marks_web_runtime_ready_with_compatible_renderer(
 ) -> None:
     rin_root = tmp_path / "rin"
     (rin_root / "textures").mkdir(parents=True)
-    (tmp_path / "cubism-core").mkdir()
-    (tmp_path / "cubism-core" / "live2dcubismcore.min.js").write_text(
-        "window.Live2DCubismCore = {};",
-        encoding="utf-8",
-    )
+    write_cubism_runtime_files(tmp_path)
     (rin_root / "rin.moc3").write_bytes(b"moc")
     (rin_root / "textures" / "texture_00.png").write_bytes(b"texture")
     (rin_root / "rin.model3.json").write_text(
@@ -207,6 +214,7 @@ def test_live2d_model_status_marks_web_runtime_ready_with_compatible_renderer(
 
     assert status["status"] == "available"
     assert status["runtimeCoreScriptPresent"] is True
+    assert status["runtimeShaderFilesPresent"] is True
     assert status["browserRendererCompatible"] is True
     assert status["browserRendererStatus"] == "compatible"
     assert status["browserRendererBlocker"] is None
@@ -342,7 +350,7 @@ def test_body_state_payload_explains_missing_cubism_core(tmp_path: Path) -> None
     )
 
 
-def test_body_state_payload_explains_blocked_browser_renderer(tmp_path: Path) -> None:
+def test_body_state_payload_explains_missing_cubism_shaders(tmp_path: Path) -> None:
     rin_root = tmp_path / "rin"
     (rin_root / "textures").mkdir(parents=True)
     (tmp_path / "cubism-core").mkdir()
@@ -374,10 +382,48 @@ def test_body_state_payload_explains_blocked_browser_renderer(tmp_path: Path) ->
 
     assert payload["model"]["status"] == "available"
     assert payload["model"]["runtimeCoreScriptPresent"] is True
-    assert payload["model"]["browserRendererCompatible"] is False
+    assert payload["model"]["runtimeShaderFilesPresent"] is False
+    assert payload["model"]["runtimeShaderMissingFiles"]
     assert payload["model"]["runtimeReady"] is False
-    assert payload["model"]["safeToLoad"] is False
     assert payload["installInstructions"]["message"] == (
-        "Live2D model and Cubism Core are installed; browser renderer is "
-        "blocked by Cubism Core 6 / MOC v6 compatibility"
+        "Live2D model and Cubism Core are installed; official Cubism "
+        "Framework WebGL shaders are missing"
+    )
+
+
+def test_body_state_payload_reports_ready_official_renderer(tmp_path: Path) -> None:
+    rin_root = tmp_path / "rin"
+    (rin_root / "textures").mkdir(parents=True)
+    write_cubism_runtime_files(tmp_path)
+    (rin_root / "rin.moc3").write_bytes(b"moc")
+    (rin_root / "textures" / "texture_00.png").write_bytes(b"texture")
+    (rin_root / "rin.model3.json").write_text(
+        """
+        {
+          "Version": 3,
+          "FileReferences": {
+            "Moc": "rin.moc3",
+            "Textures": ["textures/texture_00.png"]
+          }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    payload = build_body_state_payload(
+        live2d_root=tmp_path,
+        provider_configured=True,
+        provider_health="ok",
+        pending_memory_review_count=0,
+    )
+
+    assert payload["model"]["status"] == "available"
+    assert payload["model"]["runtimeCoreScriptPresent"] is True
+    assert payload["model"]["runtimeShaderFilesPresent"] is True
+    assert payload["model"]["browserRendererCompatible"] is True
+    assert payload["model"]["browserRendererStatus"] == "compatible"
+    assert payload["model"]["runtimeReady"] is True
+    assert payload["model"]["safeToLoad"] is True
+    assert payload["installInstructions"]["message"] == (
+        "Live2D model and official Cubism renderer are ready"
     )

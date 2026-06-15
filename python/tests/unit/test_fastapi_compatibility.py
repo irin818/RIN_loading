@@ -311,10 +311,12 @@ def test_body_state_api_snapshot_and_diagnostics_are_safe() -> None:
         assert payload["model"]["standardModelInstalled"] is True
         assert payload["model"]["runtimePackageReady"] is True
         assert payload["model"]["runtimeCoreScriptPresent"] is True
-        assert payload["model"]["browserRendererCompatible"] is False
-        assert payload["model"]["browserRendererStatus"] == "blocked"
-        assert payload["model"]["runtimeReady"] is False
-        assert payload["model"]["safeToLoad"] is False
+        assert payload["model"]["runtimeShaderFilesPresent"] is True
+        assert payload["model"]["runtimeShaderMissingFiles"] == []
+        assert payload["model"]["browserRendererCompatible"] is True
+        assert payload["model"]["browserRendererStatus"] == "compatible"
+        assert payload["model"]["runtimeReady"] is True
+        assert payload["model"]["safeToLoad"] is True
         assert payload["model"]["cubismExportPresent"] is True
         assert payload["model"]["fallbackModeAvailable"] is True
         assert payload["model"]["externalDownloadRequired"] is False
@@ -352,7 +354,7 @@ def test_body_state_api_snapshot_and_diagnostics_are_safe() -> None:
         diagnostic_payload = diagnostics.json()
         assert diagnostic_payload["mode"] == "diagnostics-body"
         assert diagnostic_payload["modelStatus"] == "available"
-        assert diagnostic_payload["cubismRuntimeActive"] is False
+        assert diagnostic_payload["cubismRuntimeActive"] is True
         assert diagnostic_payload["rawPromptIncluded"] is False
         assert diagnostic_payload["rawMemoryIncluded"] is False
         assert diagnostic_payload["rawModelOutputIncluded"] is False
@@ -1392,7 +1394,7 @@ def test_diagnostics_endpoints_are_safe_and_read_only() -> None:
         assert "private diagnostic endpoint check" not in str(memory["contents"])
         assert context["fullPromptIncluded"] is False
         assert profiles["fullTextIncluded"] is False
-        assert body["cubismRuntimeActive"] is False
+        assert body["cubismRuntimeActive"] is True
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 

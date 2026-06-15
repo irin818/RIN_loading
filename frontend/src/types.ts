@@ -312,6 +312,9 @@ export interface BodyModelStatus {
   browserRendererBlocker: string | null;
   runtimeCoreScriptPath: string;
   runtimeCoreScriptPresent: boolean;
+  runtimeShaderPath: string;
+  runtimeShaderFilesPresent: boolean;
+  runtimeShaderMissingFiles: string[];
   runtimeCoreRequired: boolean;
   activeRenderer: string;
   fallbackModeAvailable: boolean;

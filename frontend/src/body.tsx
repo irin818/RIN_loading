@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 
 import { fetchBodyState } from "./api";
+import { RinOfficialCubismModel } from "./live2dOfficialAdapter";
 import type {
   BodyActivity,
   BodyModelStatus,
@@ -18,8 +19,6 @@ import {
 import type { DisplayMode } from "./visualization";
 
 type BodyPreviewMode = "auto" | BodyActivity;
-type Live2DModule = typeof import("live2d-renderer");
-type Live2DModelInstance = InstanceType<Live2DModule["Live2DCubismModel"]>;
 
 const BODY_PREVIEW_OPTIONS: BodyPreviewMode[] = [
   "auto",
@@ -70,6 +69,12 @@ function runtimeStatusLabel(model: BodyModelStatus | null | undefined): string {
   return model.runtimePackageReady ? "core missing" : "disabled";
 }
 
+function safeStringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.length > 0)
+    : [];
+}
+
 export function BodyPanel(props: {
   snapshotBody?: BodyStatePayload | null;
   chatBusy?: boolean;
@@ -96,6 +101,16 @@ export function BodyPanel(props: {
   });
   const model = payload?.model ?? null;
   const fallbackActive = forceFallback || (model?.fallbackActive ?? true);
+  const missingFiles = model
+    ? [
+        ...safeStringList(model.missingRequiredFiles),
+        ...safeStringList(model.missingReferencedFiles),
+        ...safeStringList(model.runtimeShaderMissingFiles),
+      ]
+    : [];
+  const partialCubismExports = Array.isArray(model?.partialCubismExports)
+    ? model.partialCubismExports
+    : [];
   const statusTone = bodyState.warningLevel === "error"
     ? "danger"
     : bodyState.warningLevel === "warning" || (model ? model.status !== "available" || !model.runtimeReady : true)
@@ -164,6 +179,8 @@ export function BodyPanel(props: {
               <b>{String(model.runtimeReady)}</b>
               <span>Cubism Core</span>
               <b>{model.runtimeCoreScriptPresent ? "present" : model.runtimeCoreScriptPath}</b>
+              <span>Cubism shaders</span>
+              <b>{model.runtimeShaderFilesPresent ? "present" : model.runtimeShaderPath ?? "missing"}</b>
               <span>Browser renderer</span>
               <b>{model.browserRendererStatus}</b>
               {model.browserRendererBlocker ? (
@@ -175,14 +192,14 @@ export function BodyPanel(props: {
               <span>Renderer</span>
               <b>{model.activeRenderer}</b>
             </div>
-            {[...model.missingRequiredFiles, ...model.missingReferencedFiles].length ? (
+            {missingFiles.length ? (
               <div className="tag-row">
-                {[...model.missingRequiredFiles, ...model.missingReferencedFiles].map((item) => (
+                {missingFiles.map((item) => (
                   <span key={item}>missing {item}</span>
                 ))}
               </div>
             ) : null}
-            {model.partialCubismExports.length ? (
+            {partialCubismExports.length ? (
               <p className="readable-note">
                 Partial export detected outside the standard contract; it is preserved
                 as a continuation artifact but not auto-loaded as production Live2D.
@@ -273,7 +290,7 @@ function Live2DModelRenderer(props: {
   reducedMotion: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const modelRef = useRef<Live2DModelInstance | null>(null);
+  const modelRef = useRef<RinOfficialCubismModel | null>(null);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [loadMessage, setLoadMessage] = useState("Loading Cubism model.");
 
@@ -286,7 +303,7 @@ function Live2DModelRenderer(props: {
     let disposed = false;
     let resizeObserver: ResizeObserver | null = null;
 
-    const destroyModel = (model: Live2DModelInstance | null) => {
+    const destroyModel = (model: RinOfficialCubismModel | null) => {
       if (!model) {
         return;
       }
@@ -303,47 +320,32 @@ function Live2DModelRenderer(props: {
       canvas.width = Math.max(1, Math.round(rect.width * pixelRatio));
       canvas.height = Math.max(1, Math.round(rect.height * pixelRatio));
       if (modelRef.current?.loaded) {
-        modelRef.current.resize();
+        modelRef.current.resize(canvas.width, canvas.height);
       }
     };
 
     const loadModel = async () => {
       try {
         setLoadState("loading");
-        setLoadMessage("Loading Cubism model.");
+        setLoadMessage("Loading official Cubism model.");
         resizeCanvas();
         resizeObserver = new ResizeObserver(resizeCanvas);
         resizeObserver.observe(canvas);
 
-        const module = await import("live2d-renderer");
-        if (disposed) {
-          return;
-        }
-        const model = new module.Live2DCubismModel(canvas, {
-          autoAnimate: !props.reducedMotion,
-          autoInteraction: false,
-          tapInteraction: false,
-          randomMotion: false,
-          keepAspect: true,
-          cubismCorePath: props.coreScriptPath,
-          enablePhysics: false,
-          enableLipsync: true,
-          enableMotion: true,
-          enableExpression: true,
-          enablePose: true,
-          scale: 1,
-          appendYOffset: 0.02,
+        const model = await RinOfficialCubismModel.create({
+          canvas,
+          modelPath: props.modelPath,
+          coreScriptPath: props.coreScriptPath,
+          state: props.state,
         });
         modelRef.current = model;
-        await model.load(props.modelPath);
         if (disposed) {
           destroyModel(model);
           return;
         }
-        model.centerModel();
-        model.resize();
+        model.resize(canvas.width, canvas.height);
         setLoadState("ready");
-        setLoadMessage("Live2D runtime loaded.");
+        setLoadMessage("Official Cubism runtime loaded.");
       } catch (error) {
         if (disposed) {
           return;
@@ -374,15 +376,8 @@ function Live2DModelRenderer(props: {
     if (!model || loadState !== "ready") {
       return;
     }
-    try {
-      const availableExpressions = model.getExpressions();
-      if (availableExpressions.includes(props.state.expression)) {
-        model.setExpression(props.state.expression);
-      }
-    } catch {
-      // Some early model packages have no expression assets. State effects still render in CSS.
-    }
-  }, [loadState, props.state.expression]);
+    model.setState(props.state);
+  }, [loadState, props.state]);
 
   if (loadState === "error") {
     return (
