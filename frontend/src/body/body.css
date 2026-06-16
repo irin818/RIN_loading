@@ -118,17 +118,11 @@
   justify-items: center;
 }
 
-/* Image auto-fits window, bottom-aligned, no clipping */
+/* Image: fixed scale, bottom-aligned */
 .rin-body.floating .rin-body-image {
   filter: none;
   pointer-events: auto;
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
-  object-fit: contain;
-  object-position: center bottom;
-  transform: none;
+  transform: scale(var(--body-scale, 0.7));
 }
 
 /* ── Standalone page ── */
