@@ -92,7 +92,8 @@
 /* ── Floating mode ── */
 
 .rin-body.floating .rin-body-stage {
-  padding: 0 8px 8px;
+  padding: 0;
+  overflow: visible;
 }
 
 .rin-body.floating .rin-body-label {
@@ -100,7 +101,7 @@
 }
 
 .rin-body.floating .rin-body-controls {
-  padding: 0 8px 8px;
+  display: none;
 }
 
 /* ── Standalone page ── */
@@ -143,8 +144,13 @@
   height: 100vh;
   min-height: 0;
   border: 0;
-  background: rgba(2, 5, 5, 0.08);
+  background: transparent;
   box-shadow: none;
+}
+
+/* Hide header in floating desktop mode — only the character should show */
+.body-standalone.floating .body-standalone-header {
+  display: none;
 }
 
 .body-standalone-header {
