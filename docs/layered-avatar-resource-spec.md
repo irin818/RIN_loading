@@ -45,21 +45,37 @@ The Glitch Core main page background must use its own dedicated asset or CSS sys
 
 ## Replacing the Current Body Image
 
-1. Put the replacement file under `public/body/rin-layered/assets/body/`.
-2. Update `states.<state>.image` and any relevant `layers[].src` in `manifest.json`.
-3. Run:
+The current body image (`255×860 RGBA PNG`) was cropped from the owner-provided design sheet. The owner will replace it with a higher-resolution version.
+
+### Simple Replacement (recommended)
+
+1. **Replace the file** at `public/body/rin-layered/assets/body/rin_default.png` with a higher-resolution transparent PNG.
+2. Keep the same filename — no manifest changes needed.
+3. Recommended minimum height: **2048 px**.
+4. Preferred height: **3000–4096 px** for sharp desktop rendering.
+5. Must have **transparent background** (RGBA PNG).
+6. Keep the same character proportions and bottom-aligned framing.
+7. Crop tightly to the character — no extra canvas space.
+
+### After Replacement
+
+Run:
 
 ```sh
 python3 python/scripts/validate_body_assets.py
+cd frontend && npm run build
 ```
 
-4. Run frontend checks:
+### CSS Rendering Notes
 
-```sh
-cd frontend
-npm run typecheck
-npm run build
-```
+The avatar image uses:
+- `object-fit: contain` — image scales proportionally within its container
+- `image-rendering: auto` — smooth browser interpolation (correct for high-res downscaling)
+- `max-width: 100%; max-height: 100%` — image fills the available stage area
+- `transform: scale(var(--avatar-scale, 1))` — driven by manifest `canvas.baseScale`
+- `object-position: 50% calc(var(--avatar-center-y, 0.54) * 100%)` — vertical framing from manifest
+
+No CSS changes are needed after replacing the image — the renderer automatically scales to fit.
 
 ## Adding a State Image
 
