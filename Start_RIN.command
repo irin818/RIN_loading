@@ -17,6 +17,7 @@ cd "$SCRIPT_DIR"
 
 PYTHON_DIR="$SCRIPT_DIR/python"
 FRONTEND_DIR="$SCRIPT_DIR/frontend"
+DESKTOP_BODY_DIR="$SCRIPT_DIR/desktop/body"
 VENV_PYTHON="$PYTHON_DIR/.venv/bin/python"
 DEFAULT_DATA_DIR="$SCRIPT_DIR/.rin-data"
 ENV_FILE="$SCRIPT_DIR/.env"
@@ -39,9 +40,17 @@ UI_URL="$FRONTEND_URL$UI_PATH"
 
 SERVER_PID=""
 FRONTEND_PID=""
+DESKTOP_PID=""
 MAX_WAIT="${RIN_STARTUP_TIMEOUT_SEC:-60}"
 
 cleanup() {
+    if [[ -n "${DESKTOP_PID:-}" ]] && kill -0 "$DESKTOP_PID" >/dev/null 2>&1; then
+        echo ""
+        echo "Stopping RIN desktop body (pid $DESKTOP_PID)..."
+        kill "$DESKTOP_PID" >/dev/null 2>&1 || true
+        wait "$DESKTOP_PID" 2>/dev/null || true
+    fi
+
     if [[ -n "${FRONTEND_PID:-}" ]] && kill -0 "$FRONTEND_PID" >/dev/null 2>&1; then
         echo ""
         echo "Stopping RIN frontend (pid $FRONTEND_PID)..."
@@ -235,6 +244,36 @@ ensure_frontend_runtime() {
     fi
 }
 
+ensure_desktop_body() {
+    if [[ ! -d "$DESKTOP_BODY_DIR" ]]; then
+        print_info "Desktop body directory not found — skipping desktop body."
+        return 1
+    fi
+
+    if ! command -v npx >/dev/null 2>&1; then
+        print_warn "npx not available — skipping desktop body (Node.js required)."
+        return 1
+    fi
+
+    if [[ ! -d "$DESKTOP_BODY_DIR/node_modules" ]]; then
+        print_warn "desktop/body/node_modules not found. Running npm install..."
+        (cd "$DESKTOP_BODY_DIR" && npm install)
+    fi
+
+    return 0
+}
+
+start_desktop_body() {
+    if ! ensure_desktop_body; then
+        return
+    fi
+
+    print_info "Starting RIN desktop body..."
+    (cd "$DESKTOP_BODY_DIR" && npx electron .) &
+    DESKTOP_PID=$!
+    print_ok "Desktop body launched (pid $DESKTOP_PID)."
+}
+
 verify_background_image() {
     local bg_path="$FRONTEND_DIR/public/picture/rin-core-background.png"
     if [[ -f "$bg_path" ]]; then
@@ -349,12 +388,14 @@ export_runtime_env
 run_optional_api_smoke
 start_backend
 start_frontend
+start_desktop_body
 
 echo ""
 print_info "Opening $UI_URL"
 open "$UI_URL"
 
 echo ""
-print_ok "RIN is running. Close this terminal window or press Ctrl+C to stop backend/frontend started by this launcher."
+print_ok "RIN is running (backend + frontend + desktop body)."
+echo "       Close this terminal or press Ctrl+C to stop all services."
 
 wait
