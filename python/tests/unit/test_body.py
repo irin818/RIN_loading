@@ -1,35 +1,28 @@
 from rin.body import build_body_report
 
 
-def test_body_report_is_replaceable_and_policy_free() -> None:
+def test_body_report_is_simple_and_safe() -> None:
     report = build_body_report()
-
-    assert report.status == "ready"
-    assert report.adapterKind == "layered-avatar"
-    assert report.activeRenderer == "layered"
-    assert report.assetMode == "state-images"
-    assert report.cubismStatus == "disabled_archived_future_route"
-    assert report.bodyReplaceable is True
-    assert report.identityStoredInBody is False
-    assert report.memoryStoredInBody is False
-    assert report.policyStoredInBody is False
-    assert report.providerCallCount == 0
-    assert report.fullTextIncluded is False
-
-
-def test_body_report_payload_is_safe_summary() -> None:
-    payload = build_body_report().to_dict()
-
-    assert payload["bodyState"] == {
-        "activeRenderer": "layered",
-        "activity": "idle",
-        "expression": "neutral",
-        "motion": "idle",
-        "intensity": 0.5,
-        "attentionState": "idle",
-        "speechState": "silent",
-        "warningLevel": 0,
-    }
-    assert payload["publicManifestPath"] == "/body-assets/rin-layered/manifest.json"
-    assert payload["providerCallCount"] == 0
+    payload = report.to_dict()
+    assert payload["ok"] is True
+    assert payload["mode"] == "simple-body-state"
+    assert payload["currentState"] == "idle"
+    assert payload["defaultState"] == "idle"
+    assert payload["manifestPath"] == "/body-assets/rin/manifest.json"
     assert payload["fullTextIncluded"] is False
+    assert payload["rawPromptIncluded"] is False
+    assert payload["hiddenReasoningIncluded"] is False
+    assert payload["secretValuesIncluded"] is False
+    assert "idle" in payload["availableStates"]
+    assert "thinking" in payload["availableStates"]
+    assert len(payload["availableStates"]) == 9
+
+
+def test_body_report_falls_back_to_idle_for_unknown_state() -> None:
+    report = build_body_report("fantasy")
+    assert report.currentState == "idle"
+
+
+def test_body_report_accepts_known_state() -> None:
+    report = build_body_report("thinking")
+    assert report.currentState == "thinking"

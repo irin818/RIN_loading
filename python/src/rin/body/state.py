@@ -1,11 +1,10 @@
-"""Safe body/embodiment state for the active Layered Avatar renderer."""
+"""Simple body state — one image per state, no layered parts or Cubism."""
 
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Literal
 
-BodyActivity = Literal[
+BODY_STATES = [
     "idle",
     "thinking",
     "speaking",
@@ -16,84 +15,37 @@ BodyActivity = Literal[
     "listening",
     "reviewing",
 ]
-SpeechState = Literal["silent", "speaking"]
 
 
 @dataclass(frozen=True)
-class BodyState:
-    """Current safe body/avatar state for UI rendering."""
-
-    activeRenderer: str
-    activity: BodyActivity
-    expression: str
-    motion: str
-    intensity: float
-    attentionState: str
-    speechState: SpeechState
-    warningLevel: int
+class SimpleBodyReport:
+    ok: bool
+    mode: str
+    currentState: str
+    defaultState: str
+    availableStates: list[str]
+    manifestPath: str
+    fullTextIncluded: bool
+    rawPromptIncluded: bool
+    hiddenReasoningIncluded: bool
+    secretValuesIncluded: bool
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
 
 
-@dataclass(frozen=True)
-class BodyReport:
-    """
-    Report on the body adapter: active renderer status, what's stored in-body vs. in RIN
-    core.
-    """
-
-    mode: str
-    status: str
-    adapterId: str
-    adapterKind: str
-    activeRenderer: str
-    rendererLabel: str
-    assetMode: str
-    manifestPath: str
-    publicManifestPath: str
-    cubismStatus: str
-    bodyState: BodyState
-    bodyReplaceable: bool
-    identityStoredInBody: bool
-    memoryStoredInBody: bool
-    policyStoredInBody: bool
-    providerCallCount: int
-    fullTextIncluded: bool
-
-    def to_dict(self) -> dict[str, object]:
-        payload = asdict(self)
-        payload["bodyState"] = self.bodyState.to_dict()
-        return payload
-
-
-def build_body_report() -> BodyReport:
-    """Build the safe Layered Avatar body report."""
-    return BodyReport(
-        mode="body-state-report",
-        status="ready",
-        adapterId="rin-layered-avatar-body",
-        adapterKind="layered-avatar",
-        activeRenderer="layered",
-        rendererLabel="Layered Avatar",
-        assetMode="state-images",
-        manifestPath="public/body/rin-layered/manifest.json",
-        publicManifestPath="/body-assets/rin-layered/manifest.json",
-        cubismStatus="disabled_archived_future_route",
-        bodyState=BodyState(
-            activeRenderer="layered",
-            activity="idle",
-            expression="neutral",
-            motion="idle",
-            intensity=0.5,
-            attentionState="idle",
-            speechState="silent",
-            warningLevel=0,
-        ),
-        bodyReplaceable=True,
-        identityStoredInBody=False,
-        memoryStoredInBody=False,
-        policyStoredInBody=False,
-        providerCallCount=0,
+def build_body_report(current_state: str = "idle") -> SimpleBodyReport:
+    if current_state not in BODY_STATES:
+        current_state = "idle"
+    return SimpleBodyReport(
+        ok=True,
+        mode="simple-body-state",
+        currentState=current_state,
+        defaultState="idle",
+        availableStates=list(BODY_STATES),
+        manifestPath="/body-assets/rin/manifest.json",
         fullTextIncluded=False,
+        rawPromptIncluded=False,
+        hiddenReasoningIncluded=False,
+        secretValuesIncluded=False,
     )

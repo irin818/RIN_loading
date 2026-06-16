@@ -206,8 +206,8 @@ def test_python_ui_renders_local_status_and_profile_summary() -> None:
         assert "Trace full text" in page_text
         assert "Body" in page_text
         assert "RIN PRESENCE" in page_text
-        assert "/body-assets/rin-layered/assets/body/rin_default.png" in page_text
-        assert "LAYERED AVATAR BODY" in page_text
+        assert "/body-assets/rin/states/idle.png" in page_text
+        assert "Body" in page_text
         assert "external" in page_text
         assert "0" in page_text
         assert "Start a local conversation." in page_text
@@ -220,8 +220,8 @@ def test_python_ui_static_assets_are_served() -> None:
     try:
         css = client.get("/static/console.css")
         js = client.get("/static/console.js")
-        manifest = client.get("/body-assets/rin-layered/manifest.json")
-        fullbody = client.get("/body-assets/rin-layered/assets/body/rin_default.png")
+        manifest = client.get("/body-assets/rin/manifest.json")
+        fullbody = client.get("/body-assets/rin/states/idle.png")
 
         assert css.status_code == 200
         assert "control-console-shell" in css.text
@@ -1277,11 +1277,10 @@ def test_diagnostics_endpoints_are_safe_and_read_only() -> None:
         assert "private diagnostic endpoint check" not in str(memory["contents"])
         assert context["fullPromptIncluded"] is False
         assert profiles["fullTextIncluded"] is False
-        assert body["cubismRuntimeActive"] is False
-        assert body["activeRenderer"] == "layered"
-        assert body["rendererLabel"] == "Layered Avatar"
-        assert body["publicManifestPath"] == "/body-assets/rin-layered/manifest.json"
-        assert body["cubismStatus"] == "disabled_archived_future_route"
+        assert body["currentState"] == "idle"
+        assert body["manifestPath"] == "/body-assets/rin/manifest.json"
+        assert body["desktopBodyPath"] == "/body/floating"
+        assert body["secretValuesIncluded"] is False
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
