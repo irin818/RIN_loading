@@ -104,6 +104,20 @@
   display: none;
 }
 
+/* Remove glass shadow in floating desktop mode */
+.rin-body.floating .rin-body-image {
+  filter: none;
+}
+
+/* Make floating body draggable (Electron frameless window) */
+.body-standalone.floating {
+  -webkit-app-region: drag;
+}
+
+.rin-body.floating .rin-body-stage {
+  -webkit-app-region: no-drag;
+}
+
 /* ── Standalone page ── */
 
 .body-standalone {

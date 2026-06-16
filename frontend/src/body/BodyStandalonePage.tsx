@@ -1,12 +1,33 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { GlitchSnapshot } from "../types";
 import { BodyPanel } from "./BodyPanel";
-import { normalizeBodyState } from "./bodyState";
+import { BODY_STATES, normalizeBodyState, type BodyState } from "./bodyState";
 
 export function BodyStandalonePage({ mode }: { mode: "body" | "floating" }) {
   const floating = mode === "floating";
   const [snapshot, setSnapshot] = useState<GlitchSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [floatingState, setFloatingState] = useState<BodyState>("默认");
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleNext = useCallback(() => {
+    if (!floating) return;
+    const delay = 3000 + Math.random() * 7000; // 3-10 seconds
+    timerRef.current = setTimeout(() => {
+      const others = BODY_STATES.filter((s) => s !== floatingState);
+      const next = others[Math.floor(Math.random() * others.length)];
+      setFloatingState(next);
+      scheduleNext();
+    }, delay);
+  }, [floating, floatingState]);
+
+  useEffect(() => {
+    if (!floating) return;
+    scheduleNext();
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [floating, scheduleNext]);
 
   useEffect(() => {
     if (!floating) return;
@@ -42,7 +63,7 @@ export function BodyStandalonePage({ mode }: { mode: "body" | "floating" }) {
   }, []);
 
   const currentState = normalizeBodyState(
-    snapshot?.body?.currentState ?? "idle",
+    snapshot?.body?.currentState ?? "默认",
   );
 
   return (
@@ -55,6 +76,7 @@ export function BodyStandalonePage({ mode }: { mode: "body" | "floating" }) {
         </header>
         <BodyPanel
           currentState={currentState}
+          forcedState={floating ? floatingState : null}
           compact={floating}
           floating={floating}
           showControls={!floating}

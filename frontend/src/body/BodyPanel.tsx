@@ -5,6 +5,7 @@ import "./body.css";
 
 export interface BodyPanelProps {
   currentState: BodyState | null | undefined;
+  forcedState?: BodyState | null;
   compact?: boolean;
   floating?: boolean;
   showControls?: boolean;
@@ -12,6 +13,7 @@ export interface BodyPanelProps {
 
 export function BodyPanel({
   currentState,
+  forcedState,
   compact = false,
   floating = false,
   showControls = true,
@@ -20,7 +22,7 @@ export function BodyPanel({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [preview, setPreview] = useState<BodyState | null>(null);
 
-  const state: BodyState = preview ?? normalizeBodyState(currentState);
+  const state: BodyState = forcedState ?? preview ?? normalizeBodyState(currentState);
   const label = manifest?.states[state]?.label ?? state;
 
   useEffect(() => {
