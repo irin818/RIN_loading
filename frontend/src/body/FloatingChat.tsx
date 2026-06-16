@@ -28,13 +28,10 @@ export function FloatingChat() {
     };
   }, []);
 
-  // Cmd+C to toggle chat
+  // Cmd+C toggle chat
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey && e.key === "c") {
-        e.preventDefault();
-        setChatOpen((v) => !v);
-      }
+      if (e.metaKey && e.key === "c") { e.preventDefault(); setChatOpen((v) => !v); }
       if (e.key === "Escape") setChatOpen(false);
     };
     window.addEventListener("keydown", onKey);
@@ -65,7 +62,7 @@ export function FloatingChat() {
     return () => { if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current); };
   }, [bubble]);
 
-  // Focus input when chat opens
+  // Focus input
   useEffect(() => {
     if (chatOpen && inputRef.current) inputRef.current.focus();
   }, [chatOpen]);
@@ -74,9 +71,9 @@ export function FloatingChat() {
     const text = input.trim();
     if (!text || busy) return;
     setInput("");
+    setChatOpen(false);
     setBusy(true);
     setBubble(null);
-
     try {
       const res = await fetch("/api/chat-test/send", {
         method: "POST",
@@ -84,12 +81,9 @@ export function FloatingChat() {
         body: JSON.stringify({ content: text, conversationId: null }),
       });
       if (!res.ok) throw new Error("Failed");
-      const data = await res.json() as { finalAnswer?: string; ok?: boolean };
-      if (data.finalAnswer) {
-        setBubble(data.finalAnswer.slice(0, 200));
-      } else {
-        setBubble("...");
-      }
+      const data = await res.json() as { finalAnswer?: string };
+      if (data.finalAnswer) setBubble(data.finalAnswer.slice(0, 200));
+      else setBubble("...");
     } catch {
       setBubble("(无法连接)");
     } finally {
@@ -100,13 +94,6 @@ export function FloatingChat() {
   return (
     <main className="body-standalone floating">
       <div className="body-standalone-shell">
-        {/* Speech bubble */}
-        {bubble ? (
-          <div className="floating-bubble">
-            <p>{bubble}</p>
-          </div>
-        ) : null}
-
         {/* Character */}
         <div className="floating-character">
           <BodyPanel
@@ -118,7 +105,14 @@ export function FloatingChat() {
           />
         </div>
 
-        {/* Chat bar — Cmd+C to toggle, Enter to send */}
+        {/* Speech bubble — close to character, top-right */}
+        {bubble ? (
+          <div className="floating-bubble">
+            <p>{bubble}</p>
+          </div>
+        ) : null}
+
+        {/* Chat input — Cmd+C to toggle */}
         {chatOpen ? (
           <form className="floating-chat-bar" onSubmit={(e) => { e.preventDefault(); send(); }}>
             <input

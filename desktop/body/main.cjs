@@ -35,7 +35,6 @@ function createWindow() {
     }
   });
 
-  // Cmd+Q / Cmd+W to quit
   win.webContents.on("before-input-event", (_event, input) => {
     const key = input.key.toLowerCase();
     if (input.meta && (key === "q" || key === "w")) {
