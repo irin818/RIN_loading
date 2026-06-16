@@ -169,6 +169,7 @@
   background: transparent;
   box-shadow: none;
   overflow: visible;
+  position: relative;
 }
 
 /* Hide header in floating desktop mode — only the character should show */
@@ -248,4 +249,130 @@
   .rin-body-buttons {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+/* ── Floating desktop: chat bubble ── */
+
+.floating-bubble {
+  position: absolute;
+  bottom: 52%;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 220px;
+  padding: 10px 14px;
+  border-radius: 16px 16px 4px 16px;
+  background: rgba(0, 0, 0, 0.82);
+  border: 1px solid rgba(103, 232, 249, 0.5);
+  color: #d8ffe5;
+  font-size: 13px;
+  line-height: 1.5;
+  z-index: 10;
+  pointer-events: none;
+  animation: bubble-in 0.3s ease-out;
+}
+
+/* Bubble tail pointing down to character */
+.floating-bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  right: 28px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 10px solid rgba(103, 232, 249, 0.5);
+}
+
+.floating-bubble p {
+  margin: 0;
+  pointer-events: none;
+}
+
+@keyframes bubble-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── Floating desktop: chat input ── */
+
+.floating-chat {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.floating-chat-trigger {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(103, 232, 249, 0.5);
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: border-color 0.2s;
+}
+
+.floating-chat-trigger:hover {
+  border-color: var(--rin-green);
+}
+
+.floating-chat-form {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(103, 232, 249, 0.5);
+}
+
+.floating-chat-form input {
+  width: 140px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #d8ffe5;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.floating-chat-form input::placeholder {
+  color: #5a8a6a;
+}
+
+.floating-chat-form button {
+  border: 1px solid rgba(103, 232, 249, 0.35);
+  background: rgba(0, 255, 100, 0.12);
+  color: #9cffcb;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.floating-chat-form button:disabled {
+  opacity: 0.4;
+}
+
+.floating-chat-form .close-btn {
+  border-color: transparent;
+  background: transparent;
+  color: #78a98a;
+  font-size: 16px;
+  padding: 0 4px;
+}
+
+/* ── Floating character area ── */
+
+.floating-character {
+  display: grid;
+  place-items: center;
+  height: 100%;
 }
