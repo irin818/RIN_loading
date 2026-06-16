@@ -1,9 +1,9 @@
 /* ── Desktop floating: ALL tweakable parameters ── */
 :root {
-  --win-width: 160px;           /* Electron window width — set main.cjs to match */
+  --win-width: 240px;           /* Electron window width — set main.cjs to match */
   --bubble-area: 86px;          /* reserved height above character for bubble */
-  --body-height: 440px;         /* character image display height */
-  --body-scale: 1;              /* extra scale on top of body-height (1=no extra) */
+  --body-height: 350px;         /* character image display height */
+  --body-scale: 0.8;              /* extra scale on top of body-height (1=no extra) */
   --bubble-width: 160px;        /* bubble fixed width */
   --bubble-padding: 6px 8px;    /* bubble internal padding */
   --bubble-font-size: 11px;     /* bubble text size */

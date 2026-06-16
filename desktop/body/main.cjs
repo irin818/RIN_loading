@@ -9,8 +9,8 @@ function createWindow() {
   //   width  = --win-width  (default 160px)
   //   height = --bubble-area + --body-height  (default 86 + 440 = 526)
   const win = new BrowserWindow({
-    width: 160,
-    height: 526,
+    width: 240,
+    height: 506,
     minWidth: 120,
     minHeight: 200,
     transparent: true,
