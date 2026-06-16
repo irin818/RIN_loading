@@ -8,30 +8,33 @@ export function FloatingChat() {
   const [chatOpen, setChatOpen] = useState(false);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [bgBlack, setBgBlack] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Transparent background
+  // Transparent or black background (Cmd+B toggles)
   useEffect(() => {
     const root = document.getElementById("root");
     if (!root) return;
     const html = document.documentElement;
     const prev = [html.style.background, document.body.style.background, root.style.background];
-    html.style.background = "transparent";
-    document.body.style.background = "transparent";
-    root.style.background = "transparent";
+    const bg = bgBlack ? "#020403" : "transparent";
+    html.style.background = bg;
+    document.body.style.background = bg;
+    root.style.background = bg;
     return () => {
       html.style.background = prev[0];
       document.body.style.background = prev[1];
       root.style.background = prev[2];
     };
-  }, []);
+  }, [bgBlack]);
 
-  // Cmd+C toggle chat
+  // Cmd+C toggle chat, Cmd+B toggle black background
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey && e.key === "c") { e.preventDefault(); setChatOpen((v) => !v); }
+      if (e.metaKey && e.key === "b") { e.preventDefault(); setBgBlack((v) => !v); }
       if (e.key === "Escape") setChatOpen(false);
     };
     window.addEventListener("keydown", onKey);

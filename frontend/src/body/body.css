@@ -122,7 +122,7 @@
 .rin-body.floating .rin-body-image {
   filter: none;
   pointer-events: auto;
-  transform: scale(var(--body-scale, 0.7));
+  transform: scale(var(--body-scale, 0.6));
 }
 
 /* ── Standalone page ── */
