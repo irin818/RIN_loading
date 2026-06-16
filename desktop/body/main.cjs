@@ -12,7 +12,7 @@ function createWindow() {
     minHeight: 200,
     transparent: true,
     frame: false,
-    resizable: true,
+    resizable: false,
     alwaysOnTop: true,
     backgroundColor: "#00000000",
     title: "RIN",
