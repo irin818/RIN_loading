@@ -1,16 +1,11 @@
 {
   "name": "RIN Body",
   "version": 1,
-  "defaultState": "idle",
+  "defaultState": "默认",
   "states": {
-    "idle":      { "label": "Idle",      "image": "states/默认.png" },
-    "thinking":  { "label": "Thinking",  "image": "states/生气.png" },
-    "speaking":  { "label": "Speaking",  "image": "states/默认.png" },
-    "memory":    { "label": "Memory",    "image": "states/难受.png" },
-    "warning":   { "label": "Warning",   "image": "states/惊讶.png" },
-    "error":     { "label": "Error",     "image": "states/惊讶.png" },
-    "sleeping":  { "label": "Sleeping",  "image": "states/难受.png" },
-    "listening": { "label": "Listening", "image": "states/默认.png" },
-    "reviewing": { "label": "Reviewing", "image": "states/生气.png" }
+    "默认": { "label": "默认", "image": "states/默认.png" },
+    "生气": { "label": "生气", "image": "states/生气.png" },
+    "惊讶": { "label": "惊讶", "image": "states/惊讶.png" },
+    "难受": { "label": "难受", "image": "states/难受.png" }
   }
 }

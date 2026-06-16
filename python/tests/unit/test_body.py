@@ -6,23 +6,25 @@ def test_body_report_is_simple_and_safe() -> None:
     payload = report.to_dict()
     assert payload["ok"] is True
     assert payload["mode"] == "simple-body-state"
-    assert payload["currentState"] == "idle"
-    assert payload["defaultState"] == "idle"
+    assert payload["currentState"] == "默认"
+    assert payload["defaultState"] == "默认"
     assert payload["manifestPath"] == "/body-assets/rin/manifest.json"
     assert payload["fullTextIncluded"] is False
     assert payload["rawPromptIncluded"] is False
     assert payload["hiddenReasoningIncluded"] is False
     assert payload["secretValuesIncluded"] is False
-    assert "idle" in payload["availableStates"]
-    assert "thinking" in payload["availableStates"]
-    assert len(payload["availableStates"]) == 9
+    assert "默认" in payload["availableStates"]
+    assert "生气" in payload["availableStates"]
+    assert "惊讶" in payload["availableStates"]
+    assert "难受" in payload["availableStates"]
+    assert len(payload["availableStates"]) == 4
 
 
-def test_body_report_falls_back_to_idle_for_unknown_state() -> None:
+def test_body_report_falls_back_to_default_for_unknown_state() -> None:
     report = build_body_report("fantasy")
-    assert report.currentState == "idle"
+    assert report.currentState == "默认"
 
 
 def test_body_report_accepts_known_state() -> None:
-    report = build_body_report("thinking")
-    assert report.currentState == "thinking"
+    report = build_body_report("生气")
+    assert report.currentState == "生气"

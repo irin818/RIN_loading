@@ -4,17 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-BODY_STATES = [
-    "idle",
-    "thinking",
-    "speaking",
-    "memory",
-    "warning",
-    "error",
-    "sleeping",
-    "listening",
-    "reviewing",
-]
+BODY_STATES = ["默认", "生气", "惊讶", "难受"]
 
 
 @dataclass(frozen=True)
@@ -36,12 +26,12 @@ class SimpleBodyReport:
 
 def build_body_report(current_state: str = "idle") -> SimpleBodyReport:
     if current_state not in BODY_STATES:
-        current_state = "idle"
+        current_state = "默认"
     return SimpleBodyReport(
         ok=True,
         mode="simple-body-state",
         currentState=current_state,
-        defaultState="idle",
+        defaultState="默认",
         availableStates=list(BODY_STATES),
         manifestPath="/body-assets/rin/manifest.json",
         fullTextIncluded=False,

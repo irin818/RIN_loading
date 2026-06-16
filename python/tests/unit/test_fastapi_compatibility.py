@@ -1277,7 +1277,7 @@ def test_diagnostics_endpoints_are_safe_and_read_only() -> None:
         assert "private diagnostic endpoint check" not in str(memory["contents"])
         assert context["fullPromptIncluded"] is False
         assert profiles["fullTextIncluded"] is False
-        assert body["currentState"] == "idle"
+        assert body["currentState"] == "默认"
         assert body["manifestPath"] == "/body-assets/rin/manifest.json"
         assert body["desktopBodyPath"] == "/body/floating"
         assert body["secretValuesIncluded"] is False

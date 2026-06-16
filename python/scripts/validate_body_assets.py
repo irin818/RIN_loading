@@ -12,17 +12,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BODY_ROOT = REPO_ROOT / "public" / "body" / "rin"
 MANIFEST_PATH = BODY_ROOT / "manifest.json"
-REQUIRED_STATES = {
-    "idle",
-    "thinking",
-    "speaking",
-    "memory",
-    "warning",
-    "error",
-    "sleeping",
-    "listening",
-    "reviewing",
-}
+REQUIRED_STATES = {"默认", "生气", "惊讶", "难受"}
 
 
 def fail(message: str) -> None:
