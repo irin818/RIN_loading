@@ -25,7 +25,9 @@ import {
   sendChatMessage,
   updateMindMemoryCandidateSafeFields
 } from "./api";
-import { BodyRenderer } from "./body/BodyRenderer";
+import { BodyPanel } from "./body/BodyPanel";
+import { BodyStandalonePage } from "./body/BodyStandalonePage";
+import { normalizeBodyState } from "./body/bodyState";
 import type {
   ChatMessage,
   ConsoleWindow,
@@ -960,53 +962,7 @@ function GlitchCoreApp() {
 }
 
 function BodyStandaloneSurface({ mode }: { mode: "body" | "floating" }) {
-  const [snapshot, setSnapshot] = useState<GlitchSnapshot | null>(null);
-  const [snapshotError, setSnapshotError] = useState<string | null>(null);
-  const floating = mode === "floating";
-
-  useEffect(() => {
-    let cancelled = false;
-    async function refresh() {
-      try {
-        const nextSnapshot = await fetchGlitchSnapshot();
-        if (!cancelled) {
-          setSnapshot(nextSnapshot);
-          setSnapshotError(null);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setSnapshotError(error instanceof Error ? error.message : "Snapshot unavailable");
-        }
-      }
-    }
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), 5000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, []);
-
-  return (
-    <main className={`body-surface-page ${floating ? "floating" : "full"}`}>
-      <section className="body-surface-shell">
-        <div className="body-surface-header">
-          <div>
-            <span>RIN_BODY</span>
-            <strong>Layered Avatar</strong>
-          </div>
-          <a href="/glitch-core">Glitch Core</a>
-        </div>
-        <BodyRenderer
-          snapshot={snapshot}
-          floating={floating}
-          compact={floating}
-          showDiagnostics={!floating}
-        />
-        {snapshotError ? <p className="body-snapshot-error">{snapshotError}</p> : null}
-      </section>
-    </main>
-  );
+  return <BodyStandalonePage mode={mode} />;
 }
 
 function TopMenu(props: {
@@ -1509,7 +1465,7 @@ function CoreStatus({ snapshot }: { snapshot: GlitchSnapshot | null }) {
         <Metric label="Mode" value={snapshot?.core.mode ?? "local-first"} />
         <Metric label="Schema" value={snapshot?.dashboard.database.schemaVersion ?? "n/a"} />
         <Metric label="Memory" value={snapshot?.dashboard.memoryContext.memoryV2Traces ?? 0} />
-        <Metric label="Body" value={snapshot?.core.bodyRendererLabel ?? "Layered Avatar"} />
+        <Metric label="Body" value={snapshot?.body?.currentState ?? "idle"} />
       </div>
       <div className="health-matrix">
         {Object.entries(health).map(([key, value]) => (
@@ -1526,10 +1482,11 @@ function CoreStatus({ snapshot }: { snapshot: GlitchSnapshot | null }) {
 }
 
 function BodyWindow({ snapshot }: { snapshot: GlitchSnapshot | null }) {
+  const currentState = normalizeBodyState(snapshot?.body?.currentState);
   return (
     <div className="body-window">
-      <div className="module-strip">ACTIVE BODY · LAYERED AVATAR</div>
-      <BodyRenderer snapshot={snapshot} compact showDiagnostics={false} />
+      <div className="module-strip">ACTIVE BODY</div>
+      <BodyPanel currentState={currentState} compact showControls />
       <div className="body-window-links">
         <a href="/body" target="_blank" rel="noreferrer">Open /body</a>
         <a href="/body/floating" target="_blank" rel="noreferrer">Open /body/floating</a>

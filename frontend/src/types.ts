@@ -1,4 +1,11 @@
-import type { BodyReportPayload } from "./body/types";
+export interface SimpleBodySnapshot {
+  ok: boolean;
+  mode: string;
+  currentState: string;
+  defaultState: string;
+  availableStates: string[];
+  manifestPath: string;
+}
 
 export type WindowType =
   | "core"
@@ -871,10 +878,9 @@ export interface GlitchSnapshot {
     activeBodyRenderer: string;
     bodyRendererLabel: string;
     bodyManifestPath: string;
-    cubismStatus: string;
     animationEnabledByDefault: boolean;
   };
-  body: BodyReportPayload;
+  body: SimpleBodySnapshot;
   dashboard: {
     readiness: { ok: boolean; label: string };
     adapter: string;
@@ -895,10 +901,7 @@ export interface GlitchSnapshot {
       rinMessages: number;
     };
     body: {
-      status: string;
-      adapterId: string;
-      activeRenderer: string;
-      assetMode: string;
+      currentState: string;
     };
     health: Record<string, string>;
   };

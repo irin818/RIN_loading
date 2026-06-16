@@ -1,105 +1,75 @@
-# RIN Layered Avatar Resource Spec
+# RIN Body Resource Spec
+
+Simple state-image body system. One full-body image per state.
 
 ## Resource Locations
 
-Source resource folder:
+Production folder:
 
 ```text
-/Users/irin/Documents/RIN_design_
+public/body/rin/
 ```
 
-Production resource folder:
+Manifest:
 
 ```text
-public/body/rin-layered/
+public/body/rin/manifest.json
 ```
 
-Manifest path:
+State images:
 
 ```text
-public/body/rin-layered/manifest.json
+public/body/rin/states/
+  idle.png
+  thinking.png
+  speaking.png
+  memory.png
+  warning.png
+  error.png
+  sleeping.png
+  listening.png
+  reviewing.png
 ```
 
-## Core Background vs Body Asset Boundary
+## Manifest Shape
 
-The Glitch Core main page background must use its own dedicated asset or CSS system — **never** a body/avatar image from `public/body/rin-layered/`.
+```json
+{
+  "name": "RIN Body",
+  "version": 1,
+  "defaultState": "idle",
+  "states": {
+    "idle": { "label": "Idle", "image": "states/idle.png" },
+    ...
+  }
+}
+```
 
-- Core background asset: `frontend/public/picture/rin-core-background.png`
-- Core background API field: `core.avatarAssetPath` must point to `/picture/rin-core-background.png`
-- Body assets are restricted to: `/body`, `/body/floating`, Body panel/window, desktop body wrapper
-- The console HTML templates may show a body character in a dedicated avatar/presence panel — that is correct
+## Replacing a State Image
 
-## Naming
-
-- Use lowercase snake_case names.
-- Keep production assets under the matching part folder.
-- Keep design boards and non-production references under `assets/reference/`.
-- Do not point the manifest at `public/live2d/`, Cubism atlases, `.moc3`, `.model3.json`, or other archived Live2D files.
-
-## Image Requirements
-
-- Preferred production format: transparent PNG.
-- Supported manifest asset formats: `.png`, `.webp`, `.svg`.
-- State images should be tightly cropped, centered, and large enough for desktop and mobile.
-- Layered parts must be aligned to the same coordinate system before being added to the manifest.
-
-## Replacing the Current Body Image
-
-The current body image (`255×860 RGBA PNG`) was cropped from the owner-provided design sheet. The owner will replace it with a higher-resolution version.
-
-### Simple Replacement (recommended)
-
-1. **Replace the file** at `public/body/rin-layered/assets/body/rin_default.png` with a higher-resolution transparent PNG.
+1. Replace the file under `public/body/rin/states/`.
 2. Keep the same filename — no manifest changes needed.
-3. Recommended minimum height: **2048 px**.
-4. Preferred height: **3000–4096 px** for sharp desktop rendering.
-5. Must have **transparent background** (RGBA PNG).
-6. Keep the same character proportions and bottom-aligned framing.
-7. Crop tightly to the character — no extra canvas space.
+3. Must be transparent RGBA PNG.
+4. Recommended height: 2048–4096px for sharp desktop rendering.
+5. Keep the same character proportions.
 
-### After Replacement
-
-Run:
+Run after replacement:
 
 ```sh
 python3 python/scripts/validate_body_assets.py
 cd frontend && npm run build
 ```
 
-### CSS Rendering Notes
+## Adding a New State
 
-The avatar image uses:
-- `object-fit: contain` — image scales proportionally within its container
-- `image-rendering: auto` — smooth browser interpolation (correct for high-res downscaling)
-- `max-width: 100%; max-height: 100%` — image fills the available stage area
-- `transform: scale(var(--avatar-scale, 1))` — driven by manifest `canvas.baseScale`
-- `object-position: 50% calc(var(--avatar-center-y, 0.54) * 100%)` — vertical framing from manifest
+1. Add the image under `public/body/rin/states/`.
+2. Add the state entry to `manifest.json`.
+3. Update `BODY_STATES` in `frontend/src/body/bodyState.ts`.
+4. Run validator and build.
 
-No CSS changes are needed after replacing the image — the renderer automatically scales to fit.
+## Core Background vs Body Asset Boundary
 
-## Adding a State Image
+The Glitch Core main page background must use its own dedicated asset — never a body/avatar image.
 
-1. Add a transparent image such as `assets/body/rin_thinking.png`.
-2. Set `states.thinking.image` to that file.
-3. Keep the state label, animation profile, and effect profile accurate.
-4. Validate with `python3 python/scripts/validate_body_assets.py`.
-
-## Adding True Layer Parts
-
-1. Add aligned transparent assets under the relevant folder, for example:
-   - `assets/eyes/rin_eye_left_open.png`
-   - `assets/mouth/rin_mouth_smile.png`
-   - `assets/tail/rin_tail.png`
-2. Add layer entries to `manifest.json` with `id`, `src`, `zIndex`, `anchor`, `position`, and `stateVisibility`.
-3. Switch `assetMode` from `state-images` to `layered-parts` only after the layer set is complete and visually aligned.
-4. Do not use old Cubism exports as production layers.
-
-## Future Codex Resource Updates
-
-Codex should:
-
-- inspect the source folder first;
-- copy only owner-provided or explicitly approved assets;
-- record source-to-target mappings in `docs/layered-avatar-asset-inventory.md`;
-- keep Cubism/Live2D disabled unless the owner explicitly reopens that route with a properly authored model;
-- run the body asset validator and frontend checks after changes.
+- Core background asset: `frontend/public/picture/rin-core-background.png`
+- Body assets are restricted to: `/body`, `/body/floating`, Body panel/window, desktop body wrapper

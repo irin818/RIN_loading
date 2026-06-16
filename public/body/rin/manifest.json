@@ -1,0 +1,16 @@
+{
+  "name": "RIN Body",
+  "version": 1,
+  "defaultState": "idle",
+  "states": {
+    "idle": { "label": "Idle", "image": "states/idle.png" },
+    "thinking": { "label": "Thinking", "image": "states/thinking.png" },
+    "speaking": { "label": "Speaking", "image": "states/speaking.png" },
+    "memory": { "label": "Memory", "image": "states/memory.png" },
+    "warning": { "label": "Warning", "image": "states/warning.png" },
+    "error": { "label": "Error", "image": "states/error.png" },
+    "sleeping": { "label": "Sleeping", "image": "states/sleeping.png" },
+    "listening": { "label": "Listening", "image": "states/listening.png" },
+    "reviewing": { "label": "Reviewing", "image": "states/reviewing.png" }
+  }
+}

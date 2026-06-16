@@ -1,0 +1,226 @@
+/* ── Body Panel (embedded & standalone) ── */
+
+.rin-body {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  width: 100%;
+  min-height: 0;
+}
+
+.rin-body.compact {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.rin-body.floating {
+  height: 100%;
+}
+
+/* ── Stage ── */
+
+.rin-body-stage {
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  overflow: hidden;
+}
+
+.rin-body-image {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  image-rendering: auto;
+  filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.45));
+  user-select: none;
+}
+
+.rin-body-fallback {
+  margin: 0;
+  padding: 16px;
+  color: #ffd6a5;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ── Controls ── */
+
+.rin-body-controls {
+  display: grid;
+  gap: 8px;
+  padding: 0 8px;
+}
+
+.rin-body-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.rin-body-buttons button,
+.rin-body-reset {
+  min-width: 0;
+  border: 1px solid rgba(103, 232, 249, 0.24);
+  color: #dcffeb;
+  background: rgba(5, 22, 20, 0.72);
+  padding: 5px 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.rin-body-buttons button.active,
+.rin-body-buttons button:hover,
+.rin-body-reset:hover {
+  border-color: rgba(121, 242, 166, 0.7);
+  background: rgba(0, 255, 100, 0.16);
+}
+
+.rin-body-label {
+  margin: 0;
+  padding: 0 8px 4px;
+  color: #78a98a;
+  font-size: 10px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* ── Floating mode ── */
+
+.rin-body.floating .rin-body-stage {
+  padding: 0 8px 8px;
+}
+
+.rin-body.floating .rin-body-label {
+  display: none;
+}
+
+.rin-body.floating .rin-body-controls {
+  padding: 0 8px 8px;
+}
+
+/* ── Standalone page ── */
+
+.body-standalone {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 50% 10%, rgba(103, 232, 249, 0.16), transparent 34%),
+    radial-gradient(circle at 50% 86%, rgba(0, 255, 100, 0.16), transparent 30%),
+    #020403;
+  color: #d8ffe5;
+  overflow: hidden;
+}
+
+.body-standalone.full {
+  overflow-y: auto;
+}
+
+.body-standalone.floating {
+  padding: 0;
+  background: transparent;
+}
+
+.body-standalone-shell {
+  width: min(760px, 100%);
+  min-height: min(860px, calc(100vh - 36px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  border: 1px solid rgba(103, 232, 249, 0.24);
+  background: rgba(3, 10, 10, 0.88);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), 0 0 48px rgba(103, 232, 249, 0.12);
+  overflow: hidden;
+}
+
+.body-standalone.floating .body-standalone-shell {
+  width: 100vw;
+  height: 100vh;
+  min-height: 0;
+  border: 0;
+  background: rgba(2, 5, 5, 0.08);
+  box-shadow: none;
+}
+
+.body-standalone-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(103, 232, 249, 0.16);
+  font-family: "Rajdhani", "Orbitron", "Bahnschrift", sans-serif;
+}
+
+.body-standalone-header span {
+  color: #78a98a;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.body-standalone-header strong {
+  flex: 1;
+  color: #67e8f9;
+  font-size: 15px;
+}
+
+.body-standalone-header a {
+  color: #bdf9ff;
+  font-size: 11px;
+  text-decoration: none;
+  border: 1px solid rgba(103, 232, 249, 0.24);
+  padding: 4px 8px;
+  background: rgba(3, 18, 18, 0.7);
+}
+
+.body-standalone-error {
+  margin: 0;
+  padding: 12px;
+  color: #ffd6a5;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ── Embedded body window overrides ── */
+
+.body-window .rin-body {
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 280px;
+}
+
+.body-window .rin-body-stage {
+  min-height: 190px;
+}
+
+.body-window .rin-body-buttons button,
+.body-window .rin-body-reset {
+  padding: 4px 3px;
+  font-size: 9px;
+}
+
+.body-window .rin-body-label {
+  font-size: 9px;
+  padding: 0 4px 2px;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 760px) {
+  .body-standalone.full {
+    padding: 0;
+  }
+
+  .body-standalone-shell {
+    width: 100%;
+    min-height: 100vh;
+    border-left: 0;
+    border-right: 0;
+  }
+
+  .rin-body-buttons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
