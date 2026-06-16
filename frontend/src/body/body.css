@@ -104,18 +104,19 @@
   display: none;
 }
 
-/* Remove glass shadow in floating desktop mode */
+/* Make entire floating window draggable */
+.body-standalone.floating,
+.body-standalone.floating .body-standalone-shell,
+.body-standalone.floating .rin-body,
+.body-standalone.floating .rin-body-stage {
+  -webkit-app-region: drag;
+  overflow: visible;
+}
+
+/* Floating image: no shadow, smaller default scale */
 .rin-body.floating .rin-body-image {
   filter: none;
-}
-
-/* Make floating body draggable (Electron frameless window) */
-.body-standalone.floating {
-  -webkit-app-region: drag;
-}
-
-.rin-body.floating .rin-body-stage {
-  -webkit-app-region: no-drag;
+  transform: scale(var(--body-scale, 0.55));
 }
 
 /* ── Standalone page ── */
@@ -160,6 +161,7 @@
   border: 0;
   background: transparent;
   box-shadow: none;
+  overflow: visible;
 }
 
 /* Hide header in floating desktop mode — only the character should show */
