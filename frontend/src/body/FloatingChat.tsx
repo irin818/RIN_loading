@@ -28,14 +28,20 @@ export function FloatingChat() {
     };
   }, []);
 
-  // Cmd+C to toggle chat
+  // Cmd+C to toggle chat — signals Electron to resize window
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey && e.key === "c") {
         e.preventDefault();
-        setChatOpen((v) => !v);
+        setChatOpen((v) => {
+          document.title = v ? "RIN" : "chat-open";
+          return !v;
+        });
       }
-      if (e.key === "Escape") setChatOpen(false);
+      if (e.key === "Escape") {
+        setChatOpen(false);
+        document.title = "RIN";
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
