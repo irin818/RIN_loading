@@ -10,15 +10,21 @@ export function BodyStandalonePage({ mode }: { mode: "body" | "floating" }) {
 
   useEffect(() => {
     if (!floating) return;
-    const el = document.getElementById("root");
-    if (!el) return;
-    const prevBodyBg = document.body.style.background;
-    const prevRootBg = el.style.background;
+    const root = document.getElementById("root");
+    if (!root) return;
+    const html = document.documentElement;
+    const prev: string[] = [
+      html.style.background,
+      document.body.style.background,
+      root.style.background,
+    ];
+    html.style.background = "transparent";
     document.body.style.background = "transparent";
-    el.style.background = "transparent";
+    root.style.background = "transparent";
     return () => {
-      document.body.style.background = prevBodyBg;
-      el.style.background = prevRootBg;
+      html.style.background = prev[0];
+      document.body.style.background = prev[1];
+      root.style.background = prev[2];
     };
   }, [floating]);
 
