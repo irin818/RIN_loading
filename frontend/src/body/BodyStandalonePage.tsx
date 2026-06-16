@@ -9,6 +9,20 @@ export function BodyStandalonePage({ mode }: { mode: "body" | "floating" }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!floating) return;
+    const el = document.getElementById("root");
+    if (!el) return;
+    const prevBodyBg = document.body.style.background;
+    const prevRootBg = el.style.background;
+    document.body.style.background = "transparent";
+    el.style.background = "transparent";
+    return () => {
+      document.body.style.background = prevBodyBg;
+      el.style.background = prevRootBg;
+    };
+  }, [floating]);
+
+  useEffect(() => {
     const ctrl = new AbortController();
     fetch("/api/glitch-core/snapshot", { signal: ctrl.signal })
       .then(async (res) => {
