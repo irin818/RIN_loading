@@ -118,7 +118,7 @@ export function FloatingChat() {
           />
         </div>
 
-        {/* Chat bar — Cmd+C to toggle */}
+        {/* Chat bar — Cmd+C to toggle, Enter to send */}
         {chatOpen ? (
           <form className="floating-chat-bar" onSubmit={(e) => { e.preventDefault(); send(); }}>
             <input
@@ -126,10 +126,9 @@ export function FloatingChat() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={busy ? "..." : "说点什么..."}
+              placeholder={busy ? "..." : "输入后按 Enter..."}
               disabled={busy}
             />
-            <button type="submit" disabled={busy}>发送</button>
           </form>
         ) : null}
       </div>
