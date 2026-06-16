@@ -8,8 +8,8 @@ export default defineConfig({
     strictPort: false,
     proxy: {
       "/api": "http://127.0.0.1:8765",
+      "/body-assets": "http://127.0.0.1:8765",
       "/conversations": "http://127.0.0.1:8765",
-      "/live2d": "http://127.0.0.1:8765",
       "/readiness": "http://127.0.0.1:8765",
       "/state": "http://127.0.0.1:8765"
     }

@@ -83,7 +83,7 @@ SERVER_DIR = Path(__file__).parent
 REPO_ROOT = SERVER_DIR.parents[3]
 TEMPLATES = Jinja2Templates(directory=SERVER_DIR / "templates")
 STATIC_DIR = SERVER_DIR / "static"
-PUBLIC_LIVE2D_DIR = REPO_ROOT / "public" / "live2d"
+PUBLIC_BODY_DIR = REPO_ROOT / "public" / "body"
 FRONTEND_DIST_DIR = REPO_ROOT / "frontend" / "dist"
 FRONTEND_INDEX = FRONTEND_DIST_DIR / "index.html"
 FRONTEND_ASSETS_DIR = FRONTEND_DIST_DIR / "assets"
@@ -188,11 +188,11 @@ def create_app(
             StaticFiles(directory=FRONTEND_ASSETS_DIR),
             name="glitch-core-assets",
         )
-    if PUBLIC_LIVE2D_DIR.is_dir():
+    if PUBLIC_BODY_DIR.is_dir():
         app.mount(
-            "/live2d",
-            StaticFiles(directory=PUBLIC_LIVE2D_DIR),
-            name="live2d",
+            "/body-assets",
+            StaticFiles(directory=PUBLIC_BODY_DIR),
+            name="body-assets",
         )
     _picture_dir = (
         FRONTEND_PUBLIC_PICTURE_DIR
@@ -262,6 +262,14 @@ def create_app(
 
     @app.get("/glitch-core/{spa_path:path}", response_class=HTMLResponse)
     def glitch_core_spa(spa_path: str) -> Response:
+        return render_glitch_core_entry()
+
+    @app.get("/body", response_class=HTMLResponse)
+    def body_index() -> Response:
+        return render_glitch_core_entry()
+
+    @app.get("/body/floating", response_class=HTMLResponse)
+    def body_floating() -> Response:
         return render_glitch_core_entry()
 
     @app.get("/legacy-ui-v2", response_class=HTMLResponse)
@@ -1362,7 +1370,7 @@ def build_console_view_model(
         "profile_file_count": profile_file_count,
         "memory_context": memory_context,
         "body_report": body_report,
-        "avatar_asset_path": "/picture/rin-core-background.png",
+        "avatar_asset_path": "/body-assets/rin-layered/assets/body/rin_default.png",
         "adapter_id": adapter_id,
         "model_name": model_name,
         "local_model_status": local_model_status,
@@ -1411,7 +1419,7 @@ def build_console_v2_view_model(
         "dashboard": snapshot["dashboard"],
         "diagnostics": snapshot["diagnostics"],
         "runtime_trace": snapshot["runtimeTrace"],
-        "avatar_asset_path": "/picture/rin-core-background.png",
+        "avatar_asset_path": "/body-assets/rin-layered/assets/body/rin_default.png",
         "notice": notice,
         "error": error,
     }
@@ -1512,6 +1520,7 @@ def build_glitch_core_snapshot(
     latest_trace_payload = latest_trace.to_safe_dict() if latest_trace else None
     traces = [trace.to_safe_dict() for trace in RUNTIME_TRACE_STORE.list()]
     readiness = cast(dict[str, object], dashboard["readiness"])
+    body_report = build_body_report().to_dict()
     return {
         "ok": True,
         "mode": "glitch-core-snapshot",
@@ -1528,12 +1537,17 @@ def build_glitch_core_snapshot(
             "name": "RIN",
             "status": "online" if readiness["ok"] is True else "warning",
             "mode": "local-first",
-            "avatarAssetPath": "/picture/rin-core-background.png",
+            "avatarAssetPath": "/body-assets/rin-layered/assets/body/rin_default.png",
             "replaceableImageNote": (
-                "Replace public/picture/rin-core-background.png later."
+                "Replace Layered Avatar assets under public/body/rin-layered/."
             ),
+            "activeBodyRenderer": "layered",
+            "bodyRendererLabel": "Layered Avatar",
+            "bodyManifestPath": "/body-assets/rin-layered/manifest.json",
+            "cubismStatus": "disabled_archived_future_route",
             "animationEnabledByDefault": True,
         },
+        "body": body_report,
         "dashboard": dashboard,
         "conversations": [
             {
@@ -1589,9 +1603,10 @@ def build_glitch_core_snapshot(
                 "provider",
                 "cost",
                 "mind",
+                "body",
             ],
             "temporaryTypes": ["error", "settings", "tasks", "tools", "system"],
-            "persistentTypes": ["chat", "memory", "trace", "cost", "mind"],
+            "persistentTypes": ["chat", "memory", "trace", "cost", "mind", "body"],
             "layoutPersistence": "browser-local-storage",
         },
     }
@@ -4454,6 +4469,8 @@ def build_status_dashboard_summary(
         "body": {
             "status": body_report["status"],
             "adapterId": body_report["adapterId"],
+            "activeRenderer": body_report["activeRenderer"],
+            "assetMode": body_report["assetMode"],
         },
         "health": {
             "database": "ok" if schema_version >= 6 else "warning",
@@ -4574,9 +4591,16 @@ def build_diagnostics_payload(
             "readOnly": True,
             "status": body_report["status"],
             "adapterId": body_report["adapterId"],
-            "staticPresenceAsset": "/picture/rin-core-background.png",
+            "activeRenderer": body_report["activeRenderer"],
+            "rendererLabel": body_report["rendererLabel"],
+            "assetMode": body_report["assetMode"],
+            "manifestPath": body_report["manifestPath"],
+            "publicManifestPath": body_report["publicManifestPath"],
+            "staticPresenceAsset": "/body-assets/rin-layered/assets/body/rin_default.png",
             "cubismRuntimeActive": False,
-            "futureDesktopBody": "future Live2D body may run separately",
+            "cubismStatus": body_report["cubismStatus"],
+            "desktopBodyPath": "/body/floating",
+            "secretValuesIncluded": False,
         },
         "events": {
             "mode": "diagnostics-events",

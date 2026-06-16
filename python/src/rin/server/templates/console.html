@@ -58,7 +58,7 @@
           <button class="nav-tab{% if active_tab == 'database' %} active{% endif %}" type="button" data-console-tab="database">Database</button>
           <button class="nav-tab{% if active_tab == 'conversations' %} active{% endif %}" type="button" data-console-tab="conversations">Conversations</button>
           <button class="nav-tab{% if active_tab == 'profiles' %} active{% endif %}" type="button" data-console-tab="profiles">Profiles</button>
-          <button class="nav-tab{% if active_tab == 'body' %} active{% endif %}" type="button" data-console-tab="body">Body / Live2D</button>
+          <button class="nav-tab{% if active_tab == 'body' %} active{% endif %}" type="button" data-console-tab="body">Body</button>
           <button class="nav-tab{% if active_tab == 'events' %} active{% endif %}" type="button" data-console-tab="events">Logs / Events</button>
           <button class="nav-tab{% if active_tab == 'developer' %} active{% endif %}" type="button" data-console-tab="developer">Developer Checks</button>
         </nav>
@@ -369,13 +369,15 @@
           </section>
 
           <section class="console-page{% if active_tab == 'body' %} active{% endif %}" data-console-page="body">
-            <header class="page-heading"><div><p class="eyebrow">Body / Live2D</p><h2>Static Web Presence</h2></div></header>
+            <header class="page-heading"><div><p class="eyebrow">Body</p><h2>Layered Avatar Presence</h2></div></header>
             <section class="data-list">
               <div><span>Status</span><b>{{ diagnostics.body.status }}</b></div>
               <div><span>Adapter</span><b>{{ diagnostics.body.adapterId }}</b></div>
+              <div><span>Renderer</span><b>{{ diagnostics.body.rendererLabel }}</b></div>
+              <div><span>Manifest</span><b>{{ diagnostics.body.publicManifestPath }}</b></div>
               <div><span>Asset</span><b>{{ diagnostics.body.staticPresenceAsset }}</b></div>
-              <div><span>Cubism runtime active</span><b>{{ diagnostics.body.cubismRuntimeActive }}</b></div>
-              <div><span>Future</span><b>{{ diagnostics.body.futureDesktopBody }}</b></div>
+              <div><span>Cubism / Live2D</span><b>{{ diagnostics.body.cubismStatus }}</b></div>
+              <div><span>Floating route</span><b>{{ diagnostics.body.desktopBodyPath }}</b></div>
             </section>
           </section>
 
@@ -413,7 +415,7 @@
           <section class="presence-caption">
             <span class="status-dot"></span>
             <strong>RIN PRESENCE</strong>
-            <span>STATIC BODY / LIVE2D FUTURE</span>
+            <span>LAYERED AVATAR BODY</span>
           </section>
         </aside>
       </section>

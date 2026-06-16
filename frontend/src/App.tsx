@@ -25,6 +25,7 @@ import {
   sendChatMessage,
   updateMindMemoryCandidateSafeFields
 } from "./api";
+import { BodyRenderer } from "./body/BodyRenderer";
 import type {
   ChatMessage,
   ConsoleWindow,
@@ -70,6 +71,7 @@ import type { Density, DisplayMode, DisplaySize } from "./visualization";
 const LAYOUT_KEY = "rin.glitch-core.window-layout.v2";
 const UI_SETTINGS_KEY = "rin.glitch-core.ui-settings.v1";
 const PERSISTENT_TYPES = new Set<WindowType>([
+  "body",
   "chat",
   "memory",
   "context",
@@ -81,6 +83,7 @@ const PERSISTENT_TYPES = new Set<WindowType>([
 ]);
 const REUSABLE_WINDOW_TYPES = new Set<WindowType>([
   "core",
+  "body",
   "chat",
   "memory",
   "context",
@@ -113,6 +116,7 @@ type WindowMeta = {
 
 const WINDOW_META: Record<WindowType, WindowMeta> = {
   core: { label: "Core Status", context: "RIN Core", code: "CORE" },
+  body: { label: "Body", context: "Layered Avatar", code: "BODY" },
   chat: { label: "Chat", context: "Default Session", code: "CHAT" },
   memory: { label: "Memory", context: "Recent Memories", code: "MEM" },
   memoryDetail: { label: "Memory Detail", context: "Memory Record", code: "MEM+" },
@@ -132,6 +136,7 @@ const WINDOW_META: Record<WindowType, WindowMeta> = {
 
 const DOMAIN_NAV_ITEMS: Array<{ label: string; type: WindowType; tone: string }> = [
   { label: "Overview", type: "core", tone: "overview" },
+  { label: "Body", type: "body", tone: "body" },
   { label: "Chat", type: "chat", tone: "chat" },
   { label: "Mind", type: "mind", tone: "mind" },
   { label: "Cognition", type: "cognition", tone: "runtime" },
@@ -147,13 +152,13 @@ const DEFAULT_LAYOUT: Array<Pick<
   "type" | "contextName" | "x" | "y" | "width" | "height"
 >> = [
   { type: "core", contextName: "RIN Overview", x: 20, y: 52, width: 300, height: 230 },
+  { type: "body", contextName: "Layered Avatar", x: 332, y: 52, width: 300, height: 456 },
   { type: "chat", contextName: "Default Session", x: 20, y: 298, width: 300, height: 300 },
-  { type: "mind", contextName: "Mind Snapshot", x: 332, y: 52, width: 300, height: 230 },
-  { type: "memory", contextName: "Memory Governance", x: 644, y: 52, width: 300, height: 230 },
-  { type: "context", contextName: "Context Plan", x: 956, y: 52, width: 300, height: 230 },
-  { type: "trace", contextName: "Runtime Trace", x: 332, y: 298, width: 300, height: 300 },
-  { type: "cost", contextName: "DeepSeek Usage", x: 644, y: 298, width: 300, height: 300 },
-  { type: "control", contextName: "Governance", x: 956, y: 298, width: 300, height: 300 }
+  { type: "mind", contextName: "Mind Snapshot", x: 644, y: 52, width: 300, height: 230 },
+  { type: "memory", contextName: "Memory Governance", x: 956, y: 52, width: 300, height: 230 },
+  { type: "context", contextName: "Context Plan", x: 644, y: 298, width: 300, height: 300 },
+  { type: "trace", contextName: "Runtime Trace", x: 956, y: 298, width: 300, height: 300 },
+  { type: "cost", contextName: "DeepSeek Usage", x: 332, y: 524, width: 300, height: 244 }
 ];
 
 const SPAWN_LAYOUT: Record<WindowType, {
@@ -165,6 +170,7 @@ const SPAWN_LAYOUT: Record<WindowType, {
   offsetY: number;
 }> = {
   core: { x: 440, y: 58, width: 410, height: 250, offsetX: 18, offsetY: 18 },
+  body: { x: 494, y: 58, width: 380, height: 610, offsetX: 24, offsetY: 20 },
   chat: { x: 44, y: 84, width: 430, height: 516, offsetX: 34, offsetY: 28 },
   memory: { x: 828, y: 84, width: 420, height: 488, offsetX: -34, offsetY: 28 },
   memoryDetail: { x: 520, y: 118, width: 430, height: 420, offsetX: 28, offsetY: 28 },
@@ -414,7 +420,26 @@ function deriveCoreVisualState(
   return "idle";
 }
 
+function currentBodyRoute(): "body" | "floating" | null {
+  const path = window.location.pathname.replace(/\/+$/, "") || "/";
+  if (path === "/body/floating") {
+    return "floating";
+  }
+  if (path === "/body") {
+    return "body";
+  }
+  return null;
+}
+
 export default function App() {
+  const bodyRoute = currentBodyRoute();
+  if (bodyRoute) {
+    return <BodyStandaloneSurface mode={bodyRoute} />;
+  }
+  return <GlitchCoreApp />;
+}
+
+function GlitchCoreApp() {
   const [snapshot, setSnapshot] = useState<GlitchSnapshot | null>(null);
   const [windows, setWindows] = useState<ConsoleWindow[]>(() => loadLayout());
   const [activeWindowId, setActiveWindowId] = useState<string | null>(null);
@@ -934,6 +959,56 @@ export default function App() {
   );
 }
 
+function BodyStandaloneSurface({ mode }: { mode: "body" | "floating" }) {
+  const [snapshot, setSnapshot] = useState<GlitchSnapshot | null>(null);
+  const [snapshotError, setSnapshotError] = useState<string | null>(null);
+  const floating = mode === "floating";
+
+  useEffect(() => {
+    let cancelled = false;
+    async function refresh() {
+      try {
+        const nextSnapshot = await fetchGlitchSnapshot();
+        if (!cancelled) {
+          setSnapshot(nextSnapshot);
+          setSnapshotError(null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setSnapshotError(error instanceof Error ? error.message : "Snapshot unavailable");
+        }
+      }
+    }
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  return (
+    <main className={`body-surface-page ${floating ? "floating" : "full"}`}>
+      <section className="body-surface-shell">
+        <div className="body-surface-header">
+          <div>
+            <span>RIN_BODY</span>
+            <strong>Layered Avatar</strong>
+          </div>
+          <a href="/glitch-core">Glitch Core</a>
+        </div>
+        <BodyRenderer
+          snapshot={snapshot}
+          floating={floating}
+          compact={floating}
+          showDiagnostics={!floating}
+        />
+        {snapshotError ? <p className="body-snapshot-error">{snapshotError}</p> : null}
+      </section>
+    </main>
+  );
+}
+
 function TopMenu(props: {
   snapshot: GlitchSnapshot | null;
   coreVisualState: CoreVisualState;
@@ -1131,7 +1206,7 @@ function FocusNav(props: {
   onRestore: () => void;
 }) {
   const majorWindows = props.windows.filter((item) =>
-    ["core", "chat", "mind", "memory", "context", "trace", "cost", "control"].includes(item.type)
+    ["core", "body", "chat", "mind", "memory", "context", "trace", "cost", "control"].includes(item.type)
   );
   return (
     <nav className="focus-nav" aria-label="Focus mode navigation">
@@ -1336,6 +1411,8 @@ function WindowContent(props: {
   switch (props.win.type) {
     case "core":
       return <CoreStatus snapshot={props.snapshot} />;
+    case "body":
+      return <BodyWindow snapshot={props.snapshot} />;
     case "chat":
       return <ChatWindow {...props} />;
     case "memory":
@@ -1432,6 +1509,7 @@ function CoreStatus({ snapshot }: { snapshot: GlitchSnapshot | null }) {
         <Metric label="Mode" value={snapshot?.core.mode ?? "local-first"} />
         <Metric label="Schema" value={snapshot?.dashboard.database.schemaVersion ?? "n/a"} />
         <Metric label="Memory" value={snapshot?.dashboard.memoryContext.memoryV2Traces ?? 0} />
+        <Metric label="Body" value={snapshot?.core.bodyRendererLabel ?? "Layered Avatar"} />
       </div>
       <div className="health-matrix">
         {Object.entries(health).map(([key, value]) => (
@@ -1443,6 +1521,19 @@ function CoreStatus({ snapshot }: { snapshot: GlitchSnapshot | null }) {
       <p className="readable-note">
         Local-first runtime shell. Provider calls stay behind FastAPI adapters.
       </p>
+    </div>
+  );
+}
+
+function BodyWindow({ snapshot }: { snapshot: GlitchSnapshot | null }) {
+  return (
+    <div className="body-window">
+      <div className="module-strip">ACTIVE BODY · LAYERED AVATAR</div>
+      <BodyRenderer snapshot={snapshot} compact />
+      <div className="body-window-links">
+        <a href="/body" target="_blank" rel="noreferrer">Open /body</a>
+        <a href="/body/floating" target="_blank" rel="noreferrer">Open /body/floating</a>
+      </div>
     </div>
   );
 }
