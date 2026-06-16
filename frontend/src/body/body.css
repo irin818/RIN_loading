@@ -91,11 +91,6 @@
 
 /* ── Floating mode ── */
 
-.rin-body.floating .rin-body-stage {
-  padding: 0;
-  overflow: visible;
-}
-
 .rin-body.floating .rin-body-label {
   display: none;
 }
@@ -112,18 +107,25 @@
   overflow: visible;
 }
 
-/* Only the image area catches mouse for dragging */
+/* Stage fills window, image area catches mouse for dragging */
 .rin-body.floating .rin-body-stage {
+  padding: 0;
   overflow: visible;
   pointer-events: auto;
   -webkit-app-region: drag;
 }
 
-/* Floating image: no shadow, smaller default scale */
+/* Image auto-fits window, bottom-aligned, no clipping */
 .rin-body.floating .rin-body-image {
   filter: none;
-  transform: scale(var(--body-scale, 0.65));
   pointer-events: auto;
+  max-width: 100%;
+  max-height: none;
+  width: auto;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  transform: none;
 }
 
 /* ── Standalone page ── */

@@ -7,7 +7,7 @@ const SMOKE = process.env.RIN_BODY_DESKTOP_SMOKE === "1";
 function createWindow() {
   const win = new BrowserWindow({
     width: 260,
-    height: 440,
+    height: 500,
     minWidth: 160,
     minHeight: 200,
     transparent: true,
