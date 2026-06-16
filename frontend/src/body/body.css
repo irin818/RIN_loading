@@ -1,3 +1,16 @@
+/* ── Desktop floating: tweakable parameters ── */
+:root {
+  --body-scale: 0.6;
+  --body-x: center;
+  --body-y: end;
+  --bubble-top: 6px;
+  --bubble-right: 2px;
+  --bubble-width: 190px;
+  --bubble-max-height: 120px;
+  --chat-bottom: 14px;
+  --chat-width: 180px;
+}
+
 /* ── Body Panel (embedded & standalone) ── */
 
 .rin-body {
@@ -107,18 +120,18 @@
   overflow: visible;
 }
 
-/* Stage fills window, image bottom-aligned, catches mouse for dragging */
+/* Stage fills window, positioned via vars, catches mouse for dragging */
 .rin-body.floating .rin-body-stage {
   padding: 0;
   overflow: visible;
   pointer-events: auto;
   -webkit-app-region: drag;
   display: grid;
-  align-items: end;
-  justify-items: center;
+  align-items: var(--body-y, center);
+  justify-items: var(--body-x, center);
 }
 
-/* Image: fixed scale, bottom-aligned */
+/* Image: scale from var */
 .rin-body.floating .rin-body-image {
   filter: none;
   pointer-events: auto;
@@ -254,10 +267,10 @@
 
 .floating-bubble {
   position: absolute;
-  top: 6px;
-  right: 2px;
-  width: 190px;
-  max-height: 120px;
+  top: var(--bubble-top, 6px);
+  right: var(--bubble-right, 2px);
+  width: var(--bubble-width, 190px);
+  max-height: var(--bubble-max-height, 120px);
   padding: 8px 10px;
   border-radius: 14px 14px 2px 14px;
   background: rgba(0, 0, 0, 0.9);
@@ -300,7 +313,7 @@
 
 .floating-chat-bar {
   position: absolute;
-  bottom: 14px;
+  bottom: var(--chat-bottom, 14px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
@@ -316,7 +329,7 @@
 }
 
 .floating-chat-bar input {
-  width: 180px;
+  width: var(--chat-width, 180px);
   border: 0;
   outline: 0;
   background: transparent;
