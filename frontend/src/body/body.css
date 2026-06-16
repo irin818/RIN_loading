@@ -104,19 +104,26 @@
   display: none;
 }
 
-/* Make entire floating window draggable */
+/* Floating window: transparent to clicks except on the image */
 .body-standalone.floating,
 .body-standalone.floating .body-standalone-shell,
-.body-standalone.floating .rin-body,
-.body-standalone.floating .rin-body-stage {
-  -webkit-app-region: drag;
+.body-standalone.floating .rin-body {
+  pointer-events: none;
   overflow: visible;
+}
+
+/* Only the image area catches mouse for dragging */
+.rin-body.floating .rin-body-stage {
+  overflow: visible;
+  pointer-events: auto;
+  -webkit-app-region: drag;
 }
 
 /* Floating image: no shadow, smaller default scale */
 .rin-body.floating .rin-body-image {
   filter: none;
   transform: scale(var(--body-scale, 0.55));
+  pointer-events: auto;
 }
 
 /* ── Standalone page ── */
