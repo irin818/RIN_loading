@@ -267,7 +267,7 @@
   font-size: 13px;
   line-height: 1.5;
   z-index: 10;
-  pointer-events: none;
+  pointer-events: auto;
   animation: bubble-in 0.3s ease-out;
 }
 
@@ -302,6 +302,7 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
+  pointer-events: auto;
 }
 
 .floating-chat-trigger {
@@ -375,4 +376,6 @@
   display: grid;
   place-items: center;
   height: 100%;
+  pointer-events: auto;
+  -webkit-app-region: drag;
 }

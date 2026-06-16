@@ -12,6 +12,22 @@ export function FloatingChat() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Transparent background for desktop floating window
+  useEffect(() => {
+    const root = document.getElementById("root");
+    if (!root) return;
+    const html = document.documentElement;
+    const prev = [html.style.background, document.body.style.background, root.style.background];
+    html.style.background = "transparent";
+    document.body.style.background = "transparent";
+    root.style.background = "transparent";
+    return () => {
+      html.style.background = prev[0];
+      document.body.style.background = prev[1];
+      root.style.background = prev[2];
+    };
+  }, []);
+
   // Random state cycling
   useEffect(() => {
     const tick = () => {
