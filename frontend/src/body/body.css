@@ -294,80 +294,68 @@
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
-/* ── Floating desktop: chat input ── */
+/* ── Floating desktop: chat bar ── */
 
-.floating-chat {
+.floating-chat-bar {
   position: absolute;
-  bottom: 12px;
+  bottom: 18px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
   pointer-events: auto;
-}
-
-.floating-chat-trigger {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid rgba(103, 232, 249, 0.5);
-  background: rgba(0, 0, 0, 0.78);
-  color: #fff;
-  font-size: 18px;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  transition: border-color 0.2s;
-}
-
-.floating-chat-trigger:hover {
-  border-color: var(--rin-green);
-}
-
-.floating-chat-form {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   align-items: center;
-  padding: 6px 8px;
-  border-radius: 20px;
-  background: rgba(0, 0, 0, 0.85);
-  border: 1px solid rgba(103, 232, 249, 0.5);
+  padding: 8px 14px;
+  border-radius: 24px;
+  background: rgba(8, 20, 16, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(103, 232, 249, 0.32);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 100, 0.08);
+  animation: bar-in 0.25s ease-out;
 }
 
-.floating-chat-form input {
-  width: 140px;
+.floating-chat-bar input {
+  width: 160px;
   border: 0;
   outline: 0;
   background: transparent;
   color: #d8ffe5;
-  font-size: 13px;
+  font-size: 14px;
   font-family: inherit;
+  letter-spacing: 0;
 }
 
-.floating-chat-form input::placeholder {
-  color: #5a8a6a;
+.floating-chat-bar input::placeholder {
+  color: #4a7a5a;
 }
 
-.floating-chat-form button {
-  border: 1px solid rgba(103, 232, 249, 0.35);
-  background: rgba(0, 255, 100, 0.12);
+.floating-chat-bar button {
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 255, 100, 0.35);
+  background: rgba(0, 255, 100, 0.1);
   color: #9cffcb;
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 11px;
+  padding: 5px 14px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
+  transition: background 0.15s;
 }
 
-.floating-chat-form button:disabled {
-  opacity: 0.4;
+.floating-chat-bar button:hover {
+  background: rgba(0, 255, 100, 0.2);
 }
 
-.floating-chat-form .close-btn {
-  border-color: transparent;
-  background: transparent;
-  color: #78a98a;
-  font-size: 16px;
-  padding: 0 4px;
+.floating-chat-bar button:disabled {
+  opacity: 0.35;
+}
+
+@keyframes bar-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 /* ── Floating character area ── */

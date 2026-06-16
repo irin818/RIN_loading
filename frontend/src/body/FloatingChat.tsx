@@ -12,7 +12,7 @@ export function FloatingChat() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Transparent background for desktop floating window
+  // Transparent background
   useEffect(() => {
     const root = document.getElementById("root");
     if (!root) return;
@@ -26,6 +26,19 @@ export function FloatingChat() {
       document.body.style.background = prev[1];
       root.style.background = prev[2];
     };
+  }, []);
+
+  // Cmd+C to toggle chat
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey && e.key === "c") {
+        e.preventDefault();
+        setChatOpen((v) => !v);
+      }
+      if (e.key === "Escape") setChatOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   // Random state cycling
@@ -47,7 +60,7 @@ export function FloatingChat() {
   useEffect(() => {
     if (bubble) {
       if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
-      bubbleTimerRef.current = setTimeout(() => setBubble(null), 10000);
+      bubbleTimerRef.current = setTimeout(() => setBubble(null), 12000);
     }
     return () => { if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current); };
   }, [bubble]);
@@ -61,7 +74,6 @@ export function FloatingChat() {
     const text = input.trim();
     if (!text || busy) return;
     setInput("");
-    setChatOpen(false);
     setBusy(true);
     setBubble(null);
 
@@ -87,7 +99,6 @@ export function FloatingChat() {
 
   return (
     <main className="body-standalone floating">
-      {/* Transparent background override */}
       <div className="body-standalone-shell">
         {/* Speech bubble */}
         {bubble ? (
@@ -107,34 +118,20 @@ export function FloatingChat() {
           />
         </div>
 
-        {/* Chat input */}
-        <div className={`floating-chat ${chatOpen ? "open" : ""}`}>
-          {chatOpen ? (
-            <form
-              className="floating-chat-form"
-              onSubmit={(e) => { e.preventDefault(); send(); }}
-            >
-              <input
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={busy ? "..." : "说点什么..."}
-                disabled={busy}
-              />
-              <button type="submit" disabled={busy}>发送</button>
-              <button type="button" className="close-btn" onClick={() => setChatOpen(false)}>×</button>
-            </form>
-          ) : (
-            <button
-              type="button"
-              className="floating-chat-trigger"
-              onClick={() => setChatOpen(true)}
-            >
-              💬
-            </button>
-          )}
-        </div>
+        {/* Chat bar — Cmd+C to toggle */}
+        {chatOpen ? (
+          <form className="floating-chat-bar" onSubmit={(e) => { e.preventDefault(); send(); }}>
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={busy ? "..." : "说点什么..."}
+              disabled={busy}
+            />
+            <button type="submit" disabled={busy}>发送</button>
+          </form>
+        ) : null}
       </div>
     </main>
   );
