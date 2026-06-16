@@ -24,9 +24,18 @@ export function LayeredAvatarRenderer({
     .slice()
     .sort((a, b) => a.zIndex - b.zIndex);
 
+  const canvasStyle = {
+    "--avatar-scale": manifest.canvas?.baseScale ?? 1,
+    "--avatar-center-x": manifest.canvas?.centerX ?? 0.5,
+    "--avatar-center-y": manifest.canvas?.centerY ?? 0.54,
+    "--avatar-target-height-ratio": manifest.canvas?.targetHeightRatio ?? 0.86,
+    "--avatar-safe-padding": manifest.canvas?.safePadding ?? 0.08,
+  } as React.CSSProperties;
+
   return (
     <figure
       className={`layered-avatar state-${state.activity} ${motionClass} ${effectClass} ${floating ? "floating" : ""}`}
+      style={canvasStyle}
       aria-label={`RIN Layered Avatar state: ${stateConfig.label}`}
     >
       <div className="avatar-stage-effects" aria-hidden="true">
