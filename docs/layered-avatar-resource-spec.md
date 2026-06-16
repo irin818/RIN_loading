@@ -20,6 +20,15 @@ Manifest path:
 public/body/rin-layered/manifest.json
 ```
 
+## Core Background vs Body Asset Boundary
+
+The Glitch Core main page background must use its own dedicated asset or CSS system — **never** a body/avatar image from `public/body/rin-layered/`.
+
+- Core background asset: `frontend/public/picture/rin-core-background.png`
+- Core background API field: `core.avatarAssetPath` must point to `/picture/rin-core-background.png`
+- Body assets are restricted to: `/body`, `/body/floating`, Body panel/window, desktop body wrapper
+- The console HTML templates may show a body character in a dedicated avatar/presence panel — that is correct
+
 ## Naming
 
 - Use lowercase snake_case names.

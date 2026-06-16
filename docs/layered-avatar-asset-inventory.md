@@ -23,7 +23,7 @@ Cubism / Live2D status: disabled and archived for the current production body ro
 | ACCESSORIES | Reference-only headphones/belt/shoes samples in source sheets. |
 | EFFECTS | No separate effect image assets provided. Effects are CSS-rendered by the Layered Avatar renderer. |
 | REFERENCE_ONLY | Four owner-provided design/reference sheets copied under `assets/reference/`. |
-| UNUSABLE | Old `public/live2d/` and `live2d-development/` Cubism resources are not production body sources. |
+| UNUSABLE | Old `public/live2d/` Cubism resources were deleted. Cubism route is archived. |
 
 ## Selected Production Asset
 

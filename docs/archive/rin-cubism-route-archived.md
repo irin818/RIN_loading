@@ -18,3 +18,6 @@ Until then:
 - do not expose Cubism as the active renderer;
 - do not depend on old `public/live2d/` files;
 - keep the UI label truthful: Active body renderer is Layered Avatar.
+
+**Cleanup history:**
+- 2026-06-17: Removed `live2d-development/` directory (was already empty except for `.DS_Store`). All active Cubism runtime files and assets were previously deleted. Only governance-doc references and `cubismStatus: disabled_archived_future_route` markers remain — all intentional and correct.
