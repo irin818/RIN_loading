@@ -1,5 +1,8 @@
+import type { BodyReportPayload } from "./body/types";
+
 export type WindowType =
   | "core"
+  | "body"
   | "chat"
   | "memory"
   | "memoryDetail"
@@ -865,8 +868,13 @@ export interface GlitchSnapshot {
     mode: string;
     avatarAssetPath: string;
     replaceableImageNote: string;
+    activeBodyRenderer: string;
+    bodyRendererLabel: string;
+    bodyManifestPath: string;
+    cubismStatus: string;
     animationEnabledByDefault: boolean;
   };
+  body: BodyReportPayload;
   dashboard: {
     readiness: { ok: boolean; label: string };
     adapter: string;
@@ -885,6 +893,12 @@ export interface GlitchSnapshot {
       messageCount: number;
       ownerMessages: number;
       rinMessages: number;
+    };
+    body: {
+      status: string;
+      adapterId: string;
+      activeRenderer: string;
+      assetMode: string;
     };
     health: Record<string, string>;
   };

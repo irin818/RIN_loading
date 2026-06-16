@@ -206,8 +206,8 @@ def test_python_ui_renders_local_status_and_profile_summary() -> None:
         assert "Trace full text" in page_text
         assert "Body" in page_text
         assert "RIN PRESENCE" in page_text
-        assert "/picture/rin-core-background.png" in page_text
-        assert "STATIC BODY / LIVE2D FUTURE" in page_text
+        assert "/body-assets/rin-layered/assets/body/rin_default.png" in page_text
+        assert "LAYERED AVATAR BODY" in page_text
         assert "external" in page_text
         assert "0" in page_text
         assert "Start a local conversation." in page_text
@@ -220,8 +220,8 @@ def test_python_ui_static_assets_are_served() -> None:
     try:
         css = client.get("/static/console.css")
         js = client.get("/static/console.js")
-        avatar = client.get("/live2d/rin/rin-bust-front.png")
-        fullbody = client.get("/live2d/rin/rin-front-fullbody.png")
+        manifest = client.get("/body-assets/rin-layered/manifest.json")
+        fullbody = client.get("/body-assets/rin-layered/assets/body/rin_default.png")
 
         assert css.status_code == 200
         assert "control-console-shell" in css.text
@@ -275,8 +275,8 @@ def test_python_ui_static_assets_are_served() -> None:
         assert "trace-stage-data" in js.text
         assert "control-console-shell" in js.text
         assert "/api/status-dashboard" not in js.text
-        assert avatar.status_code == 200
-        assert avatar.headers["content-type"] == "image/png"
+        assert manifest.status_code == 200
+        assert manifest.headers["content-type"] == "application/json"
         assert fullbody.status_code == 200
         assert fullbody.headers["content-type"] == "image/png"
     finally:
@@ -1278,6 +1278,10 @@ def test_diagnostics_endpoints_are_safe_and_read_only() -> None:
         assert context["fullPromptIncluded"] is False
         assert profiles["fullTextIncluded"] is False
         assert body["cubismRuntimeActive"] is False
+        assert body["activeRenderer"] == "layered"
+        assert body["rendererLabel"] == "Layered Avatar"
+        assert body["publicManifestPath"] == "/body-assets/rin-layered/manifest.json"
+        assert body["cubismStatus"] == "disabled_archived_future_route"
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
@@ -1426,11 +1430,12 @@ def test_typescript_frontend_artifacts_stay_in_frontend_only() -> None:
     filtered = [
         path
         for path in residue
-        if "dist" not in path.parts
-        and "node_modules" not in path.parts
-        and ".venv" not in path.parts
-        and "frontend" not in path.parts
-    ]
+            if "dist" not in path.parts
+            and "node_modules" not in path.parts
+            and ".venv" not in path.parts
+            and "frontend" not in path.parts
+            and not ("desktop" in path.parts and "body" in path.parts)
+        ]
 
     assert filtered == []
     assert (root / "frontend" / "package.json").exists()

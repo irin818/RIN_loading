@@ -1,24 +1,36 @@
-"""Placeholder body/embodiment state for future 3D avatar or robot integration."""
+"""Safe body/embodiment state for the active Layered Avatar renderer."""
 
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from typing import Literal
 
-MouthSync = Literal["idle", "speaking"]
+BodyActivity = Literal[
+    "idle",
+    "thinking",
+    "speaking",
+    "memory",
+    "warning",
+    "error",
+    "sleeping",
+    "listening",
+    "reviewing",
+]
+SpeechState = Literal["silent", "speaking"]
 
 
 @dataclass(frozen=True)
 class BodyState:
-    """Current body/avatar state: emotion, expression, motion, voice, attention."""
+    """Current safe body/avatar state for UI rendering."""
 
-    emotion: str
+    activeRenderer: str
+    activity: BodyActivity
     expression: str
     motion: str
-    voiceStyle: str
-    mouthSync: MouthSync
-    idleBehavior: str
-    attention: str
+    intensity: float
+    attentionState: str
+    speechState: SpeechState
+    warningLevel: int
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -27,7 +39,7 @@ class BodyState:
 @dataclass(frozen=True)
 class BodyReport:
     """
-    Report on the body adapter: placeholder status, what's stored in-body vs. in RIN
+    Report on the body adapter: active renderer status, what's stored in-body vs. in RIN
     core.
     """
 
@@ -35,6 +47,12 @@ class BodyReport:
     status: str
     adapterId: str
     adapterKind: str
+    activeRenderer: str
+    rendererLabel: str
+    assetMode: str
+    manifestPath: str
+    publicManifestPath: str
+    cubismStatus: str
     bodyState: BodyState
     bodyReplaceable: bool
     identityStoredInBody: bool
@@ -50,20 +68,27 @@ class BodyReport:
 
 
 def build_body_report() -> BodyReport:
-    """Build a placeholder body report (no real avatar/robot connected yet)."""
+    """Build the safe Layered Avatar body report."""
     return BodyReport(
         mode="body-state-report",
         status="ready",
-        adapterId="rin-python-placeholder-body",
-        adapterKind="placeholder",
+        adapterId="rin-layered-avatar-body",
+        adapterKind="layered-avatar",
+        activeRenderer="layered",
+        rendererLabel="Layered Avatar",
+        assetMode="state-images",
+        manifestPath="public/body/rin-layered/manifest.json",
+        publicManifestPath="/body-assets/rin-layered/manifest.json",
+        cubismStatus="disabled_archived_future_route",
         bodyState=BodyState(
-            emotion="calm",
+            activeRenderer="layered",
+            activity="idle",
             expression="neutral",
-            motion="idle-breathing",
-            voiceStyle="soft",
-            mouthSync="idle",
-            idleBehavior="calm-idle",
-            attention="idle",
+            motion="idle",
+            intensity=0.5,
+            attentionState="idle",
+            speechState="silent",
+            warningLevel=0,
         ),
         bodyReplaceable=True,
         identityStoredInBody=False,

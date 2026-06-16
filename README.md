@@ -63,7 +63,7 @@ The current runtime focuses on:
 - profile and identity file handling;
 - runtime trace and diagnostics;
 - developer checks;
-- minimal body/Live2D boundary placeholder.
+- Layered Avatar body renderer with `/body` and `/body/floating` routes.
 
 Inactive and forbidden-by-default features are listed in AGENTS.md.
 
@@ -172,8 +172,8 @@ the current active chat path.
 | python/tests/ | Active Python tests |
 | python/pyproject.toml | Python package and tool configuration |
 | frontend/ | TypeScript/React/Vite Web UI (Glitch Core Console) |
-| public/ | Public static assets when used |
-| live2d-development/ | Live2D authoring workspace, not core runtime |
+| public/body/rin-layered/ | Active Layered Avatar body assets and manifest |
+| desktop/body/ | Minimal desktop wrapper for `/body/floating` |
 | .rin-data/ | Local runtime data, not committed |
 
 ---
