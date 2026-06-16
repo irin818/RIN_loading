@@ -1,8 +1,8 @@
 /* ── Desktop floating: tweakable parameters ── */
 :root {
-  --body-scale: 0.6;
-  --body-x: center;
-  --body-y: end;
+  --body-scale: 0.4;
+  --body-x: 0px;
+  --body-y: 0px;
   --bubble-top: 6px;
   --bubble-right: 2px;
   --bubble-width: 190px;
@@ -120,22 +120,22 @@
   overflow: visible;
 }
 
-/* Stage fills window, positioned via vars, catches mouse for dragging */
+/* Stage fills window, center anchor, catches mouse for dragging */
 .rin-body.floating .rin-body-stage {
   padding: 0;
   overflow: visible;
   pointer-events: auto;
   -webkit-app-region: drag;
   display: grid;
-  align-items: var(--body-y, center);
-  justify-items: var(--body-x, center);
+  align-items: center;
+  justify-items: center;
 }
 
-/* Image: scale from var */
+/* Image: pixel offset + scale from vars */
 .rin-body.floating .rin-body-image {
   filter: none;
   pointer-events: auto;
-  transform: scale(var(--body-scale, 0.6));
+  transform: translate(var(--body-x, 0px), var(--body-y, 0px)) scale(var(--body-scale, 0.6));
 }
 
 /* ── Standalone page ── */
