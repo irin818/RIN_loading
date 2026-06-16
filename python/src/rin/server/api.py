@@ -1537,9 +1537,9 @@ def build_glitch_core_snapshot(
             "name": "RIN",
             "status": "online" if readiness["ok"] is True else "warning",
             "mode": "local-first",
-            "avatarAssetPath": "/body-assets/rin-layered/assets/body/rin_default.png",
+            "avatarAssetPath": "/picture/rin-core-background.png",
             "replaceableImageNote": (
-                "Replace Layered Avatar assets under public/body/rin-layered/."
+                "Replace the core background image at frontend/public/picture/rin-core-background.png."
             ),
             "activeBodyRenderer": "layered",
             "bodyRendererLabel": "Layered Avatar",
