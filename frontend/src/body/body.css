@@ -34,6 +34,7 @@
   height: auto;
   object-fit: contain;
   image-rendering: auto;
+  transform: scale(var(--body-scale, 0.6));
   filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.45));
   user-select: none;
 }
