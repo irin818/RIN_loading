@@ -121,25 +121,66 @@
 .body-window {
   display: grid;
   min-height: 100%;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 10px;
 }
 
 .body-window .body-renderer {
-  min-height: 0;
+  min-height: 280px;
 }
 
 .body-window-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+  padding: 0 2px;
 }
 
 .body-window-links a {
   border: 1px solid rgba(103, 232, 249, 0.24);
   color: #bdf9ff;
-  padding: 6px 8px;
+  padding: 4px 7px;
+  font-size: 11px;
   text-decoration: none;
   background: rgba(3, 18, 18, 0.7);
+}
+
+/* Reduce body controls footprint inside the embedded body window */
+.body-window .body-renderer-controls {
+  padding: 0 4px;
+  gap: 5px;
+}
+
+.body-window .body-state-buttons {
+  gap: 4px;
+}
+
+.body-window .body-state-buttons button,
+.body-window .body-reset-button {
+  padding: 4px 4px;
+  font-size: 10px;
+}
+
+/* Show diagnostics compactly when enabled in body window */
+.body-window .body-diagnostics {
+  gap: 2px;
+  padding: 0 4px 4px;
+}
+
+.body-window .body-diagnostics div {
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 4px;
+  padding-top: 2px;
+}
+
+.body-window .body-diagnostics dt,
+.body-window .body-diagnostics dd {
+  font-size: 9px;
+}
+
+/* Ensure body stage gets enough space in embedded panel */
+.body-window .body-renderer-stage {
+  min-height: 190px;
 }
 
 .body-renderer {
@@ -183,7 +224,7 @@
 .body-renderer.compact .layered-avatar,
 .body-renderer.compact .body-fallback {
   width: min(100%, 360px);
-  min-height: 280px;
+  min-height: 200px;
 }
 
 .body-renderer.floating .layered-avatar,
