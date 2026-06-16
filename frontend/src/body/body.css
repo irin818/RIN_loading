@@ -1,14 +1,14 @@
-/* ── Desktop floating: tweakable parameters ── */
+/* ── Desktop floating: ALL tweakable parameters ── */
 :root {
-  --body-scale: 0.4;
-  --body-x: 0px;
-  --body-y: 0px;
-  --bubble-top: 6px;
-  --bubble-right: 2px;
-  --bubble-width: 190px;
-  --bubble-max-height: 120px;
-  --chat-bottom: 14px;
-  --chat-width: 180px;
+  --win-width: 160px;           /* Electron window width — set main.cjs to match */
+  --bubble-area: 86px;          /* reserved height above character for bubble */
+  --body-height: 440px;         /* character image display height */
+  --body-scale: 1;              /* extra scale on top of body-height (1=no extra) */
+  --bubble-width: 160px;        /* bubble fixed width */
+  --bubble-padding: 6px 8px;    /* bubble internal padding */
+  --bubble-font-size: 11px;     /* bubble text size */
+  --chat-bottom: 4px;           /* chat bar distance from window bottom */
+  --chat-width: 140px;          /* chat input width */
 }
 
 /* ── Body Panel (embedded & standalone) ── */
@@ -104,38 +104,63 @@
 
 /* ── Floating mode ── */
 
-.rin-body.floating .rin-body-label {
-  display: none;
-}
-
+.rin-body.floating .rin-body-label,
 .rin-body.floating .rin-body-controls {
   display: none;
 }
 
-/* Floating window: transparent to clicks except on the image */
-.body-standalone.floating,
-.body-standalone.floating .body-standalone-shell,
-.body-standalone.floating .rin-body {
-  pointer-events: none;
+/* Floating shell: tight to content, transparent, click-through */
+.body-standalone.floating {
+  padding: 0;
+  background: transparent;
+  min-height: 0;
   overflow: visible;
 }
 
-/* Stage fills window, center anchor, catches mouse for dragging */
+.body-standalone.floating .body-standalone-shell {
+  width: var(--win-width);
+  height: calc(var(--bubble-area) + var(--body-height));
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  position: relative;
+  display: block;
+}
+
+.body-standalone.floating .body-standalone-header {
+  display: none;
+}
+
+/* Floating body fills shell, image sits at bottom */
+.rin-body.floating {
+  height: 100%;
+  pointer-events: none;
+}
+
 .rin-body.floating .rin-body-stage {
   padding: 0;
   overflow: visible;
   pointer-events: auto;
   -webkit-app-region: drag;
   display: grid;
-  align-items: center;
+  align-items: end;
   justify-items: center;
+  height: 100%;
 }
 
-/* Image: pixel offset + scale from vars */
+/* Character image: fixed display height, bottom-aligned, clean */
 .rin-body.floating .rin-body-image {
   filter: none;
   pointer-events: auto;
-  transform: translate(var(--body-x, 0px), var(--body-y, 0px)) scale(var(--body-scale, 0.6));
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: var(--body-height);
+  object-fit: contain;
+  object-position: center bottom;
+  transform: scale(var(--body-scale, 1));
 }
 
 /* ── Standalone page ── */
@@ -267,19 +292,21 @@
 
 .floating-bubble {
   position: absolute;
-  top: var(--bubble-top, 6px);
-  right: var(--bubble-right, 2px);
-  width: var(--bubble-width, 190px);
-  max-height: var(--bubble-max-height, 120px);
-  padding: 8px 10px;
-  border-radius: 14px 14px 2px 14px;
+  top: 0;
+  left: 0;
+  right: 0;
+  max-height: var(--bubble-area);
+  width: var(--bubble-width);
+  margin: 0 auto;
+  padding: var(--bubble-padding, 6px 8px);
+  border-radius: 12px 12px 2px 12px;
   background: rgba(0, 0, 0, 0.9);
   border: 1px solid rgba(103, 232, 249, 0.5);
   color: #d8ffe5;
   z-index: 10;
   pointer-events: auto;
   animation: bubble-in 0.3s ease-out;
-  overflow: hidden;
+  overflow-y: auto;
   display: flex;
   align-items: flex-start;
 }
@@ -287,18 +314,19 @@
 .floating-bubble::after {
   content: "";
   position: absolute;
-  bottom: 8px;
-  left: -7px;
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%);
   width: 0;
   height: 0;
-  border-top: 5px solid transparent;
-  border-bottom: 5px solid transparent;
-  border-right: 8px solid rgba(103, 232, 249, 0.5);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid rgba(103, 232, 249, 0.5);
 }
 
 .floating-bubble p {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--bubble-font-size, 11px);
   line-height: 1.4;
   overflow-wrap: break-word;
   word-break: break-word;
@@ -313,7 +341,7 @@
 
 .floating-chat-bar {
   position: absolute;
-  bottom: var(--chat-bottom, 14px);
+  bottom: var(--chat-bottom, 4px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
@@ -352,8 +380,6 @@
 /* ── Floating character area ── */
 
 .floating-character {
-  display: grid;
-  place-items: center;
   height: 100%;
   pointer-events: auto;
   -webkit-app-region: drag;

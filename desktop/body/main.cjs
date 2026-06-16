@@ -5,10 +5,13 @@ const BODY_URL = process.env.RIN_BODY_DESKTOP_URL || "http://127.0.0.1:8765/body
 const SMOKE = process.env.RIN_BODY_DESKTOP_SMOKE === "1";
 
 function createWindow() {
+  // Keep in sync with body.css :root vars:
+  //   width  = --win-width  (default 160px)
+  //   height = --bubble-area + --body-height  (default 86 + 440 = 526)
   const win = new BrowserWindow({
-    width: 230,
-    height: 260,
-    minWidth: 160,
+    width: 160,
+    height: 526,
+    minWidth: 120,
     minHeight: 200,
     transparent: true,
     frame: false,
