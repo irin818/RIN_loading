@@ -154,7 +154,7 @@ const DEFAULT_LAYOUT: Array<Pick<
   "type" | "contextName" | "x" | "y" | "width" | "height"
 >> = [
   { type: "core", contextName: "RIN Overview", x: 20, y: 52, width: 300, height: 230 },
-  { type: "body", contextName: "Layered Avatar", x: 332, y: 52, width: 300, height: 560 },
+  { type: "body", contextName: "Body", x: 332, y: 52, width: 300, height: 380 },
   { type: "chat", contextName: "Default Session", x: 20, y: 298, width: 300, height: 300 },
   { type: "mind", contextName: "Mind Snapshot", x: 644, y: 52, width: 300, height: 230 },
   { type: "memory", contextName: "Memory Governance", x: 956, y: 52, width: 300, height: 230 },
@@ -172,7 +172,7 @@ const SPAWN_LAYOUT: Record<WindowType, {
   offsetY: number;
 }> = {
   core: { x: 440, y: 58, width: 410, height: 250, offsetX: 18, offsetY: 18 },
-  body: { x: 494, y: 58, width: 380, height: 660, offsetX: 24, offsetY: 20 },
+  body: { x: 494, y: 58, width: 380, height: 480, offsetX: 24, offsetY: 20 },
   chat: { x: 44, y: 84, width: 430, height: 516, offsetX: 34, offsetY: 28 },
   memory: { x: 828, y: 84, width: 420, height: 488, offsetX: -34, offsetY: 28 },
   memoryDetail: { x: 520, y: 118, width: 430, height: 420, offsetX: 28, offsetY: 28 },

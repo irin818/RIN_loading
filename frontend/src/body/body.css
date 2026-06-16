@@ -2,14 +2,14 @@
 
 .rin-body {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto auto;
-  gap: 10px;
+  grid-template-rows: 1fr auto auto;
+  gap: 8px;
   width: 100%;
   min-height: 0;
 }
 
 .rin-body.compact {
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: 1fr auto;
 }
 
 .rin-body.floating {
@@ -22,7 +22,7 @@
   min-height: 0;
   display: grid;
   place-items: center;
-  padding: 8px;
+  padding: 4px;
   overflow: hidden;
 }
 
@@ -128,10 +128,10 @@
 }
 
 .body-standalone-shell {
-  width: min(760px, 100%);
-  min-height: min(860px, calc(100vh - 36px));
+  width: min(520px, 100%);
+  min-height: min(480px, calc(100vh - 36px));
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
   border: 1px solid rgba(103, 232, 249, 0.24);
   background: rgba(3, 10, 10, 0.88);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), 0 0 48px rgba(103, 232, 249, 0.12);
@@ -188,17 +188,12 @@
 /* ── Embedded body window overrides ── */
 
 .body-window .rin-body {
-  grid-template-rows: minmax(0, 1fr) auto;
-  min-height: 280px;
-}
-
-.body-window .rin-body-stage {
-  min-height: 190px;
+  grid-template-rows: 1fr auto;
 }
 
 .body-window .rin-body-buttons button,
 .body-window .rin-body-reset {
-  padding: 4px 3px;
+  padding: 3px 3px;
   font-size: 9px;
 }
 
