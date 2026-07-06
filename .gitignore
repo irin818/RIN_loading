@@ -75,3 +75,15 @@ temp/
 *.backup
 *.orig
 *.rej
+
+# Unity (Rin_unity)
+Rin_unity/Library/
+Rin_unity/Logs/
+Rin_unity/UserSettings/
+Rin_unity/Temp/
+Rin_unity/obj/
+Rin_unity/Build/
+Rin_unity/Builds/
+Rin_unity/*.sln
+Rin_unity/*.csproj
+Rin_unity/*.userprefs
