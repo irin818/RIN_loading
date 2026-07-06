@@ -11,6 +11,29 @@ import type {
   SelfReviewPayload,
   ToolRequestActionResult
 } from "./types";
+import type { RinCharacterAsset } from "./rinCharacters";
+
+export type CharacterViewSettingsPayload = {
+  x: number;
+  y: number;
+  scale: number;
+  cropTop: number;
+  cropRight: number;
+  cropBottom: number;
+  cropLeft: number;
+};
+
+export type CharacterAssetsPayload = {
+  ok: boolean;
+  mode: "rin-character-assets";
+  localOnly: boolean;
+  rawTextIncluded: false;
+  secretValuesIncluded: false;
+  selectedAssetId?: string | null;
+  assets: RinCharacterAsset[];
+  hiddenDefaultIds: string[];
+  views: Record<string, CharacterViewSettingsPayload>;
+};
 
 async function readJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -142,6 +165,69 @@ export async function fetchConsoleDataMap(): Promise<ConsoleDataMap> {
     headers: { Accept: "application/json" }
   });
   return readJson<ConsoleDataMap>(response);
+}
+
+export async function fetchCharacterAssets(): Promise<CharacterAssetsPayload> {
+  const response = await fetch("/api/body/character-assets", {
+    headers: { Accept: "application/json" }
+  });
+  return readJson<CharacterAssetsPayload>(response);
+}
+
+export async function uploadCharacterAsset(file: File): Promise<CharacterAssetsPayload> {
+  const response = await fetch("/api/body/character-assets", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": file.type || "application/octet-stream",
+      "X-RIN-File-Name": encodeURIComponent(file.name)
+    },
+    body: file
+  });
+  return readJson<CharacterAssetsPayload>(response);
+}
+
+export async function deleteCharacterAsset(
+  assetId: string
+): Promise<CharacterAssetsPayload> {
+  const response = await fetch(`/api/body/character-assets/${assetId}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json" }
+  });
+  return readJson<CharacterAssetsPayload>(response);
+}
+
+export async function restoreCharacterAssetDefaults(): Promise<CharacterAssetsPayload> {
+  const response = await fetch("/api/body/character-assets/defaults/restore", {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+  return readJson<CharacterAssetsPayload>(response);
+}
+
+export async function saveCharacterAssetView(
+  assetId: string,
+  view: CharacterViewSettingsPayload
+): Promise<CharacterAssetsPayload> {
+  const response = await fetch(`/api/body/character-assets/${assetId}/view`, {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(view)
+  });
+  return readJson<CharacterAssetsPayload>(response);
+}
+
+export async function resetCharacterAssetView(
+  assetId: string
+): Promise<CharacterAssetsPayload> {
+  const response = await fetch(`/api/body/character-assets/${assetId}/view`, {
+    method: "DELETE",
+    headers: { Accept: "application/json" }
+  });
+  return readJson<CharacterAssetsPayload>(response);
 }
 
 export async function approveGrowthEvent(
