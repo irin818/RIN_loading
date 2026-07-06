@@ -2,8 +2,11 @@
 :root {
   --win-width: 240px;           /* Electron window width — set main.cjs to match */
   --bubble-area: 86px;          /* reserved height above character for bubble */
-  --body-height: 350px;         /* character image display height */
-  --body-scale: 0.8;              /* extra scale on top of body-height (1=no extra) */
+  --body-height: 380px;         /* character image display height (was 350) */
+  --body-scale: 1;              /* extra scale on top of body-height (1=no extra) */
+  --body-offset-x: 0px;         /* horizontal shift from Body edit view */
+  --body-offset-y: 0px;         /* vertical shift from Body edit view */
+  --body-anchor-y: 35%;         /* vertical anchor: 0%=top 100%=bottom (default upper-body) */
   --bubble-width: 160px;        /* bubble fixed width */
   --bubble-padding: 6px 8px;    /* bubble internal padding */
   --bubble-font-size: 11px;     /* bubble text size */
@@ -46,8 +49,9 @@
   width: auto;
   height: auto;
   object-fit: contain;
+  object-position: center var(--body-anchor-y, 35%);
   image-rendering: auto;
-  transform: scale(var(--body-scale, 1));
+  transform: translate(var(--body-offset-x, 0px), var(--body-offset-y, 0px)) scale(var(--body-scale, 1));
   filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.45));
   user-select: none;
 }
@@ -159,8 +163,8 @@
   width: auto;
   height: var(--body-height);
   object-fit: contain;
-  object-position: center bottom;
-  transform: scale(var(--body-scale, 1));
+  object-position: center var(--body-anchor-y, 35%);
+  transform: translate(var(--body-offset-x, 0px), var(--body-offset-y, 0px)) scale(var(--body-scale, 1));
 }
 
 /* ── Standalone page ── */

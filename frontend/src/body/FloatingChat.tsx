@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BodyPanel } from "./BodyPanel";
 import { BODY_STATES, type BodyState } from "./bodyState";
+import { applyBodyViewToDocument, loadBodyView } from "./bodyView";
 
 export function FloatingChat() {
   const [floatingState, setFloatingState] = useState<BodyState>("默认");
@@ -12,6 +13,25 @@ export function FloatingChat() {
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Apply saved body view on mount (syncs with BodyWindow edits)
+  useEffect(() => {
+    applyBodyViewToDocument(loadBodyView());
+  }, []);
+
+  // Live sync: listen for localStorage changes from the main web UI
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "rin-body-view" && e.newValue) {
+        try {
+          const view = JSON.parse(e.newValue);
+          applyBodyViewToDocument(view);
+        } catch { /* ignore malformed */ }
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   // Transparent or black background (Cmd+B toggles)
   useEffect(() => {
