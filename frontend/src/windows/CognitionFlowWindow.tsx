@@ -89,9 +89,9 @@ export const CognitionFlowWindow = memo(function CognitionFlowWindow({
           <MetricCard label="audit events" value={String(turnImpact.auditEvents ? (turnImpact.auditEvents as unknown[]).length : 0)} />
         </div>
         <div className="inline-actions">
-          <button type="button" onClick={() => openWindow("mind")}>Mind</button>
           <button type="button" onClick={() => openWindow("memory")}>Memory</button>
-          <button type="button" onClick={() => openWindow("control")}>Control</button>
+          <button type="button" onClick={() => openWindow("tasks")}>Tasks</button>
+          <button type="button" onClick={() => openWindow("developer")}>Developer</button>
         </div>
       </SectionPanel>
       <SectionPanel title="Locked Self-evolution Boundary" defaultOpen={displayMode !== "basic"}>

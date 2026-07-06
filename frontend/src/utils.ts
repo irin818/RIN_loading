@@ -1,19 +1,16 @@
 import type { GlitchErrorItem, WindowType } from "./types";
 import type { Density, DisplayMode, DisplaySize } from "./visualization";
 
-export const LAYOUT_KEY = "rin.glitch-core.window-layout.v7";
-export const UI_SETTINGS_KEY = "rin.glitch-core.ui-settings.v1";
+export const LAYOUT_KEY = "rin.glitch-core.window-layout.v8";
+export const UI_SETTINGS_KEY = "rin.glitch-core.ui-settings.v2";
 export const CHARACTER_KEY = "rin.glitch-core.character.v1";
 
 export const PERSISTENT_TYPES = new Set<WindowType>([
-  "body", "chat", "memory", "gallery", "context", "trace",
-  "cognition", "cost", "mind", "control"
+  "chat", "memory", "tasks", "body", "settings"
 ]);
 
 export const REUSABLE_WINDOW_TYPES = new Set<WindowType>([
-  "core", "body", "chat", "memory", "gallery", "context", "trace",
-  "cognition", "provider", "cost", "mind", "control",
-  "tasks", "tools", "settings", "system"
+  "chat", "memory", "tasks", "body", "settings", "developer"
 ]);
 
 export function safeDisplayJson(value: unknown) {

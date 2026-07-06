@@ -19,6 +19,13 @@ export const ChatWindow = memo(function ChatWindow({
   openWindow: (type: WindowType, options?: { contextName?: string; payload?: WindowPayload }) => void;
 }) {
   const messages = snapshot?.messages ?? [];
+  const provider = snapshot?.provider;
+  const selectedMemoryCount = snapshot?.mind.latest?.memoryRetrieval.selected.length ?? 0;
+  const pendingMemoryCandidates = (snapshot?.mind.memoryCandidates.length
+    ? snapshot.mind.memoryCandidates
+    : snapshot?.mind.latest?.memoryCandidates ?? []
+  ).filter((candidate) => ["candidate", "review_required"].includes(candidate.reviewStatus)).length;
+  const latestError = snapshot?.errors[0];
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -33,6 +40,26 @@ export const ChatWindow = memo(function ChatWindow({
     <div className="chat-module">
       <div className="module-strip">
         CHAT LINK · {snapshot?.selectedConversationId ?? "new session"}
+      </div>
+      <div className="chat-status-row" aria-label="Chat runtime status">
+        <span><small>model</small><b>{provider?.activeModel ?? "loading"}</b></span>
+        <span><small>state</small><b>{snapshot?.core.status ?? "booting"}</b></span>
+        <span><small>memory used</small><b>{selectedMemoryCount}</b></span>
+        <span><small>pending memory</small><b>{pendingMemoryCandidates}</b></span>
+        {latestError ? (
+          <button
+            type="button"
+            className="chat-error-chip"
+            onClick={() =>
+              openWindow("error", {
+                contextName: latestError.code,
+                payload: { error: latestError },
+              })
+            }
+          >
+            {latestError.severity}: {latestError.code}
+          </button>
+        ) : null}
       </div>
       <div className="message-list">
         {messages.length ? (
@@ -74,9 +101,9 @@ export const ChatWindow = memo(function ChatWindow({
           <button
             type="button"
             disabled={!snapshot?.trace.latest}
-            onClick={() => openWindow("trace", { contextName: "Latest Turn" })}
+            onClick={() => openWindow("developer", { contextName: "Latest Turn" })}
           >
-            OPEN TRACE
+            DIAGNOSTICS
           </button>
         </div>
       </form>

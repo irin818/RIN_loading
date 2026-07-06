@@ -261,9 +261,11 @@ button {
 .segmented-control button,
 .composer-actions button,
 .memory-toolbar button,
+.memory-filter-row button,
 .mind-actions button,
 .candidate-editor button,
 .inline-actions button,
+.body-character-actions button,
 .link-button,
 .danger-action,
 .error-actions button {
@@ -421,6 +423,12 @@ button {
   border-color: rgba(255, 194, 71, 0.58);
 }
 
+.menu-button.domain-tasks,
+.menu-button.domain-settings,
+.menu-button.domain-developer {
+  border-color: rgba(255, 217, 138, 0.38);
+}
+
 .menu-button.domain-memory {
   border-color: rgba(56, 248, 255, 0.58);
 }
@@ -447,7 +455,11 @@ button {
 .segmented-control button.active,
 .composer-actions button:hover,
 .memory-toolbar button:hover,
+.memory-filter-row button:hover,
+.memory-filter-row button.active,
 .candidate-editor button:hover,
+.body-character-actions button:hover,
+.body-character-actions button.active,
 .inline-actions button:hover,
 .link-button:hover {
   border-color: var(--mint-bright);
@@ -532,6 +544,7 @@ button {
 .cost-chip { border-color: rgba(255,217,138,0.35); }
 .cost-chip span { color: var(--gold); }
 .memory-chip span { color: var(--mint-bright); }
+.developer-chip span { color: var(--rin-blue); }
 .windows-chip.active { color: var(--mint-bright); box-shadow: 0 0 12px rgba(183,245,212,0.16); }
 
 .status-badge.danger {
@@ -1127,6 +1140,7 @@ button {
 .window-error { --window-accent: var(--rin-red); --window-accent-2: var(--rin-magenta); --window-rgb: 255, 51, 92; --window-panel: rgba(28, 3, 12, 0.93); }
 .window-settings { --window-accent: #e7edf0; --window-accent-2: var(--rin-green); --window-rgb: 231, 237, 240; --window-panel: rgba(12, 15, 14, 0.92); }
 .window-tasks { --window-accent: #ff7040; --window-accent-2: var(--rin-cyan); --window-rgb: 255, 112, 64; --window-panel: rgba(24, 8, 4, 0.92); }
+.window-developer { --window-accent: var(--rin-blue); --window-accent-2: var(--rin-amber); --window-rgb: 74, 163, 255; --window-panel: rgba(3, 12, 24, 0.92); }
 .window-tools { --window-accent: var(--rin-amber); --window-accent-2: var(--rin-cyan); --window-rgb: 255, 194, 71; --window-panel: rgba(24, 17, 3, 0.92); }
 .window-system { --window-accent: #d8ffe5; --window-accent-2: var(--rin-green); --window-rgb: 216, 255, 229; --window-panel: rgba(5, 14, 10, 0.92); }
 
@@ -1240,6 +1254,9 @@ button {
 .cognition-module,
 .mind-module,
 .error-module,
+.settings-module,
+.tasks-module,
+.developer-module,
 .stub-module {
   min-height: 100%;
 }
@@ -1988,7 +2005,10 @@ dd {
 }
 
 .context-module,
-.control-module {
+.control-module,
+.settings-module,
+.tasks-module,
+.developer-module {
   display: grid;
   align-content: start;
   gap: 10px;
@@ -2255,6 +2275,142 @@ dd {
 .error-module p {
   color: #ffdce4;
   line-height: 1.45;
+}
+
+.chat-status-row,
+.memory-summary-strip,
+.settings-grid,
+.developer-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.chat-status-row {
+  margin-bottom: 10px;
+}
+
+.chat-status-row span,
+.chat-error-chip,
+.memory-summary-strip span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: 7px 9px;
+  border: 1px solid rgba(var(--window-rgb, 0, 255, 100), 0.22);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--rin-text);
+}
+
+.chat-status-row small,
+.memory-summary-strip small {
+  color: var(--rin-muted);
+  font-family: var(--font-body);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.chat-status-row b,
+.memory-summary-strip b {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--window-accent, var(--rin-green));
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.chat-error-chip {
+  text-align: left;
+  border-color: rgba(255, 51, 92, 0.42);
+  color: var(--rin-red);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.memory-candidate-section,
+.body-character-panel,
+.developer-boundary {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid rgba(var(--window-rgb, 0, 255, 100), 0.2);
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.memory-filter-row,
+.body-character-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.memory-filter-row button.active,
+.body-character-actions button.active {
+  border-color: var(--mint);
+  background: rgba(143, 227, 184, 0.16);
+  color: var(--mint-bright);
+}
+
+.memory-candidate-list {
+  display: grid;
+  gap: 8px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.memory-candidate-row {
+  display: grid;
+  gap: 7px;
+  padding: 9px;
+  border: 1px solid rgba(56, 248, 255, 0.24);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.memory-candidate-row header,
+.body-character-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.memory-candidate-row strong,
+.body-character-header strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--window-accent, var(--rin-cyan));
+}
+
+.memory-candidate-row p,
+.memory-candidate-row small {
+  margin: 0;
+  color: #d6eadb;
+  line-height: 1.4;
+}
+
+.memory-candidate-row.high,
+.memory-candidate-row.blocked {
+  border-color: rgba(255, 194, 71, 0.44);
+}
+
+.body-character-header > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.body-character-header small {
+  display: block;
+  color: var(--rin-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.body-character-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -3009,7 +3165,7 @@ textarea:focus {
 /* ── Body module ── */
 .body-module {
   display: grid;
-  grid-template-rows: auto auto 1fr auto auto auto;
+  grid-template-rows: auto auto minmax(140px, 1fr) auto auto auto auto;
   gap: 4px;
   height: 100%;
   min-height: 0;
@@ -3363,23 +3519,19 @@ textarea:focus {
   user-select: none;
 }
 
-/* Configuration panel (sliders) — floated overlay */
+/* Configuration panel (sliders) — in-flow so it scrolls naturally inside the window */
 .body-config-panel {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 20;
   display: grid;
   gap: 4px;
-  padding: 6px 2px;
+  margin-top: 6px;
+  padding: 8px 10px;
   border: 1px solid var(--mint);
   border-radius: 8px;
   background: rgba(5,16,13,0.95);
   backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-  max-height: 240px;
+  max-height: 280px;
   overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
 }
 .body-config-row {
   display: grid;
@@ -3455,6 +3607,22 @@ textarea:focus {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.window-body .body-module {
+  height: auto;
+  min-height: 100%;
+  align-content: start;
+}
+
+.window-body .body-preview {
+  min-height: 220px;
+  max-height: 320px;
+}
+
+.window-body .body-character-panel {
+  max-height: 250px;
+  overflow: auto;
 }
 
 /* Section panel refinements */

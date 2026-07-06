@@ -8,24 +8,14 @@ export interface SimpleBodySnapshot {
 }
 
 export type WindowType =
-  | "core"
   | "body"
   | "chat"
   | "memory"
-  | "gallery"
   | "memoryDetail"
-  | "context"
-  | "trace"
-  | "cognition"
-  | "provider"
-  | "cost"
-  | "mind"
   | "error"
   | "tasks"
-  | "tools"
-  | "control"
   | "settings"
-  | "system";
+  | "developer";
 
 export type WindowPayload = Record<string, unknown>;
 

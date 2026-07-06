@@ -1,11 +1,33 @@
 const { app, BrowserWindow, Menu } = require("electron");
 const path = require("path");
+const fs = require("fs");
 
 const SMOKE = process.env.RIN_BODY_DESKTOP_SMOKE === "1";
 const DEFAULT_BODY_URLS = [
   "http://127.0.0.1:5173/body/floating",
   "http://127.0.0.1:8765/body/floating",
 ];
+
+const CONFIG_PATH = path.join(app.getPath("userData"), "window-position.json");
+
+function loadWindowPosition() {
+  try {
+    if (fs.existsSync(CONFIG_PATH)) {
+      const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
+      const pos = JSON.parse(raw);
+      if (typeof pos.x === "number" && typeof pos.y === "number") {
+        return { x: pos.x, y: pos.y };
+      }
+    }
+  } catch { /* corrupted — ignore */ }
+  return null;
+}
+
+function saveWindowPosition(x, y) {
+  try {
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify({ x, y }), "utf-8");
+  } catch { /* non-critical */ }
+}
 
 function normalizeBodyUrl(rawUrl) {
   try {
@@ -59,9 +81,23 @@ function createWindow() {
   // Keep in sync with body.css :root vars:
   //   width  = --win-width  (default 240px)
   //   height = --bubble-area + --body-height  (default 86 + 380 = 466)
+  const winWidth = 240;
+  const winHeight = 466;
+
+  // Restore saved position or default to bottom-right corner
+  const saved = loadWindowPosition();
+  const { screen } = require("electron");
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width: screenW, height: screenH } = primaryDisplay.workAreaSize;
+
+  const x = saved ? saved.x : Math.max(0, screenW - winWidth - 20);
+  const y = saved ? saved.y : screenH - winHeight - 40;
+
   const win = new BrowserWindow({
-    width: 240,
-    height: 466,
+    width: winWidth,
+    height: winHeight,
+    x,
+    y,
     minWidth: 120,
     minHeight: 200,
     transparent: true,
@@ -78,6 +114,12 @@ function createWindow() {
   });
 
   Menu.setApplicationMenu(null);
+
+  // Save position when window is moved
+  win.on("moved", () => {
+    const [wx, wy] = win.getPosition();
+    saveWindowPosition(wx, wy);
+  });
 
   loadBodyRoute(win).catch(() => {
     if (!win.isDestroyed()) void win.loadFile(path.join(__dirname, "fallback.html"));

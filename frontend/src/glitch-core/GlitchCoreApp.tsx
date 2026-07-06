@@ -19,7 +19,7 @@ import { normalizeCharacterView, RIN_CHARACTER_ASSETS } from "../rinCharacters";
 import type { RinCharacterAsset } from "../rinCharacters";
 import type {
   ConsoleWindow, GlitchErrorItem, GlitchSnapshot, MemoryCard,
-  MindCandidateSafePatch, RuntimeTrace, WindowPayload, WindowType,
+  MindCandidateSafePatch, WindowPayload, WindowType,
 } from "../types";
 import {
   compactError, errorFingerprint, isDisplayMode, isDisplaySize, isDensity,
@@ -31,52 +31,34 @@ import { WindowContent } from "../windows/WindowContent";
 // ── window layout helpers ──
 
 const WINDOW_META: Record<WindowType, { label: string; context: string; code: string }> = {
-  core: { label: "Core Status", context: "RIN Core", code: "CORE" },
-  body: { label: "Body", context: "Layered Avatar", code: "BODY" },
   chat: { label: "Chat", context: "Default Session", code: "CHAT" },
-  memory: { label: "Memory", context: "Recent Memories", code: "MEM" },
-  gallery: { label: "Gallery", context: "Character Archive", code: "IMG" },
+  memory: { label: "Memory", context: "Memory Governance", code: "MEM" },
   memoryDetail: { label: "Memory Detail", context: "Memory Record", code: "MEM+" },
-  context: { label: "Context", context: "Context Plan", code: "CTX" },
-  trace: { label: "Trace", context: "Runtime Trace", code: "TRC" },
-  cognition: { label: "Cognition Flow", context: "Latest Turn", code: "COG" },
-  provider: { label: "Provider", context: "API Provider", code: "PRV" },
-  cost: { label: "Cost / Token", context: "Usage Ledger", code: "COST" },
-  mind: { label: "RIN Mind", context: "Mind Snapshot", code: "MIND" },
+  tasks: { label: "Tasks", context: "Proposals", code: "TASK" },
+  body: { label: "Body", context: "Avatar Interface", code: "BODY" },
+  settings: { label: "Settings", context: "Model And UI", code: "SET" },
+  developer: { label: "Developer", context: "Diagnostics", code: "DEV" },
   error: { label: "Error", context: "Runtime Error", code: "ERR" },
-  tasks: { label: "Tasks", context: "Mission Queue", code: "TASK" },
-  tools: { label: "Tools", context: "Tool Layer", code: "TOOL" },
-  control: { label: "Control", context: "Governance", code: "CTRL" },
-  settings: { label: "Settings", context: "Local UI", code: "SET" },
-  system: { label: "System", context: "Health", code: "SYS" },
 };
 
+const WINDOW_MIN_Y = 64; // keep title bar below top system-menu (top:10 + height:52)
+
 const DEFAULT_LAYOUT: Array<Pick<ConsoleWindow, "type" | "contextName" | "x" | "y" | "width" | "height">> = [
-  { type: "core", contextName: "RIN Overview", x: 44, y: 226, width: 350, height: 184 },
-  { type: "gallery", contextName: "Character Archive", x: 44, y: 420, width: 390, height: 288 },
-  { type: "chat", contextName: "Default Session", x: 1038, y: 92, width: 360, height: 306 },
-  { type: "memory", contextName: "Memory Pulse", x: 1050, y: 472, width: 348, height: 286 },
+  { type: "chat", contextName: "Default Session", x: 44, y: WINDOW_MIN_Y, width: 500, height: 560 },
+  { type: "memory", contextName: "Memory Governance", x: 566, y: WINDOW_MIN_Y, width: 430, height: 560 },
+  { type: "body", contextName: "Avatar Interface", x: 1018, y: WINDOW_MIN_Y, width: 380, height: 560 },
+  { type: "settings", contextName: "Model And UI", x: 44, y: WINDOW_MIN_Y + 598, width: 500, height: 300 },
 ];
 
 const SPAWN_LAYOUT: Record<WindowType, { x: number; y: number; width: number; height: number; offsetX: number; offsetY: number }> = {
-  core: { x: 440, y: 58, width: 410, height: 250, offsetX: 18, offsetY: 18 },
-  body: { x: 494, y: 58, width: 380, height: 560, offsetX: 24, offsetY: 20 },
-  chat: { x: 44, y: 84, width: 430, height: 516, offsetX: 34, offsetY: 28 },
-  memory: { x: 828, y: 84, width: 420, height: 488, offsetX: -34, offsetY: 28 },
-  gallery: { x: 106, y: 136, width: 430, height: 390, offsetX: 30, offsetY: 24 },
-  memoryDetail: { x: 520, y: 118, width: 430, height: 420, offsetX: 28, offsetY: 28 },
-  context: { x: 474, y: 408, width: 560, height: 330, offsetX: 34, offsetY: -22 },
-  trace: { x: 346, y: 396, width: 570, height: 268, offsetX: 38, offsetY: -24 },
-  cognition: { x: 372, y: 74, width: 620, height: 540, offsetX: 30, offsetY: 24 },
-  provider: { x: 838, y: 424, width: 390, height: 244, offsetX: -30, offsetY: -18 },
-  cost: { x: 54, y: 470, width: 438, height: 300, offsetX: 30, offsetY: -26 },
-  mind: { x: 464, y: 156, width: 460, height: 360, offsetX: 26, offsetY: 22 },
-  error: { x: 500, y: 124, width: 460, height: 340, offsetX: 28, offsetY: 30 },
-  tasks: { x: 96, y: 128, width: 420, height: 320, offsetX: 32, offsetY: 30 },
-  tools: { x: 744, y: 154, width: 410, height: 318, offsetX: -32, offsetY: 30 },
-  control: { x: 708, y: 118, width: 520, height: 430, offsetX: -28, offsetY: 28 },
-  settings: { x: 510, y: 166, width: 430, height: 320, offsetX: 26, offsetY: 26 },
-  system: { x: 496, y: 96, width: 460, height: 360, offsetX: 24, offsetY: 26 },
+  chat: { x: 44, y: WINDOW_MIN_Y, width: 430, height: 516, offsetX: 34, offsetY: 28 },
+  memory: { x: 828, y: WINDOW_MIN_Y, width: 420, height: 488, offsetX: -34, offsetY: 28 },
+  memoryDetail: { x: 520, y: WINDOW_MIN_Y + 54, width: 430, height: 420, offsetX: 28, offsetY: 28 },
+  tasks: { x: 96, y: WINDOW_MIN_Y + 64, width: 420, height: 320, offsetX: 32, offsetY: 30 },
+  body: { x: 494, y: WINDOW_MIN_Y, width: 380, height: 560, offsetX: 24, offsetY: 20 },
+  settings: { x: 510, y: WINDOW_MIN_Y + 102, width: 430, height: 320, offsetX: 26, offsetY: 26 },
+  developer: { x: 170, y: WINDOW_MIN_Y + 12, width: 760, height: 620, offsetX: 22, offsetY: 22 },
+  error: { x: 500, y: WINDOW_MIN_Y + 60, width: 460, height: 340, offsetX: 28, offsetY: 30 },
 };
 
 type CoreVisualState = "idle" | "thinking" | "streaming" | "memory" | "warning" | "error" | "critical";
@@ -116,7 +98,7 @@ function fitWindowToViewport(rect: { x: number; y: number; width: number; height
   const vh = Math.max(360, window.innerHeight - 46);
   const width = Math.min(rect.width, Math.max(280, vw - 24));
   const height = Math.min(rect.height, Math.max(220, vh - 24));
-  return { width, height, x: Math.max(0, Math.min(rect.x, vw - width - 12)), y: Math.max(0, Math.min(rect.y, vh - height - 12)) };
+  return { width, height, x: Math.max(0, Math.min(rect.x, vw - width - 12)), y: Math.max(WINDOW_MIN_Y, Math.min(rect.y, vh - height - 12)) };
 }
 
 function loadLayout(): ConsoleWindow[] {
@@ -134,7 +116,7 @@ function initialInstanceCounts(windows: ConsoleWindow[]) {
 }
 
 function loadUiSettings() {
-  const fallback = { displayMode: "advanced" as DisplayMode, displaySize: "normal" as DisplaySize, density: "normal" as Density };
+  const fallback = { displayMode: "basic" as DisplayMode, displaySize: "normal" as DisplaySize, density: "normal" as Density };
   const raw = localStorage.getItem(UI_SETTINGS_KEY);
   if (!raw) return fallback;
   try {
@@ -526,7 +508,7 @@ export default function GlitchCoreApp() {
 // ── FocusNav (small, stable) ──
 
 const FocusNav = memo(function FocusNav({ windows, activeWindowId, onFocusPanel, onRestore }: { windows: ConsoleWindow[]; activeWindowId: string; onFocusPanel: (id: string) => void; onRestore: () => void }) {
-  const majorWindows = windows.filter((item) => ["core", "body", "gallery", "chat", "mind", "memory", "context", "trace", "cost", "control"].includes(item.type));
+  const majorWindows = windows.filter((item) => ["chat", "memory", "tasks", "body", "settings", "developer"].includes(item.type));
   return (
     <nav className="focus-nav" aria-label="Focus mode navigation">
       {majorWindows.map((item) => <button key={item.id} type="button" className={item.id === activeWindowId ? "active" : ""} onClick={() => onFocusPanel(item.id)}>{WINDOW_META[item.type].code}</button>)}

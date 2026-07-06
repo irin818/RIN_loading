@@ -1,5 +1,11 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import type { ChangeEvent, PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from "react";
+import type {
+  ChangeEvent,
+  Dispatch,
+  PointerEvent as ReactPointerEvent,
+  SetStateAction,
+  WheelEvent as ReactWheelEvent,
+} from "react";
 import {
   deleteBodyState,
   loadBodyManifest,
@@ -19,6 +25,7 @@ import {
   type BodyViewSettings,
 } from "../body/bodyView";
 import type { GlitchSnapshot } from "../types";
+import type { RinCharacterAsset } from "../rinCharacters";
 import "../body/body.css";
 
 function clamp(val: number, min: number, max: number, fallback: number): number {
@@ -41,7 +48,39 @@ function SliderControl({
   );
 }
 
-export const BodyWindow = memo(function BodyWindow({ snapshot }: { snapshot: GlitchSnapshot | null }) {
+type BodyWindowProps = {
+  snapshot: GlitchSnapshot | null;
+  selectedCharacterId: string;
+  selectedCharacter: RinCharacterAsset;
+  characterAssets: RinCharacterAsset[];
+  characterEditMode: boolean;
+  setCharacterEditMode: Dispatch<SetStateAction<boolean>>;
+  resetSelectedCharacterView: () => Promise<void>;
+  addCharacterFiles: (files: FileList | null) => Promise<void>;
+  deleteCharacter: (characterId: string) => Promise<void>;
+  restoreDefaultCharacters: () => Promise<void>;
+  galleryNotice: string;
+  galleryBusy: boolean;
+  selectCharacter: (characterId: string) => void;
+  nextCharacter: () => void;
+};
+
+export const BodyWindow = memo(function BodyWindow({
+  snapshot,
+  selectedCharacterId,
+  selectedCharacter,
+  characterAssets,
+  characterEditMode,
+  setCharacterEditMode,
+  resetSelectedCharacterView,
+  addCharacterFiles,
+  deleteCharacter,
+  restoreDefaultCharacters,
+  galleryNotice,
+  galleryBusy,
+  selectCharacter,
+  nextCharacter,
+}: BodyWindowProps) {
   const currentState = normalizeBodyState(snapshot?.body?.currentState);
   const [manifest, setManifest] = useState<SimpleBodyManifest | null>(null);
   const [previewState, setPreviewState] = useState<BodyState | null>(null);
@@ -56,6 +95,7 @@ export const BodyWindow = memo(function BodyWindow({ snapshot }: { snapshot: Gli
   const [stateBusy, setStateBusy] = useState(false);
   const [stateNotice, setStateNotice] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const characterFileInputRef = useRef<HTMLInputElement | null>(null);
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragRef = useRef<{ pointerId: number; startX: number; startY: number; viewX: number; viewY: number; moved: boolean } | null>(null);
   const viewRef = useRef(bodyView);
@@ -203,6 +243,15 @@ export const BodyWindow = memo(function BodyWindow({ snapshot }: { snapshot: Gli
   const stateLabelMap: Record<string, string> = {};
   for (const s of stateEntries) stateLabelMap[s.stateId] = s.label;
   for (const s of BODY_STATES) stateLabelMap[s] = manifest?.states[s]?.label ?? s;
+  const selectedCharacterIndex = characterAssets.findIndex((c) => c.id === selectedCharacterId);
+  const prevCharacter = useCallback(() => {
+    const prev = selectedCharacterIndex > 0 ? selectedCharacterIndex - 1 : characterAssets.length - 1;
+    selectCharacter(characterAssets[prev]?.id ?? selectedCharacter.id);
+  }, [characterAssets, selectedCharacter.id, selectedCharacterIndex, selectCharacter]);
+  const handleCharacterFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    void addCharacterFiles(event.target.files);
+    event.currentTarget.value = "";
+  }, [addCharacterFiles]);
 
   return (
     <div className="body-module">
@@ -295,6 +344,50 @@ export const BodyWindow = memo(function BodyWindow({ snapshot }: { snapshot: Gli
         <a href="/body" target="_blank" rel="noreferrer" className="body-launch-btn">OPEN BODY</a>
         <a href="/body/floating" target="_blank" rel="noreferrer" className="body-launch-btn primary">DESKTOP FLOATING</a>
       </div>
+      <section className="body-character-panel" aria-label="Stage character">
+        <div className="body-character-header">
+          <button type="button" className="gallery-arrow" onClick={prevCharacter} disabled={characterAssets.length <= 1} aria-label="Previous character">&lsaquo;</button>
+          <div>
+            <strong>{selectedCharacter.label}</strong>
+            <small>{selectedCharacter.source}{selectedCharacter.pose ? ` / ${selectedCharacter.pose}` : ""}</small>
+          </div>
+          <button type="button" className="gallery-arrow" onClick={nextCharacter} disabled={characterAssets.length <= 1} aria-label="Next character">&rsaquo;</button>
+        </div>
+        <div className="body-character-actions">
+          <input ref={characterFileInputRef} type="file" accept="image/*" multiple className="gallery-file-input" onChange={handleCharacterFileChange} disabled={galleryBusy} />
+          <button type="button" onClick={() => characterFileInputRef.current?.click()} disabled={galleryBusy}>ADD IMAGE</button>
+          <button type="button" className={characterEditMode ? "active" : ""} onClick={() => setCharacterEditMode((v) => !v)} disabled={galleryBusy}>
+            {characterEditMode ? "LOCK STAGE" : "EDIT STAGE"}
+          </button>
+          <button type="button" onClick={() => void resetSelectedCharacterView()} disabled={galleryBusy}>RESET VIEW</button>
+          <button type="button" onClick={() => void restoreDefaultCharacters()} disabled={galleryBusy}>DEFAULTS</button>
+        </div>
+        {(galleryBusy || galleryNotice) && (
+          <div className={`gallery-notice${galleryBusy ? " busy" : ""}`}>
+            {galleryBusy ? "Syncing..." : galleryNotice}
+          </div>
+        )}
+        <div className="body-character-strip" aria-label="Character thumbnails">
+          {characterAssets.map((character) => (
+            <div key={character.id} className={`gallery-thumb${character.id === selectedCharacterId ? " active" : ""}`}>
+              <button type="button" className="gallery-thumb-btn" onClick={() => selectCharacter(character.id)} aria-label={character.label}>
+                <img src={character.previewPath} alt="" />
+              </button>
+              {characterEditMode && characterAssets.length > 1 ? (
+                <button
+                  type="button"
+                  className="gallery-thumb-del"
+                  onClick={() => void deleteCharacter(character.id)}
+                  disabled={galleryBusy}
+                  aria-label={`Delete ${character.label}`}
+                >
+                  &times;
+                </button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 });

@@ -1,25 +1,24 @@
 import { memo } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { SegmentedControl } from "../visualization";
-import { formatCost } from "../utils";
 import type { ConsoleWindow, GlitchSnapshot, WindowPayload, WindowType } from "../types";
 import type { Density, DisplayMode, DisplaySize } from "../visualization";
 
 type CoreVisualState = "idle" | "thinking" | "streaming" | "memory" | "warning" | "error" | "critical";
 
-const DOMAIN_NAV_ITEMS: Array<{ label: string; type: WindowType; tone: string }> = [
-  { label: "Overview", type: "core", tone: "overview" },
-  { label: "Body", type: "body", tone: "body" },
+const MAIN_NAV_ITEMS: Array<{ label: string; type: WindowType; tone: string }> = [
   { label: "Chat", type: "chat", tone: "chat" },
-  { label: "Mind", type: "mind", tone: "mind" },
-  { label: "Cognition", type: "cognition", tone: "runtime" },
   { label: "Memory", type: "memory", tone: "memory" },
-  { label: "Gallery", type: "gallery", tone: "body" },
-  { label: "Context", type: "context", tone: "context" },
-  { label: "Runtime", type: "trace", tone: "runtime" },
-  { label: "Cost", type: "cost", tone: "cost" },
-  { label: "Control", type: "control", tone: "control" },
+  { label: "Tasks", type: "tasks", tone: "tasks" },
+  { label: "Body", type: "body", tone: "body" },
+  { label: "Settings", type: "settings", tone: "settings" },
 ];
+
+const DEVELOPER_NAV_ITEM: { label: string; type: WindowType; tone: string } = {
+  label: "Developer",
+  type: "developer",
+  tone: "developer",
+};
 
 export const TopMenu = memo(function TopMenu({
   snapshot,
@@ -57,22 +56,25 @@ export const TopMenu = memo(function TopMenu({
   const coreStatus = snapshot?.core.status ?? "booting";
   const providerName = snapshot?.provider.activeProvider ?? "provider";
   const providerHealth = snapshot?.provider.health ?? "loading";
+  const modelName = snapshot?.provider.activeModel ?? "model";
   const memoryCount = snapshot?.memory.totalVisible ?? 0;
   const activeTypes = new Set(windows.filter((item) => item.visible && !item.minimized).map((item) => item.type));
   const cost = snapshot?.cost;
-  const displayCurrency = cost?.displayCurrency ?? cost?.currency ?? "USD";
-  const costValue = cost?.configuredEstimatedCostCny ?? cost?.configuredEstimatedCostUsd ?? cost?.totalEstimatedCost ?? 0;
+  const latestTokens = cost?.latest?.totalTokens ?? cost?.totalTokens ?? 0;
+  const navItems = uiSettings.displayMode === "basic"
+    ? MAIN_NAV_ITEMS
+    : [...MAIN_NAV_ITEMS, DEVELOPER_NAV_ITEM];
 
   return (
     <header className="system-menu">
       <div className="menu-zone menu-left">
-        <button type="button" className="brand-chip command-chip" onClick={() => openWindow("core")}>
+        <button type="button" className="brand-chip command-chip" onClick={() => openWindow("chat")}>
           <span>RIN CORE</span>
           <small className={`core-status-dot ${coreVisualState}`}>{coreStatus}</small>
         </button>
       </div>
       <nav className="menu-zone menu-center" aria-label="RIN data domains">
-        {DOMAIN_NAV_ITEMS.map((item) => (
+        {navItems.map((item) => (
           <button key={item.label} type="button" className={`menu-button domain-${item.tone} ${activeTypes.has(item.type) ? "active" : ""}`} onClick={() => openWindow(item.type)}>
             {item.label}
           </button>
@@ -82,15 +84,20 @@ export const TopMenu = memo(function TopMenu({
         <button type="button" className={`status-chip windows-chip ${windowsMenuOpen ? "active" : ""}`} onClick={() => setWindowsMenuOpen(!windowsMenuOpen)} title="Window and view controls">
           <span>VIEW</span><small>{uiSettings.displayMode}/{uiSettings.density}</small>
         </button>
-        <button type="button" className="status-chip provider-chip" onClick={() => openWindow("provider")} title="Provider status">
-          <span>PRV</span><small>{providerName} / {providerHealth}</small>
+        <button type="button" className="status-chip provider-chip" onClick={() => openWindow("settings")} title="Model and provider settings">
+          <span>MODEL</span><small>{providerName} / {modelName}</small>
         </button>
-        <button type="button" className="status-chip cost-chip" onClick={() => openWindow("cost")} title="Cost and token usage">
-          <span>COST</span><small>{formatCost(costValue)} {displayCurrency}</small>
+        <button type="button" className="status-chip cost-chip" onClick={() => openWindow("settings")} title="Latest token usage">
+          <span>TOKENS</span><small>{latestTokens}</small>
         </button>
         <button type="button" className="status-chip memory-chip" onClick={() => openWindow("memory")} title="Visible memory cards">
           <span>MEM</span><small>{memoryCount}</small>
         </button>
+        {uiSettings.displayMode !== "basic" ? (
+          <button type="button" className="status-chip developer-chip" onClick={() => openWindow("developer")} title="Developer diagnostics">
+            <span>DEV</span><small>{providerHealth}</small>
+          </button>
+        ) : null}
         <button type="button" className={`status-badge ${errorCount ? "danger" : ""}`} onClick={() => openWindow("error", { contextName: "Recent Errors" })}>
           ERR {errorCount}
         </button>
@@ -106,12 +113,9 @@ export const TopMenu = memo(function TopMenu({
             <button type="button" onClick={restoreAll}>Restore all</button>
             <button type="button" onClick={minimizeAll}>Minimize all</button>
             <button type="button" onClick={resetLayout}>Reset layout</button>
-            <button type="button" onClick={() => openWindow("provider")}>Provider</button>
-            <button type="button" onClick={() => openWindow("gallery")}>Gallery</button>
-            <button type="button" onClick={() => openWindow("tools")}>Tools</button>
             <button type="button" onClick={() => openWindow("tasks")}>Tasks</button>
             <button type="button" onClick={() => openWindow("settings")}>Settings</button>
-            <button type="button" onClick={() => openWindow("system")}>System</button>
+            {uiSettings.displayMode !== "basic" ? <button type="button" onClick={() => openWindow("developer")}>Developer</button> : null}
           </div>
           <WindowMenuList title="Open windows" windows={windows.filter((item) => item.visible && !item.minimized)} onFocus={focusWindow} />
           <WindowMenuList title="Minimized" windows={minimizedWindows} onFocus={focusWindow} />

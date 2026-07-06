@@ -1,8 +1,8 @@
-import { memo } from "react";
-import { EmptyState, JsonInspector } from "../visualization";
+import { memo, useState } from "react";
+import { EmptyState, JsonInspector, RiskBadge, ReviewStatusBadge, StatusBadge } from "../visualization";
 import { safeDisplayJson } from "../utils";
 import type { DisplayMode } from "../visualization";
-import type { MemoryCard, WindowPayload, WindowType } from "../types";
+import type { GlitchSnapshot, MemoryCard, MindMemoryCandidate, WindowPayload, WindowType } from "../types";
 
 export const MemoryWindow = memo(function MemoryWindow({
   snapshot,
@@ -11,20 +11,66 @@ export const MemoryWindow = memo(function MemoryWindow({
   memoryQuery,
   setMemoryQuery,
   searchMemory,
+  reviewMindCandidate,
   openWindow,
 }: {
-  snapshot: { memory: { cards: MemoryCard[] } } | null;
+  snapshot: GlitchSnapshot | null;
   memoryCompact: boolean;
   setMemoryCompact: (value: boolean) => void;
   memoryQuery: string;
   setMemoryQuery: (value: string) => void;
   searchMemory: () => Promise<void>;
+  reviewMindCandidate: (candidateId: string, action: "approve" | "reject" | "deactivate" | "reactivate") => Promise<void>;
   openWindow: (type: WindowType, options?: { contextName?: string; payload?: WindowPayload }) => void;
 }) {
   const cards = snapshot?.memory.cards ?? [];
+  const candidates = snapshot?.mind.memoryCandidates.length
+    ? snapshot.mind.memoryCandidates
+    : snapshot?.mind.latest?.memoryCandidates ?? [];
+  const [candidateFilter, setCandidateFilter] = useState<"pending" | "approved" | "rejected" | "inactive" | "all">("pending");
+  const filteredCandidates = candidates.filter((candidate) => {
+    if (candidateFilter === "pending") return ["candidate", "review_required"].includes(candidate.reviewStatus) && candidate.active;
+    if (candidateFilter === "approved") return candidate.reviewStatus === "owner_approved" || candidate.reviewStatus === "auto_promoted";
+    if (candidateFilter === "rejected") return candidate.reviewStatus === "rejected";
+    if (candidateFilter === "inactive") return !candidate.active || candidate.reviewStatus === "inactive";
+    return true;
+  });
+  const pendingCount = candidates.filter((candidate) => ["candidate", "review_required"].includes(candidate.reviewStatus) && candidate.active).length;
+  const approvedCount = candidates.filter((candidate) => candidate.reviewStatus === "owner_approved" || candidate.reviewStatus === "auto_promoted").length;
+  const rejectedCount = candidates.filter((candidate) => candidate.reviewStatus === "rejected").length;
+  const inactiveCount = candidates.filter((candidate) => !candidate.active || candidate.reviewStatus === "inactive").length;
   return (
     <div className="memory-module">
-      <div className="module-strip">MEMORY V2 · READ ONLY</div>
+      <div className="module-strip">MEMORY · GOVERNED REVIEW</div>
+      <section className="memory-candidate-section" aria-label="Memory candidates">
+        <div className="memory-summary-strip">
+          <span><small>pending</small><b>{pendingCount}</b></span>
+          <span><small>approved</small><b>{approvedCount}</b></span>
+          <span><small>rejected</small><b>{rejectedCount}</b></span>
+          <span><small>inactive</small><b>{inactiveCount}</b></span>
+        </div>
+        <div className="memory-filter-row">
+          {(["pending", "approved", "rejected", "inactive", "all"] as const).map((filter) => (
+            <button
+              key={filter}
+              type="button"
+              className={candidateFilter === filter ? "active" : ""}
+              onClick={() => setCandidateFilter(filter)}
+            >
+              {filter}
+            </button>
+          ))}
+        </div>
+        <div className="memory-candidate-list">
+          {filteredCandidates.length ? filteredCandidates.slice(0, 12).map((candidate) => (
+            <MemoryCandidateReviewRow
+              key={candidate.id}
+              candidate={candidate}
+              reviewMindCandidate={reviewMindCandidate}
+            />
+          )) : <EmptyState message="No memory candidates in this view." />}
+        </div>
+      </section>
       <div className="memory-toolbar">
         <input
           value={memoryQuery}
@@ -65,6 +111,45 @@ export const MemoryWindow = memo(function MemoryWindow({
         )}
       </div>
     </div>
+  );
+});
+
+const MemoryCandidateReviewRow = memo(function MemoryCandidateReviewRow({
+  candidate,
+  reviewMindCandidate,
+}: {
+  candidate: MindMemoryCandidate;
+  reviewMindCandidate: (candidateId: string, action: "approve" | "reject" | "deactivate" | "reactivate") => Promise<void>;
+}) {
+  const actionable = ["candidate", "review_required"].includes(candidate.reviewStatus) && candidate.riskLevel !== "blocked";
+  const canDeactivate = candidate.active && candidate.riskLevel !== "blocked";
+  const canReactivate = !candidate.active && candidate.riskLevel !== "blocked";
+  return (
+    <article className={`memory-candidate-row ${candidate.riskLevel}`}>
+      <header>
+        <strong>{candidate.type}</strong>
+        <ReviewStatusBadge value={candidate.reviewStatus} />
+      </header>
+      <p>{candidate.safeSummary}</p>
+      {candidate.normalizedValue ? <small>{candidate.normalizedValue}</small> : null}
+      <div className="tag-row">
+        <RiskBadge value={candidate.riskLevel} />
+        <StatusBadge value={candidate.active ? "active" : "inactive"} />
+        <span>confidence: {candidate.confidence}</span>
+        <span>rawTextIncluded=false</span>
+        {candidate.tags.slice(0, 5).map((tag) => <span key={tag}>{tag}</span>)}
+      </div>
+      <div className="mind-actions">
+        {actionable ? (
+          <>
+            <button type="button" onClick={() => void reviewMindCandidate(candidate.id, "approve")}>APPROVE</button>
+            <button type="button" onClick={() => void reviewMindCandidate(candidate.id, "reject")}>REJECT</button>
+          </>
+        ) : null}
+        {canDeactivate ? <button type="button" onClick={() => void reviewMindCandidate(candidate.id, "deactivate")}>DEACTIVATE</button> : null}
+        {canReactivate ? <button type="button" onClick={() => void reviewMindCandidate(candidate.id, "reactivate")}>REACTIVATE</button> : null}
+      </div>
+    </article>
   );
 });
 

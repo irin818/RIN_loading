@@ -3,10 +3,14 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from
 import type { ConsoleWindow } from "../types";
 
 const WINDOW_META_CODES: Record<string, string> = {
-  core: "CORE", body: "BODY", chat: "CHAT", memory: "MEM", gallery: "IMG",
-  memoryDetail: "MEM+", context: "CTX", trace: "TRC", cognition: "COG",
-  provider: "PRV", cost: "COST", mind: "MIND", error: "ERR",
-  tasks: "TASK", tools: "TOOL", control: "CTRL", settings: "SET", system: "SYS",
+  body: "BODY",
+  chat: "CHAT",
+  memory: "MEM",
+  memoryDetail: "MEM+",
+  tasks: "TASK",
+  settings: "SET",
+  developer: "DEV",
+  error: "ERR",
 };
 
 function windowTypeClass(type: string) {
@@ -41,6 +45,8 @@ export const WindowFrame = memo(function WindowFrame({
         zIndex: win.zIndex,
       };
 
+  const WINDOW_MIN_Y = 64; // keep title bar below top system-menu (top:10 + height:52)
+
   const beginDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (win.maximized) return;
     event.preventDefault();
@@ -52,7 +58,7 @@ export const WindowFrame = memo(function WindowFrame({
     const move = (moveEvent: PointerEvent) => {
       onUpdate(win.id, {
         x: Math.max(0, originX + moveEvent.clientX - startX),
-        y: Math.max(0, originY + moveEvent.clientY - startY),
+        y: Math.max(WINDOW_MIN_Y, originY + moveEvent.clientY - startY),
       });
     };
     const stop = () => {

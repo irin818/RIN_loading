@@ -26,8 +26,8 @@ export const ErrorWindow = memo(function ErrorWindow({
       </dl>
       <p>{error.message}</p>
       <div className="error-actions">
-        <button type="button" disabled={!error.traceAvailable || !trace} onClick={() => openWindow("trace", { contextName: "Error Trace" })}>
-          OPEN TRACE
+        <button type="button" disabled={!error.traceAvailable || !trace} onClick={() => openWindow("developer", { contextName: "Error Trace" })}>
+          DIAGNOSTICS
         </button>
         <button type="button" onClick={() => void navigator.clipboard?.writeText(safeDisplayJson(error))}>
           COPY ERROR
