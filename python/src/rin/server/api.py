@@ -86,6 +86,19 @@ from rin.model.usage import (
     estimate_cost_range,
 )
 from rin.profiles import build_profile_report
+from rin.server.archive_assets import (
+    ArchiveAssetPatchBody,
+    ArchiveStoryContentBody,
+    delete_archive_asset,
+    get_archive_asset_file,
+    get_archive_asset_preview_file,
+    get_archive_asset_thumbnail_file,
+    get_archive_story,
+    list_archive_assets,
+    patch_archive_asset,
+    save_archive_story,
+    store_uploaded_archive_asset,
+)
 from rin.server.character_assets import (
     CharacterViewPayload,
     WelcomeCharacterSelectionPayload,
@@ -302,6 +315,10 @@ def create_app(
     @app.get("/games/{spa_path:path}", response_class=HTMLResponse)
     @app.get("/library", response_class=HTMLResponse)
     @app.get("/library/{spa_path:path}", response_class=HTMLResponse)
+    @app.get("/archive", response_class=HTMLResponse)
+    @app.get("/archive/{spa_path:path}", response_class=HTMLResponse)
+    @app.get("/portfolio", response_class=HTMLResponse)
+    @app.get("/admin/archive", response_class=HTMLResponse)
     def reserved_web_shell_spa(spa_path: str = "") -> Response:
         return render_glitch_core_entry()
 
@@ -530,6 +547,91 @@ def create_app(
         current_layout: RinDataLayout = layout_dependency,
     ) -> dict[str, object]:
         return {"ok": True, "stateId": read_current_state(current_layout)}
+
+    # ---- Archive asset management ----
+    @app.get("/api/archive/assets")
+    def api_archive_assets_list(
+        type: str | None = None,
+        status: str | None = None,
+        tag: str | None = None,
+        category: str | None = None,
+        q: str | None = None,
+        seriesId: str | None = None,
+        limit: int | None = None,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return list_archive_assets(
+            current_layout,
+            asset_type=type,
+            status=status,
+            tag=tag,
+            category=category,
+            q=q,
+            series_id=seriesId,
+            limit=limit,
+        )
+
+    @app.post("/api/archive/assets")
+    async def api_archive_asset_upload(
+        request: Request,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return await store_uploaded_archive_asset(current_layout, request)
+
+    @app.patch("/api/archive/assets/{asset_id}")
+    def api_archive_asset_patch(
+        asset_id: str,
+        body: ArchiveAssetPatchBody,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return patch_archive_asset(current_layout, asset_id, body)
+
+    @app.delete("/api/archive/assets/{asset_id}")
+    def api_archive_asset_delete(
+        asset_id: str,
+        hard: bool = False,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return delete_archive_asset(current_layout, asset_id, hard=hard)
+
+    @app.get("/api/archive/assets/files/{asset_id}")
+    def api_archive_asset_file(
+        asset_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> FileResponse:
+        path, media_type = get_archive_asset_file(current_layout, asset_id)
+        return FileResponse(path, media_type=media_type)
+
+    @app.get("/api/archive/assets/previews/{asset_id}")
+    def api_archive_asset_preview(
+        asset_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> FileResponse:
+        path, media_type = get_archive_asset_preview_file(current_layout, asset_id)
+        return FileResponse(path, media_type=media_type)
+
+    @app.get("/api/archive/assets/thumbnails/{asset_id}")
+    def api_archive_asset_thumbnail(
+        asset_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> FileResponse:
+        path, media_type = get_archive_asset_thumbnail_file(current_layout, asset_id)
+        return FileResponse(path, media_type=media_type)
+
+    @app.get("/api/archive/stories/{story_id}")
+    def api_archive_story_get(
+        story_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return get_archive_story(current_layout, story_id)
+
+    @app.put("/api/archive/stories/{story_id}")
+    def api_archive_story_save(
+        story_id: str,
+        body: ArchiveStoryContentBody,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return save_archive_story(current_layout, story_id, body)
 
     @app.get("/api/cost/summary")
     def api_cost_summary(

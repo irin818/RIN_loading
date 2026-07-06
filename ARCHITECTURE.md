@@ -246,7 +246,57 @@ Real Cubism .moc3 loading and complete Live2D behavior are not active scope unle
 
 ---
 
-## 13. Architecture Invariants
+## 13. RIN Archive Module (2026-07)
+
+The Archive module is RIN's local creative memory gallery — a private, owner-controlled
+archive for illustrations, comics, stories, character files, Live2D/body references,
+wallpapers, avatars, and worldbuilding materials.
+
+**Frontend route boundary:**
+- `/archive` — Archive home
+- `/archive/illustrations` — Illustration gallery
+- `/archive/comics` — Comic library; `/archive/comics/:seriesId` — comic reader
+- `/archive/stories` — Story library; `/archive/stories/:storyId` — story reader
+- `/archive/character-files` — Character/reference file gallery
+- `/archive/timeline` — Timeline view
+- `/admin/archive` — Local owner admin panel
+- Compatibility: `/portfolio`, `/library`, `/comics` redirect to archive views
+- Archive routes are lazy-loaded as a separate chunk; not bundled with the welcome page
+
+**Backend API boundary:**
+- `GET /api/archive/assets` — List assets with optional filters
+- `POST /api/archive/assets` — Upload asset file with metadata
+- `PATCH /api/archive/assets/:id` — Update safe metadata fields
+- `DELETE /api/archive/assets/:id` — Archive (soft) or hard-delete an asset
+- `GET /api/archive/assets/files/:id` — Serve original file
+- `GET /api/archive/assets/previews/:id` — Serve preview (falls back to original)
+- `GET /api/archive/assets/thumbnails/:id` — Serve thumbnail (falls back to preview/original)
+- `GET /api/archive/stories/:id` — Get story content
+- `PUT /api/archive/stories/:id` — Save story content
+- Backend module: `python/src/rin/server/archive_assets.py`
+
+**Local archive files:**
+All archive data lives under the RIN data directory (`.rin-data/archive/`):
+- `manifest.json` — Asset metadata manifest (Pydantic-validated)
+- `files/originals/` — Uploaded original files (never modified)
+- `files/previews/` — Generated preview images (TODO: Pillow-based generation)
+- `files/thumbnails/` — Generated thumbnail images (TODO: Pillow-based generation)
+- `stories/` — Story markdown files (if stored as files)
+
+**Quality / preview policy:**
+- Original files are preserved unchanged after upload
+- Previews and thumbnails currently fall back to original files
+- Recommended preview max dimension: 1600–2200 px (to be implemented)
+- Recommended thumbnail max dimension: 400–600 px (to be implemented)
+- Frontend receives display-safe URLs (API endpoints, never local paths)
+
+**Module separation:**
+The Archive module is separate from memory, model, profile, policy, and body modules.
+Archive assets are creative content, not identity, memory, or system state.
+
+---
+
+## 14. Architecture Invariants
 
 Do not violate these invariants:
 

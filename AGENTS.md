@@ -74,6 +74,8 @@ Active source areas:
 - Python config: python/pyproject.toml
 - Frontend source: frontend/src/
 - Frontend config: frontend/package.json, frontend/vite.config.ts, frontend/tsconfig.json
+- Archive module: frontend/src/archive/ (frontend), python/src/rin/server/archive_assets.py (backend API)
+- Archive local data: .rin-data/archive/ (not committed)
 
 Do not restore old deleted TypeScript runtime systems from earlier project phases. The current React/Vite frontend is not a restoration of those systems.
 
@@ -167,9 +169,19 @@ Use these boundaries unless existing local structure is more specific:
 - python/src/rin/policy/: local policy checks
 - python/src/rin/diagnostics/: readiness and diagnostics
 - python/src/rin/body/: body/Live2D boundary
+- python/src/rin/server/archive_assets.py: archive local asset management API
+- frontend/src/archive/: archive frontend module (lazy-loaded)
 - python/tests/: tests
 
 Do not mix concerns without explicit architecture work.
+
+**Archive module rules:**
+- Archive admin must use backend APIs and local data safety (`_reject_unsafe`)
+- Uploaded archive assets must not be committed (stored under `.rin-data/archive/`)
+- Archive frontend must not import from memory, model, profile, or policy modules
+- Archive frontend must call backend APIs, not write local files or SQLite directly
+- Original uploaded files must never be overwritten by compressed versions
+- API responses must return display-safe URLs, never absolute local paths
 
 ---
 

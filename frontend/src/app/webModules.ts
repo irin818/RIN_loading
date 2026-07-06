@@ -14,6 +14,7 @@ export type WebRouteMatch =
   | { kind: "welcome"; module: WebModuleDefinition }
   | { kind: "glitch-core"; module: WebModuleDefinition }
   | { kind: "body"; module: WebModuleDefinition; mode: "body" | "floating" }
+  | { kind: "archive"; module: WebModuleDefinition }
   | { kind: "reserved"; module: WebModuleDefinition }
   | { kind: "not-found"; path: string };
 
@@ -66,6 +67,14 @@ export const WEB_MODULES: WebModuleDefinition[] = [
     kind: "content",
     status: "reserved",
   },
+  {
+    id: "archive",
+    path: "/archive",
+    label: "RIN Archive",
+    code: "ARCH",
+    kind: "content",
+    status: "live",
+  },
 ];
 
 const ROUTE_BY_PATH = new Map(WEB_MODULES.map((item) => [item.path, item]));
@@ -86,10 +95,25 @@ export function matchWebRoute(pathname: string): WebRouteMatch {
   }
 
   const module = ROUTE_BY_PATH.get(path);
-  if (!module) return { kind: "not-found", path };
+  if (!module) {
+    // Archive sub-routes and compatibility routes
+    if (
+      path.startsWith("/archive") ||
+      path === "/portfolio" ||
+      path === "/admin/archive"
+    ) {
+      return { kind: "archive", module: ROUTE_BY_PATH.get("/archive")! };
+    }
+    // Compatibility: /comics -> archive comics
+    if (path === "/comics" || path.startsWith("/comics/")) {
+      return { kind: "archive", module: ROUTE_BY_PATH.get("/archive")! };
+    }
+    return { kind: "not-found", path };
+  }
   if (module.id === "welcome") return { kind: "welcome", module };
   if (module.id === "glitch-core") return { kind: "glitch-core", module };
   if (module.id === "body") return { kind: "body", module, mode: "body" };
+  if (module.id === "archive") return { kind: "archive", module };
   return { kind: "reserved", module };
 }
 

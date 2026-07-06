@@ -118,6 +118,16 @@ Glitch Core production path (when frontend/dist exists):
 http://127.0.0.1:8765/glitch-core
 ```
 
+RIN Archive (local creative memory gallery):
+
+```text
+http://127.0.0.1:8765/archive
+http://127.0.0.1:8765/admin/archive
+```
+
+Archive assets are stored under `.rin-data/archive/` (local data, not committed).
+Original files are preserved unchanged. Preview/thumbnail generation is planned for a future phase.
+
 Before running, make sure the Python environment is prepared.
 
 The launcher expects the Python environment to be set up.

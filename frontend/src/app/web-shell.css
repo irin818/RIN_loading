@@ -479,6 +479,37 @@
   animation-play-state: paused;
 }
 
+.dream-enter-archive {
+  bottom: clamp(110px, 13.5vh, 148px);
+  min-width: min(300px, calc(100vw - 72px));
+  min-height: 52px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(0, 255, 100, 0.18), transparent 60%),
+    linear-gradient(90deg, rgba(0, 255, 100, 0.08), rgba(0, 200, 120, 0.06)),
+    rgba(2, 10, 5, 0.34);
+  border-color: rgba(0, 255, 100, 0.28);
+  box-shadow:
+    0 0 20px rgba(0, 255, 100, 0.12),
+    0 0 50px rgba(0, 255, 100, 0.05),
+    inset 0 0 20px rgba(0, 255, 100, 0.05);
+}
+.dream-enter-archive .dream-enter-main {
+  font-size: 22px;
+  color: rgba(0, 255, 100, 0.85);
+}
+.dream-enter-archive .dream-enter-sub {
+  color: rgba(0, 255, 100, 0.35);
+}
+.dream-enter-archive:hover,
+.dream-enter-archive:focus-visible {
+  border-color: rgba(0, 255, 100, 0.45);
+  color: rgba(220, 255, 235, 0.96);
+}
+.dream-enter-archive:hover .dream-enter-main,
+.dream-enter-archive:focus-visible .dream-enter-main {
+  color: rgba(0, 255, 100, 0.95);
+}
+
 .reserved-actions button:hover,
 .reserved-header button:hover {
   border-color: rgba(143, 227, 184, 0.82);

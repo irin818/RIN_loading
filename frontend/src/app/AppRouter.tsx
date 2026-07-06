@@ -11,6 +11,11 @@ const BodyStandalonePage = lazy(() =>
     default: module.BodyStandalonePage,
   })),
 );
+const ArchiveShell = lazy(() =>
+  import("../archive/ArchiveShell").then((module) => ({
+    default: module.ArchiveShell,
+  })),
+);
 
 function subscribeLocation(callback: () => void) {
   window.addEventListener("popstate", callback);
@@ -45,6 +50,9 @@ function preloadRoute(path: string) {
   }
   if (path === "/body" || path === "/body/floating") {
     void import("../body/BodyStandalonePage");
+  }
+  if (path === "/archive" || path.startsWith("/archive/") || path === "/admin/archive") {
+    void import("../archive/ArchiveShell");
   }
 }
 
@@ -84,6 +92,14 @@ export function AppRouter() {
     return (
       <Suspense fallback={<RouteLoading label="Body" />}>
         <BodyStandalonePage mode={route.mode} />
+      </Suspense>
+    );
+  }
+
+  if (route.kind === "archive") {
+    return (
+      <Suspense fallback={<RouteLoading label="Archive" />}>
+        <ArchiveShell />
       </Suspense>
     );
   }

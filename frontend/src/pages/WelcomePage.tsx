@@ -245,6 +245,19 @@ export function WelcomePage({ onNavigate, onPreload }: WelcomePageProps) {
         <span className="dream-enter-sub" aria-hidden="true">step into the glitch</span>
       </button>
 
+      <button
+        className="dream-enter dream-enter-archive"
+        data-testid="welcome-archive"
+        type="button"
+        aria-label="Enter RIN Archive"
+        onMouseEnter={() => onPreload("/archive")}
+        onFocus={() => onPreload("/archive")}
+        onClick={() => onNavigate("/archive")}
+      >
+        <span className="dream-enter-main">archive</span>
+        <span className="dream-enter-sub" aria-hidden="true">creative memory gallery</span>
+      </button>
+
       <div
         className={`welcome-config welcome-config-${assetStatusTone}`}
         aria-label="Welcome character image"
