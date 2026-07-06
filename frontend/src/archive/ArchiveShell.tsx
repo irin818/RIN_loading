@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { useSyncExternalStore } from "react";
 import { navigateWebShell } from "../app/AppRouter";
 import { matchArchiveRoute } from "./ArchiveRouter";
+import { ArchiveErrorBoundary } from "./components/ArchiveErrorBoundary";
 import { ArchiveHomePage } from "./ArchiveHomePage";
 import { ArchiveIllustrationsPage } from "./ArchiveIllustrationsPage";
 import { ArchiveComicsPage } from "./ArchiveComicsPage";
@@ -47,37 +48,39 @@ export function ArchiveShell() {
   return (
     <main className="archive-shell" style={pageStyle}>
       <div className="archive-noise-overlay" aria-hidden="true" />
-      {route.kind === "archive-home" && <ArchiveHomePage onNavigate={navigate} />}
-      {route.kind === "archive-illustrations" && (
-        <ArchiveIllustrationsPage onNavigate={navigate} />
-      )}
-      {route.kind === "archive-comics" && (
-        <ArchiveComicsPage onNavigate={navigate} />
-      )}
-      {route.kind === "archive-comic-reader" && (
-        <ArchiveComicReaderPage
-          seriesId={route.seriesId}
-          onNavigate={navigate}
-        />
-      )}
-      {route.kind === "archive-stories" && (
-        <ArchiveStoriesPage onNavigate={navigate} />
-      )}
-      {route.kind === "archive-story-reader" && (
-        <ArchiveStoryReaderPage
-          storyId={route.storyId}
-          onNavigate={navigate}
-        />
-      )}
-      {route.kind === "archive-character-files" && (
-        <ArchiveCharacterFilesPage onNavigate={navigate} />
-      )}
-      {route.kind === "archive-timeline" && (
-        <ArchiveTimelinePage onNavigate={navigate} />
-      )}
-      {route.kind === "archive-admin" && (
-        <ArchiveAdminPage onNavigate={navigate} />
-      )}
+      <ArchiveErrorBoundary fallbackLabel="Archive Section">
+        {route.kind === "archive-home" && <ArchiveHomePage onNavigate={navigate} />}
+        {route.kind === "archive-illustrations" && (
+          <ArchiveIllustrationsPage onNavigate={navigate} />
+        )}
+        {route.kind === "archive-comics" && (
+          <ArchiveComicsPage onNavigate={navigate} />
+        )}
+        {route.kind === "archive-comic-reader" && (
+          <ArchiveComicReaderPage
+            seriesId={route.seriesId}
+            onNavigate={navigate}
+          />
+        )}
+        {route.kind === "archive-stories" && (
+          <ArchiveStoriesPage onNavigate={navigate} />
+        )}
+        {route.kind === "archive-story-reader" && (
+          <ArchiveStoryReaderPage
+            storyId={route.storyId}
+            onNavigate={navigate}
+          />
+        )}
+        {route.kind === "archive-character-files" && (
+          <ArchiveCharacterFilesPage onNavigate={navigate} />
+        )}
+        {route.kind === "archive-timeline" && (
+          <ArchiveTimelinePage onNavigate={navigate} />
+        )}
+        {route.kind === "archive-admin" && (
+          <ArchiveAdminPage onNavigate={navigate} />
+        )}
+      </ArchiveErrorBoundary>
     </main>
   );
 }

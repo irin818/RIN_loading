@@ -498,10 +498,10 @@ def _save_manifest(layout: RinDataLayout, manifest: ArchiveManifest) -> None:
     payload = manifest.model_copy(update={"version": MANIFEST_VERSION}).model_dump(
         mode="json"
     )
-    path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True),
-        encoding="utf-8",
-    )
+    text = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+    temp_path = path.with_suffix(".tmp")
+    temp_path.write_text(text, encoding="utf-8")
+    temp_path.replace(path)
 
 
 def _resolve_asset_path(layout: RinDataLayout, record: ArchiveAssetRecord) -> Path:

@@ -52,24 +52,33 @@ export function ArchiveAdminPage({ onNavigate }: ArchiveAdminPageProps) {
   const [searchQ, setSearchQ] = useState("");
   const [filterType, setFilterType] = useState<string>("");
 
-  const loadAssets = useCallback(() => {
-    setLoading(true);
-    const filters: Record<string, string> = {};
-    if (filterType) filters.type = filterType;
-    if (searchQ.trim()) filters.q = searchQ.trim();
-    fetchArchiveAssets(filters)
-      .then((payload) => {
-        setAssets(payload.assets);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(String(err));
-        setLoading(false);
-      });
-  }, [filterType, searchQ]);
+  const loadAssets = useCallback(
+    (signal?: AbortSignal) => {
+      setLoading(true);
+      const filters: Record<string, string> = {};
+      if (filterType) filters.type = filterType;
+      if (searchQ.trim()) filters.q = searchQ.trim();
+      fetchArchiveAssets(filters)
+        .then((payload) => {
+          if (!signal?.aborted) {
+            setAssets(payload.assets);
+            setLoading(false);
+          }
+        })
+        .catch((err) => {
+          if (!signal?.aborted) {
+            setError(String(err));
+            setLoading(false);
+          }
+        });
+    },
+    [filterType, searchQ],
+  );
 
   useEffect(() => {
-    loadAssets();
+    const controller = new AbortController();
+    loadAssets(controller.signal);
+    return () => controller.abort();
   }, [loadAssets]);
 
   const handleUpload = useCallback(async () => {
@@ -439,7 +448,7 @@ export function ArchiveAdminPage({ onNavigate }: ArchiveAdminPageProps) {
                     {asset.description && <span>{asset.description}</span>}
                     <span className="archive-admin-item-meta">
                       {asset.fileName} ·{" "}
-                      {asset.fileSize
+                      {asset.fileSize != null
                         ? `${(asset.fileSize / 1024).toFixed(0)} KB`
                         : "unknown size"}
                     </span>
