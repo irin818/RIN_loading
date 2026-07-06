@@ -6,7 +6,7 @@
   --body-scale: 1;              /* extra scale on top of body-height (1=no extra) */
   --body-offset-x: 0px;         /* horizontal shift from Body edit view */
   --body-offset-y: 0px;         /* vertical shift from Body edit view */
-  --body-anchor-y: 35%;         /* vertical anchor: 0%=top 100%=bottom (default upper-body) */
+  --body-anchor-y: 50%;         /* vertical anchor: 0%=top 100%=bottom (default centered) */
   --bubble-width: 160px;        /* bubble fixed width */
   --bubble-padding: 6px 8px;    /* bubble internal padding */
   --bubble-font-size: 11px;     /* bubble text size */
@@ -49,7 +49,7 @@
   width: auto;
   height: auto;
   object-fit: contain;
-  object-position: center var(--body-anchor-y, 35%);
+  object-position: center var(--body-anchor-y, 50%);
   image-rendering: auto;
   transform: translate(var(--body-offset-x, 0px), var(--body-offset-y, 0px)) scale(var(--body-scale, 1));
   filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.45));
@@ -163,7 +163,7 @@
   width: auto;
   height: var(--body-height);
   object-fit: contain;
-  object-position: center var(--body-anchor-y, 35%);
+  object-position: center var(--body-anchor-y, 50%);
   transform: translate(var(--body-offset-x, 0px), var(--body-offset-y, 0px)) scale(var(--body-scale, 1));
 }
 

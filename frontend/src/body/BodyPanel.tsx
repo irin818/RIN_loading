@@ -1,6 +1,12 @@
-import { useEffect, useState } from "react";
-import { bodyImageUrl, loadBodyManifest, type SimpleBodyManifest } from "./bodyApi";
-import { BODY_STATES, type BodyState, normalizeBodyState } from "./bodyState";
+import { useEffect, useMemo, useState } from "react";
+import {
+  loadBodyManifest,
+  loadBodyStates,
+  resolveBodyImageUrl,
+  type BodyStateEntry,
+  type SimpleBodyManifest,
+} from "./bodyApi";
+import { BODY_STATES, normalizeBodyState, type BodyState } from "./bodyState";
 import "./body.css";
 
 export interface BodyPanelProps {
@@ -19,11 +25,25 @@ export function BodyPanel({
   showControls = true,
 }: BodyPanelProps) {
   const [manifest, setManifest] = useState<SimpleBodyManifest | null>(null);
+  const [stateEntries, setStateEntries] = useState<BodyStateEntry[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [preview, setPreview] = useState<BodyState | null>(null);
 
   const state: BodyState = forcedState ?? preview ?? normalizeBodyState(currentState);
-  const label = manifest?.states[state]?.label ?? state;
+
+  const availableStateIds = useMemo(
+    () => stateEntries.length > 0 ? stateEntries.map((entry) => entry.stateId) : [...BODY_STATES],
+    [stateEntries],
+  );
+  const hasStateImage = Boolean(
+    stateEntries.some((entry) => entry.stateId === state) || manifest?.states[state],
+  );
+  const label = (
+    stateEntries.find((entry) => entry.stateId === state)?.label
+    ?? manifest?.states[state]?.label
+    ?? state
+  );
+  const imgSrc = resolveBodyImageUrl(state, manifest, stateEntries);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -35,7 +55,22 @@ export function BodyPanel({
     return () => ctrl.abort();
   }, []);
 
-  const imgSrc = manifest ? bodyImageUrl(manifest, state) : null;
+  useEffect(() => {
+    const ctrl = new AbortController();
+    loadBodyStates(ctrl.signal)
+      .then(setStateEntries)
+      .catch(() => { /* non-critical */ });
+    return () => ctrl.abort();
+  }, []);
+
+  useEffect(() => {
+    if (hasStateImage || !state) return;
+    const ctrl = new AbortController();
+    loadBodyStates(ctrl.signal)
+      .then(setStateEntries)
+      .catch(() => { /* backend may be restarting */ });
+    return () => ctrl.abort();
+  }, [hasStateImage, state]);
 
   return (
     <section className={`rin-body ${compact ? "compact" : ""} ${floating ? "floating" : ""}`}>
@@ -57,14 +92,14 @@ export function BodyPanel({
       {showControls ? (
         <div className="rin-body-controls">
           <div className="rin-body-buttons">
-            {BODY_STATES.map((s) => (
+            {availableStateIds.map((s) => (
               <button
                 key={s}
                 type="button"
                 className={state === s ? "active" : ""}
                 onClick={() => setPreview(s)}
               >
-                {s}
+                {stateEntries.find((e) => e.stateId === s)?.label ?? manifest?.states[s]?.label ?? s}
               </button>
             ))}
           </div>

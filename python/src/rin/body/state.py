@@ -1,10 +1,19 @@
-"""Simple body state — one image per state, no layered parts or Cubism."""
+"""Simple body report — one image per state, no layered parts or Cubism."""
 
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-BODY_STATES = ["默认", "生气", "惊讶", "难受"]
+from rin.body.state_assets import (
+    DEFAULT_STATE_ID,
+    PUBLIC_BODY_MANIFEST_PATH,
+    list_available_body_state_ids,
+    read_current_state,
+    write_current_state,
+)
+from rin.storage import RinDataLayout
+
+__all__ = ["SimpleBodyReport", "build_body_report", "write_current_state"]
 
 
 @dataclass(frozen=True)
@@ -24,16 +33,16 @@ class SimpleBodyReport:
         return asdict(self)
 
 
-def build_body_report(current_state: str = "idle") -> SimpleBodyReport:
-    if current_state not in BODY_STATES:
-        current_state = "默认"
+def build_body_report(layout: RinDataLayout) -> SimpleBodyReport:
+    """Build a body status report including dynamic custom states."""
+    current = read_current_state(layout)
     return SimpleBodyReport(
         ok=True,
         mode="simple-body-state",
-        currentState=current_state,
-        defaultState="默认",
-        availableStates=list(BODY_STATES),
-        manifestPath="/body-assets/rin/manifest.json",
+        currentState=current,
+        defaultState=DEFAULT_STATE_ID,
+        availableStates=list_available_body_state_ids(layout),
+        manifestPath=PUBLIC_BODY_MANIFEST_PATH,
         fullTextIncluded=False,
         rawPromptIncluded=False,
         hiddenReasoningIncluded=False,

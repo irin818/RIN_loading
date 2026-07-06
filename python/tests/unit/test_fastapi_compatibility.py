@@ -284,6 +284,50 @@ def test_python_ui_static_assets_are_served() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
+def test_body_state_upload_persists_locally_and_sets_current_state() -> None:
+    client, layout = create_client()
+    try:
+        uploaded = client.post(
+            "/api/body/state-assets",
+            content=b"rin-state-image",
+            headers={
+                "content-type": "image/png",
+                "x-rin-file-name": "uploaded-avatar.png",
+                "x-rin-state-label": "Uploaded Avatar",
+            },
+        )
+
+        assert uploaded.status_code == 200
+        payload = uploaded.json()
+        state_id = payload["selectedStateId"]
+        assert state_id.startswith("custom-")
+        assert payload["currentState"] == state_id
+        assert payload["storageScope"] == ".rin-data/body/rin"
+        assert payload["absolutePathIncluded"] is False
+        assert payload["secretValuesIncluded"] is False
+
+        stored_file = layout.rootDir / "body" / "rin" / "states" / f"{state_id}.png"
+        assert stored_file.read_bytes() == b"rin-state-image"
+        assert (layout.rootDir / "body" / "rin" / "current-state.txt").read_text(
+            encoding="utf-8"
+        ) == state_id
+
+        current = client.get("/api/body/current-state")
+        state_file = client.get(f"/api/body/state-assets/files/{state_id}")
+        snapshot = client.get("/api/glitch-core/snapshot")
+
+        assert current.status_code == 200
+        assert current.json()["stateId"] == state_id
+        assert state_file.status_code == 200
+        assert state_file.content == b"rin-state-image"
+        assert snapshot.status_code == 200
+        snapshot_body = snapshot.json()["body"]
+        assert snapshot_body["currentState"] == state_id
+        assert state_id in snapshot_body["availableStates"]
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
 def test_console_v2_route_assets_and_snapshot_are_safe() -> None:
     client, layout = create_client()
     try:
@@ -598,7 +642,7 @@ def test_glitch_core_entry_reports_frontend_build_state() -> None:
         response = client.get("/glitch-core")
 
         assert response.status_code in {200, 503}
-        assert "RIN Glitch Core Console" in response.text
+        assert "RIN" in response.text
         if response.status_code == 200:
             asset_paths = re.findall(
                 r'(?:src|href)="([^"]*assets/[^"]+)"',

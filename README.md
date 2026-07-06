@@ -173,7 +173,7 @@ the current active chat path.
 | python/pyproject.toml | Python package and tool configuration |
 | frontend/ | TypeScript/React/Vite Web UI (Glitch Core Console) |
 | public/body/rin/ | Active body state-image assets and manifest |
-| desktop/body/ | Minimal desktop wrapper for `/body/floating` |
+| frontend/electron/ | Desktop wrapper for the shared `/body/floating` body route |
 | .rin-data/ | Local runtime data, not committed |
 
 ---

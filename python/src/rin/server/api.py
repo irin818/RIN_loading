@@ -22,6 +22,16 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict
 
 from rin.body import build_body_report
+from rin.body.state_assets import (
+    BodyCurrentStateBody,
+    delete_body_state,
+    get_body_state_file,
+    list_body_states,
+    read_current_state,
+    restore_default_states,
+    store_uploaded_body_state,
+    write_current_state,
+)
 from rin.config.chat_provider import (
     ChatProviderConfig,
     CostConfig,
@@ -429,6 +439,58 @@ def create_app(
     ) -> FileResponse:
         path, media_type = get_character_asset_file(current_layout, asset_id)
         return FileResponse(path, media_type=media_type)
+
+    @app.get("/api/body/state-assets")
+    def api_body_state_assets(
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return list_body_states(current_layout)
+
+    @app.post("/api/body/state-assets")
+    async def api_body_state_asset_upload(
+        request: Request,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        return await store_uploaded_body_state(current_layout, request)
+
+    @app.delete("/api/body/state-assets/{state_id}")
+    def api_body_state_asset_delete(
+        state_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        return delete_body_state(current_layout, state_id)
+
+    @app.post("/api/body/state-assets/defaults/restore")
+    def api_body_state_defaults_restore(
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        return restore_default_states(current_layout)
+
+    @app.get("/api/body/state-assets/files/{state_id}")
+    def api_body_state_asset_file(
+        state_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> FileResponse:
+        path, media_type = get_body_state_file(current_layout, state_id)
+        return FileResponse(path, media_type=media_type)
+
+    @app.put("/api/body/current-state")
+    def api_body_current_state_set(
+        payload: BodyCurrentStateBody,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        write_current_state(current_layout, payload.stateId)
+        return build_body_report(current_layout).to_dict()
+
+    @app.get("/api/body/current-state")
+    def api_body_current_state_get(
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return {"ok": True, "stateId": read_current_state(current_layout)}
 
     @app.get("/api/cost/summary")
     def api_cost_summary(
@@ -1381,7 +1443,7 @@ def build_console_view_model(
     database = cast(dict[str, object], snapshot["database"])
     memory_context = cast(dict[str, object], snapshot["memoryContext"])
     readiness = build_python_readiness_report().to_dict()
-    body_report = build_body_report().to_dict()
+    body_report = build_body_report(layout).to_dict()
     conversations = list_conversations(layout, limit=20)
     selected = (
         None
@@ -1585,7 +1647,7 @@ def build_glitch_core_snapshot(
     latest_trace_payload = latest_trace.to_safe_dict() if latest_trace else None
     traces = [trace.to_safe_dict() for trace in RUNTIME_TRACE_STORE.list()]
     readiness = cast(dict[str, object], dashboard["readiness"])
-    body_report = build_body_report().to_dict()
+    body_report = build_body_report(layout).to_dict()
     return {
         "ok": True,
         "mode": "glitch-core-snapshot",
@@ -4452,7 +4514,7 @@ def build_status_dashboard_summary(
     database = cast(dict[str, object], snapshot["database"])
     memory_context = cast(dict[str, object], snapshot["memoryContext"])
     readiness = build_python_readiness_report().to_dict()
-    body_report = build_body_report().to_dict()
+    body_report = build_body_report(layout).to_dict()
     profile = snapshot["profile"]
     profile_status = (
         profile.get("status", "unknown") if isinstance(profile, dict) else "unknown"
@@ -4563,7 +4625,7 @@ def build_diagnostics_payload(
     )
     profile_files = profile.get("files", []) if isinstance(profile, dict) else []
     profile_file_count = len(profile_files) if isinstance(profile_files, list) else 0
-    body_report = build_body_report().to_dict()
+    body_report = build_body_report(layout).to_dict()
     conversations = list_conversations(layout, limit=8)
     conversation_summaries = []
     for conversation in conversations:

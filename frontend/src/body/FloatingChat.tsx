@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { BodyPanel } from "./BodyPanel";
-import { BODY_STATES, type BodyState } from "./bodyState";
-import { applyBodyViewToDocument, loadBodyView } from "./bodyView";
+import type { BodyState } from "./bodyState";
+import { applyBodyViewToDocument, loadBodyView, type BodyViewSettings } from "./bodyView";
+import { fetchCurrentBodyState } from "./bodyApi";
 
 export function FloatingChat() {
   const [floatingState, setFloatingState] = useState<BodyState>("默认");
@@ -11,29 +12,63 @@ export function FloatingChat() {
   const [busy, setBusy] = useState(false);
   const [bgBlack, setBgBlack] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastViewRef = useRef<string>("");
 
-  // Apply saved body view on mount (syncs with BodyWindow edits)
+  // ── Body view sync: load from localStorage on mount, then poll for changes ──
+  const syncBodyView = () => {
+    const raw = localStorage.getItem("rin-body-view");
+    if (!raw) return;
+    if (raw === lastViewRef.current) return; // no change
+    lastViewRef.current = raw;
+    try {
+      const view: BodyViewSettings = JSON.parse(raw);
+      applyBodyViewToDocument(view);
+    } catch { /* ignore malformed */ }
+  };
+
   useEffect(() => {
+    // Apply immediately on mount
     applyBodyViewToDocument(loadBodyView());
+    lastViewRef.current = localStorage.getItem("rin-body-view") ?? "";
+
+    // Poll localStorage every 500ms (storage events are unreliable across windows)
+    pollRef.current = setInterval(syncBodyView, 500);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
 
-  // Live sync: listen for localStorage changes from the main web UI
+  // ── Body state sync: poll backend every 2 seconds ──
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const state = await fetchCurrentBodyState();
+        if (state) setFloatingState(state);
+      } catch { /* backend restarting */ }
+    };
+    poll();
+    const interval = setInterval(poll, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ── Listen for direct localStorage signals from the web UI ──
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === "rin-body-view" && e.newValue) {
         try {
-          const view = JSON.parse(e.newValue);
-          applyBodyViewToDocument(view);
-        } catch { /* ignore malformed */ }
+          applyBodyViewToDocument(JSON.parse(e.newValue));
+          lastViewRef.current = e.newValue;
+        } catch { /* ignore */ }
+      }
+      if (e.key === "rin-body-state" && e.newValue) {
+        setFloatingState(e.newValue);
       }
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // Transparent or black background (Cmd+B toggles)
+  // ── Background toggle ──
   useEffect(() => {
     const root = document.getElementById("root");
     if (!root) return;
@@ -50,7 +85,7 @@ export function FloatingChat() {
     };
   }, [bgBlack]);
 
-  // Cmd+C toggle chat, Cmd+B toggle black background
+  // ── Keyboard shortcuts ──
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey && e.key === "c") { e.preventDefault(); setChatOpen((v) => !v); }
@@ -61,22 +96,6 @@ export function FloatingChat() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Random state cycling
-  useEffect(() => {
-    const tick = () => {
-      timerRef.current = setTimeout(() => {
-        setFloatingState((prev) => {
-          const others = BODY_STATES.filter((s) => s !== prev);
-          return others[Math.floor(Math.random() * others.length)];
-        });
-        tick();
-      }, 4000 + Math.random() * 8000);
-    };
-    tick();
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, []);
-
-  // Clear bubble after delay
   useEffect(() => {
     if (bubble) {
       if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
@@ -85,7 +104,6 @@ export function FloatingChat() {
     return () => { if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current); };
   }, [bubble]);
 
-  // Focus input
   useEffect(() => {
     if (chatOpen && inputRef.current) inputRef.current.focus();
   }, [chatOpen]);
@@ -117,25 +135,17 @@ export function FloatingChat() {
   return (
     <main className="body-standalone floating">
       <div className="body-standalone-shell">
-        {/* Character */}
         <div className="floating-character">
           <BodyPanel
-            currentState={null}
-            forcedState={floatingState}
+            currentState={floatingState}
             compact
             floating
             showControls={false}
           />
         </div>
-
-        {/* Speech bubble — close to character, top-right */}
         {bubble ? (
-          <div className="floating-bubble">
-            <p>{bubble}</p>
-          </div>
+          <div className="floating-bubble"><p>{bubble}</p></div>
         ) : null}
-
-        {/* Chat input — Cmd+C to toggle */}
         {chatOpen ? (
           <form className="floating-chat-bar" onSubmit={(e) => { e.preventDefault(); send(); }}>
             <input

@@ -17,7 +17,7 @@ cd "$SCRIPT_DIR"
 
 PYTHON_DIR="$SCRIPT_DIR/python"
 FRONTEND_DIR="$SCRIPT_DIR/frontend"
-DESKTOP_BODY_DIR="$SCRIPT_DIR/desktop/body"
+DESKTOP_BODY_DIR="$SCRIPT_DIR/frontend/electron"
 VENV_PYTHON="$PYTHON_DIR/.venv/bin/python"
 DEFAULT_DATA_DIR="$SCRIPT_DIR/.rin-data"
 ENV_FILE="$SCRIPT_DIR/.env"
@@ -37,6 +37,7 @@ if [[ "$UI_PATH" != /* ]]; then
     UI_PATH="/$UI_PATH"
 fi
 UI_URL="$FRONTEND_URL$UI_PATH"
+DESKTOP_BODY_URL="${RIN_BODY_DESKTOP_URL:-$FRONTEND_URL/body/floating}"
 
 SERVER_PID=""
 FRONTEND_PID=""
@@ -153,6 +154,7 @@ print_banner() {
     echo " Backend:  $LOCAL_URL"
     echo " Frontend: $FRONTEND_URL"
     echo " UI:       $UI_URL"
+    echo " Body:     $DESKTOP_BODY_URL"
     echo " Provider: $CHAT_PROVIDER"
     echo " Model:    $API_CHAT_MODEL"
     echo " Thinking: ${API_CHAT_THINKING:-unset}"
@@ -213,16 +215,16 @@ ensure_python_runtime() {
         echo "Install Python 3.12+ or use Homebrew: brew install python@3.12"
         exit 1
     fi
-    print_ok "Python: $python_bin ($($python_bin --version 2>&1))"
+    print_ok "Python: $python_bin ($(PYTHONPATH="" $python_bin --version 2>&1))"
 
     if [[ ! -x "$VENV_PYTHON" ]]; then
         print_warn "Python venv not found. Creating python/.venv..."
-        "$python_bin" -m venv "$PYTHON_DIR/.venv"
+        PYTHONPATH="" "$python_bin" -m venv "$PYTHON_DIR/.venv"
     fi
 
-    if ! "$VENV_PYTHON" -c "import fastapi, jinja2, uvicorn, rin" >/dev/null 2>&1; then
+    if ! PYTHONPATH="" "$VENV_PYTHON" -c "import fastapi, jinja2, uvicorn, rin" >/dev/null 2>&1; then
         print_warn "Python packages missing. Installing python package..."
-        "$VENV_PYTHON" -m pip install -e "$PYTHON_DIR[dev]" --quiet
+        PYTHONPATH="" "$VENV_PYTHON" -m pip install -e "$PYTHON_DIR[dev]" --quiet
     fi
 }
 
@@ -256,7 +258,7 @@ ensure_desktop_body() {
     fi
 
     if [[ ! -d "$DESKTOP_BODY_DIR/node_modules" ]]; then
-        print_warn "desktop/body/node_modules not found. Running npm install..."
+        print_warn "frontend/electron/node_modules not found. Running npm install..."
         (cd "$DESKTOP_BODY_DIR" && npm install)
     fi
 
@@ -268,8 +270,8 @@ start_desktop_body() {
         return
     fi
 
-    print_info "Starting RIN desktop body..."
-    (cd "$DESKTOP_BODY_DIR" && npx electron .) &
+    print_info "Starting RIN desktop body at $DESKTOP_BODY_URL..."
+    (cd "$DESKTOP_BODY_DIR" && RIN_BODY_DESKTOP_URL="$DESKTOP_BODY_URL" npx electron .) &
     DESKTOP_PID=$!
     print_ok "Desktop body launched (pid $DESKTOP_PID)."
 }
@@ -338,7 +340,7 @@ run_optional_api_smoke() {
 
     echo ""
     print_info "Running optional API chat smoke test..."
-    (cd "$PYTHON_DIR" && "$VENV_PYTHON" -m rin.cli.api_chat_smoke)
+    (cd "$PYTHON_DIR" && PYTHONPATH="" "$VENV_PYTHON" -m rin.cli.api_chat_smoke)
 }
 
 start_backend() {
@@ -353,7 +355,7 @@ start_backend() {
     fi
 
     echo "Starting RIN backend..."
-    (cd "$PYTHON_DIR" && "$VENV_PYTHON" -m rin.cli.production_server) &
+    (cd "$PYTHON_DIR" && PYTHONPATH="" "$VENV_PYTHON" -m rin.cli.production_server) &
     SERVER_PID=$!
     wait_for_url "$BACKEND_READY_URL" "backend"
 }
