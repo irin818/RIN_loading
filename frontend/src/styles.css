@@ -59,7 +59,6 @@ button {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  cursor: none;
   background:
     radial-gradient(circle at 50% 42%, rgba(0, 255, 100, 0.18), transparent 22%),
     radial-gradient(circle at 52% 50%, rgba(56, 248, 255, 0.08), transparent 38%),
@@ -68,35 +67,6 @@ button {
     radial-gradient(circle at 50% 45%, rgba(0, 255, 100, 0.12), transparent 46%),
     #020403;
   background-size: auto, auto, 48px 48px, 48px 48px, auto, auto;
-}
-
-.rin-os *,
-.rin-os button,
-.rin-os input,
-.rin-os textarea,
-.rin-os a {
-  cursor: none !important;
-}
-
-.rin-cursor-orb {
-  position: absolute;
-  left: var(--cursor-x, 50vw);
-  top: var(--cursor-y, 50vh);
-  z-index: 10000;
-  width: 34px;
-  height: 34px;
-  border: 1px solid rgba(46, 204, 113, 0.82);
-  border-radius: 999px;
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-  background:
-    radial-gradient(circle, rgba(46, 204, 113, 0.18) 0 22%, transparent 24%),
-    conic-gradient(from 120deg, transparent 0 18%, rgba(46, 204, 113, 0.9) 20%, transparent 23% 62%, rgba(245, 245, 240, 0.55) 64%, transparent 67%);
-  box-shadow:
-    0 0 16px rgba(46, 204, 113, 0.42),
-    inset 0 0 12px rgba(46, 204, 113, 0.24);
-  mix-blend-mode: screen;
-  animation: rin-cursor-breathe 1.6s ease-in-out infinite;
 }
 
 .scanline-layer,
@@ -2941,6 +2911,13 @@ dd {
   font-size: 10px;
 }
 
+.gallery-current button:disabled,
+.gallery-select:disabled {
+  border-color: rgba(245, 245, 240, 0.12);
+  color: rgba(245, 245, 240, 0.34);
+  opacity: 0.58;
+}
+
 .gallery-actions {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2952,7 +2929,6 @@ dd {
 }
 
 .gallery-actions button,
-.gallery-view-editor button,
 .gallery-delete {
   min-width: 0;
   min-height: 24px;
@@ -2990,34 +2966,6 @@ dd {
   font-size: 9px;
   font-weight: 900;
   letter-spacing: 0.08em;
-}
-
-.gallery-view-editor label {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
-  align-items: center;
-  gap: 6px;
-  color: rgba(245, 245, 240, 0.64);
-  font-family: var(--font-hud);
-  font-size: 9px;
-  font-weight: 800;
-}
-
-.gallery-view-editor input[type="range"] {
-  width: 100%;
-  height: 14px;
-  accent-color: var(--rin-dark-green);
-}
-
-.gallery-crop-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 5px;
-}
-
-.gallery-crop-grid label {
-  grid-template-columns: 12px minmax(0, 1fr);
-  gap: 4px;
 }
 
 .gallery-notice {
@@ -3289,17 +3237,5 @@ textarea:focus {
   90% {
     opacity: 0.62;
     transform: translate(3px, -2px);
-  }
-}
-
-@keyframes rin-cursor-breathe {
-  0%,
-  100% {
-    opacity: 0.72;
-    transform: translate(-50%, -50%) scale(0.82) rotate(0deg);
-  }
-  50% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.18) rotate(12deg);
   }
 }
