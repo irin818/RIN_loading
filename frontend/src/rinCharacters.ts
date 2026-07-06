@@ -11,6 +11,21 @@ export type RinCharacterAsset = {
   stageY?: number;
 };
 
+export function normalizeCharacterView(
+  view: Partial<{ x: number; y: number; scale: number; cropTop: number; cropRight: number; cropBottom: number; cropLeft: number }> | undefined,
+  fallback?: RinCharacterAsset
+): { x: number; y: number; scale: number; cropTop: number; cropRight: number; cropBottom: number; cropLeft: number } {
+  return {
+    x: typeof view?.x === "number" && Number.isFinite(view.x) ? Math.min(420, Math.max(-420, view.x)) : (fallback?.stageX ?? 0),
+    y: typeof view?.y === "number" && Number.isFinite(view.y) ? Math.min(320, Math.max(-320, view.y)) : (fallback?.stageY ?? 0),
+    scale: typeof view?.scale === "number" && Number.isFinite(view.scale) ? Math.min(2.6, Math.max(0.45, view.scale)) : (fallback?.stageScale ?? 1),
+    cropTop: typeof view?.cropTop === "number" && Number.isFinite(view.cropTop) ? Math.min(36, Math.max(0, view.cropTop)) : 0,
+    cropRight: typeof view?.cropRight === "number" && Number.isFinite(view.cropRight) ? Math.min(36, Math.max(0, view.cropRight)) : 0,
+    cropBottom: typeof view?.cropBottom === "number" && Number.isFinite(view.cropBottom) ? Math.min(36, Math.max(0, view.cropBottom)) : 0,
+    cropLeft: typeof view?.cropLeft === "number" && Number.isFinite(view.cropLeft) ? Math.min(36, Math.max(0, view.cropLeft)) : 0,
+  };
+}
+
 export const RIN_CHARACTER_ASSETS: RinCharacterAsset[] = [
   {
     id: "rin-00-core",
