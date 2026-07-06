@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
@@ -15,6 +16,7 @@ from urllib.parse import unquote
 from uuid import uuid4
 
 from fastapi import HTTPException, Request
+from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from rin.diagnostics.safety import assert_safe_python_write_data_dir
@@ -55,6 +57,8 @@ CONTENT_TYPE_SUFFIXES: dict[str, str] = {
     value: key for key, value in ALLOWED_IMAGE_SUFFIXES.items()
 }
 MANIFEST_VERSION = 1
+PREVIEW_MAX_DIMENSION = 2000
+THUMBNAIL_MAX_DIMENSION = 512
 
 VALID_ASSET_TYPES: set[str] = {
     "illustration",
@@ -69,6 +73,22 @@ VALID_ASSET_TYPES: set[str] = {
     "reference",
 }
 VALID_STATUSES: set[str] = {"draft", "published", "archived"}
+
+
+@dataclass(frozen=True)
+class ArchiveImageInfo:
+    """Dimensions detected from an uploaded archive image."""
+
+    width: int
+    height: int
+
+
+@dataclass(frozen=True)
+class ArchiveDerivativePaths:
+    """Relative paths for generated or fallback archive display files."""
+
+    preview_path: str
+    thumbnail_path: str
 
 
 # ── Pydantic Models ──
@@ -250,6 +270,7 @@ async def store_uploaded_archive_asset(
         if byte_count == 0:
             temp_path.unlink(missing_ok=True)
             raise HTTPException(status_code=400, detail="Upload is empty.")
+        image_info = _inspect_uploaded_image(temp_path)
         temp_path.replace(final_path)
     except HTTPException:
         temp_path.unlink(missing_ok=True)
@@ -261,8 +282,12 @@ async def store_uploaded_archive_asset(
             detail="Failed to save archive asset file.",
         ) from error
 
-    # For now, preview and thumbnail point to original
-    # TODO: Generate previews/thumbnails with Pillow in Phase 2
+    derivatives = _generate_archive_derivatives(
+        layout,
+        original_path=final_path,
+        stored_name=stored_name,
+        suffix=suffix,
+    )
     page_number: int | None = None
     if page_number_raw is not None:
         try:
@@ -286,9 +311,11 @@ async def store_uploaded_archive_asset(
         fileName=stored_name,
         contentType=media_type,
         originalPath=str(final_path.relative_to(layout.rootDir)),
-        previewPath=str(final_path.relative_to(layout.rootDir)),
-        thumbnailPath=str(final_path.relative_to(layout.rootDir)),
-        fileSize=byte_count,
+        previewPath=derivatives.preview_path,
+        thumbnailPath=derivatives.thumbnail_path,
+        width=image_info.width,
+        height=image_info.height,
+        fileSize=final_path.stat().st_size,
         createdAt=now,
         updatedAt=now,
         sortOrder=sort_order,
@@ -362,14 +389,9 @@ def delete_archive_asset(
         raise HTTPException(status_code=404, detail="Archive asset not found.")
 
     if hard:
-        # Physically delete the original file
-        original_path = _resolve_asset_path(layout, record)
-        original_path.unlink(missing_ok=True)
-        # Also remove any preview/thumbnail if they differ
-        if record.previewPath != record.originalPath:
-            _resolve_path(layout, record.previewPath).unlink(missing_ok=True)
-        if record.thumbnailPath not in (record.originalPath, record.previewPath):
-            _resolve_path(layout, record.thumbnailPath).unlink(missing_ok=True)
+        delete_paths = _archive_asset_delete_paths(layout, record)
+        for path in delete_paths:
+            path.unlink(missing_ok=True)
         manifest.assets = [a for a in manifest.assets if a.id != asset_id]
     else:
         # Soft archive — mark status as archived
@@ -400,13 +422,15 @@ def get_archive_asset_preview_file(
     layout: RinDataLayout,
     asset_id: str,
 ) -> tuple[Path, str]:
-    """Return the preview file (or original if no preview generated yet)."""
+    """Return the preview file, falling back to original when unavailable."""
     _require_asset_id(asset_id)
     manifest = _load_manifest(layout)
     record = _find_record(manifest, asset_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Archive asset not found.")
-    # TODO: Return generated preview when available
+    path = _resolve_display_path(layout, record.previewPath)
+    if path is not None and path.is_file():
+        return path, record.contentType
     return get_archive_asset_file(layout, asset_id)
 
 
@@ -414,13 +438,15 @@ def get_archive_asset_thumbnail_file(
     layout: RinDataLayout,
     asset_id: str,
 ) -> tuple[Path, str]:
-    """Return the thumbnail file (or preview/original if no thumbnail generated)."""
+    """Return the thumbnail file, falling back to preview/original."""
     _require_asset_id(asset_id)
     manifest = _load_manifest(layout)
     record = _find_record(manifest, asset_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Archive asset not found.")
-    # TODO: Return generated thumbnail when available
+    path = _resolve_display_path(layout, record.thumbnailPath)
+    if path is not None and path.is_file():
+        return path, record.contentType
     return get_archive_asset_preview_file(layout, asset_id)
 
 
@@ -514,8 +540,26 @@ def _resolve_asset_path(layout: RinDataLayout, record: ArchiveAssetRecord) -> Pa
     return _ensure_child(originals / record.fileName, originals)
 
 
+def _archive_asset_delete_paths(
+    layout: RinDataLayout,
+    record: ArchiveAssetRecord,
+) -> list[Path]:
+    paths = [_resolve_asset_path(layout, record)]
+    for relative in (record.previewPath, record.thumbnailPath):
+        path = _resolve_display_path(layout, relative)
+        if path is not None and path not in paths:
+            paths.append(path)
+    return paths
+
+
 def _resolve_path(layout: RinDataLayout, relative: str) -> Path:
     return _ensure_child(layout.rootDir / relative, layout.rootDir)
+
+
+def _resolve_display_path(layout: RinDataLayout, relative: str) -> Path | None:
+    if not relative:
+        return None
+    return _resolve_path(layout, relative)
 
 
 def _ensure_child(path: Path, parent: Path) -> Path:
@@ -602,6 +646,121 @@ def _safe_image_suffix(file_name: str, content_type: str) -> str:
         status_code=400,
         detail="Only PNG, JPG, WEBP, or GIF images are supported.",
     )
+
+
+def _inspect_uploaded_image(path: Path) -> ArchiveImageInfo:
+    try:
+        with Image.open(path) as image:
+            image.verify()
+        with Image.open(path) as image:
+            return ArchiveImageInfo(width=image.width, height=image.height)
+    except (UnidentifiedImageError, OSError) as error:
+        path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported or unreadable image file.",
+        ) from error
+
+
+def _generate_archive_derivatives(
+    layout: RinDataLayout,
+    *,
+    original_path: Path,
+    stored_name: str,
+    suffix: str,
+) -> ArchiveDerivativePaths:
+    original_relative = str(original_path.relative_to(layout.rootDir))
+
+    if suffix == ".gif":
+        return ArchiveDerivativePaths(
+            preview_path=original_relative,
+            thumbnail_path=original_relative,
+        )
+
+    previews_dir = _previews_dir(layout)
+    thumbnails_dir = _thumbnails_dir(layout)
+    previews_dir.mkdir(parents=True, exist_ok=True)
+    thumbnails_dir.mkdir(parents=True, exist_ok=True)
+
+    preview_path = _ensure_child(previews_dir / stored_name, previews_dir)
+    thumbnail_path = _ensure_child(thumbnails_dir / stored_name, thumbnails_dir)
+
+    preview_generated = _create_resized_archive_image(
+        original_path,
+        preview_path,
+        max_dimension=PREVIEW_MAX_DIMENSION,
+        suffix=suffix,
+    )
+    thumbnail_generated = _create_resized_archive_image(
+        original_path,
+        thumbnail_path,
+        max_dimension=THUMBNAIL_MAX_DIMENSION,
+        suffix=suffix,
+    )
+
+    preview_relative = (
+        str(preview_path.relative_to(layout.rootDir))
+        if preview_generated
+        else original_relative
+    )
+    thumbnail_relative = (
+        str(thumbnail_path.relative_to(layout.rootDir))
+        if thumbnail_generated
+        else preview_relative
+    )
+    return ArchiveDerivativePaths(
+        preview_path=preview_relative,
+        thumbnail_path=thumbnail_relative,
+    )
+
+
+def _create_resized_archive_image(
+    original_path: Path,
+    target_path: Path,
+    *,
+    max_dimension: int,
+    suffix: str,
+) -> bool:
+    try:
+        with Image.open(original_path) as source:
+            image = ImageOps.exif_transpose(source)
+            try:
+                image.thumbnail(
+                    (max_dimension, max_dimension),
+                    Image.Resampling.LANCZOS,
+                )
+                output = _image_for_save(image, suffix)
+                try:
+                    output.save(
+                        target_path,
+                        format=_image_format_for_suffix(suffix),
+                    )
+                finally:
+                    if output is not image:
+                        output.close()
+            finally:
+                if image is not source:
+                    image.close()
+        return True
+    except (OSError, ValueError, UnidentifiedImageError):
+        target_path.unlink(missing_ok=True)
+        return False
+
+
+def _image_for_save(image: Image.Image, suffix: str) -> Image.Image:
+    if suffix in {".jpg", ".jpeg"} and image.mode not in {"RGB", "L"}:
+        return image.convert("RGB")
+    if suffix in {".png", ".webp"} and image.mode == "CMYK":
+        return image.convert("RGB")
+    return image
+
+
+def _image_format_for_suffix(suffix: str) -> str:
+    if suffix in {".jpg", ".jpeg"}:
+        return "JPEG"
+    if suffix == ".webp":
+        return "WEBP"
+    return "PNG"
 
 
 def _parse_upload_metadata(request: Request) -> dict[str, object]:

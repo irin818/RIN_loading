@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArchiveLayout } from "./components/ArchiveLayout";
-import { fetchArchiveAssets, archiveAssetOriginalUrl } from "./archiveApi";
+import { fetchArchiveAssets } from "./archiveApi";
 import type { ArchiveAsset } from "./archiveTypes";
 
 interface ArchiveComicReaderPageProps {
@@ -14,6 +14,7 @@ export function ArchiveComicReaderPage({
 }: ArchiveComicReaderPageProps) {
   const [pages, setPages] = useState<ArchiveAsset[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
+  const [showOriginal, setShowOriginal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -27,6 +28,8 @@ export function ArchiveComicReaderPage({
             (a, b) => (a.pageNumber ?? 0) - (b.pageNumber ?? 0),
           );
           setPages(sorted);
+          setCurrentPage(0);
+          setShowOriginal(false);
           setLoading(false);
         }
       })
@@ -46,12 +49,14 @@ export function ArchiveComicReaderPage({
   const goNext = () => {
     if (currentPage < pages.length - 1) {
       setCurrentPage(currentPage + 1);
+      setShowOriginal(false);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
   const goPrev = () => {
     if (currentPage > 0) {
       setCurrentPage(currentPage - 1);
+      setShowOriginal(false);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
@@ -88,11 +93,22 @@ export function ArchiveComicReaderPage({
               >
                 Next →
               </button>
+              <button
+                className="archive-btn"
+                type="button"
+                onClick={() => setShowOriginal((current) => !current)}
+              >
+                {showOriginal ? "Preview" : "Full quality"}
+              </button>
             </div>
             <div className="archive-comic-reader-pages">
               <img
                 className="archive-comic-reader-image"
-                src={archiveAssetOriginalUrl(pages[currentPage].id)}
+                src={
+                  showOriginal
+                    ? pages[currentPage].originalPath
+                    : pages[currentPage].previewPath
+                }
                 alt={`Page ${currentPage + 1}`}
               />
             </div>

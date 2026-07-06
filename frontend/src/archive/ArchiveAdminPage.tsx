@@ -5,7 +5,6 @@ import {
   uploadArchiveAsset,
   updateArchiveAsset,
   deleteArchiveAsset,
-  archiveAssetPreviewUrl,
 } from "./archiveApi";
 import type { ArchiveAsset, ArchiveAssetPatch } from "./archiveTypes";
 import {
@@ -322,7 +321,7 @@ export function ArchiveAdminPage({ onNavigate }: ArchiveAdminPageProps) {
                 <div className="archive-admin-edit-form">
                   <div className="archive-admin-edit-preview">
                     <img
-                      src={archiveAssetPreviewUrl(asset.id)}
+                      src={asset.previewPath}
                       alt={asset.title}
                     />
                   </div>
@@ -435,7 +434,7 @@ export function ArchiveAdminPage({ onNavigate }: ArchiveAdminPageProps) {
                 <div className="archive-admin-item-row">
                   <div className="archive-admin-item-preview">
                     <img
-                      src={archiveAssetPreviewUrl(asset.id)}
+                      src={asset.thumbnailPath}
                       alt={asset.title}
                     />
                   </div>
@@ -448,6 +447,9 @@ export function ArchiveAdminPage({ onNavigate }: ArchiveAdminPageProps) {
                     {asset.description && <span>{asset.description}</span>}
                     <span className="archive-admin-item-meta">
                       {asset.fileName} ·{" "}
+                      {asset.width != null && asset.height != null
+                        ? `${asset.width}×${asset.height} · `
+                        : ""}
                       {asset.fileSize != null
                         ? `${(asset.fileSize / 1024).toFixed(0)} KB`
                         : "unknown size"}

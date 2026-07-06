@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { ArchiveLayout } from "./components/ArchiveLayout";
 import { fetchArchiveAssets } from "./archiveApi";
 import type { ArchiveAsset } from "./archiveTypes";
-import { archiveAssetPreviewUrl } from "./archiveApi";
 
 interface ArchiveComicsPageProps {
   onNavigate: (path: string) => void;
@@ -95,9 +94,7 @@ function groupComicAssets(assets: ArchiveAsset[]): ComicGroup[] {
   for (const [seriesId, list] of map) {
     list.sort((a, b) => (a.pageNumber ?? 0) - (b.pageNumber ?? 0));
     const coverAsset = list.find((a) => a.coverAssetId) || list[0];
-    const coverUrl = coverAsset
-      ? archiveAssetPreviewUrl(coverAsset.id)
-      : null;
+    const coverUrl = coverAsset ? coverAsset.thumbnailPath : null;
     groups.push({
       seriesId,
       title: list[0].title || seriesId,

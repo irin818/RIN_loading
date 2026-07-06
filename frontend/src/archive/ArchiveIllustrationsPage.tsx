@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ArchiveLayout } from "./components/ArchiveLayout";
 import { fetchArchiveAssets } from "./archiveApi";
 import type { ArchiveAsset } from "./archiveTypes";
-import { archiveAssetPreviewUrl } from "./archiveApi";
+import { ArchiveAssetViewer } from "./components/ArchiveAssetViewer";
 
 interface ArchiveIllustrationsPageProps {
   onNavigate: (path: string) => void;
@@ -12,6 +12,7 @@ export function ArchiveIllustrationsPage({
   onNavigate,
 }: ArchiveIllustrationsPageProps) {
   const [assets, setAssets] = useState<ArchiveAsset[]>([]);
+  const [selectedAsset, setSelectedAsset] = useState<ArchiveAsset | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -50,10 +51,15 @@ export function ArchiveIllustrationsPage({
       {assets.length > 0 && (
         <div className="archive-asset-grid">
           {assets.map((asset) => (
-            <div key={asset.id} className="archive-asset-card">
+            <button
+              key={asset.id}
+              className="archive-asset-card"
+              type="button"
+              onClick={() => setSelectedAsset(asset)}
+            >
               <div className="archive-asset-card-image">
                 <img
-                  src={archiveAssetPreviewUrl(asset.id)}
+                  src={asset.thumbnailPath}
                   alt={asset.title}
                   loading="lazy"
                 />
@@ -66,9 +72,15 @@ export function ArchiveIllustrationsPage({
                   </span>
                 )}
               </div>
-            </div>
+            </button>
           ))}
         </div>
+      )}
+      {selectedAsset && (
+        <ArchiveAssetViewer
+          asset={selectedAsset}
+          onClose={() => setSelectedAsset(null)}
+        />
       )}
     </ArchiveLayout>
   );

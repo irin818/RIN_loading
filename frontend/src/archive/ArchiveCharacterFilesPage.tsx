@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { ArchiveLayout } from "./components/ArchiveLayout";
-import { fetchArchiveAssets, archiveAssetPreviewUrl } from "./archiveApi";
+import { fetchArchiveAssets } from "./archiveApi";
 import type { ArchiveAsset } from "./archiveTypes";
 import { ARCHIVE_ASSET_TYPE_LABELS } from "./archiveTypes";
+import { ArchiveAssetViewer } from "./components/ArchiveAssetViewer";
 
 interface ArchiveCharacterFilesPageProps {
   onNavigate: (path: string) => void;
@@ -20,6 +21,7 @@ export function ArchiveCharacterFilesPage({
   onNavigate,
 }: ArchiveCharacterFilesPageProps) {
   const [assets, setAssets] = useState<ArchiveAsset[]>([]);
+  const [selectedAsset, setSelectedAsset] = useState<ArchiveAsset | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeType, setActiveType] = useState<string | null>(null);
@@ -87,10 +89,15 @@ export function ArchiveCharacterFilesPage({
       {filtered.length > 0 && (
         <div className="archive-asset-grid">
           {filtered.map((asset) => (
-            <div key={asset.id} className="archive-asset-card">
+            <button
+              key={asset.id}
+              className="archive-asset-card"
+              type="button"
+              onClick={() => setSelectedAsset(asset)}
+            >
               <div className="archive-asset-card-image">
                 <img
-                  src={archiveAssetPreviewUrl(asset.id)}
+                  src={asset.thumbnailPath}
                   alt={asset.title}
                   loading="lazy"
                 />
@@ -101,9 +108,15 @@ export function ArchiveCharacterFilesPage({
                   {ARCHIVE_ASSET_TYPE_LABELS[asset.type]}
                 </span>
               </div>
-            </div>
+            </button>
           ))}
         </div>
+      )}
+      {selectedAsset && (
+        <ArchiveAssetViewer
+          asset={selectedAsset}
+          onClose={() => setSelectedAsset(null)}
+        />
       )}
     </ArchiveLayout>
   );

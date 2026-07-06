@@ -207,6 +207,11 @@
   overflow: hidden;
   background: rgba(2, 10, 5, 0.7);
   transition: all 0.2s;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
 }
 .archive-asset-card:hover {
   border-color: rgba(0, 255, 100, 0.3);
@@ -279,6 +284,8 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .archive-comic-reader-page-num {
@@ -748,6 +755,8 @@
   justify-content: center;
   cursor: pointer;
   padding: 24px;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .archive-viewer-overlay img {
@@ -774,6 +783,16 @@
 }
 .archive-viewer-close:hover {
   background: rgba(0, 255, 100, 0.08);
+}
+
+.archive-viewer-actions {
+  display: flex;
+  gap: 8px;
+  z-index: 101;
+}
+
+.archive-viewer-actions .archive-btn {
+  text-decoration: none;
 }
 
 /* ── Responsive ── */

@@ -279,15 +279,16 @@ wallpapers, avatars, and worldbuilding materials.
 All archive data lives under the RIN data directory (`.rin-data/archive/`):
 - `manifest.json` — Asset metadata manifest (Pydantic-validated)
 - `files/originals/` — Uploaded original files (never modified)
-- `files/previews/` — Generated preview images (TODO: Pillow-based generation)
-- `files/thumbnails/` — Generated thumbnail images (TODO: Pillow-based generation)
+- `files/previews/` — Generated bounded preview images
+- `files/thumbnails/` — Generated bounded thumbnail images
 - `stories/` — Story markdown files (if stored as files)
 
 **Quality / preview policy:**
 - Original files are preserved unchanged after upload
-- Previews and thumbnails currently fall back to original files
-- Recommended preview max dimension: 1600–2200 px (to be implemented)
-- Recommended thumbnail max dimension: 400–600 px (to be implemented)
+- Preview images are generated with max dimension 2000 px
+- Thumbnail images are generated with max dimension 512 px
+- GIF previews and thumbnails safely fall back to the original file
+- Preview and thumbnail endpoints fall back to original files if derivatives are missing
 - Frontend receives display-safe URLs (API endpoints, never local paths)
 
 **Module separation:**
