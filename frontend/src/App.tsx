@@ -16,6 +16,8 @@ import {
   approveToolRequest,
   convertImprovementProposalToCodexDraft,
   deactivateMindMemoryCandidate,
+  deleteCharacterAsset,
+  fetchCharacterAssets,
   fetchGlitchSnapshot,
   fetchMemoryCards,
   reactivateMindMemoryCandidate,
@@ -23,10 +25,15 @@ import {
   rejectImprovementProposal,
   rejectMindMemoryCandidate,
   rejectToolRequest,
+  resetCharacterAssetView,
+  restoreCharacterAssetDefaults,
   runSelfReview,
+  saveCharacterAssetView,
   sendChatMessage,
+  uploadCharacterAsset,
   updateMindMemoryCandidateSafeFields
 } from "./api";
+import type { CharacterAssetsPayload, CharacterViewSettingsPayload } from "./api";
 import { BodyPanel } from "./body/BodyPanel";
 import { BodyStandalonePage } from "./body/BodyStandalonePage";
 import { normalizeBodyState } from "./body/bodyState";
@@ -77,12 +84,6 @@ import type { Density, DisplayMode, DisplaySize } from "./visualization";
 const LAYOUT_KEY = "rin.glitch-core.window-layout.v7";
 const UI_SETTINGS_KEY = "rin.glitch-core.ui-settings.v1";
 const CHARACTER_KEY = "rin.glitch-core.character.v1";
-const CHARACTER_LIBRARY_KEY = "rin.glitch-core.character-library.v1";
-const CHARACTER_VIEW_KEY = "rin.glitch-core.character-view.v1";
-const CHARACTER_IMAGE_DB = "rin-character-images-v1";
-const CHARACTER_IMAGE_STORE = "images";
-const INDEXED_DB_IMAGE_PREFIX = "indexeddb:";
-const TRANSPARENT_IMAGE_DATA_URL = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E";
 const PERSISTENT_TYPES = new Set<WindowType>([
   "body",
   "chat",
@@ -129,20 +130,7 @@ type WindowMeta = {
   code: string;
 };
 
-type CharacterLibraryState = {
-  customCharacters: RinCharacterAsset[];
-  hiddenDefaultIds: string[];
-};
-
-type CharacterViewSettings = {
-  x: number;
-  y: number;
-  scale: number;
-  cropTop: number;
-  cropRight: number;
-  cropBottom: number;
-  cropLeft: number;
-};
+type CharacterViewSettings = CharacterViewSettingsPayload;
 
 type CharacterViewMap = Record<string, CharacterViewSettings>;
 
@@ -383,120 +371,6 @@ function loadCharacterId() {
   return localStorage.getItem(CHARACTER_KEY) ?? RIN_CHARACTER_ASSETS[0].id;
 }
 
-function loadCharacterLibrary(): CharacterLibraryState {
-  const fallback: CharacterLibraryState = {
-    customCharacters: [],
-    hiddenDefaultIds: []
-  };
-  const raw = localStorage.getItem(CHARACTER_LIBRARY_KEY);
-  if (!raw) {
-    return fallback;
-  }
-  try {
-    const parsed = JSON.parse(raw) as Partial<CharacterLibraryState>;
-    const customCharacters = Array.isArray(parsed.customCharacters)
-      ? parsed.customCharacters
-          .filter((item): item is RinCharacterAsset =>
-            typeof item?.id === "string" &&
-            item.id.startsWith("local-") &&
-            typeof item.label === "string" &&
-            typeof item.path === "string" &&
-            (item.path.startsWith("data:image/") || item.path.startsWith(INDEXED_DB_IMAGE_PREFIX)) &&
-            typeof item.previewPath === "string"
-          )
-          .map((item) => ({
-            ...item,
-            source: "local" as const,
-            pose: item.pose || "custom",
-            path: item.path.startsWith(INDEXED_DB_IMAGE_PREFIX) ? TRANSPARENT_IMAGE_DATA_URL : item.path,
-            previewPath: item.previewPath.startsWith(INDEXED_DB_IMAGE_PREFIX) ? TRANSPARENT_IMAGE_DATA_URL : item.previewPath,
-            custom: true
-          }))
-      : [];
-    const hiddenDefaultIds = Array.isArray(parsed.hiddenDefaultIds)
-      ? parsed.hiddenDefaultIds.filter((id): id is string =>
-          typeof id === "string" && RIN_CHARACTER_ASSETS.some((item) => item.id === id)
-        )
-      : [];
-    return { customCharacters, hiddenDefaultIds };
-  } catch {
-    return fallback;
-  }
-}
-
-function loadCharacterViews(): CharacterViewMap {
-  const raw = localStorage.getItem(CHARACTER_VIEW_KEY);
-  if (!raw) {
-    return {};
-  }
-  try {
-    const parsed = JSON.parse(raw) as Record<string, Partial<CharacterViewSettings>>;
-    return Object.fromEntries(
-      Object.entries(parsed)
-        .filter(([id]) => typeof id === "string")
-        .map(([id, view]) => [id, normalizeCharacterView(view)])
-    );
-  } catch {
-    return {};
-  }
-}
-
-function serializeCharacterLibrary(library: CharacterLibraryState): CharacterLibraryState {
-  return {
-    hiddenDefaultIds: library.hiddenDefaultIds,
-    customCharacters: library.customCharacters.map((item) => ({
-      ...item,
-      path: item.custom ? `${INDEXED_DB_IMAGE_PREFIX}${item.id}` : item.path,
-      previewPath: item.custom ? `${INDEXED_DB_IMAGE_PREFIX}${item.id}` : item.previewPath
-    }))
-  };
-}
-
-function openCharacterImageDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(CHARACTER_IMAGE_DB, 1);
-    request.onupgradeneeded = () => {
-      request.result.createObjectStore(CHARACTER_IMAGE_STORE);
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error("Failed to open character image database"));
-  });
-}
-
-async function saveCharacterImage(characterId: string, dataUrl: string): Promise<void> {
-  const db = await openCharacterImageDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(CHARACTER_IMAGE_STORE, "readwrite");
-    tx.objectStore(CHARACTER_IMAGE_STORE).put(dataUrl, characterId);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error ?? new Error("Failed to save character image"));
-  });
-  db.close();
-}
-
-async function loadCharacterImage(characterId: string): Promise<string | null> {
-  const db = await openCharacterImageDb();
-  const value = await new Promise<string | null>((resolve, reject) => {
-    const tx = db.transaction(CHARACTER_IMAGE_STORE, "readonly");
-    const request = tx.objectStore(CHARACTER_IMAGE_STORE).get(characterId);
-    request.onsuccess = () => resolve(typeof request.result === "string" ? request.result : null);
-    request.onerror = () => reject(request.error ?? new Error("Failed to load character image"));
-  });
-  db.close();
-  return value;
-}
-
-async function deleteCharacterImage(characterId: string): Promise<void> {
-  const db = await openCharacterImageDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(CHARACTER_IMAGE_STORE, "readwrite");
-    tx.objectStore(CHARACTER_IMAGE_STORE).delete(characterId);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error ?? new Error("Failed to delete character image"));
-  });
-  db.close();
-}
-
 function isDisplayMode(value: unknown): value is DisplayMode {
   return value === "basic" || value === "advanced" || value === "developer";
 }
@@ -620,21 +494,16 @@ function GlitchCoreApp() {
   const [memoryCompact, setMemoryCompact] = useState(true);
   const [lastChatContent, setLastChatContent] = useState("");
   const [uiSettings, setUiSettings] = useState(() => loadUiSettings());
-  const [characterLibrary, setCharacterLibrary] = useState(() => loadCharacterLibrary());
-  const [characterViews, setCharacterViews] = useState(() => loadCharacterViews());
+  const [characterAssets, setCharacterAssets] = useState<RinCharacterAsset[]>(RIN_CHARACTER_ASSETS);
+  const [characterViews, setCharacterViews] = useState<CharacterViewMap>({});
   const [selectedCharacterId, setSelectedCharacterId] = useState(() => loadCharacterId());
   const [characterEditMode, setCharacterEditMode] = useState(false);
   const [galleryNotice, setGalleryNotice] = useState("");
+  const [galleryBusy, setGalleryBusy] = useState(false);
   const instanceCounts = useRef(initialInstanceCounts(windows));
   const zCounter = useRef(Math.max(40, ...windows.map((item) => item.zIndex)));
   const openedTraceErrorIds = useRef(new Set<string>());
   const coreVisualState = deriveCoreVisualState(snapshot, chatBusy);
-  const characterAssets = useMemo(() => {
-    const hidden = new Set(characterLibrary.hiddenDefaultIds);
-    const defaults = RIN_CHARACTER_ASSETS.filter((item) => !hidden.has(item.id));
-    const merged = [...defaults, ...characterLibrary.customCharacters];
-    return merged.length > 0 ? merged : RIN_CHARACTER_ASSETS;
-  }, [characterLibrary]);
   const selectedCharacterIndex = Math.max(
     0,
     characterAssets.findIndex((item) => item.id === selectedCharacterId)
@@ -644,6 +513,22 @@ function GlitchCoreApp() {
     characterViews[selectedCharacter.id],
     selectedCharacter
   );
+  const applyCharacterPayload = useCallback((
+    payload: CharacterAssetsPayload,
+    preferredAssetId?: string | null
+  ) => {
+    const nextAssets = payload.assets.length > 0 ? payload.assets : RIN_CHARACTER_ASSETS;
+    setCharacterAssets(nextAssets);
+    setCharacterViews(payload.views ?? {});
+    setSelectedCharacterId((current) => {
+      if (preferredAssetId && nextAssets.some((item) => item.id === preferredAssetId)) {
+        return preferredAssetId;
+      }
+      return nextAssets.some((item) => item.id === current)
+        ? current
+        : nextAssets[0]?.id ?? RIN_CHARACTER_ASSETS[0].id;
+    });
+  }, []);
   const selectCharacter = useCallback((characterId: string) => {
     if (characterAssets.some((item) => item.id === characterId)) {
       setSelectedCharacterId(characterId);
@@ -678,20 +563,28 @@ function GlitchCoreApp() {
   }, [uiSettings]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(CHARACTER_LIBRARY_KEY, JSON.stringify(serializeCharacterLibrary(characterLibrary)));
-    } catch {
-      setGalleryNotice("LOCAL STORAGE FULL");
-    }
-  }, [characterLibrary]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(CHARACTER_VIEW_KEY, JSON.stringify(characterViews));
-    } catch {
-      setGalleryNotice("VIEW SAVE FAILED");
-    }
-  }, [characterViews]);
+    let cancelled = false;
+    setGalleryBusy(true);
+    void fetchCharacterAssets()
+      .then((payload) => {
+        if (!cancelled) {
+          applyCharacterPayload(payload);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setGalleryNotice("ASSET API OFFLINE");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setGalleryBusy(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [applyCharacterPayload]);
 
   useEffect(() => {
     localStorage.setItem(CHARACTER_KEY, selectedCharacterId);
@@ -710,39 +603,6 @@ function GlitchCoreApp() {
     const timeout = window.setTimeout(() => setGalleryNotice(""), 3200);
     return () => window.clearTimeout(timeout);
   }, [galleryNotice]);
-
-  useEffect(() => {
-    const pending = characterLibrary.customCharacters.filter(
-      (item) => item.path === TRANSPARENT_IMAGE_DATA_URL
-    );
-    if (pending.length === 0) {
-      return;
-    }
-    let cancelled = false;
-    void Promise.all(
-      pending.map(async (item) => [item.id, await loadCharacterImage(item.id)] as const)
-    )
-      .then((entries) => {
-        if (cancelled) {
-          return;
-        }
-        const imageById = new Map(entries.filter((entry): entry is readonly [string, string] => Boolean(entry[1])));
-        if (imageById.size === 0) {
-          return;
-        }
-        setCharacterLibrary((items) => ({
-          ...items,
-          customCharacters: items.customCharacters.map((item) => {
-            const image = imageById.get(item.id);
-            return image ? { ...item, path: image, previewPath: image } : item;
-          })
-        }));
-      })
-      .catch(() => setGalleryNotice("IMAGE RESTORE FAILED"));
-    return () => {
-      cancelled = true;
-    };
-  }, [characterLibrary.customCharacters]);
 
   useEffect(() => {
     if (!activeWindowId && windows[0]) {
@@ -772,14 +632,33 @@ function GlitchCoreApp() {
     });
   }, [selectedCharacter]);
 
-  const resetSelectedCharacterView = useCallback(() => {
+  const commitSelectedCharacterView = useCallback(async (view: CharacterViewSettings) => {
+    try {
+      const payload = await saveCharacterAssetView(selectedCharacter.id, view);
+      applyCharacterPayload(payload, selectedCharacter.id);
+      setGalleryNotice("VIEW SAVED");
+    } catch {
+      setGalleryNotice("VIEW SAVE FAILED");
+    }
+  }, [applyCharacterPayload, selectedCharacter.id]);
+
+  const resetSelectedCharacterView = useCallback(async () => {
     setCharacterViews((items) => {
       const next = { ...items };
       delete next[selectedCharacter.id];
       return next;
     });
-    setGalleryNotice("VIEW RESET");
-  }, [selectedCharacter.id]);
+    setGalleryBusy(true);
+    try {
+      const payload = await resetCharacterAssetView(selectedCharacter.id);
+      applyCharacterPayload(payload, selectedCharacter.id);
+      setGalleryNotice("VIEW RESET");
+    } catch {
+      setGalleryNotice("VIEW RESET FAILED");
+    } finally {
+      setGalleryBusy(false);
+    }
+  }, [applyCharacterPayload, selectedCharacter.id]);
 
   const addCharacterFiles = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) {
@@ -790,51 +669,29 @@ function GlitchCoreApp() {
       setGalleryNotice("IMAGE FILES ONLY");
       return;
     }
-    const imported: RinCharacterAsset[] = [];
-    for (const file of imageFiles) {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result ?? ""));
-        reader.onerror = () => reject(reader.error ?? new Error("Failed to read image"));
-        reader.readAsDataURL(file);
-      });
-      const label = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim().slice(0, 24) || "LOCAL RIN";
-      const id = `local-${Date.now()}-${imported.length}`;
-      try {
-        await saveCharacterImage(id, dataUrl);
-      } catch {
-        setGalleryNotice(`SAVE FAILED: ${file.name}`);
-        continue;
-      }
-      imported.push({
-        id,
-        label: label.toUpperCase(),
-        source: "local",
-        pose: "custom",
-        path: dataUrl,
-        previewPath: dataUrl,
-        custom: true,
-        stageScale: 1,
-        stageX: 0,
-        stageY: 0
-      });
-    }
-    if (imported.length === 0) {
-      return;
-    }
+    const importedIds: string[] = [];
+    setGalleryBusy(true);
     try {
-      setCharacterLibrary((items) => ({
-        ...items,
-        customCharacters: [...items.customCharacters, ...imported]
-      }));
-      setSelectedCharacterId(imported[0].id);
-      setGalleryNotice(`ADDED ${imported.length} IMAGE${imported.length > 1 ? "S" : ""}`);
+      let latestPayload: CharacterAssetsPayload | null = null;
+      for (const file of imageFiles) {
+        const payload = await uploadCharacterAsset(file);
+        latestPayload = payload;
+        if (payload.selectedAssetId) {
+          importedIds.push(payload.selectedAssetId);
+        }
+      }
+      if (latestPayload) {
+        applyCharacterPayload(latestPayload, importedIds[0] ?? latestPayload.selectedAssetId);
+        setGalleryNotice(`ADDED ${importedIds.length} IMAGE${importedIds.length > 1 ? "S" : ""}`);
+      }
     } catch {
-      setGalleryNotice("LOCAL STORAGE FULL");
+      setGalleryNotice("IMAGE SAVE FAILED");
+    } finally {
+      setGalleryBusy(false);
     }
-  }, []);
+  }, [applyCharacterPayload]);
 
-  const deleteCharacter = useCallback((characterId: string) => {
+  const deleteCharacter = useCallback(async (characterId: string) => {
     if (characterAssets.length <= 1) {
       setGalleryNotice("KEEP ONE IMAGE");
       return;
@@ -843,34 +700,30 @@ function GlitchCoreApp() {
     if (!target) {
       return;
     }
-    if (target.custom) {
-      void deleteCharacterImage(characterId);
+    setGalleryBusy(true);
+    try {
+      const payload = await deleteCharacterAsset(characterId);
+      applyCharacterPayload(payload);
+      setGalleryNotice(target.custom ? "IMAGE DELETED" : "DEFAULT HIDDEN");
+    } catch {
+      setGalleryNotice("DELETE FAILED");
+    } finally {
+      setGalleryBusy(false);
     }
-    setCharacterLibrary((items) => ({
-      customCharacters: items.customCharacters.filter((item) => item.id !== characterId),
-      hiddenDefaultIds: target.custom
-        ? items.hiddenDefaultIds
-        : Array.from(new Set([...items.hiddenDefaultIds, characterId]))
-    }));
-    setCharacterViews((items) => {
-      const next = { ...items };
-      delete next[characterId];
-      return next;
-    });
-    if (selectedCharacterId === characterId) {
-      const next = characterAssets.find((item) => item.id !== characterId);
-      setSelectedCharacterId(next?.id ?? RIN_CHARACTER_ASSETS[0].id);
-    }
-    setGalleryNotice(target.custom ? "IMAGE DELETED" : "DEFAULT HIDDEN");
-  }, [characterAssets, selectedCharacterId]);
+  }, [applyCharacterPayload, characterAssets]);
 
-  const restoreDefaultCharacters = useCallback(() => {
-    setCharacterLibrary((items) => ({
-      ...items,
-      hiddenDefaultIds: []
-    }));
-    setGalleryNotice("DEFAULTS RESTORED");
-  }, []);
+  const restoreDefaultCharacters = useCallback(async () => {
+    setGalleryBusy(true);
+    try {
+      const payload = await restoreCharacterAssetDefaults();
+      applyCharacterPayload(payload, selectedCharacterId);
+      setGalleryNotice("DEFAULTS RESTORED");
+    } catch {
+      setGalleryNotice("RESTORE FAILED");
+    } finally {
+      setGalleryBusy(false);
+    }
+  }, [applyCharacterPayload, selectedCharacterId]);
 
   const updateWindow = useCallback((id: string, patch: Partial<ConsoleWindow>) => {
     setWindows((items) =>
@@ -1293,6 +1146,7 @@ function GlitchCoreApp() {
           selectedCharacterView={selectedCharacterView}
           characterEditMode={characterEditMode}
           updateCharacterView={updateSelectedCharacterView}
+          commitCharacterView={commitSelectedCharacterView}
         />
         {focusedWindow ? (
           <FocusNav
@@ -1345,6 +1199,7 @@ function GlitchCoreApp() {
               deleteCharacter={deleteCharacter}
               restoreDefaultCharacters={restoreDefaultCharacters}
               galleryNotice={galleryNotice}
+              galleryBusy={galleryBusy}
               selectCharacter={selectCharacter}
               nextCharacter={cycleCharacter}
               openWindow={openWindow}
@@ -1584,13 +1439,15 @@ function CoreBackground({
   selectedCharacter,
   selectedCharacterView,
   characterEditMode,
-  updateCharacterView
+  updateCharacterView,
+  commitCharacterView
 }: {
   visualState: CoreVisualState;
   selectedCharacter: RinCharacterAsset;
   selectedCharacterView: CharacterViewSettings;
   characterEditMode: boolean;
   updateCharacterView: (patch: Partial<CharacterViewSettings>) => void;
+  commitCharacterView: (view: CharacterViewSettings) => void;
 }) {
   const [glitchBurst, setGlitchBurst] = useState(false);
   const dragRef = useRef<{
@@ -1646,18 +1503,37 @@ function CoreBackground({
   const handleStagePointerUp = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     const drag = dragRef.current;
     if (drag?.pointerId === event.pointerId) {
+      const nextView = normalizeCharacterView({
+        ...selectedCharacterView,
+        x: drag.viewX + event.clientX - drag.startX,
+        y: drag.viewY + event.clientY - drag.startY
+      }, selectedCharacter);
       suppressStageClick.current = drag.moved;
       dragRef.current = null;
+      if (drag.moved) {
+        updateCharacterView(nextView);
+        commitCharacterView(nextView);
+      }
     }
-  }, []);
+  }, [commitCharacterView, selectedCharacter, selectedCharacterView, updateCharacterView]);
   const handleStageWheel = useCallback((event: ReactWheelEvent<HTMLElement>) => {
     if (!characterEditMode) {
       return;
     }
-    updateCharacterView({
+    event.preventDefault();
+    const nextView = normalizeCharacterView({
+      ...selectedCharacterView,
       scale: selectedCharacterView.scale + (event.deltaY < 0 ? 0.05 : -0.05)
-    });
-  }, [characterEditMode, selectedCharacterView.scale, updateCharacterView]);
+    }, selectedCharacter);
+    updateCharacterView(nextView);
+    commitCharacterView(nextView);
+  }, [
+    characterEditMode,
+    commitCharacterView,
+    selectedCharacter,
+    selectedCharacterView,
+    updateCharacterView
+  ]);
   const characterStyle = {
     "--rin-character-stage-scale": String(selectedCharacterView.scale),
     "--rin-character-stage-x": `${selectedCharacterView.x}px`,
@@ -1877,11 +1753,12 @@ function WindowContent(props: {
   characterAssets: RinCharacterAsset[];
   characterEditMode: boolean;
   setCharacterEditMode: Dispatch<SetStateAction<boolean>>;
-  resetSelectedCharacterView: () => void;
+  resetSelectedCharacterView: () => Promise<void>;
   addCharacterFiles: (files: FileList | null) => Promise<void>;
-  deleteCharacter: (characterId: string) => void;
-  restoreDefaultCharacters: () => void;
+  deleteCharacter: (characterId: string) => Promise<void>;
+  restoreDefaultCharacters: () => Promise<void>;
   galleryNotice: string;
+  galleryBusy: boolean;
   selectCharacter: (characterId: string) => void;
   nextCharacter: () => void;
   openWindow: (type: WindowType, options?: { contextName?: string; payload?: WindowPayload; focusExistingId?: string }) => void;
@@ -1910,6 +1787,7 @@ function WindowContent(props: {
           deleteCharacter={props.deleteCharacter}
           restoreDefaultCharacters={props.restoreDefaultCharacters}
           galleryNotice={props.galleryNotice}
+          galleryBusy={props.galleryBusy}
           selectCharacter={props.selectCharacter}
           nextCharacter={props.nextCharacter}
         />
@@ -2050,11 +1928,12 @@ function GalleryWindow(props: {
   characterAssets: RinCharacterAsset[];
   characterEditMode: boolean;
   setCharacterEditMode: Dispatch<SetStateAction<boolean>>;
-  resetSelectedCharacterView: () => void;
+  resetSelectedCharacterView: () => Promise<void>;
   addCharacterFiles: (files: FileList | null) => Promise<void>;
-  deleteCharacter: (characterId: string) => void;
-  restoreDefaultCharacters: () => void;
+  deleteCharacter: (characterId: string) => Promise<void>;
+  restoreDefaultCharacters: () => Promise<void>;
   galleryNotice: string;
+  galleryBusy: boolean;
   selectCharacter: (characterId: string) => void;
   nextCharacter: () => void;
 }) {
@@ -2073,7 +1952,13 @@ function GalleryWindow(props: {
           <strong>{props.selectedCharacter.label}</strong>
           <small>{props.selectedCharacter.source} / {props.selectedCharacter.pose}</small>
         </div>
-        <button type="button" onClick={props.nextCharacter} disabled={!props.characterEditMode}>NEXT</button>
+        <button
+          type="button"
+          onClick={props.nextCharacter}
+          disabled={!props.characterEditMode || props.galleryBusy}
+        >
+          NEXT
+        </button>
       </div>
       <div className="gallery-actions" aria-label="Character archive actions">
         <input
@@ -2083,23 +1968,32 @@ function GalleryWindow(props: {
           multiple
           className="gallery-file-input"
           onChange={handleFileChange}
+          disabled={props.galleryBusy}
         />
-        <button type="button" onClick={() => fileInputRef.current?.click()}>ADD</button>
+        <button type="button" onClick={() => fileInputRef.current?.click()} disabled={props.galleryBusy}>
+          ADD
+        </button>
         <button
           type="button"
           className={props.characterEditMode ? "active" : ""}
           onClick={() => props.setCharacterEditMode((value) => !value)}
+          disabled={props.galleryBusy}
         >
           EDIT VIEW
         </button>
-        <button type="button" onClick={props.resetSelectedCharacterView}>RESET VIEW</button>
-        <button type="button" onClick={props.restoreDefaultCharacters}>RESTORE</button>
+        <button type="button" onClick={() => void props.resetSelectedCharacterView()} disabled={props.galleryBusy}>
+          RESET VIEW
+        </button>
+        <button type="button" onClick={() => void props.restoreDefaultCharacters()} disabled={props.galleryBusy}>
+          RESTORE
+        </button>
       </div>
       {props.characterEditMode ? (
         <div className="gallery-view-editor" aria-label="Character view editor">
-          <span>EDIT UNLOCKED · DRAG STAGE · WHEEL SCALE · CLICK CARD TO SWITCH</span>
+          <span>EDIT UNLOCKED · LOCAL BACKEND SYNC · DRAG STAGE · WHEEL SCALE · CLICK CARD TO SWITCH</span>
         </div>
       ) : null}
+      {props.galleryBusy ? <div className="gallery-notice">SYNCING LOCAL ASSETS</div> : null}
       {props.galleryNotice ? <div className="gallery-notice">{props.galleryNotice}</div> : null}
       <div className="gallery-grid" aria-label="RIN character image archive">
         {props.characterAssets.map((character) => (
@@ -2111,7 +2005,7 @@ function GalleryWindow(props: {
             <button
               type="button"
               className="gallery-select"
-              disabled={!props.characterEditMode}
+              disabled={!props.characterEditMode || props.galleryBusy}
               onClick={() => props.selectCharacter(character.id)}
             >
               <span className="gallery-thumb-frame">
@@ -2123,7 +2017,8 @@ function GalleryWindow(props: {
             <button
               type="button"
               className="gallery-delete"
-              onClick={() => props.deleteCharacter(character.id)}
+              disabled={!props.characterEditMode || props.galleryBusy}
+              onClick={() => void props.deleteCharacter(character.id)}
               aria-label={`Delete ${character.label}`}
             >
               DEL

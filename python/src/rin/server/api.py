@@ -76,6 +76,16 @@ from rin.model.usage import (
     estimate_cost_range,
 )
 from rin.profiles import build_profile_report
+from rin.server.character_assets import (
+    CharacterViewPayload,
+    delete_character_asset,
+    get_character_asset_file,
+    list_character_assets,
+    reset_character_asset_view,
+    restore_character_defaults,
+    save_character_asset_view,
+    store_uploaded_character_asset,
+)
 from rin.storage import RinDataLayout
 from rin.version import __version__
 
@@ -89,6 +99,7 @@ FRONTEND_INDEX = FRONTEND_DIST_DIR / "index.html"
 FRONTEND_ASSETS_DIR = FRONTEND_DIST_DIR / "assets"
 FRONTEND_PUBLIC_PICTURE_DIR = REPO_ROOT / "frontend" / "public" / "picture"
 FRONTEND_DIST_PICTURE_DIR = FRONTEND_DIST_DIR / "picture"
+BODY_DEFAULT_AVATAR_ASSET_PATH = "/body-assets/rin/states/默认.png"
 SECRET_LIKE_PATTERNS = (
     re.compile(r"sk-[A-Za-z0-9_-]{12,}", re.IGNORECASE),
     re.compile(r"github_pat_[A-Za-z0-9_]{12,}", re.IGNORECASE),
@@ -364,6 +375,60 @@ def create_app(
     @app.get("/api/console/data-map")
     def api_console_data_map() -> dict[str, object]:
         return build_console_data_map_payload()
+
+    @app.get("/api/body/character-assets")
+    def api_body_character_assets(
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        return list_character_assets(current_layout)
+
+    @app.post("/api/body/character-assets")
+    async def api_body_character_asset_upload(
+        request: Request,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        return await store_uploaded_character_asset(current_layout, request)
+
+    @app.delete("/api/body/character-assets/{asset_id}")
+    def api_body_character_asset_delete(
+        asset_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        return delete_character_asset(current_layout, asset_id)
+
+    @app.post("/api/body/character-assets/defaults/restore")
+    def api_body_character_defaults_restore(
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        return restore_character_defaults(current_layout)
+
+    @app.put("/api/body/character-assets/{asset_id}/view")
+    def api_body_character_asset_view_save(
+        asset_id: str,
+        body: CharacterViewPayload,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        return save_character_asset_view(current_layout, asset_id, body)
+
+    @app.delete("/api/body/character-assets/{asset_id}/view")
+    def api_body_character_asset_view_reset(
+        asset_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        return reset_character_asset_view(current_layout, asset_id)
+
+    @app.get("/api/body/character-assets/files/{asset_id}")
+    def api_body_character_asset_file(
+        asset_id: str,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> FileResponse:
+        path, media_type = get_character_asset_file(current_layout, asset_id)
+        return FileResponse(path, media_type=media_type)
 
     @app.get("/api/cost/summary")
     def api_cost_summary(
@@ -1370,7 +1435,7 @@ def build_console_view_model(
         "profile_file_count": profile_file_count,
         "memory_context": memory_context,
         "body_report": body_report,
-        "avatar_asset_path": "/body-assets/rin/states/idle.png",
+        "avatar_asset_path": BODY_DEFAULT_AVATAR_ASSET_PATH,
         "adapter_id": adapter_id,
         "model_name": model_name,
         "local_model_status": local_model_status,
@@ -1419,7 +1484,7 @@ def build_console_v2_view_model(
         "dashboard": snapshot["dashboard"],
         "diagnostics": snapshot["diagnostics"],
         "runtime_trace": snapshot["runtimeTrace"],
-        "avatar_asset_path": "/body-assets/rin/states/idle.png",
+        "avatar_asset_path": BODY_DEFAULT_AVATAR_ASSET_PATH,
         "notice": notice,
         "error": error,
     }
@@ -1539,7 +1604,8 @@ def build_glitch_core_snapshot(
             "mode": "local-first",
             "avatarAssetPath": "/picture/rin-core-background.png",
             "replaceableImageNote": (
-                "Replace the core background image at frontend/public/picture/rin-core-background.png."
+                "Replace the core background image at "
+                "frontend/public/picture/rin-core-background.png."
             ),
             "activeBodyRenderer": "simple-state-image",
             "bodyRendererLabel": "Body",
