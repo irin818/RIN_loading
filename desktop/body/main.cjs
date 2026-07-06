@@ -6,11 +6,11 @@ const SMOKE = process.env.RIN_BODY_DESKTOP_SMOKE === "1";
 
 function createWindow() {
   // Keep in sync with body.css :root vars:
-  //   width  = --win-width  (default 160px)
-  //   height = --bubble-area + --body-height  (default 86 + 440 = 526)
+  //   width  = --win-width  (default 240px)
+  //   height = --bubble-area + --body-height  (default 86 + 380 = 466)
   const win = new BrowserWindow({
     width: 240,
-    height: 506,
+    height: 466,
     minWidth: 120,
     minHeight: 200,
     transparent: true,

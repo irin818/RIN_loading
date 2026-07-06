@@ -3,9 +3,15 @@ import type { GlitchSnapshot } from "../types";
 import { BodyPanel } from "./BodyPanel";
 import { FloatingChat } from "./FloatingChat";
 import { normalizeBodyState } from "./bodyState";
+import { applyBodyViewToDocument, loadBodyView } from "./bodyView";
 
 export function BodyStandalonePage({ mode }: { mode: "body" | "floating" }) {
   const floating = mode === "floating";
+
+  // Apply saved body view on any body page mount
+  useEffect(() => {
+    applyBodyViewToDocument(loadBodyView());
+  }, []);
 
   // Desktop floating mode — separate component with chat
   if (floating) return <FloatingChat />;

@@ -61,7 +61,7 @@ const DEFAULT_LAYOUT: Array<Pick<ConsoleWindow, "type" | "contextName" | "x" | "
 
 const SPAWN_LAYOUT: Record<WindowType, { x: number; y: number; width: number; height: number; offsetX: number; offsetY: number }> = {
   core: { x: 440, y: 58, width: 410, height: 250, offsetX: 18, offsetY: 18 },
-  body: { x: 494, y: 58, width: 380, height: 480, offsetX: 24, offsetY: 20 },
+  body: { x: 494, y: 58, width: 380, height: 560, offsetX: 24, offsetY: 20 },
   chat: { x: 44, y: 84, width: 430, height: 516, offsetX: 34, offsetY: 28 },
   memory: { x: 828, y: 84, width: 420, height: 488, offsetX: -34, offsetY: 28 },
   gallery: { x: 106, y: 136, width: 430, height: 390, offsetX: 30, offsetY: 24 },
@@ -345,8 +345,8 @@ function GlitchCoreApp() {
   }, [selectedCharacter]);
 
   const commitSelectedCharacterView = useCallback(async (view: CharacterViewSettingsPayload) => {
-    try { const payload = await saveCharacterAssetView(selectedCharacter.id, view); applyCharacterPayload(payload, selectedCharacter.id); setGalleryNotice("VIEW SAVED"); }
-    catch { setGalleryNotice("VIEW SAVE FAILED"); }
+    try { const payload = await saveCharacterAssetView(selectedCharacter.id, view); applyCharacterPayload(payload, selectedCharacter.id); }
+    catch { /* silent — background sync; localStorage fallback already cached */ }
   }, [applyCharacterPayload, selectedCharacter.id]);
 
   const resetSelectedCharacterView = useCallback(async () => {
@@ -529,7 +529,6 @@ function GlitchCoreApp() {
   return (
     <div className={`rin-os core-state-${coreVisualState} display-${uiSettings.displayMode} size-${uiSettings.displaySize} density-${uiSettings.density}`} onPointerMove={handleBackgroundPointerMove}>
       <div className="scanline-layer" />
-      <div className="noise-layer" />
       <TopMenu snapshot={snapshot} coreVisualState={coreVisualState} errorCount={errorCount} windows={windows} minimizedWindows={minimizedWindows} hiddenWindows={hiddenWindows} windowsMenuOpen={windowsMenuOpen} setWindowsMenuOpen={setWindowsMenuOpen} openWindow={openWindow} focusWindow={focusWindow} restoreAll={restoreAll} minimizeAll={minimizeAll} resetLayout={resetLayout} uiSettings={uiSettings} setUiSettings={setUiSettings} />
       <main className="workspace">
         <CoreBackground visualState={coreVisualState} selectedCharacter={selectedCharacter} selectedCharacterView={selectedCharacterView} characterEditMode={characterEditMode} updateCharacterView={updateSelectedCharacterView} commitCharacterView={commitSelectedCharacterView} />
