@@ -12,6 +12,7 @@ import {
   updateMindMemoryCandidateSafeFields,
 } from "../api";
 import type { CharacterAssetsPayload, CharacterViewSettingsPayload } from "../api";
+import { navigateWebShell } from "../app/AppRouter";
 import { WindowFrame } from "../components/WindowFrame";
 import { TopMenu } from "../components/TopMenu";
 import { CoreBackground } from "../components/CoreBackground";
@@ -491,7 +492,7 @@ export default function GlitchCoreApp() {
   return (
     <div className={`rin-os core-state-${coreVisualState} display-${uiSettings.displayMode} size-${uiSettings.displaySize} density-${uiSettings.density}`} onPointerMove={handleBackgroundPointerMove}>
       <div className="scanline-layer" />
-      <TopMenu snapshot={snapshot} coreVisualState={coreVisualState} errorCount={errorCount} windows={windows} minimizedWindows={minimizedWindows} hiddenWindows={hiddenWindows} windowsMenuOpen={windowsMenuOpen} setWindowsMenuOpen={setWindowsMenuOpen} openWindow={openWindow} focusWindow={focusWindow} restoreAll={restoreAll} minimizeAll={minimizeAll} resetLayout={resetLayout} uiSettings={uiSettings} setUiSettings={setUiSettings} />
+      <TopMenu snapshot={snapshot} coreVisualState={coreVisualState} errorCount={errorCount} windows={windows} minimizedWindows={minimizedWindows} hiddenWindows={hiddenWindows} windowsMenuOpen={windowsMenuOpen} setWindowsMenuOpen={setWindowsMenuOpen} openWindow={openWindow} focusWindow={focusWindow} restoreAll={restoreAll} minimizeAll={minimizeAll} resetLayout={resetLayout} uiSettings={uiSettings} setUiSettings={setUiSettings} onNavigate={navigateWebShell} />
       <main className="workspace">
         <CoreBackground visualState={coreVisualState} selectedCharacter={selectedCharacter} selectedCharacterView={selectedCharacterView} characterEditMode={characterEditMode} updateCharacterView={updateSelectedCharacterView} commitCharacterView={commitSelectedCharacterView} />
         {focusedWindow ? <FocusNav windows={visibleWindows} activeWindowId={focusedWindow.id} onFocusPanel={focusPanel} onRestore={restoreFocusMode} /> : null}

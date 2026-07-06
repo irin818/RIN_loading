@@ -449,6 +449,30 @@ button {
   font-weight: 700;
 }
 
+.nav-home-btn {
+  border-color: rgba(143, 227, 184, 0.32) !important;
+  color: rgba(143, 227, 184, 0.82) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+}
+.nav-home-btn:hover {
+  border-color: rgba(143, 227, 184, 0.55) !important;
+  color: rgba(143, 227, 184, 0.95) !important;
+  background: rgba(143, 227, 184, 0.1) !important;
+}
+
+.nav-archive-btn {
+  border-color: rgba(0, 255, 100, 0.28) !important;
+  color: rgba(0, 255, 100, 0.78) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+}
+.nav-archive-btn:hover {
+  border-color: rgba(0, 255, 100, 0.5) !important;
+  color: rgba(0, 255, 100, 0.92) !important;
+  background: rgba(0, 255, 100, 0.08) !important;
+}
+
 /* Hover for window/content buttons (non-menu) */
 .windows-menu button:hover,
 .segmented-control button:hover,

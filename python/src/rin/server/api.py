@@ -265,9 +265,9 @@ def create_app(
     def redirect_to_glitch_core() -> Response:
         return RedirectResponse(url="/glitch-core", status_code=307)
 
-    @app.get("/")
+    @app.get("/", response_class=HTMLResponse)
     def ui_root() -> Response:
-        return redirect_to_glitch_core()
+        return render_glitch_core_entry()
 
     @app.get("/ui")
     def ui() -> Response:

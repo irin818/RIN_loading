@@ -36,6 +36,7 @@ export const TopMenu = memo(function TopMenu({
   resetLayout,
   uiSettings,
   setUiSettings,
+  onNavigate,
 }: {
   snapshot: GlitchSnapshot | null;
   coreVisualState: CoreVisualState;
@@ -52,6 +53,7 @@ export const TopMenu = memo(function TopMenu({
   resetLayout: () => void;
   uiSettings: { displayMode: DisplayMode; displaySize: DisplaySize; density: Density };
   setUiSettings: Dispatch<SetStateAction<{ displayMode: DisplayMode; displaySize: DisplaySize; density: Density }>>;
+  onNavigate: (path: string) => void;
 }) {
   const coreStatus = snapshot?.core.status ?? "booting";
   const providerName = snapshot?.provider.activeProvider ?? "provider";
@@ -71,6 +73,12 @@ export const TopMenu = memo(function TopMenu({
         <button type="button" className="brand-chip command-chip" onClick={() => openWindow("chat")}>
           <span>RIN CORE</span>
           <small className={`core-status-dot ${coreVisualState}`}>{coreStatus}</small>
+        </button>
+        <button type="button" className="menu-button nav-home-btn" onClick={() => onNavigate("/")} title="Return to welcome page">
+          HOME
+        </button>
+        <button type="button" className="menu-button nav-archive-btn" onClick={() => onNavigate("/archive")} title="RIN Archive — creative memory gallery">
+          ARCHIVE
         </button>
       </div>
       <nav className="menu-zone menu-center" aria-label="RIN data domains">

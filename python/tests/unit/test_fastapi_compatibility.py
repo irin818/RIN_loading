@@ -165,8 +165,8 @@ def test_python_ui_renders_local_status_and_profile_summary() -> None:
         legacy = client.get("/legacy-ui")
         page_text = legacy.text
 
-        assert response.status_code == 307
-        assert response.headers["location"] == "/glitch-core"
+        # Root serves the React SPA directly (welcome page), no longer redirects
+        assert response.status_code in (200, 503)
         assert legacy.status_code == 200
         assert "RIN Control Console" in page_text
         assert "Observe, test, and understand RIN." in page_text
