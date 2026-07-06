@@ -1,5 +1,4 @@
 import { useCallback } from "react";
-import type { CSSProperties } from "react";
 import { useSyncExternalStore } from "react";
 import { navigateWebShell } from "../app/AppRouter";
 import { matchArchiveRoute } from "./ArchiveRouter";
@@ -41,12 +40,8 @@ export function ArchiveShell() {
   const route = matchArchiveRoute(pathname);
   const navigate = useCallback((path: string) => navigateWebShell(path), []);
 
-  const pageStyle = {
-    "--archive-cols": "var(--archive-cols)",
-  } as CSSProperties;
-
   return (
-    <main className="archive-shell" style={pageStyle}>
+    <main className="archive-shell">
       <div className="archive-noise-overlay" aria-hidden="true" />
       <ArchiveErrorBoundary fallbackLabel="Archive Section">
         {route.kind === "archive-home" && <ArchiveHomePage onNavigate={navigate} />}

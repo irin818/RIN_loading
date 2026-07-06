@@ -576,6 +576,7 @@ def create_app(
         request: Request,
         current_layout: RinDataLayout = layout_dependency,
     ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
         return await store_uploaded_archive_asset(current_layout, request)
 
     @app.patch("/api/archive/assets/{asset_id}")
@@ -584,6 +585,7 @@ def create_app(
         body: ArchiveAssetPatchBody,
         current_layout: RinDataLayout = layout_dependency,
     ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
         return patch_archive_asset(current_layout, asset_id, body)
 
     @app.delete("/api/archive/assets/{asset_id}")
@@ -592,6 +594,7 @@ def create_app(
         hard: bool = False,
         current_layout: RinDataLayout = layout_dependency,
     ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
         return delete_archive_asset(current_layout, asset_id, hard=hard)
 
     @app.get("/api/archive/assets/files/{asset_id}")
@@ -631,6 +634,7 @@ def create_app(
         body: ArchiveStoryContentBody,
         current_layout: RinDataLayout = layout_dependency,
     ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
         return save_archive_story(current_layout, story_id, body)
 
     @app.get("/api/cost/summary")

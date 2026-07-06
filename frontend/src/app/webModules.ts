@@ -104,11 +104,18 @@ export function matchWebRoute(pathname: string): WebRouteMatch {
     ) {
       return { kind: "archive", module: ROUTE_BY_PATH.get("/archive")! };
     }
-    // Compatibility: /comics -> archive comics
-    if (path === "/comics" || path.startsWith("/comics/")) {
+    // Compatibility: /comics/* sub-routes -> archive comics
+    if (path.startsWith("/comics/")) {
       return { kind: "archive", module: ROUTE_BY_PATH.get("/archive")! };
     }
     return { kind: "not-found", path };
+  }
+  // Compatibility: reserved content modules -> archive
+  if (
+    module.status === "reserved" &&
+    (module.id === "comics" || module.id === "library")
+  ) {
+    return { kind: "archive", module: ROUTE_BY_PATH.get("/archive")! };
   }
   if (module.id === "welcome") return { kind: "welcome", module };
   if (module.id === "glitch-core") return { kind: "glitch-core", module };

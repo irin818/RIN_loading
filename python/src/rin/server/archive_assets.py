@@ -158,6 +158,10 @@ def list_archive_assets(
     manifest = _load_manifest(layout)
     assets = _visible_assets(layout, manifest)
 
+    # Exclude archived assets by default unless status filter explicitly includes them
+    if not status:
+        assets = [a for a in assets if a.status != "archived"]
+
     if asset_type:
         assets = [a for a in assets if a.type == asset_type]
     if status:
@@ -248,8 +252,9 @@ async def store_uploaded_archive_asset(
             raise HTTPException(status_code=400, detail="Upload is empty.")
         temp_path.replace(final_path)
     except HTTPException:
+        temp_path.unlink(missing_ok=True)
         raise
-    except OSError as error:
+    except Exception as error:
         temp_path.unlink(missing_ok=True)
         raise HTTPException(
             status_code=500,
