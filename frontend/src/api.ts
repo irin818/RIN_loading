@@ -30,6 +30,7 @@ export type CharacterAssetsPayload = {
   rawTextIncluded: false;
   secretValuesIncluded: false;
   selectedAssetId?: string | null;
+  welcomeAssetId?: string | null;
   assets: RinCharacterAsset[];
   hiddenDefaultIds: string[];
   views: Record<string, CharacterViewSettingsPayload>;
@@ -183,6 +184,41 @@ export async function uploadCharacterAsset(file: File): Promise<CharacterAssetsP
       "X-RIN-File-Name": encodeURIComponent(file.name)
     },
     body: file
+  });
+  return readJson<CharacterAssetsPayload>(response);
+}
+
+export async function uploadWelcomeCharacterAsset(file: File): Promise<CharacterAssetsPayload> {
+  const response = await fetch("/api/body/character-assets/welcome", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": file.type || "application/octet-stream",
+      "X-RIN-File-Name": encodeURIComponent(file.name)
+    },
+    body: file
+  });
+  return readJson<CharacterAssetsPayload>(response);
+}
+
+export async function saveWelcomeCharacterAsset(
+  assetId: string
+): Promise<CharacterAssetsPayload> {
+  const response = await fetch("/api/body/character-assets/welcome", {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ assetId })
+  });
+  return readJson<CharacterAssetsPayload>(response);
+}
+
+export async function resetWelcomeCharacterAsset(): Promise<CharacterAssetsPayload> {
+  const response = await fetch("/api/body/character-assets/welcome", {
+    method: "DELETE",
+    headers: { Accept: "application/json" }
   });
   return readJson<CharacterAssetsPayload>(response);
 }

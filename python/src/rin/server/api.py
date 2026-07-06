@@ -88,12 +88,15 @@ from rin.model.usage import (
 from rin.profiles import build_profile_report
 from rin.server.character_assets import (
     CharacterViewPayload,
+    WelcomeCharacterSelectionPayload,
     delete_character_asset,
     get_character_asset_file,
     list_character_assets,
     reset_character_asset_view,
+    reset_welcome_character_asset,
     restore_character_defaults,
     save_character_asset_view,
+    select_welcome_character_asset,
     store_uploaded_character_asset,
 )
 from rin.storage import RinDataLayout
@@ -408,6 +411,33 @@ def create_app(
     ) -> dict[str, object]:
         reject_unsafe_write_layout(current_layout)
         return await store_uploaded_character_asset(current_layout, request)
+
+    @app.post("/api/body/character-assets/welcome")
+    async def api_body_welcome_character_asset_upload(
+        request: Request,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        return await store_uploaded_character_asset(
+            current_layout,
+            request,
+            select_for_welcome=True,
+        )
+
+    @app.put("/api/body/character-assets/welcome")
+    def api_body_welcome_character_asset_select(
+        body: WelcomeCharacterSelectionPayload,
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        return select_welcome_character_asset(current_layout, body.assetId)
+
+    @app.delete("/api/body/character-assets/welcome")
+    def api_body_welcome_character_asset_reset(
+        current_layout: RinDataLayout = layout_dependency,
+    ) -> dict[str, object]:
+        reject_unsafe_write_layout(current_layout)
+        return reset_welcome_character_asset(current_layout)
 
     @app.delete("/api/body/character-assets/{asset_id}")
     def api_body_character_asset_delete(

@@ -74,7 +74,14 @@
   z-index: 0;
   opacity: 0.72;
   filter: blur(30px) brightness(0.62) saturate(0.78);
-  transform: scale(1.12);
+  transform:
+    translate3d(
+      var(--backdrop-x, 0px),
+      var(--backdrop-y, 0px),
+      0
+    )
+    scale(1.14);
+  transition: transform 220ms ease-out;
 }
 
 .welcome-figure {
@@ -93,6 +100,15 @@
     linear-gradient(90deg, transparent 0%, #000 10%, #000 82%, transparent 100%),
     linear-gradient(180deg, transparent 0%, #000 9%, #000 78%, transparent 100%);
   -webkit-mask-composite: source-in;
+  transform:
+    translate3d(
+      var(--figure-x, 0px),
+      var(--figure-y, 0px),
+      0
+    )
+    scale(1.035);
+  transition: transform 180ms ease-out;
+  animation: welcome-figure-breathe 6.8s ease-in-out infinite;
 }
 
 .welcome-light-field {
@@ -202,41 +218,69 @@
 }
 
 .dream-enter {
-  position: relative;
-  margin: clamp(18px, 3vh, 28px) 0 0 clamp(96px, 17vw, 214px);
-  border: 0;
-  padding: 7px 18px 9px;
-  background: transparent;
+  position: absolute;
+  left: 50%;
+  bottom: clamp(34px, 7vh, 78px);
+  z-index: 9;
+  min-width: min(350px, calc(100vw - 68px));
+  min-height: 62px;
+  border: 1px solid rgba(232, 255, 240, 0.16);
+  border-radius: 999px;
+  padding: 0 42px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(237, 255, 242, 0.22), transparent 62%),
+    rgba(9, 20, 18, 0.18);
   color: rgba(232, 255, 240, 0.74);
   font-family: var(--font-mono);
-  font-size: clamp(13px, 1.5vw, 18px);
+  font-size: clamp(15px, 1.6vw, 20px);
   font-weight: 500;
-  letter-spacing: 0;
+  letter-spacing: 0.24em;
   text-transform: lowercase;
   text-shadow:
     0 0 12px rgba(232, 255, 240, 0.36),
     0 0 26px rgba(143, 227, 184, 0.24);
   cursor: pointer;
-  opacity: 0.8;
-  transition: opacity 160ms ease, transform 160ms ease, color 160ms ease;
+  opacity: 0.88;
+  transform: translateX(-50%);
+  box-shadow:
+    0 0 22px rgba(203, 255, 225, 0.12),
+    inset 0 0 26px rgba(232, 255, 240, 0.06);
+  backdrop-filter: blur(16px);
+  transition: opacity 160ms ease, color 160ms ease, border-color 160ms ease;
+  animation: dream-enter-breathe 3.8s ease-in-out infinite;
 }
 
 .dream-enter::before,
 .dream-enter::after {
-  content: "+";
   position: absolute;
-  top: 50%;
-  color: rgba(232, 255, 240, 0.28);
-  font-size: 14px;
-  transform: translateY(-54%);
+  pointer-events: none;
 }
 
 .dream-enter::before {
-  left: 0;
+  content: "";
+  inset: -10px -18px;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 50% 50%, rgba(224, 255, 236, 0.28), transparent 68%);
+  filter: blur(18px);
+  opacity: 0.44;
+  z-index: -1;
+  animation: dream-enter-aura 3.8s ease-in-out infinite;
 }
 
 .dream-enter::after {
-  right: 0;
+  content: "";
+  left: 46px;
+  right: 46px;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(232, 255, 240, 0.28), transparent);
+  transform: translateY(18px);
+  opacity: 0.34;
+}
+
+.dream-enter span {
+  position: relative;
+  z-index: 1;
 }
 
 .reserved-actions {
@@ -262,8 +306,9 @@
 .dream-enter:focus-visible {
   color: rgba(249, 255, 244, 0.96);
   opacity: 1;
-  transform: translateY(-2px);
+  border-color: rgba(232, 255, 240, 0.38);
   outline: none;
+  animation-play-state: paused;
 }
 
 .reserved-actions button:hover,
@@ -272,47 +317,68 @@
   background: rgba(143, 227, 184, 0.16);
 }
 
-.character-switcher {
+.welcome-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.welcome-config {
   position: absolute;
   right: clamp(28px, 5vw, 78px);
   bottom: clamp(28px, 5.2vh, 58px);
-  z-index: 8;
+  z-index: 10;
   display: flex;
   align-items: center;
-  gap: 16px;
-  opacity: 0.34;
+  gap: 9px;
+  opacity: 0.28;
   transition: opacity 160ms ease;
 }
 
-.character-switcher:hover,
-.character-switcher:focus-within {
-  opacity: 0.78;
+.welcome-config:hover,
+.welcome-config:focus-within {
+  opacity: 0.92;
 }
 
-.character-dot {
-  width: 13px;
-  height: 13px;
-  border: 1px solid rgba(233, 255, 238, 0.46);
+.welcome-config-button {
+  min-width: 42px;
+  height: 30px;
+  border: 1px solid rgba(232, 255, 240, 0.18);
   border-radius: 999px;
-  padding: 0;
-  background: rgba(231, 255, 236, 0.03);
-  box-shadow: 0 0 12px rgba(193, 255, 218, 0.12);
+  padding: 0 10px;
+  background: rgba(7, 18, 16, 0.24);
+  color: rgba(232, 255, 240, 0.66);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: lowercase;
   cursor: pointer;
-  transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease;
+  backdrop-filter: blur(12px);
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 
-.character-dot:hover,
-.character-dot:focus-visible {
-  transform: scale(1.28);
+.welcome-config-button:hover,
+.welcome-config-button:focus-visible {
   outline: none;
-  background: rgba(235, 255, 241, 0.2);
+  color: rgba(248, 255, 244, 0.96);
+  border-color: rgba(232, 255, 240, 0.42);
+  background: rgba(232, 255, 240, 0.1);
 }
 
-.character-dot.active {
-  background: rgba(232, 255, 240, 0.84);
-  box-shadow:
-    0 0 12px rgba(236, 255, 242, 0.72),
-    0 0 30px rgba(143, 227, 184, 0.42);
+.welcome-config-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.welcome-config-status {
+  color: rgba(232, 255, 240, 0.58);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: lowercase;
 }
 
 .reserved-page {
@@ -370,12 +436,13 @@
 
   .welcome-content {
     left: 18px;
-    bottom: 92px;
+    bottom: 118px;
     width: calc(100vw - 36px);
   }
 
   .dream-enter {
-    margin-left: clamp(72px, 28vw, 136px);
+    bottom: 52px;
+    min-height: 58px;
   }
 }
 
@@ -393,15 +460,23 @@
     grid-template-columns: 1fr;
   }
 
-  .character-switcher {
+  .welcome-config {
     right: 20px;
-    bottom: 24px;
-    gap: 13px;
+    bottom: 18px;
+    gap: 7px;
+  }
+
+  .welcome-config-button {
+    height: 28px;
+    padding: 0 8px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .welcome-shell::before,
+  .welcome-figure,
+  .dream-enter,
+  .dream-enter::before,
   .welcome-veil-a,
   .welcome-veil-b {
     animation: none;
@@ -423,5 +498,50 @@
   }
   to {
     transform: translate3d(3%, -1%, 0) rotate(1deg);
+  }
+}
+
+@keyframes welcome-figure-breathe {
+  0%, 100% {
+    opacity: 0.7;
+    filter:
+      brightness(0.72)
+      contrast(0.96)
+      saturate(0.78)
+      drop-shadow(0 34px 58px rgba(0, 0, 0, 0.58));
+  }
+  50% {
+    opacity: 0.86;
+    filter:
+      brightness(0.91)
+      contrast(1.04)
+      saturate(0.98)
+      drop-shadow(0 34px 74px rgba(169, 255, 212, 0.16));
+  }
+}
+
+@keyframes dream-enter-breathe {
+  0%, 100% {
+    box-shadow:
+      0 0 22px rgba(203, 255, 225, 0.12),
+      inset 0 0 26px rgba(232, 255, 240, 0.06);
+    border-color: rgba(232, 255, 240, 0.14);
+  }
+  50% {
+    box-shadow:
+      0 0 36px rgba(203, 255, 225, 0.26),
+      inset 0 0 34px rgba(232, 255, 240, 0.1);
+    border-color: rgba(232, 255, 240, 0.32);
+  }
+}
+
+@keyframes dream-enter-aura {
+  0%, 100% {
+    opacity: 0.26;
+    transform: scaleX(0.92);
+  }
+  50% {
+    opacity: 0.58;
+    transform: scaleX(1.06);
   }
 }

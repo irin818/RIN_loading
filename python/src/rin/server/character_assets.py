@@ -44,6 +44,14 @@ class CharacterViewPayload(BaseModel):
     cropLeft: float = 0
 
 
+class WelcomeCharacterSelectionPayload(BaseModel):
+    """Persist the character asset selected for the Web Shell welcome page."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    assetId: str
+
+
 class CharacterAssetPayload(BaseModel):
     """Display-safe character asset metadata returned to the React UI."""
 
@@ -86,6 +94,7 @@ class CharacterAssetManifest(BaseModel):
     customAssets: list[CharacterAssetRecord] = Field(default_factory=list)
     hiddenDefaultIds: list[str] = Field(default_factory=list)
     views: dict[str, CharacterViewPayload] = Field(default_factory=dict)
+    welcomeAssetId: str | None = None
 
 
 DEFAULT_CHARACTER_ASSETS: tuple[CharacterAssetPayload, ...] = (
@@ -142,6 +151,8 @@ def list_character_assets(layout: RinDataLayout) -> dict[str, object]:
 async def store_uploaded_character_asset(
     layout: RinDataLayout,
     request: Request,
+    *,
+    select_for_welcome: bool = False,
 ) -> dict[str, object]:
     """Persist an uploaded image stream under the local RIN data directory."""
     manifest = _load_manifest(layout)
@@ -188,6 +199,8 @@ async def store_uploaded_character_asset(
     )
     manifest.customAssets.append(record)
     manifest.views[asset_id] = CharacterViewPayload()
+    if select_for_welcome:
+        manifest.welcomeAssetId = asset_id
     _save_manifest(layout, manifest)
     return _asset_response(
         layout,
@@ -212,6 +225,8 @@ def delete_character_asset(layout: RinDataLayout, asset_id: str) -> dict[str, ob
         if asset_id not in manifest.hiddenDefaultIds:
             manifest.hiddenDefaultIds.append(asset_id)
         manifest.views.pop(asset_id, None)
+        if manifest.welcomeAssetId == asset_id:
+            manifest.welcomeAssetId = None
         _save_manifest(layout, manifest)
         return _asset_response(layout, manifest, _visible_assets(layout, manifest))
 
@@ -224,6 +239,8 @@ def delete_character_asset(layout: RinDataLayout, asset_id: str) -> dict[str, ob
         item for item in manifest.customAssets if item.id != asset_id
     ]
     manifest.views.pop(asset_id, None)
+    if manifest.welcomeAssetId == asset_id:
+        manifest.welcomeAssetId = None
     _save_manifest(layout, manifest)
     return _asset_response(layout, manifest, _visible_assets(layout, manifest))
 
@@ -271,6 +288,31 @@ def reset_character_asset_view(
     )
 
 
+def select_welcome_character_asset(
+    layout: RinDataLayout,
+    asset_id: str,
+) -> dict[str, object]:
+    """Persist the asset used by the Web Shell welcome page."""
+    _require_known_asset(layout, asset_id)
+    manifest = _load_manifest(layout)
+    manifest.welcomeAssetId = asset_id
+    _save_manifest(layout, manifest)
+    return _asset_response(
+        layout,
+        manifest,
+        _visible_assets(layout, manifest),
+        asset_id,
+    )
+
+
+def reset_welcome_character_asset(layout: RinDataLayout) -> dict[str, object]:
+    """Clear the Web Shell welcome-page override and fall back to bundled art."""
+    manifest = _load_manifest(layout)
+    manifest.welcomeAssetId = None
+    _save_manifest(layout, manifest)
+    return _asset_response(layout, manifest, _visible_assets(layout, manifest))
+
+
 def get_character_asset_file(layout: RinDataLayout, asset_id: str) -> tuple[Path, str]:
     """Return the local image path and media type for FileResponse."""
     _require_asset_id(asset_id)
@@ -302,6 +344,7 @@ def _asset_response(
         "rawTextIncluded": False,
         "secretValuesIncluded": False,
         "selectedAssetId": selected_asset_id,
+        "welcomeAssetId": _safe_welcome_asset_id(layout, manifest),
         "assets": [asset.model_dump(mode="json") for asset in assets],
         "hiddenDefaultIds": list(dict.fromkeys(manifest.hiddenDefaultIds)),
         "views": safe_views,
@@ -350,6 +393,16 @@ def _asset_exists(
         return True
     record = _find_custom_record(manifest, asset_id)
     return record is not None and _asset_file_path(layout, record).is_file()
+
+
+def _safe_welcome_asset_id(
+    layout: RinDataLayout,
+    manifest: CharacterAssetManifest,
+) -> str | None:
+    asset_id = manifest.welcomeAssetId
+    if asset_id and _asset_exists(layout, manifest, asset_id):
+        return asset_id
+    return None
 
 
 def _root_dir(layout: RinDataLayout) -> Path:

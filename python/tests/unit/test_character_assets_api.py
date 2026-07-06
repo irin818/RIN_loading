@@ -99,6 +99,54 @@ def test_character_asset_upload_view_and_delete_are_backend_local() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
+def test_welcome_character_upload_select_and_reset_are_persisted() -> None:
+    client, layout = create_client()
+    try:
+        uploaded = client.post(
+            "/api/body/character-assets/welcome",
+            content=PNG_BYTES,
+            headers={
+                "content-type": "image/png",
+                "x-rin-file-name": "welcome%20mist.png",
+            },
+        )
+
+        assert uploaded.status_code == 200
+        upload_payload = uploaded.json()
+        asset_id = upload_payload["selectedAssetId"]
+        assert upload_payload["welcomeAssetId"] == asset_id
+
+        reloaded = client.get("/api/body/character-assets")
+        assert reloaded.status_code == 200
+        assert reloaded.json()["welcomeAssetId"] == asset_id
+        assert any(item["id"] == asset_id for item in reloaded.json()["assets"])
+
+        selected_default = client.put(
+            "/api/body/character-assets/welcome",
+            json={"assetId": "rin-00-core"},
+        )
+        assert selected_default.status_code == 200
+        assert selected_default.json()["welcomeAssetId"] == "rin-00-core"
+
+        reset = client.delete("/api/body/character-assets/welcome")
+        assert reset.status_code == 200
+        assert reset.json()["welcomeAssetId"] is None
+
+        reselected = client.put(
+            "/api/body/character-assets/welcome",
+            json={"assetId": asset_id},
+        )
+        assert reselected.status_code == 200
+        assert reselected.json()["welcomeAssetId"] == asset_id
+
+        deleted = client.delete(f"/api/body/character-assets/{asset_id}")
+        assert deleted.status_code == 200
+        assert deleted.json()["welcomeAssetId"] is None
+        assert all(item["id"] != asset_id for item in deleted.json()["assets"])
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
 def test_default_character_assets_can_be_hidden_and_restored_locally() -> None:
     client, layout = create_client()
     try:

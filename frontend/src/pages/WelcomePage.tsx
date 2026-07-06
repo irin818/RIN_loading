@@ -1,66 +1,140 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import {
+  fetchCharacterAssets,
+  resetWelcomeCharacterAsset,
+  uploadWelcomeCharacterAsset,
+} from "../api";
+import type { CharacterAssetsPayload } from "../api";
+import type { RinCharacterAsset } from "../rinCharacters";
 
 interface WelcomePageProps {
   onNavigate: (path: string) => void;
   onPreload: (path: string) => void;
 }
 
-const WELCOME_CHARACTERS = [
-  {
-    id: "mist-city",
-    label: "Mist",
-    image: "/body-assets/rin/welcome/rin-mist-city.png",
-    fit: "cover",
-    position: "56% 43%",
-    mobilePosition: "50% 38%",
-  },
-  {
-    id: "moon-veil",
-    label: "Moon",
-    image: "/body-assets/rin/hero/rin-hero-v2.png",
-    fit: "contain",
-    position: "58% 50%",
-    mobilePosition: "50% 50%",
-  },
-  {
-    id: "core",
-    label: "Core",
-    image: "/body-assets/rin/characters/rin-00-core.png",
-    fit: "contain",
-    position: "54% 46%",
-    mobilePosition: "50% 50%",
-  },
-  {
-    id: "leap",
-    label: "Leap",
-    image: "/body-assets/rin/characters/rin-imagel-01-leap.png",
-    fit: "contain",
-    position: "55% 50%",
-    mobilePosition: "50% 52%",
-  },
-] as const;
+type WelcomeDisplayAsset = {
+  id: string;
+  label: string;
+  image: string;
+  fit: "cover" | "contain";
+  position: string;
+  mobilePosition: string;
+  backendAssetId?: string;
+};
+
+const DEFAULT_WELCOME_ASSET: WelcomeDisplayAsset = {
+  id: "mist-city",
+  label: "Mist",
+  image: "/body-assets/rin/welcome/rin-mist-city.png",
+  fit: "cover",
+  position: "56% 43%",
+  mobilePosition: "50% 38%",
+};
+
+function resolveWelcomeAsset(payload: CharacterAssetsPayload): WelcomeDisplayAsset {
+  const selectedId = payload.welcomeAssetId ?? payload.selectedAssetId ?? null;
+  const asset = selectedId
+    ? payload.assets.find((item) => item.id === selectedId)
+    : undefined;
+  return asset ? fromBackendAsset(asset) : DEFAULT_WELCOME_ASSET;
+}
+
+function fromBackendAsset(asset: RinCharacterAsset): WelcomeDisplayAsset {
+  return {
+    id: asset.id,
+    backendAssetId: asset.id,
+    label: asset.label,
+    image: asset.path,
+    fit: asset.custom ? "cover" : "contain",
+    position: asset.custom ? "50% 44%" : "56% 50%",
+    mobilePosition: asset.custom ? "50% 40%" : "50% 50%",
+  };
+}
 
 export function WelcomePage({ onNavigate, onPreload }: WelcomePageProps) {
-  const [characterIndex, setCharacterIndex] = useState(0);
-  const activeCharacter = WELCOME_CHARACTERS[characterIndex] ?? WELCOME_CHARACTERS[0];
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [activeAsset, setActiveAsset] = useState<WelcomeDisplayAsset>(DEFAULT_WELCOME_ASSET);
+  const [assetStatus, setAssetStatus] = useState("");
+  const [assetBusy, setAssetBusy] = useState(false);
 
   const shellStyle = useMemo(
     () => ({
-      "--welcome-fit": activeCharacter.fit,
-      "--welcome-image-position": activeCharacter.position,
-      "--welcome-mobile-image-position": activeCharacter.mobilePosition,
+      "--welcome-fit": activeAsset.fit,
+      "--welcome-image-position": activeAsset.position,
+      "--welcome-mobile-image-position": activeAsset.mobilePosition,
     }) as CSSProperties,
-    [activeCharacter],
+    [activeAsset],
   );
 
   const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const x = ((event.clientX - rect.left) / rect.width) * 100;
     const y = ((event.clientY - rect.top) / rect.height) * 100;
+    const motionX = (x - 50) / 50;
+    const motionY = (y - 50) / 50;
     event.currentTarget.style.setProperty("--mist-x", `${x.toFixed(2)}%`);
     event.currentTarget.style.setProperty("--mist-y", `${y.toFixed(2)}%`);
+    event.currentTarget.style.setProperty("--motion-x", motionX.toFixed(3));
+    event.currentTarget.style.setProperty("--motion-y", motionY.toFixed(3));
+    event.currentTarget.style.setProperty("--figure-x", `${(motionX * 18).toFixed(2)}px`);
+    event.currentTarget.style.setProperty("--figure-y", `${(motionY * 12).toFixed(2)}px`);
+    event.currentTarget.style.setProperty("--backdrop-x", `${(motionX * -12).toFixed(2)}px`);
+    event.currentTarget.style.setProperty("--backdrop-y", `${(motionY * -8).toFixed(2)}px`);
   }, []);
+
+  const applyCharacterPayload = useCallback((payload: CharacterAssetsPayload) => {
+    setActiveAsset(resolveWelcomeAsset(payload));
+  }, []);
+
+  const handleUpload = useCallback(async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setAssetStatus("image only");
+      return;
+    }
+    setAssetBusy(true);
+    setAssetStatus("saving");
+    try {
+      const payload = await uploadWelcomeCharacterAsset(file);
+      applyCharacterPayload(payload);
+      setAssetStatus("saved");
+    } catch {
+      setAssetStatus("failed");
+    } finally {
+      setAssetBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }, [applyCharacterPayload]);
+
+  const handleReset = useCallback(async () => {
+    setAssetBusy(true);
+    setAssetStatus("resetting");
+    try {
+      const payload = await resetWelcomeCharacterAsset();
+      applyCharacterPayload(payload);
+      setAssetStatus("default");
+    } catch {
+      setAssetStatus("failed");
+    } finally {
+      setAssetBusy(false);
+    }
+  }, [applyCharacterPayload]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchCharacterAssets()
+      .then((payload) => {
+        if (!cancelled) applyCharacterPayload(payload);
+      })
+      .catch(() => {
+        if (!cancelled) setAssetStatus("local");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [applyCharacterPayload]);
 
   return (
     <main
@@ -70,13 +144,13 @@ export function WelcomePage({ onNavigate, onPreload }: WelcomePageProps) {
     >
       <img
         className="welcome-backdrop welcome-backdrop-blur"
-        src={activeCharacter.image}
+        src={activeAsset.image}
         alt=""
         aria-hidden="true"
       />
       <img
         className="welcome-backdrop welcome-figure"
-        src={activeCharacter.image}
+        src={activeAsset.image}
         alt=""
         aria-hidden="true"
       />
@@ -88,28 +162,47 @@ export function WelcomePage({ onNavigate, onPreload }: WelcomePageProps) {
         <h1 className="dream-title" data-text="RIN">
           <span>RIN</span>
         </h1>
-        <button
-          className="dream-enter"
-          type="button"
-          onMouseEnter={() => onPreload("/glitch-core")}
-          onFocus={() => onPreload("/glitch-core")}
-          onClick={() => onNavigate("/glitch-core")}
-        >
-          enter
-        </button>
       </section>
 
-      <div className="character-switcher" aria-label="Change welcome character">
-        {WELCOME_CHARACTERS.map((character, index) => (
+      <button
+        className="dream-enter"
+        type="button"
+        onMouseEnter={() => onPreload("/glitch-core")}
+        onFocus={() => onPreload("/glitch-core")}
+        onClick={() => onNavigate("/glitch-core")}
+      >
+        <span>enter</span>
+      </button>
+
+      <div className="welcome-config" aria-label="Welcome character image">
+        <input
+          ref={fileInputRef}
+          className="welcome-file-input"
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          onChange={(event) => void handleUpload(event.currentTarget.files)}
+        />
+        <button
+          className="welcome-config-button"
+          type="button"
+          aria-label={`Load welcome character image. Current: ${activeAsset.label}`}
+          disabled={assetBusy}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          image
+        </button>
+        {activeAsset.backendAssetId ? (
           <button
-            key={character.id}
-            className={`character-dot ${index === characterIndex ? "active" : ""}`}
+            className="welcome-config-button"
             type="button"
-            aria-label={`Use ${character.label} welcome character`}
-            aria-pressed={index === characterIndex}
-            onClick={() => setCharacterIndex(index)}
-          />
-        ))}
+            aria-label="Reset welcome character image"
+            disabled={assetBusy}
+            onClick={() => void handleReset()}
+          >
+            reset
+          </button>
+        ) : null}
+        {assetStatus ? <span className="welcome-config-status">{assetStatus}</span> : null}
       </div>
     </main>
   );
