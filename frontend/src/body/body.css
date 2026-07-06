@@ -269,25 +269,6 @@
   padding: 0 4px 2px;
 }
 
-/* ── Responsive ── */
-
-@media (max-width: 760px) {
-  .body-standalone.full {
-    padding: 0;
-  }
-
-  .body-standalone-shell {
-    width: 100%;
-    min-height: 100vh;
-    border-left: 0;
-    border-right: 0;
-  }
-
-  .rin-body-buttons {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
 /* ── Floating desktop: chat bubble ── */
 
 .floating-bubble {

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   CSSProperties,
+  ChangeEvent,
   Dispatch,
   PointerEvent as ReactPointerEvent,
+  WheelEvent as ReactWheelEvent,
   ReactNode,
   SetStateAction
 } from "react";
@@ -28,6 +30,8 @@ import {
 import { BodyPanel } from "./body/BodyPanel";
 import { BodyStandalonePage } from "./body/BodyStandalonePage";
 import { normalizeBodyState } from "./body/bodyState";
+import { RIN_CHARACTER_ASSETS } from "./rinCharacters";
+import type { RinCharacterAsset } from "./rinCharacters";
 import type {
   ChatMessage,
   ConsoleWindow,
@@ -70,12 +74,17 @@ import {
 } from "./visualization";
 import type { Density, DisplayMode, DisplaySize } from "./visualization";
 
-const LAYOUT_KEY = "rin.glitch-core.window-layout.v2";
+const LAYOUT_KEY = "rin.glitch-core.window-layout.v7";
 const UI_SETTINGS_KEY = "rin.glitch-core.ui-settings.v1";
+const CHARACTER_KEY = "rin.glitch-core.character.v1";
+const CHARACTER_LIBRARY_KEY = "rin.glitch-core.character-library.v1";
+const CHARACTER_VIEW_KEY = "rin.glitch-core.character-view.v1";
+const MAX_LOCAL_CHARACTER_SIZE = 2_500_000;
 const PERSISTENT_TYPES = new Set<WindowType>([
   "body",
   "chat",
   "memory",
+  "gallery",
   "context",
   "trace",
   "cognition",
@@ -88,6 +97,7 @@ const REUSABLE_WINDOW_TYPES = new Set<WindowType>([
   "body",
   "chat",
   "memory",
+  "gallery",
   "context",
   "trace",
   "cognition",
@@ -116,11 +126,29 @@ type WindowMeta = {
   code: string;
 };
 
+type CharacterLibraryState = {
+  customCharacters: RinCharacterAsset[];
+  hiddenDefaultIds: string[];
+};
+
+type CharacterViewSettings = {
+  x: number;
+  y: number;
+  scale: number;
+  cropTop: number;
+  cropRight: number;
+  cropBottom: number;
+  cropLeft: number;
+};
+
+type CharacterViewMap = Record<string, CharacterViewSettings>;
+
 const WINDOW_META: Record<WindowType, WindowMeta> = {
   core: { label: "Core Status", context: "RIN Core", code: "CORE" },
   body: { label: "Body", context: "Layered Avatar", code: "BODY" },
   chat: { label: "Chat", context: "Default Session", code: "CHAT" },
   memory: { label: "Memory", context: "Recent Memories", code: "MEM" },
+  gallery: { label: "Gallery", context: "Character Archive", code: "IMG" },
   memoryDetail: { label: "Memory Detail", context: "Memory Record", code: "MEM+" },
   context: { label: "Context", context: "Context Plan", code: "CTX" },
   trace: { label: "Trace", context: "Runtime Trace", code: "TRC" },
@@ -143,6 +171,7 @@ const DOMAIN_NAV_ITEMS: Array<{ label: string; type: WindowType; tone: string }>
   { label: "Mind", type: "mind", tone: "mind" },
   { label: "Cognition", type: "cognition", tone: "runtime" },
   { label: "Memory", type: "memory", tone: "memory" },
+  { label: "Gallery", type: "gallery", tone: "body" },
   { label: "Context", type: "context", tone: "context" },
   { label: "Runtime", type: "trace", tone: "runtime" },
   { label: "Cost", type: "cost", tone: "cost" },
@@ -153,14 +182,10 @@ const DEFAULT_LAYOUT: Array<Pick<
   ConsoleWindow,
   "type" | "contextName" | "x" | "y" | "width" | "height"
 >> = [
-  { type: "core", contextName: "RIN Overview", x: 20, y: 52, width: 300, height: 230 },
-  { type: "body", contextName: "Body", x: 332, y: 52, width: 300, height: 380 },
-  { type: "chat", contextName: "Default Session", x: 20, y: 298, width: 300, height: 300 },
-  { type: "mind", contextName: "Mind Snapshot", x: 644, y: 52, width: 300, height: 230 },
-  { type: "memory", contextName: "Memory Governance", x: 956, y: 52, width: 300, height: 230 },
-  { type: "context", contextName: "Context Plan", x: 644, y: 298, width: 300, height: 300 },
-  { type: "trace", contextName: "Runtime Trace", x: 956, y: 298, width: 300, height: 300 },
-  { type: "cost", contextName: "DeepSeek Usage", x: 332, y: 524, width: 300, height: 244 }
+  { type: "core", contextName: "RIN Overview", x: 44, y: 226, width: 350, height: 184 },
+  { type: "gallery", contextName: "Character Archive", x: 44, y: 420, width: 390, height: 288 },
+  { type: "chat", contextName: "Default Session", x: 1038, y: 92, width: 360, height: 306 },
+  { type: "memory", contextName: "Memory Pulse", x: 1050, y: 472, width: 348, height: 286 }
 ];
 
 const SPAWN_LAYOUT: Record<WindowType, {
@@ -175,6 +200,7 @@ const SPAWN_LAYOUT: Record<WindowType, {
   body: { x: 494, y: 58, width: 380, height: 480, offsetX: 24, offsetY: 20 },
   chat: { x: 44, y: 84, width: 430, height: 516, offsetX: 34, offsetY: 28 },
   memory: { x: 828, y: 84, width: 420, height: 488, offsetX: -34, offsetY: 28 },
+  gallery: { x: 106, y: 136, width: 430, height: 390, offsetX: 30, offsetY: 24 },
   memoryDetail: { x: 520, y: 118, width: 430, height: 420, offsetX: 28, offsetY: 28 },
   context: { x: 474, y: 408, width: 560, height: 330, offsetX: 34, offsetY: -22 },
   trace: { x: 346, y: 396, width: 570, height: 268, offsetX: 38, offsetY: -24 },
@@ -329,6 +355,87 @@ function loadUiSettings(): {
   }
 }
 
+function clampNumber(value: unknown, min: number, max: number, fallback: number) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(max, Math.max(min, value))
+    : fallback;
+}
+
+function normalizeCharacterView(
+  view: Partial<CharacterViewSettings> | undefined,
+  fallback?: RinCharacterAsset
+): CharacterViewSettings {
+  return {
+    x: clampNumber(view?.x, -420, 420, fallback?.stageX ?? 0),
+    y: clampNumber(view?.y, -320, 320, fallback?.stageY ?? 0),
+    scale: clampNumber(view?.scale, 0.45, 2.6, fallback?.stageScale ?? 1),
+    cropTop: clampNumber(view?.cropTop, 0, 36, 0),
+    cropRight: clampNumber(view?.cropRight, 0, 36, 0),
+    cropBottom: clampNumber(view?.cropBottom, 0, 36, 0),
+    cropLeft: clampNumber(view?.cropLeft, 0, 36, 0)
+  };
+}
+
+function loadCharacterId() {
+  return localStorage.getItem(CHARACTER_KEY) ?? RIN_CHARACTER_ASSETS[0].id;
+}
+
+function loadCharacterLibrary(): CharacterLibraryState {
+  const fallback: CharacterLibraryState = {
+    customCharacters: [],
+    hiddenDefaultIds: []
+  };
+  const raw = localStorage.getItem(CHARACTER_LIBRARY_KEY);
+  if (!raw) {
+    return fallback;
+  }
+  try {
+    const parsed = JSON.parse(raw) as Partial<CharacterLibraryState>;
+    const customCharacters = Array.isArray(parsed.customCharacters)
+      ? parsed.customCharacters
+          .filter((item): item is RinCharacterAsset =>
+            typeof item?.id === "string" &&
+            item.id.startsWith("local-") &&
+            typeof item.label === "string" &&
+            typeof item.path === "string" &&
+            item.path.startsWith("data:image/") &&
+            typeof item.previewPath === "string"
+          )
+          .map((item) => ({
+            ...item,
+            source: "local" as const,
+            pose: item.pose || "custom",
+            custom: true
+          }))
+      : [];
+    const hiddenDefaultIds = Array.isArray(parsed.hiddenDefaultIds)
+      ? parsed.hiddenDefaultIds.filter((id): id is string =>
+          typeof id === "string" && RIN_CHARACTER_ASSETS.some((item) => item.id === id)
+        )
+      : [];
+    return { customCharacters, hiddenDefaultIds };
+  } catch {
+    return fallback;
+  }
+}
+
+function loadCharacterViews(): CharacterViewMap {
+  const raw = localStorage.getItem(CHARACTER_VIEW_KEY);
+  if (!raw) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(raw) as Record<string, Partial<CharacterViewSettings>>;
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .filter(([id]) => typeof id === "string")
+        .map(([id, view]) => [id, normalizeCharacterView(view)])
+    );
+  } catch {
+    return {};
+  }
+}
+
 function isDisplayMode(value: unknown): value is DisplayMode {
   return value === "basic" || value === "advanced" || value === "developer";
 }
@@ -452,10 +559,44 @@ function GlitchCoreApp() {
   const [memoryCompact, setMemoryCompact] = useState(true);
   const [lastChatContent, setLastChatContent] = useState("");
   const [uiSettings, setUiSettings] = useState(() => loadUiSettings());
+  const [characterLibrary, setCharacterLibrary] = useState(() => loadCharacterLibrary());
+  const [characterViews, setCharacterViews] = useState(() => loadCharacterViews());
+  const [selectedCharacterId, setSelectedCharacterId] = useState(() => loadCharacterId());
+  const [characterEditMode, setCharacterEditMode] = useState(false);
+  const [galleryNotice, setGalleryNotice] = useState("");
   const instanceCounts = useRef(initialInstanceCounts(windows));
   const zCounter = useRef(Math.max(40, ...windows.map((item) => item.zIndex)));
   const openedTraceErrorIds = useRef(new Set<string>());
   const coreVisualState = deriveCoreVisualState(snapshot, chatBusy);
+  const characterAssets = useMemo(() => {
+    const hidden = new Set(characterLibrary.hiddenDefaultIds);
+    const defaults = RIN_CHARACTER_ASSETS.filter((item) => !hidden.has(item.id));
+    const merged = [...defaults, ...characterLibrary.customCharacters];
+    return merged.length > 0 ? merged : RIN_CHARACTER_ASSETS;
+  }, [characterLibrary]);
+  const selectedCharacterIndex = Math.max(
+    0,
+    characterAssets.findIndex((item) => item.id === selectedCharacterId)
+  );
+  const selectedCharacter = characterAssets[selectedCharacterIndex] ?? characterAssets[0] ?? RIN_CHARACTER_ASSETS[0];
+  const selectedCharacterView = normalizeCharacterView(
+    characterViews[selectedCharacter.id],
+    selectedCharacter
+  );
+  const selectCharacter = useCallback((characterId: string) => {
+    if (characterAssets.some((item) => item.id === characterId)) {
+      setSelectedCharacterId(characterId);
+    }
+  }, [characterAssets]);
+  const cycleCharacter = useCallback(() => {
+    setSelectedCharacterId((current) => {
+      const currentIndex = characterAssets.findIndex((item) => item.id === current);
+      const nextIndex = currentIndex >= 0
+        ? (currentIndex + 1) % characterAssets.length
+        : 0;
+      return characterAssets[nextIndex]?.id ?? RIN_CHARACTER_ASSETS[0].id;
+    });
+  }, [characterAssets]);
   const handleBackgroundPointerMove = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const rect = event.currentTarget.getBoundingClientRect();
@@ -463,6 +604,8 @@ function GlitchCoreApp() {
       const y = (event.clientY - rect.top) / Math.max(1, rect.height) - 0.5;
       event.currentTarget.style.setProperty("--parallax-x", x.toFixed(4));
       event.currentTarget.style.setProperty("--parallax-y", y.toFixed(4));
+      event.currentTarget.style.setProperty("--cursor-x", `${event.clientX - rect.left}px`);
+      event.currentTarget.style.setProperty("--cursor-y", `${event.clientY - rect.top}px`);
     },
     []
   );
@@ -474,6 +617,40 @@ function GlitchCoreApp() {
   useEffect(() => {
     localStorage.setItem(UI_SETTINGS_KEY, JSON.stringify(uiSettings));
   }, [uiSettings]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHARACTER_LIBRARY_KEY, JSON.stringify(characterLibrary));
+    } catch {
+      setGalleryNotice("LOCAL STORAGE FULL");
+    }
+  }, [characterLibrary]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHARACTER_VIEW_KEY, JSON.stringify(characterViews));
+    } catch {
+      setGalleryNotice("VIEW SAVE FAILED");
+    }
+  }, [characterViews]);
+
+  useEffect(() => {
+    localStorage.setItem(CHARACTER_KEY, selectedCharacterId);
+  }, [selectedCharacterId]);
+
+  useEffect(() => {
+    if (!characterAssets.some((item) => item.id === selectedCharacterId)) {
+      setSelectedCharacterId(characterAssets[0]?.id ?? RIN_CHARACTER_ASSETS[0].id);
+    }
+  }, [characterAssets, selectedCharacterId]);
+
+  useEffect(() => {
+    if (!galleryNotice) {
+      return;
+    }
+    const timeout = window.setTimeout(() => setGalleryNotice(""), 3200);
+    return () => window.clearTimeout(timeout);
+  }, [galleryNotice]);
 
   useEffect(() => {
     if (!activeWindowId && windows[0]) {
@@ -491,6 +668,110 @@ function GlitchCoreApp() {
           : item
       )
     );
+  }, []);
+
+  const updateSelectedCharacterView = useCallback((patch: Partial<CharacterViewSettings>) => {
+    setCharacterViews((items) => {
+      const base = normalizeCharacterView(items[selectedCharacter.id], selectedCharacter);
+      return {
+        ...items,
+        [selectedCharacter.id]: normalizeCharacterView({ ...base, ...patch }, selectedCharacter)
+      };
+    });
+  }, [selectedCharacter]);
+
+  const resetSelectedCharacterView = useCallback(() => {
+    setCharacterViews((items) => {
+      const next = { ...items };
+      delete next[selectedCharacter.id];
+      return next;
+    });
+    setGalleryNotice("VIEW RESET");
+  }, [selectedCharacter.id]);
+
+  const addCharacterFiles = useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0) {
+      return;
+    }
+    const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
+    if (imageFiles.length === 0) {
+      setGalleryNotice("IMAGE FILES ONLY");
+      return;
+    }
+    const imported: RinCharacterAsset[] = [];
+    for (const file of imageFiles) {
+      if (file.size > MAX_LOCAL_CHARACTER_SIZE) {
+        setGalleryNotice(`SKIPPED ${file.name}: TOO LARGE`);
+        continue;
+      }
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ""));
+        reader.onerror = () => reject(reader.error ?? new Error("Failed to read image"));
+        reader.readAsDataURL(file);
+      });
+      const label = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim().slice(0, 24) || "LOCAL RIN";
+      imported.push({
+        id: `local-${Date.now()}-${imported.length}`,
+        label: label.toUpperCase(),
+        source: "local",
+        pose: "custom",
+        path: dataUrl,
+        previewPath: dataUrl,
+        custom: true,
+        stageScale: 1,
+        stageX: 0,
+        stageY: 0
+      });
+    }
+    if (imported.length === 0) {
+      return;
+    }
+    try {
+      setCharacterLibrary((items) => ({
+        ...items,
+        customCharacters: [...items.customCharacters, ...imported]
+      }));
+      setSelectedCharacterId(imported[0].id);
+      setGalleryNotice(`ADDED ${imported.length} IMAGE${imported.length > 1 ? "S" : ""}`);
+    } catch {
+      setGalleryNotice("LOCAL STORAGE FULL");
+    }
+  }, []);
+
+  const deleteCharacter = useCallback((characterId: string) => {
+    if (characterAssets.length <= 1) {
+      setGalleryNotice("KEEP ONE IMAGE");
+      return;
+    }
+    const target = characterAssets.find((item) => item.id === characterId);
+    if (!target) {
+      return;
+    }
+    setCharacterLibrary((items) => ({
+      customCharacters: items.customCharacters.filter((item) => item.id !== characterId),
+      hiddenDefaultIds: target.custom
+        ? items.hiddenDefaultIds
+        : Array.from(new Set([...items.hiddenDefaultIds, characterId]))
+    }));
+    setCharacterViews((items) => {
+      const next = { ...items };
+      delete next[characterId];
+      return next;
+    });
+    if (selectedCharacterId === characterId) {
+      const next = characterAssets.find((item) => item.id !== characterId);
+      setSelectedCharacterId(next?.id ?? RIN_CHARACTER_ASSETS[0].id);
+    }
+    setGalleryNotice(target.custom ? "IMAGE DELETED" : "DEFAULT HIDDEN");
+  }, [characterAssets, selectedCharacterId]);
+
+  const restoreDefaultCharacters = useCallback(() => {
+    setCharacterLibrary((items) => ({
+      ...items,
+      hiddenDefaultIds: []
+    }));
+    setGalleryNotice("DEFAULTS RESTORED");
   }, []);
 
   const updateWindow = useCallback((id: string, patch: Partial<ConsoleWindow>) => {
@@ -890,6 +1171,7 @@ function GlitchCoreApp() {
     >
       <div className="scanline-layer" />
       <div className="noise-layer" />
+      <div className="rin-cursor-orb" aria-hidden="true" />
       <TopMenu
         snapshot={snapshot}
         coreVisualState={coreVisualState}
@@ -908,7 +1190,14 @@ function GlitchCoreApp() {
         setUiSettings={setUiSettings}
       />
       <main className="workspace">
-        <CoreBackground snapshot={snapshot} visualState={coreVisualState} />
+        <CoreBackground
+          visualState={coreVisualState}
+          selectedCharacter={selectedCharacter}
+          selectedCharacterView={selectedCharacterView}
+          characterEditMode={characterEditMode}
+          updateCharacterView={updateSelectedCharacterView}
+          onNextCharacter={cycleCharacter}
+        />
         {focusedWindow ? (
           <FocusNav
             windows={visibleWindows}
@@ -950,6 +1239,20 @@ function GlitchCoreApp() {
               reviewImprovementProposal={reviewImprovementProposal}
               uiSettings={uiSettings}
               setUiSettings={setUiSettings}
+              selectedCharacter={selectedCharacter}
+              selectedCharacterId={selectedCharacter.id}
+              selectedCharacterView={selectedCharacterView}
+              characterAssets={characterAssets}
+              characterEditMode={characterEditMode}
+              setCharacterEditMode={setCharacterEditMode}
+              updateSelectedCharacterView={updateSelectedCharacterView}
+              resetSelectedCharacterView={resetSelectedCharacterView}
+              addCharacterFiles={addCharacterFiles}
+              deleteCharacter={deleteCharacter}
+              restoreDefaultCharacters={restoreDefaultCharacters}
+              galleryNotice={galleryNotice}
+              selectCharacter={selectCharacter}
+              nextCharacter={cycleCharacter}
               openWindow={openWindow}
               openErrorWindow={openErrorWindow}
               closeWindow={closeWindow}
@@ -1014,7 +1317,7 @@ function TopMenu(props: {
           className="brand-chip command-chip"
           onClick={() => props.openWindow("core")}
         >
-          <span>RIN_CORE_OS</span>
+          <span>RIN CORE</span>
           <small className={`core-status-dot ${props.coreVisualState}`}>{coreStatus}</small>
         </button>
       </div>
@@ -1108,6 +1411,7 @@ function TopMenu(props: {
             <button type="button" onClick={props.minimizeAll}>Minimize all</button>
             <button type="button" onClick={props.resetLayout}>Reset layout</button>
             <button type="button" onClick={() => props.openWindow("provider")}>Provider</button>
+            <button type="button" onClick={() => props.openWindow("gallery")}>Gallery</button>
             <button type="button" onClick={() => props.openWindow("tools")}>Tools</button>
             <button type="button" onClick={() => props.openWindow("tasks")}>Tasks</button>
             <button type="button" onClick={() => props.openWindow("settings")}>Settings</button>
@@ -1162,7 +1466,7 @@ function FocusNav(props: {
   onRestore: () => void;
 }) {
   const majorWindows = props.windows.filter((item) =>
-    ["core", "body", "chat", "mind", "memory", "context", "trace", "cost", "control"].includes(item.type)
+    ["core", "body", "gallery", "chat", "mind", "memory", "context", "trace", "cost", "control"].includes(item.type)
   );
   return (
     <nav className="focus-nav" aria-label="Focus mode navigation">
@@ -1182,23 +1486,124 @@ function FocusNav(props: {
 }
 
 function CoreBackground({
-  snapshot,
-  visualState
+  visualState,
+  selectedCharacter,
+  selectedCharacterView,
+  characterEditMode,
+  updateCharacterView,
+  onNextCharacter
 }: {
-  snapshot: GlitchSnapshot | null;
   visualState: CoreVisualState;
+  selectedCharacter: RinCharacterAsset;
+  selectedCharacterView: CharacterViewSettings;
+  characterEditMode: boolean;
+  updateCharacterView: (patch: Partial<CharacterViewSettings>) => void;
+  onNextCharacter: () => void;
 }) {
-  const assetPath = snapshot?.core.avatarAssetPath ?? "/picture/rin-core-background.png";
+  const [glitchBurst, setGlitchBurst] = useState(false);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    viewX: number;
+    viewY: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressStageClick = useRef(false);
+  const triggerBlink = useCallback(() => {
+    setGlitchBurst(true);
+    window.setTimeout(() => setGlitchBurst(false), 260);
+  }, []);
+  const handleCharacterClick = useCallback(() => {
+    if (characterEditMode || suppressStageClick.current) {
+      suppressStageClick.current = false;
+      return;
+    }
+    triggerBlink();
+    onNextCharacter();
+  }, [characterEditMode, onNextCharacter, triggerBlink]);
+  const handleStagePointerDown = useCallback((event: ReactPointerEvent<HTMLElement>) => {
+    if (!characterEditMode || event.button !== 0) {
+      return;
+    }
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      viewX: selectedCharacterView.x,
+      viewY: selectedCharacterView.y,
+      moved: false
+    };
+  }, [characterEditMode, selectedCharacterView.x, selectedCharacterView.y]);
+  const handleStagePointerMove = useCallback((event: ReactPointerEvent<HTMLElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    if (Math.abs(dx) + Math.abs(dy) > 3) {
+      drag.moved = true;
+    }
+    updateCharacterView({
+      x: drag.viewX + dx,
+      y: drag.viewY + dy
+    });
+  }, [updateCharacterView]);
+  const handleStagePointerUp = useCallback((event: ReactPointerEvent<HTMLElement>) => {
+    const drag = dragRef.current;
+    if (drag?.pointerId === event.pointerId) {
+      suppressStageClick.current = drag.moved;
+      dragRef.current = null;
+    }
+  }, []);
+  const handleStageWheel = useCallback((event: ReactWheelEvent<HTMLElement>) => {
+    if (!characterEditMode) {
+      return;
+    }
+    updateCharacterView({
+      scale: selectedCharacterView.scale + (event.deltaY < 0 ? 0.05 : -0.05)
+    });
+  }, [characterEditMode, selectedCharacterView.scale, updateCharacterView]);
+  const characterStyle = {
+    "--rin-character-stage-scale": String(selectedCharacterView.scale),
+    "--rin-character-stage-x": `${selectedCharacterView.x}px`,
+    "--rin-character-stage-y": `${selectedCharacterView.y}px`,
+    "--rin-character-crop-top": `${selectedCharacterView.cropTop}%`,
+    "--rin-character-crop-right": `${selectedCharacterView.cropRight}%`,
+    "--rin-character-crop-bottom": `${selectedCharacterView.cropBottom}%`,
+    "--rin-character-crop-left": `${selectedCharacterView.cropLeft}%`
+  } as CSSProperties;
+
   return (
-    <section className={`core-background core-visual-${visualState}`} aria-hidden="true">
+    <section
+      className={`core-background rin-anime-stage core-visual-${visualState} ${glitchBurst ? "core-blink" : ""}`}
+      aria-label="RIN anime companion stage"
+      onPointerDown={handleStagePointerDown}
+      onPointerMove={handleStagePointerMove}
+      onPointerUp={handleStagePointerUp}
+      onPointerCancel={handleStagePointerUp}
+      onWheel={handleStageWheel}
+    >
       <div className="core-depth-layer far" />
       <div className="core-depth-layer near" />
-      <img src={assetPath} alt="" className="core-rin-background-image" />
-      <div className="data-grid data-grid-primary" />
-      <div className="data-grid data-grid-secondary" />
-      <div className="core-ring outer" />
-      <div className="core-ring middle" />
-      <div className="core-ring inner" />
+      <div className="core-ambient-bloom" />
+      <div className="rin-manga-speed-lines" />
+      <div className="rin-calibration-ring ring-a" />
+      <div className="rin-calibration-ring ring-b" />
+      <div className="rin-paint-splash splash-a" />
+      <div className="rin-paint-splash splash-b" />
+      <div className="rin-paint-splash splash-c" />
+      <div className="rin-floral-field" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
       <div className="memory-fragment-field">
         <span />
         <span />
@@ -1207,13 +1612,29 @@ function CoreBackground({
         <span />
         <span />
       </div>
-      <div className="core-eye-shell">
-        <div className="core-eye-aperture" />
-        <div className="core-eye-mask" />
-        <div className="core-iris" />
-        <div className="core-glitch-slice slice-a" />
-        <div className="core-glitch-slice slice-b" />
-        <div className="core-glitch-slice slice-c" />
+      <img src={selectedCharacter.path} alt="" className="rin-character-echo" aria-hidden="true" />
+      <button
+        type="button"
+        className={`rin-character-stage ${characterEditMode ? "editing" : ""}`}
+        data-character-id={selectedCharacter.id}
+        style={characterStyle}
+        onClick={handleCharacterClick}
+        onMouseEnter={triggerBlink}
+        aria-label={characterEditMode
+          ? `Editing RIN character view for ${selectedCharacter.label}`
+          : `Switch RIN character from ${selectedCharacter.label}`}
+      >
+        <span className="rin-stage-shadow" />
+        <img
+          key={selectedCharacter.id}
+          src={selectedCharacter.path}
+          alt=""
+          className="core-rin-background-image rin-character-image"
+        />
+      </button>
+      <div className="rin-side-code" aria-hidden="true">
+        <span>FUTURE CODE</span>
+        <i />
       </div>
       <div className="foreground-trace-field">
         <span />
@@ -1222,8 +1643,8 @@ function CoreBackground({
         <span />
       </div>
       <div className="core-label">
-        <span>RIN CORE</span>
-        <small>{snapshot?.core.status ?? "booting"} / {visualState}</small>
+        <span data-text="RIN CORE">RIN CORE</span>
+        <small>LOCAL AI COMPANION</small>
       </div>
     </section>
   );
@@ -1360,6 +1781,20 @@ function WindowContent(props: {
     displaySize: DisplaySize;
     density: Density;
   }>>;
+  selectedCharacter: RinCharacterAsset;
+  selectedCharacterId: string;
+  selectedCharacterView: CharacterViewSettings;
+  characterAssets: RinCharacterAsset[];
+  characterEditMode: boolean;
+  setCharacterEditMode: Dispatch<SetStateAction<boolean>>;
+  updateSelectedCharacterView: (patch: Partial<CharacterViewSettings>) => void;
+  resetSelectedCharacterView: () => void;
+  addCharacterFiles: (files: FileList | null) => Promise<void>;
+  deleteCharacter: (characterId: string) => void;
+  restoreDefaultCharacters: () => void;
+  galleryNotice: string;
+  selectCharacter: (characterId: string) => void;
+  nextCharacter: () => void;
   openWindow: (type: WindowType, options?: { contextName?: string; payload?: WindowPayload; focusExistingId?: string }) => void;
   openErrorWindow: (error: GlitchErrorItem) => void;
   closeWindow: (id: string) => void;
@@ -1373,6 +1808,25 @@ function WindowContent(props: {
       return <ChatWindow {...props} />;
     case "memory":
       return <MemoryWindow {...props} />;
+    case "gallery":
+      return (
+        <GalleryWindow
+          selectedCharacterId={props.selectedCharacterId}
+          selectedCharacter={props.selectedCharacter}
+          selectedCharacterView={props.selectedCharacterView}
+          characterAssets={props.characterAssets}
+          characterEditMode={props.characterEditMode}
+          setCharacterEditMode={props.setCharacterEditMode}
+          updateSelectedCharacterView={props.updateSelectedCharacterView}
+          resetSelectedCharacterView={props.resetSelectedCharacterView}
+          addCharacterFiles={props.addCharacterFiles}
+          deleteCharacter={props.deleteCharacter}
+          restoreDefaultCharacters={props.restoreDefaultCharacters}
+          galleryNotice={props.galleryNotice}
+          selectCharacter={props.selectCharacter}
+          nextCharacter={props.nextCharacter}
+        />
+      );
     case "memoryDetail":
       return (
         <MemoryDetailWindow
@@ -1457,6 +1911,14 @@ function WindowContent(props: {
 
 function CoreStatus({ snapshot }: { snapshot: GlitchSnapshot | null }) {
   const health = snapshot?.dashboard.health ?? {};
+  const bodyState = normalizeBodyState(snapshot?.body?.currentState);
+  const bodyStateLabel = bodyState === "生气"
+    ? "alert"
+    : bodyState === "惊讶"
+      ? "signal"
+      : bodyState === "难受"
+        ? "low"
+        : "default";
   return (
     <div className="core-status">
       <div className="module-strip">RIN CORE PRESENCE</div>
@@ -1465,7 +1927,7 @@ function CoreStatus({ snapshot }: { snapshot: GlitchSnapshot | null }) {
         <Metric label="Mode" value={snapshot?.core.mode ?? "local-first"} />
         <Metric label="Schema" value={snapshot?.dashboard.database.schemaVersion ?? "n/a"} />
         <Metric label="Memory" value={snapshot?.dashboard.memoryContext.memoryV2Traces ?? 0} />
-        <Metric label="Body" value={snapshot?.body?.currentState ?? "idle"} />
+        <Metric label="Body" value={bodyStateLabel} />
       </div>
       <div className="health-matrix">
         {Object.entries(health).map(([key, value]) => (
@@ -1490,6 +1952,121 @@ function BodyWindow({ snapshot }: { snapshot: GlitchSnapshot | null }) {
       <div className="body-window-links">
         <a href="/body" target="_blank" rel="noreferrer">Open /body</a>
         <a href="/body/floating" target="_blank" rel="noreferrer">Open /body/floating</a>
+      </div>
+    </div>
+  );
+}
+
+function GalleryWindow(props: {
+  selectedCharacterId: string;
+  selectedCharacter: RinCharacterAsset;
+  selectedCharacterView: CharacterViewSettings;
+  characterAssets: RinCharacterAsset[];
+  characterEditMode: boolean;
+  setCharacterEditMode: Dispatch<SetStateAction<boolean>>;
+  updateSelectedCharacterView: (patch: Partial<CharacterViewSettings>) => void;
+  resetSelectedCharacterView: () => void;
+  addCharacterFiles: (files: FileList | null) => Promise<void>;
+  deleteCharacter: (characterId: string) => void;
+  restoreDefaultCharacters: () => void;
+  galleryNotice: string;
+  selectCharacter: (characterId: string) => void;
+  nextCharacter: () => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const handleFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    void props.addCharacterFiles(event.target.files);
+    event.target.value = "";
+  }, [props]);
+  const handleCropChange = useCallback((
+    key: keyof Pick<CharacterViewSettings, "cropTop" | "cropRight" | "cropBottom" | "cropLeft">,
+    value: string
+  ) => {
+    props.updateSelectedCharacterView({ [key]: Number(value) });
+  }, [props]);
+  return (
+    <div className="character-gallery-module">
+      <div className="module-strip">CHARACTER ARCHIVE</div>
+      <div className="gallery-current">
+        <img src={props.selectedCharacter.previewPath} alt="" />
+        <div>
+          <span>ACTIVE IMAGE</span>
+          <strong>{props.selectedCharacter.label}</strong>
+          <small>{props.selectedCharacter.source} / {props.selectedCharacter.pose}</small>
+        </div>
+        <button type="button" onClick={props.nextCharacter}>NEXT</button>
+      </div>
+      <div className="gallery-actions" aria-label="Character archive actions">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="gallery-file-input"
+          onChange={handleFileChange}
+        />
+        <button type="button" onClick={() => fileInputRef.current?.click()}>ADD</button>
+        <button
+          type="button"
+          className={props.characterEditMode ? "active" : ""}
+          onClick={() => props.setCharacterEditMode((value) => !value)}
+        >
+          EDIT VIEW
+        </button>
+        <button type="button" onClick={props.resetSelectedCharacterView}>RESET VIEW</button>
+        <button type="button" onClick={props.restoreDefaultCharacters}>RESTORE</button>
+      </div>
+      {props.characterEditMode ? (
+        <div className="gallery-view-editor" aria-label="Character view editor">
+          <span>DRAG STAGE · WHEEL SCALE</span>
+          <label>
+            SCALE
+            <input
+              type="range"
+              min="0.45"
+              max="2.6"
+              step="0.01"
+              value={props.selectedCharacterView.scale}
+              onChange={(event) => props.updateSelectedCharacterView({ scale: Number(event.target.value) })}
+            />
+          </label>
+          <div className="gallery-crop-grid" aria-label="Crop controls">
+            <label>T<input type="range" min="0" max="36" value={props.selectedCharacterView.cropTop} onChange={(event) => handleCropChange("cropTop", event.target.value)} /></label>
+            <label>R<input type="range" min="0" max="36" value={props.selectedCharacterView.cropRight} onChange={(event) => handleCropChange("cropRight", event.target.value)} /></label>
+            <label>B<input type="range" min="0" max="36" value={props.selectedCharacterView.cropBottom} onChange={(event) => handleCropChange("cropBottom", event.target.value)} /></label>
+            <label>L<input type="range" min="0" max="36" value={props.selectedCharacterView.cropLeft} onChange={(event) => handleCropChange("cropLeft", event.target.value)} /></label>
+          </div>
+        </div>
+      ) : null}
+      {props.galleryNotice ? <div className="gallery-notice">{props.galleryNotice}</div> : null}
+      <div className="gallery-grid" aria-label="RIN character image archive">
+        {props.characterAssets.map((character) => (
+          <article
+            key={character.id}
+            className={`gallery-card ${character.id === props.selectedCharacterId ? "active" : ""}`}
+            data-character-id={character.id}
+          >
+            <button
+              type="button"
+              className="gallery-select"
+              onClick={() => props.selectCharacter(character.id)}
+            >
+              <span className="gallery-thumb-frame">
+                <img src={character.previewPath} alt="" />
+              </span>
+              <strong>{character.label}</strong>
+              <small>{character.source}</small>
+            </button>
+            <button
+              type="button"
+              className="gallery-delete"
+              onClick={() => props.deleteCharacter(character.id)}
+              aria-label={`Delete ${character.label}`}
+            >
+              DEL
+            </button>
+          </article>
+        ))}
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ export type WindowType =
   | "body"
   | "chat"
   | "memory"
+  | "gallery"
   | "memoryDetail"
   | "context"
   | "trace"
