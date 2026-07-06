@@ -656,6 +656,25 @@ def test_glitch_core_entry_reports_frontend_build_state() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
+def test_reserved_web_shell_routes_share_frontend_entry() -> None:
+    client, layout = create_client()
+    try:
+        for route in (
+            "/comics",
+            "/comics/issue-001",
+            "/games",
+            "/games/prototype",
+            "/library",
+            "/library/archive",
+        ):
+            response = client.get(route)
+
+            assert response.status_code in {200, 503}
+            assert "RIN" in response.text
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
 def test_python_ui_chat_submit_renders_conversation_history() -> None:
     client, layout = create_client()
     try:

@@ -293,6 +293,15 @@ def create_app(
     def body_floating() -> Response:
         return render_glitch_core_entry()
 
+    @app.get("/comics", response_class=HTMLResponse)
+    @app.get("/comics/{spa_path:path}", response_class=HTMLResponse)
+    @app.get("/games", response_class=HTMLResponse)
+    @app.get("/games/{spa_path:path}", response_class=HTMLResponse)
+    @app.get("/library", response_class=HTMLResponse)
+    @app.get("/library/{spa_path:path}", response_class=HTMLResponse)
+    def reserved_web_shell_spa(spa_path: str = "") -> Response:
+        return render_glitch_core_entry()
+
     @app.get("/legacy-ui-v2", response_class=HTMLResponse)
     def legacy_ui_v2(
         request: Request,
