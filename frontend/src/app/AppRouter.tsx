@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useSyncExternalStore } from "react";
 
 import { ModulePlaceholderPage } from "../pages/ModulePlaceholderPage";
 import { WelcomePage } from "../pages/WelcomePage";
-import { matchWebRoute, WEB_MODULES } from "./webModules";
+import { matchWebRoute } from "./webModules";
 import "./web-shell.css";
 
 const GlitchCoreApp = lazy(() => import("../glitch-core/GlitchCoreApp"));
@@ -66,7 +66,6 @@ export function AppRouter() {
   if (route.kind === "welcome") {
     return (
       <WelcomePage
-        modules={WEB_MODULES}
         onNavigate={navigate}
         onPreload={preloadRoute}
       />
