@@ -2,6 +2,7 @@ import { memo } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { BodyWindow } from "./BodyWindow";
 import { ChatWindow } from "./ChatWindow";
+import { PurposeWindow } from "./PurposeWindow";
 import { MemoryWindow, MemoryDetailWindow } from "./MemoryWindow";
 import { ErrorWindow } from "./ErrorWindow";
 import { SettingsWindow } from "./SettingsWindow";
@@ -68,6 +69,8 @@ export const WindowContent = memo(function WindowContent({
   switch (win.type) {
     case "chat":
       return <ChatWindow snapshot={snapshot} chatInput={chatInput} setChatInput={setChatInput} chatBusy={chatBusy} lastChatContent={lastChatContent} submitChat={submitChat} openWindow={openWindow} />;
+    case "purpose":
+      return <PurposeWindow compass={snapshot?.purposeCompass ?? null} />;
     case "memory":
       return <MemoryWindow snapshot={snapshot} memoryCompact={memoryCompact} setMemoryCompact={setMemoryCompact} memoryQuery={memoryQuery} setMemoryQuery={setMemoryQuery} searchMemory={searchMemory} reviewMindCandidate={reviewMindCandidate} openWindow={openWindow} />;
     case "memoryDetail":

@@ -557,15 +557,64 @@ def test_console_data_map_is_safe_and_covers_required_domains() -> None:
             "database-storage",
             "profiles",
             "errors",
+            "purpose-compass",
         }.issubset(domain_ids)
         assert {
             "cost-usage",
             "memory-candidates",
             "context-analytics",
             "tool-proposals",
+            "rin-purpose-compass",
         }.issubset(block_ids)
         assert "private prompt" not in response.text.lower()
         assert "api-key" not in response.text.lower()
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
+def test_purpose_compass_endpoint_is_safe_read_only_and_in_snapshot() -> None:
+    client, layout = create_client()
+    try:
+        submitted = client.post(
+            "/ui/chat",
+            json={"content": "private purpose compass check"},
+        )
+        state_after_submit = client.get("/api/local-state").json()
+        response = client.get("/api/rin-purpose/compass")
+        state_after_compass = client.get("/api/local-state").json()
+        snapshot = client.get("/api/glitch-core/snapshot")
+
+        assert submitted.status_code == 200
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["mode"] == "rin-purpose-compass"
+        assert payload["readOnly"] is True
+        assert payload["localOnly"] is True
+        assert payload["rawPromptIncluded"] is False
+        assert payload["rawMemoryIncluded"] is False
+        assert payload["rawProfileIncluded"] is False
+        assert payload["hiddenReasoningIncluded"] is False
+        assert payload["secretValuesIncluded"] is False
+        assert payload["externalProviderCallCount"] == 0
+        assert "local-first" in payload["finalPurpose"]
+        assert "autonomous agent execution" in payload["inactiveScopes"]
+        dimension_ids = {item["id"] for item in payload["dimensions"]}
+        assert {
+            "local-governance",
+            "identity-owner-model",
+            "memory-governance",
+            "provider-boundary",
+            "observability-review",
+        }.issubset(dimension_ids)
+        assert "private purpose compass check" not in response.text
+        assert "Python API mock reply." not in response.text
+        assert state_after_compass["database"] == state_after_submit["database"]
+        assert state_after_compass["externalProviderCallCount"] == 0
+
+        assert snapshot.status_code == 200
+        snapshot_payload = snapshot.json()
+        assert snapshot_payload["purposeCompass"]["mode"] == "rin-purpose-compass"
+        assert "purpose" in snapshot_payload["windows"]["defaultTypes"]
     finally:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 

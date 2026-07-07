@@ -433,6 +433,10 @@ button {
   border-color: rgba(56, 248, 255, 0.58);
 }
 
+.menu-button.domain-purpose {
+  border-color: rgba(143, 227, 184, 0.62);
+}
+
 .menu-button:hover,
 .menu-button.active {
   border-color: transparent;
@@ -1280,6 +1284,7 @@ button {
 .error-module,
 .settings-module,
 .tasks-module,
+.purpose-module,
 .developer-module,
 .stub-module {
   min-height: 100%;
@@ -2032,6 +2037,7 @@ dd {
 .control-module,
 .settings-module,
 .tasks-module,
+.purpose-module,
 .developer-module {
   display: grid;
   align-content: start;
@@ -2220,6 +2226,110 @@ dd {
   margin: 0;
   color: #d6eadb;
   line-height: 1.4;
+}
+
+.purpose-statement {
+  margin: 0;
+  padding: 10px;
+  border: 1px solid rgba(143, 227, 184, 0.32);
+  background: rgba(143, 227, 184, 0.08);
+  color: var(--rin-text);
+  line-height: 1.45;
+}
+
+.purpose-dimension-list {
+  display: grid;
+  gap: 9px;
+}
+
+.purpose-dimension {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(var(--window-rgb, 0, 255, 100), 0.26);
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.purpose-dimension.ok {
+  border-color: rgba(0, 255, 100, 0.42);
+}
+
+.purpose-dimension.warn {
+  border-color: rgba(255, 194, 71, 0.44);
+}
+
+.purpose-dimension.danger {
+  border-color: rgba(255, 51, 92, 0.5);
+}
+
+.purpose-dimension header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.purpose-dimension header > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.purpose-dimension strong {
+  min-width: 0;
+  color: var(--window-accent, var(--rin-green));
+  overflow-wrap: anywhere;
+}
+
+.purpose-dimension header b {
+  color: var(--rin-text);
+  font-family: var(--font-hud);
+  font-size: 13px;
+}
+
+.purpose-dimension p {
+  margin: 0;
+  color: #d6eadb;
+  line-height: 1.4;
+}
+
+.purpose-dimension small,
+.purpose-evidence-list,
+.purpose-signal-grid em {
+  color: var(--rin-muted);
+  font-family: var(--font-hud);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.purpose-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 6px;
+}
+
+.purpose-signal-grid span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid rgba(56, 248, 255, 0.22);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.purpose-signal-grid b {
+  min-width: 0;
+  color: var(--rin-text);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.purpose-evidence-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
 }
 
 .mind-module {

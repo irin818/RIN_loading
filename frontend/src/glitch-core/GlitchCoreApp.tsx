@@ -32,6 +32,7 @@ import { WindowContent } from "../windows/WindowContent";
 // ── window layout helpers ──
 
 const WINDOW_META: Record<WindowType, { label: string; context: string; code: string }> = {
+  purpose: { label: "Purpose", context: "Final Direction", code: "GOAL" },
   chat: { label: "Chat", context: "Default Session", code: "CHAT" },
   memory: { label: "Memory", context: "Memory Governance", code: "MEM" },
   memoryDetail: { label: "Memory Detail", context: "Memory Record", code: "MEM+" },
@@ -45,13 +46,13 @@ const WINDOW_META: Record<WindowType, { label: string; context: string; code: st
 const WINDOW_MIN_Y = 64; // keep title bar below top system-menu (top:10 + height:52)
 
 const DEFAULT_LAYOUT: Array<Pick<ConsoleWindow, "type" | "contextName" | "x" | "y" | "width" | "height">> = [
-  { type: "chat", contextName: "Default Session", x: 44, y: WINDOW_MIN_Y, width: 500, height: 560 },
-  { type: "memory", contextName: "Memory Governance", x: 566, y: WINDOW_MIN_Y, width: 430, height: 560 },
-  { type: "body", contextName: "Avatar Interface", x: 1018, y: WINDOW_MIN_Y, width: 380, height: 560 },
-  { type: "settings", contextName: "Model And UI", x: 44, y: WINDOW_MIN_Y + 598, width: 500, height: 300 },
+  { type: "purpose", contextName: "Final Direction", x: 44, y: WINDOW_MIN_Y, width: 450, height: 560 },
+  { type: "chat", contextName: "Default Session", x: 516, y: WINDOW_MIN_Y, width: 500, height: 560 },
+  { type: "memory", contextName: "Memory Governance", x: 1038, y: WINDOW_MIN_Y, width: 340, height: 560 },
 ];
 
 const SPAWN_LAYOUT: Record<WindowType, { x: number; y: number; width: number; height: number; offsetX: number; offsetY: number }> = {
+  purpose: { x: 72, y: WINDOW_MIN_Y + 18, width: 500, height: 560, offsetX: 24, offsetY: 24 },
   chat: { x: 44, y: WINDOW_MIN_Y, width: 430, height: 516, offsetX: 34, offsetY: 28 },
   memory: { x: 828, y: WINDOW_MIN_Y, width: 420, height: 488, offsetX: -34, offsetY: 28 },
   memoryDetail: { x: 520, y: WINDOW_MIN_Y + 54, width: 430, height: 420, offsetX: 28, offsetY: 28 },
@@ -91,7 +92,14 @@ function makeWindow(type: WindowType, instanceNumber: number, zIndex: number, ov
   return { id: overrides.id ?? `${type}-${Date.now()}-${instanceNumber}`, type, instanceNumber, contextName, title: windowTitle(type, instanceNumber, contextName), x: fitted.x, y: fitted.y, width: fitted.width, height: fitted.height, zIndex, minimized: overrides.minimized ?? false, maximized: overrides.maximized ?? false, visible: overrides.visible ?? true, payload: overrides.payload };
 }
 
-function defaultWindows() { return DEFAULT_LAYOUT.map((item, index) => makeWindow(item.type, 1, 20 + index, item)); }
+function defaultWindows() {
+  return DEFAULT_LAYOUT.map((item, index) => makeWindow(
+    item.type,
+    1,
+    item.type === "purpose" ? 50 : 20 + index,
+    item,
+  ));
+}
 
 function fitWindowToViewport(rect: { x: number; y: number; width: number; height: number }) {
   if (typeof window === "undefined") return rect;
@@ -509,7 +517,7 @@ export default function GlitchCoreApp() {
 // ── FocusNav (small, stable) ──
 
 const FocusNav = memo(function FocusNav({ windows, activeWindowId, onFocusPanel, onRestore }: { windows: ConsoleWindow[]; activeWindowId: string; onFocusPanel: (id: string) => void; onRestore: () => void }) {
-  const majorWindows = windows.filter((item) => ["chat", "memory", "tasks", "body", "settings", "developer"].includes(item.type));
+  const majorWindows = windows.filter((item) => ["purpose", "chat", "memory", "tasks", "body", "settings", "developer"].includes(item.type));
   return (
     <nav className="focus-nav" aria-label="Focus mode navigation">
       {majorWindows.map((item) => <button key={item.id} type="button" className={item.id === activeWindowId ? "active" : ""} onClick={() => onFocusPanel(item.id)}>{WINDOW_META[item.type].code}</button>)}

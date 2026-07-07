@@ -69,6 +69,7 @@ from rin.database import (
     update_rin_growth_event_review,
     update_tool_invocation_request_status,
 )
+from rin.diagnostics.purpose_compass import build_purpose_compass_payload
 from rin.diagnostics.readiness import build_python_readiness_report
 from rin.diagnostics.runtime_trace import (
     RUNTIME_TRACE_STORE,
@@ -427,6 +428,13 @@ def create_app(
     @app.get("/api/console/data-map")
     def api_console_data_map() -> dict[str, object]:
         return build_console_data_map_payload()
+
+    @app.get("/api/rin-purpose/compass")
+    def api_rin_purpose_compass(
+        current_layout: RinDataLayout = layout_dependency,
+        current_adapter: ModelAdapterProtocol = adapter_dependency,
+    ) -> dict[str, object]:
+        return build_purpose_compass_payload(current_layout, current_adapter)
 
     @app.get("/api/body/character-assets")
     def api_body_character_assets(
@@ -1800,6 +1808,7 @@ def build_glitch_core_snapshot(
     config_registry_payload = build_config_registry_payload(layout, adapter)
     self_review_payload = build_self_review_reports_payload(layout)
     improvement_proposals_payload = build_improvement_proposals_payload(layout)
+    purpose_compass_payload = build_purpose_compass_payload(layout, adapter)
     memory_cards = build_glitch_memory_cards(layout, query=memory_query, limit=40)
     latest_trace = RUNTIME_TRACE_STORE.latest()
     latest_trace_payload = latest_trace.to_safe_dict() if latest_trace else None
@@ -1877,18 +1886,25 @@ def build_glitch_core_snapshot(
         "configRegistry": config_registry_payload,
         "selfReview": self_review_payload,
         "improvementProposals": improvement_proposals_payload,
+        "purposeCompass": purpose_compass_payload,
         "dataMap": data_map_payload,
         "errors": build_glitch_error_items(latest_trace_payload),
         "windows": {
             "defaultTypes": [
+                "purpose",
                 "chat",
                 "memory",
-                "body",
-                "settings",
             ],
             "advancedTypes": ["tasks", "developer"],
             "temporaryTypes": ["error", "memoryDetail"],
-            "persistentTypes": ["chat", "memory", "tasks", "body", "settings"],
+            "persistentTypes": [
+                "purpose",
+                "chat",
+                "memory",
+                "tasks",
+                "body",
+                "settings",
+            ],
             "layoutPersistence": "browser-local-storage",
         },
     }
@@ -1922,6 +1938,7 @@ def build_console_data_map_payload() -> dict[str, object]:
             "label": "Improvement Proposals",
             "color": "purple",
         },
+        {"id": "purpose-compass", "label": "Purpose Compass", "color": "blue"},
     ]
     blocks = [
         data_block(
@@ -2161,6 +2178,21 @@ def build_console_data_map_payload() -> dict[str, object]:
             notes=(
                 "Conversion creates an editable prompt only; it does not run "
                 "Codex or write code."
+            ),
+        ),
+        data_block(
+            "rin-purpose-compass",
+            "RIN Purpose Compass",
+            "purpose-compass",
+            "/api/rin-purpose/compass, /api/glitch-core/snapshot.purposeCompass",
+            "rin.diagnostics.purpose_compass.build_purpose_compass_payload",
+            "final purpose, maturity dimensions, guardrails, next slices",
+            "Purpose",
+            "maturity compass and roadmap",
+            data_completeness="derived",
+            notes=(
+                "Read-only governance translation; no raw memory, profile text, "
+                "prompts, hidden reasoning, or secrets."
             ),
         ),
     ]

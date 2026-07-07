@@ -7,6 +7,7 @@ import type { Density, DisplayMode, DisplaySize } from "../visualization";
 type CoreVisualState = "idle" | "thinking" | "streaming" | "memory" | "warning" | "error" | "critical";
 
 const MAIN_NAV_ITEMS: Array<{ label: string; type: WindowType; tone: string }> = [
+  { label: "Purpose", type: "purpose", tone: "purpose" },
   { label: "Chat", type: "chat", tone: "chat" },
   { label: "Memory", type: "memory", tone: "memory" },
   { label: "Tasks", type: "tasks", tone: "tasks" },

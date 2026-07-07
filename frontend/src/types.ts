@@ -10,6 +10,7 @@ export interface SimpleBodySnapshot {
 export type WindowType =
   | "body"
   | "chat"
+  | "purpose"
   | "memory"
   | "memoryDetail"
   | "error"
@@ -233,6 +234,65 @@ export interface ConsoleDataMap {
   secretValuesIncluded: false;
   domains: ConsoleDataMapDomain[];
   dataBlocks: ConsoleDataMapBlock[];
+}
+
+export interface PurposeCompassMetric {
+  label: string;
+  value: string | number | boolean;
+}
+
+export interface PurposeCompassDimension {
+  id: string;
+  label: string;
+  purpose: string;
+  score: number;
+  status: string;
+  evidence: string[];
+  signals: PurposeCompassMetric[];
+  nextStep: string;
+  rawTextIncluded: false;
+  secretValuesIncluded: false;
+}
+
+export interface PurposeCompassGuardrail {
+  id: string;
+  label: string;
+  active: boolean;
+}
+
+export interface PurposeCompassRoadmapItem {
+  id: string;
+  title: string;
+  summary: string;
+  dimension: string;
+  guardrail: string;
+  requiresOwnerApproval: boolean;
+}
+
+export interface PurposeCompassPayload {
+  ok: boolean;
+  mode: "rin-purpose-compass";
+  readOnly: true;
+  localOnly: true;
+  rawPromptIncluded: false;
+  rawMemoryIncluded: false;
+  rawProfileIncluded: false;
+  rawModelOutputIncluded: false;
+  hiddenReasoningIncluded: false;
+  secretValuesIncluded: false;
+  externalProviderCallCount: 0;
+  finalPurpose: string;
+  operatingDirection: string;
+  overall: {
+    score: number;
+    status: string;
+    dimensionCount: number;
+    strongestSignals: string[];
+  };
+  dimensions: PurposeCompassDimension[];
+  guardrails: PurposeCompassGuardrail[];
+  inactiveScopes: string[];
+  recommendedSlices: PurposeCompassRoadmapItem[];
 }
 
 export interface MindMessageUnderstanding {
@@ -922,6 +982,7 @@ export interface GlitchSnapshot {
   configRegistry: ConfigRegistryPayload;
   selfReview: SelfReviewPayload;
   improvementProposals: ImprovementProposalsPayload;
+  purposeCompass: PurposeCompassPayload;
   dataMap: ConsoleDataMap;
   errors: GlitchErrorItem[];
   windows: Record<string, unknown>;
