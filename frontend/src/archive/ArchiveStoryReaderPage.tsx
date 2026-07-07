@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArchiveLayout } from "./components/ArchiveLayout";
-import { fetchArchiveAssets } from "./archiveApi";
+import { fetchArchiveStory } from "./archiveApi";
 import type { ArchiveAsset } from "./archiveTypes";
 
 interface ArchiveStoryReaderPageProps {
@@ -17,24 +17,25 @@ export function ArchiveStoryReaderPage({
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
     setLoading(true);
-    fetchArchiveAssets({ type: "story" })
-      .then((payload) => {
-        if (!cancelled) {
-          const found = payload.assets.find((a) => a.id === storyId) || null;
-          setStory(found);
+    setError("");
+    fetchArchiveStory(storyId, { signal: controller.signal })
+      .then((asset) => {
+        if (!controller.signal.aborted) {
+          setStory(asset);
           setLoading(false);
         }
       })
       .catch((err) => {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
+          setStory(null);
           setError(String(err));
           setLoading(false);
         }
       });
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [storyId]);
 

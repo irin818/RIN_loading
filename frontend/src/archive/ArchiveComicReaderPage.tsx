@@ -19,11 +19,15 @@ export function ArchiveComicReaderPage({
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
     setLoading(true);
-    fetchArchiveAssets({ seriesId, type: "comic-page", status: "published" })
+    setError("");
+    fetchArchiveAssets(
+      { seriesId, type: "comic-page", status: "published" },
+      { signal: controller.signal },
+    )
       .then((payload) => {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           const sorted = [...payload.assets].sort(
             (a, b) => (a.pageNumber ?? 0) - (b.pageNumber ?? 0),
           );
@@ -34,13 +38,13 @@ export function ArchiveComicReaderPage({
         }
       })
       .catch((err) => {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setError(String(err));
           setLoading(false);
         }
       });
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [seriesId]);
 

@@ -66,7 +66,7 @@ export interface ArchiveAssetPatch {
 }
 
 export interface ArchiveFilters {
-  type?: ArchiveAssetType;
+  type?: ArchiveAssetType | ArchiveAssetType[];
   status?: ArchiveAssetStatus;
   tag?: string;
   category?: string;

@@ -20,23 +20,27 @@ export function ArchiveComicsPage({ onNavigate }: ArchiveComicsPageProps) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
     setLoading(true);
-    fetchArchiveAssets({ type: "comic", status: "published" })
+    setError("");
+    fetchArchiveAssets(
+      { type: ["comic", "comic-page"], status: "published" },
+      { signal: controller.signal },
+    )
       .then((payload) => {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setGroups(groupComicAssets(payload.assets));
           setLoading(false);
         }
       })
       .catch((err) => {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setError(String(err));
           setLoading(false);
         }
       });
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, []);
 
@@ -93,13 +97,21 @@ function groupComicAssets(assets: ArchiveAsset[]): ComicGroup[] {
   const groups: ComicGroup[] = [];
   for (const [seriesId, list] of map) {
     list.sort((a, b) => (a.pageNumber ?? 0) - (b.pageNumber ?? 0));
-    const coverAsset = list.find((a) => a.coverAssetId) || list[0];
+    const seriesRecord = list.find((asset) => asset.type === "comic");
+    const coverAssetId =
+      seriesRecord?.coverAssetId || list.find((asset) => asset.coverAssetId)?.coverAssetId;
+    const coverAsset =
+      (coverAssetId ? list.find((asset) => asset.id === coverAssetId) : null) ||
+      seriesRecord ||
+      list[0];
     const coverUrl = coverAsset ? coverAsset.thumbnailPath : null;
+    const pageCount =
+      list.filter((asset) => asset.type === "comic-page").length || list.length;
     groups.push({
       seriesId,
-      title: list[0].title || seriesId,
+      title: seriesRecord?.title || seriesId,
       coverUrl,
-      pageCount: list.length,
+      pageCount,
     });
   }
   return groups;

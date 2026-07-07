@@ -19,11 +19,15 @@ export function ArchiveTimelinePage({ onNavigate }: ArchiveTimelinePageProps) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
     setLoading(true);
-    fetchArchiveAssets({ status: "published", limit: 100 })
+    setError("");
+    fetchArchiveAssets(
+      { status: "published", limit: 100 },
+      { signal: controller.signal },
+    )
       .then((payload) => {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           const sorted = [...payload.assets].sort(
             (a, b) =>
               new Date(b.createdAt).getTime() -
@@ -34,13 +38,13 @@ export function ArchiveTimelinePage({ onNavigate }: ArchiveTimelinePageProps) {
         }
       })
       .catch((err) => {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setError(String(err));
           setLoading(false);
         }
       });
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, []);
 

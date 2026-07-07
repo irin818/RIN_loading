@@ -12,6 +12,7 @@ import { ArchiveStoryReaderPage } from "./ArchiveStoryReaderPage";
 import { ArchiveCharacterFilesPage } from "./ArchiveCharacterFilesPage";
 import { ArchiveTimelinePage } from "./ArchiveTimelinePage";
 import { ArchiveAdminPage } from "./ArchiveAdminPage";
+import { ArchiveLayout } from "./components/ArchiveLayout";
 import "./archive.css";
 
 function subscribeLocation(callback: () => void) {
@@ -74,6 +75,21 @@ export function ArchiveShell() {
         )}
         {route.kind === "archive-admin" && (
           <ArchiveAdminPage onNavigate={navigate} />
+        )}
+        {route.kind === "not-found" && (
+          <ArchiveLayout
+            title="Archive Not Found"
+            subtitle={route.path}
+            onNavigate={navigate}
+          >
+            <button
+              className="archive-btn archive-btn-primary"
+              type="button"
+              onClick={() => navigate("/archive")}
+            >
+              Archive Home
+            </button>
+          </ArchiveLayout>
         )}
       </ArchiveErrorBoundary>
     </main>

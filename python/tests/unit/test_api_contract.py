@@ -9,6 +9,7 @@ def test_api_contract_check_passes_on_synthetic_temp_data() -> None:
     assert report.conversationPost is True
     assert report.conversationHistory is True
     assert report.readiness is True
+    assert report.archiveAssets is True
     assert report.memoryContextTrace is True
     assert report.profileSummary is True
     assert report.structuredErrors is True

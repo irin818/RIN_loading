@@ -13,23 +13,27 @@ export function ArchiveStoriesPage({ onNavigate }: ArchiveStoriesPageProps) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
     setLoading(true);
-    fetchArchiveAssets({ type: "story", status: "published" })
+    setError("");
+    fetchArchiveAssets(
+      { type: "story", status: "published" },
+      { signal: controller.signal },
+    )
       .then((payload) => {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setStories(payload.assets);
           setLoading(false);
         }
       })
       .catch((err) => {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setError(String(err));
           setLoading(false);
         }
       });
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, []);
 

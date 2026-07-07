@@ -27,27 +27,27 @@ export function ArchiveCharacterFilesPage({
   const [activeType, setActiveType] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
     setLoading(true);
-    fetchArchiveAssets({ status: "published" })
+    setError("");
+    fetchArchiveAssets(
+      { type: [...CHARACTER_TYPES], status: "published" },
+      { signal: controller.signal },
+    )
       .then((payload) => {
-        if (!cancelled) {
-          setAssets(
-            payload.assets.filter((a) =>
-              CHARACTER_TYPES.includes(a.type as typeof CHARACTER_TYPES[number]),
-            ),
-          );
+        if (!controller.signal.aborted) {
+          setAssets(payload.assets);
           setLoading(false);
         }
       })
       .catch((err) => {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setError(String(err));
           setLoading(false);
         }
       });
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, []);
 

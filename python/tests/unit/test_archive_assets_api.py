@@ -128,6 +128,28 @@ def test_archive_gif_upload_uses_original_for_preview_fallback(
     assert client.get(asset["thumbnailPath"]).content == image
 
 
+def test_archive_upload_uses_detected_image_format_for_storage(
+    archive_client: tuple[TestClient, RinDataLayout],
+) -> None:
+    client, layout = archive_client
+    image = _make_image_bytes("JPEG", size=(320, 240))
+
+    response = _upload_asset(
+        client,
+        image,
+        file_name="wrong-extension.png",
+        content_type="image/png",
+    )
+
+    assert response.status_code == 200
+    asset = response.json()["assets"][0]
+    assert asset["contentType"] == "image/jpeg"
+    assert asset["fileName"].endswith(".jpg")
+    assert _archive_file_path(layout, "originals", asset["fileName"]).read_bytes() == (
+        image
+    )
+
+
 def test_archive_rejects_unsupported_and_unreadable_uploads(
     archive_client: tuple[TestClient, RinDataLayout],
 ) -> None:
@@ -235,6 +257,49 @@ def test_archive_hard_delete_validates_derivative_paths_before_unlink(
     assert _manifest_record(layout, asset["id"])["id"] == asset["id"]
 
 
+def test_archive_list_accepts_multiple_asset_types(
+    archive_client: tuple[TestClient, RinDataLayout],
+) -> None:
+    client, _layout = archive_client
+    comic = _upload_asset(
+        client,
+        _make_image_bytes("PNG", size=(640, 480)),
+        file_name="series-cover.png",
+        content_type="image/png",
+        metadata={"type": "comic", "title": "Series Cover"},
+    ).json()["assets"][0]
+    page = _upload_asset(
+        client,
+        _make_image_bytes("PNG", size=(640, 480)),
+        file_name="series-page-1.png",
+        content_type="image/png",
+        metadata={
+            "type": "comic-page",
+            "title": "Series Page",
+            "seriesId": "rin-series",
+        },
+    ).json()["assets"][0]
+    illustration = _upload_asset(
+        client,
+        _make_image_bytes("PNG", size=(640, 480)),
+        file_name="illustration.png",
+        content_type="image/png",
+        metadata={"type": "illustration", "title": "Illustration"},
+    ).json()["assets"][0]
+    for asset in (comic, page, illustration):
+        patch = client.patch(
+            f"/api/archive/assets/{asset['id']}",
+            json={"status": "published"},
+        )
+        assert patch.status_code == 200
+
+    response = client.get("/api/archive/assets?type=comic,comic-page")
+
+    assert response.status_code == 200
+    returned_ids = {asset["id"] for asset in response.json()["assets"]}
+    assert returned_ids == {comic["id"], page["id"]}
+
+
 def test_archive_rejects_manifest_path_traversal(
     archive_client: tuple[TestClient, RinDataLayout],
 ) -> None:
@@ -273,6 +338,33 @@ def test_archive_rejects_manifest_path_traversal(
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Unsafe archive asset path."
+
+
+def test_archive_story_content_is_returned_only_by_story_endpoint(
+    archive_client: tuple[TestClient, RinDataLayout],
+) -> None:
+    client, _layout = archive_client
+    upload = _upload_asset(
+        client,
+        _make_image_bytes("PNG", size=(640, 480)),
+        file_name="story-cover.png",
+        content_type="image/png",
+        metadata={"type": "story", "title": "Story With Content"},
+    )
+    story = upload.json()["assets"][0]
+
+    saved = client.put(
+        f"/api/archive/stories/{story['id']}",
+        json={"content": "Line one\nLine two"},
+    )
+    listed = client.get("/api/archive/assets?type=story")
+    fetched = client.get(f"/api/archive/stories/{story['id']}")
+
+    assert saved.status_code == 200
+    assert listed.status_code == 200
+    assert fetched.status_code == 200
+    assert listed.json()["assets"][0]["storyContent"] is None
+    assert fetched.json()["storyContent"] == "Line one\nLine two"
 
 
 def _upload_asset(

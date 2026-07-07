@@ -6,7 +6,7 @@ import {
   updateArchiveAsset,
   deleteArchiveAsset,
 } from "./archiveApi";
-import type { ArchiveAsset, ArchiveAssetPatch } from "./archiveTypes";
+import type { ArchiveAsset, ArchiveAssetPatch, ArchiveFilters } from "./archiveTypes";
 import {
   ARCHIVE_ASSET_TYPE_LABELS,
   ARCHIVE_STATUS_LABELS,
@@ -49,15 +49,16 @@ export function ArchiveAdminPage({ onNavigate }: ArchiveAdminPageProps) {
 
   // Search/filter state
   const [searchQ, setSearchQ] = useState("");
-  const [filterType, setFilterType] = useState<string>("");
+  const [filterType, setFilterType] = useState<ArchiveAssetType | "">("");
 
   const loadAssets = useCallback(
     (signal?: AbortSignal) => {
       setLoading(true);
-      const filters: Record<string, string> = {};
+      setError("");
+      const filters: ArchiveFilters = {};
       if (filterType) filters.type = filterType;
       if (searchQ.trim()) filters.q = searchQ.trim();
-      fetchArchiveAssets(filters)
+      fetchArchiveAssets(filters, { signal })
         .then((payload) => {
           if (!signal?.aborted) {
             setAssets(payload.assets);
@@ -285,7 +286,9 @@ export function ArchiveAdminPage({ onNavigate }: ArchiveAdminPageProps) {
           />
           <select
             value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
+            onChange={(e) =>
+              setFilterType(e.target.value as ArchiveAssetType | "")
+            }
           >
             <option value="">All Types</option>
             {ASSET_TYPES.map((t) => (

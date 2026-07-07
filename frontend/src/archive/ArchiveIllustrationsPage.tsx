@@ -17,23 +17,27 @@ export function ArchiveIllustrationsPage({
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
     setLoading(true);
-    fetchArchiveAssets({ type: "illustration", status: "published" })
+    setError("");
+    fetchArchiveAssets(
+      { type: "illustration", status: "published" },
+      { signal: controller.signal },
+    )
       .then((payload) => {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setAssets(payload.assets);
           setLoading(false);
         }
       })
       .catch((err) => {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setError(String(err));
           setLoading(false);
         }
       });
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, []);
 

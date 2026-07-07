@@ -640,8 +640,11 @@ def test_glitch_core_entry_reports_frontend_build_state() -> None:
     client, layout = create_client()
     try:
         response = client.get("/glitch-core")
+        favicon = client.get("/favicon.svg")
 
         assert response.status_code in {200, 503}
+        assert favicon.status_code == 200
+        assert favicon.headers["content-type"].startswith("image/svg+xml")
         assert "RIN" in response.text
         if response.status_code == 200:
             asset_paths = re.findall(

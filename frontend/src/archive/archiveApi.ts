@@ -1,10 +1,15 @@
 import type {
   ArchiveAsset,
+  ArchiveAssetType,
   ArchiveAssetPatch,
   ArchiveAssetsPayload,
   ArchiveFilters,
   ArchiveUploadMetadata,
 } from "./archiveTypes";
+
+interface ArchiveRequestOptions {
+  signal?: AbortSignal;
+}
 
 async function readJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -27,9 +32,10 @@ async function readJson<T>(response: Response): Promise<T> {
 
 export async function fetchArchiveAssets(
   filters: ArchiveFilters = {},
+  options: ArchiveRequestOptions = {},
 ): Promise<ArchiveAssetsPayload> {
   const params = new URLSearchParams();
-  if (filters.type) params.set("type", filters.type);
+  setArchiveAssetTypeFilter(params, filters.type);
   if (filters.status) params.set("status", filters.status);
   if (filters.tag) params.set("tag", filters.tag);
   if (filters.category) params.set("category", filters.category);
@@ -39,6 +45,7 @@ export async function fetchArchiveAssets(
   const suffix = params.toString() ? `?${params.toString()}` : "";
   const response = await fetch(`/api/archive/assets${suffix}`, {
     headers: { Accept: "application/json" },
+    signal: options.signal,
   });
   return readJson<ArchiveAssetsPayload>(response);
 }
@@ -101,9 +108,11 @@ export function archiveAssetThumbnailUrl(assetId: string): string {
 
 export async function fetchArchiveStory(
   storyId: string,
+  options: ArchiveRequestOptions = {},
 ): Promise<ArchiveAsset> {
   const response = await fetch(`/api/archive/stories/${storyId}`, {
     headers: { Accept: "application/json" },
+    signal: options.signal,
   });
   return readJson<ArchiveAsset>(response);
 }
@@ -121,4 +130,12 @@ export async function saveArchiveStory(
     body: JSON.stringify({ content }),
   });
   return readJson<ArchiveAsset>(response);
+}
+
+function setArchiveAssetTypeFilter(
+  params: URLSearchParams,
+  type: ArchiveAssetType | ArchiveAssetType[] | undefined,
+) {
+  if (!type) return;
+  params.set("type", Array.isArray(type) ? type.join(",") : type);
 }

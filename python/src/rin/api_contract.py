@@ -27,6 +27,7 @@ class ApiContractCheckReport:
     conversationPost: bool
     conversationHistory: bool
     readiness: bool
+    archiveAssets: bool
     memoryContextTrace: bool
     profileSummary: bool
     structuredErrors: bool
@@ -47,6 +48,7 @@ def run_api_contract_check() -> ApiContractCheckReport:
         local_state = client.get("/api/local-state")
         readiness = client.get("/api/readiness")
         profile = client.get("/profile/status")
+        archive_assets = client.get("/api/archive/assets")
         trace = client.get("/memory/context-trace/status")
         posted = client.post(
             "/api/conversations",
@@ -65,6 +67,11 @@ def run_api_contract_check() -> ApiContractCheckReport:
             and history.json().get("ok") is True,
             "readiness": readiness.status_code == 200
             and readiness.json().get("ok") is True,
+            "archive_assets": archive_assets.status_code == 200
+            and archive_assets.json().get("ok") is True
+            and archive_assets.json().get("localOnly") is True
+            and archive_assets.json().get("rawTextIncluded") is False
+            and archive_assets.json().get("secretValuesIncluded") is False,
             "memory_context_trace": trace.status_code == 200
             and trace.json().get("fullTextIncluded") is False,
             "profile_summary": profile.status_code == 200
@@ -78,6 +85,7 @@ def run_api_contract_check() -> ApiContractCheckReport:
             conversationPost=checks["conversation_post"],
             conversationHistory=checks["conversation_history"],
             readiness=checks["readiness"],
+            archiveAssets=checks["archive_assets"],
             memoryContextTrace=checks["memory_context_trace"],
             profileSummary=checks["profile_summary"],
             structuredErrors=checks["structured_errors"],
@@ -101,6 +109,7 @@ def format_api_contract_check_report(report: ApiContractCheckReport) -> str:
             "GET /api/conversations/{id}: "
             f"{'ok' if report.conversationHistory else 'failed'}",
             f"Readiness: {'ok' if report.readiness else 'failed'}",
+            f"Archive assets: {'ok' if report.archiveAssets else 'failed'}",
             "Memory/context trace status: "
             f"{'ok' if report.memoryContextTrace else 'failed'}",
             f"Profile summary: {'ok' if report.profileSummary else 'failed'}",

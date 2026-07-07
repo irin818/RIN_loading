@@ -123,6 +123,8 @@ PUBLIC_BODY_DIR = REPO_ROOT / "public" / "body"
 FRONTEND_DIST_DIR = REPO_ROOT / "frontend" / "dist"
 FRONTEND_INDEX = FRONTEND_DIST_DIR / "index.html"
 FRONTEND_ASSETS_DIR = FRONTEND_DIST_DIR / "assets"
+FRONTEND_PUBLIC_FAVICON = REPO_ROOT / "frontend" / "public" / "favicon.svg"
+FRONTEND_DIST_FAVICON = FRONTEND_DIST_DIR / "favicon.svg"
 FRONTEND_PUBLIC_PICTURE_DIR = REPO_ROOT / "frontend" / "public" / "picture"
 FRONTEND_DIST_PICTURE_DIR = FRONTEND_DIST_DIR / "picture"
 BODY_DEFAULT_AVATAR_ASSET_PATH = "/body-assets/rin/states/默认.png"
@@ -264,6 +266,17 @@ def create_app(
     # ---- UI rendering ----
     def redirect_to_glitch_core() -> Response:
         return RedirectResponse(url="/glitch-core", status_code=307)
+
+    @app.get("/favicon.svg")
+    def frontend_favicon() -> FileResponse:
+        favicon = (
+            FRONTEND_DIST_FAVICON
+            if FRONTEND_DIST_FAVICON.is_file()
+            else FRONTEND_PUBLIC_FAVICON
+        )
+        if not favicon.is_file():
+            raise HTTPException(status_code=404, detail="Favicon not found.")
+        return FileResponse(favicon, media_type="image/svg+xml")
 
     @app.get("/", response_class=HTMLResponse)
     def ui_root() -> Response:

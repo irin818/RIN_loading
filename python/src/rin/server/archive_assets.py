@@ -11,7 +11,7 @@ import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 from urllib.parse import unquote
 from uuid import uuid4
 
@@ -56,6 +56,18 @@ ALLOWED_TEXT_SUFFIXES: dict[str, str] = {
 CONTENT_TYPE_SUFFIXES: dict[str, str] = {
     value: key for key, value in ALLOWED_IMAGE_SUFFIXES.items()
 }
+IMAGE_FORMAT_SUFFIXES: dict[str, str] = {
+    "GIF": ".gif",
+    "JPEG": ".jpg",
+    "PNG": ".png",
+    "WEBP": ".webp",
+}
+IMAGE_FORMAT_CONTENT_TYPES: dict[str, str] = {
+    "GIF": "image/gif",
+    "JPEG": "image/jpeg",
+    "PNG": "image/png",
+    "WEBP": "image/webp",
+}
 MANIFEST_VERSION = 1
 PREVIEW_MAX_DIMENSION = 2000
 THUMBNAIL_MAX_DIMENSION = 512
@@ -81,6 +93,8 @@ class ArchiveImageInfo:
 
     width: int
     height: int
+    suffix: str
+    content_type: str
 
 
 @dataclass(frozen=True)
@@ -182,8 +196,9 @@ def list_archive_assets(
     if not status:
         assets = [a for a in assets if a.status != "archived"]
 
-    if asset_type:
-        assets = [a for a in assets if a.type == asset_type]
+    asset_types = _asset_type_filter(asset_type)
+    if asset_types is not None:
+        assets = [a for a in assets if a.type in asset_types]
     if status:
         assets = [a for a in assets if a.status == status]
     if tag:
@@ -229,8 +244,7 @@ async def store_uploaded_archive_asset(
 
     original_name = _uploaded_file_name(request)
     content_type = _safe_content_type(request)
-    suffix = _safe_image_suffix(original_name, content_type)
-    media_type = ALLOWED_IMAGE_SUFFIXES[suffix]
+    _require_supported_image_hint(original_name, content_type)
 
     metadata = _parse_upload_metadata(request)
     asset_type = _validate_asset_type(metadata.get("type", "illustration"))
@@ -251,13 +265,13 @@ async def store_uploaded_archive_asset(
     sort_order_raw = metadata.get("sortOrder", 0)
 
     asset_id = _new_asset_id(title)
-    stored_name = f"{asset_id}{suffix}"
     now = datetime.now(UTC).isoformat()
 
     originals_dir = _originals_dir(layout)
     originals_dir.mkdir(parents=True, exist_ok=True)
-    final_path = _ensure_child(originals_dir / stored_name, originals_dir)
-    temp_path = final_path.with_suffix(f"{final_path.suffix}.tmp")
+    temp_path = _ensure_child(originals_dir / f"{asset_id}.upload.tmp", originals_dir)
+    final_path: Path | None = None
+    stored_name = ""
 
     byte_count = 0
     try:
@@ -271,6 +285,8 @@ async def store_uploaded_archive_asset(
             temp_path.unlink(missing_ok=True)
             raise HTTPException(status_code=400, detail="Upload is empty.")
         image_info = _inspect_uploaded_image(temp_path)
+        stored_name = f"{asset_id}{image_info.suffix}"
+        final_path = _ensure_child(originals_dir / stored_name, originals_dir)
         temp_path.replace(final_path)
     except HTTPException:
         temp_path.unlink(missing_ok=True)
@@ -282,11 +298,12 @@ async def store_uploaded_archive_asset(
             detail="Failed to save archive asset file.",
         ) from error
 
+    assert final_path is not None
     derivatives = _generate_archive_derivatives(
         layout,
         original_path=final_path,
         stored_name=stored_name,
-        suffix=suffix,
+        suffix=image_info.suffix,
     )
     page_number: int | None = None
     if page_number_raw is not None:
@@ -309,7 +326,7 @@ async def store_uploaded_archive_asset(
         category=category,
         status="draft",
         fileName=stored_name,
-        contentType=media_type,
+        contentType=image_info.content_type,
         originalPath=str(final_path.relative_to(layout.rootDir)),
         previewPath=derivatives.preview_path,
         thumbnailPath=derivatives.thumbnail_path,
@@ -648,12 +665,24 @@ def _safe_image_suffix(file_name: str, content_type: str) -> str:
     )
 
 
+def _require_supported_image_hint(file_name: str, content_type: str) -> None:
+    _safe_image_suffix(file_name, content_type)
+
+
 def _inspect_uploaded_image(path: Path) -> ArchiveImageInfo:
     try:
         with Image.open(path) as image:
             image.verify()
         with Image.open(path) as image:
-            return ArchiveImageInfo(width=image.width, height=image.height)
+            format_name = str(image.format or "").upper()
+            if format_name not in IMAGE_FORMAT_SUFFIXES:
+                raise UnidentifiedImageError
+            return ArchiveImageInfo(
+                width=image.width,
+                height=image.height,
+                suffix=IMAGE_FORMAT_SUFFIXES[format_name],
+                content_type=IMAGE_FORMAT_CONTENT_TYPES[format_name],
+            )
     except (UnidentifiedImageError, OSError) as error:
         path.unlink(missing_ok=True)
         raise HTTPException(
@@ -772,9 +801,20 @@ def _parse_upload_metadata(request: Request) -> dict[str, object]:
         return {}
 
 
+def _asset_type_filter(value: str | None) -> set[ArchiveAssetType] | None:
+    if not value:
+        return None
+    selected = {
+        cast(ArchiveAssetType, part)
+        for part in (item.strip() for item in value.split(","))
+        if part in VALID_ASSET_TYPES
+    }
+    return selected or set()
+
+
 def _validate_asset_type(value: object) -> ArchiveAssetType:
     if isinstance(value, str) and value in VALID_ASSET_TYPES:
-        return value  # type: ignore[return-value]
+        return cast(ArchiveAssetType, value)
     return "illustration"
 
 
