@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArchiveLayout } from "./components/ArchiveLayout";
 import { fetchArchiveAssets } from "./archiveApi";
 import type { ArchiveAsset } from "./archiveTypes";
+import { isArchiveImage } from "./components/ArchiveAssetVisual";
 
 interface ArchiveComicReaderPageProps {
   seriesId: string;
@@ -49,6 +50,7 @@ export function ArchiveComicReaderPage({
   }, [seriesId]);
 
   const title = pages.length > 0 ? pages[0].title || seriesId : seriesId;
+  const currentAsset = pages[currentPage] ?? null;
 
   const goNext = () => {
     if (currentPage < pages.length - 1) {
@@ -97,24 +99,32 @@ export function ArchiveComicReaderPage({
               >
                 Next →
               </button>
-              <button
-                className="archive-btn"
-                type="button"
-                onClick={() => setShowOriginal((current) => !current)}
-              >
-                {showOriginal ? "Preview" : "Full quality"}
-              </button>
+              {currentAsset && isArchiveImage(currentAsset) ? (
+                <button
+                  className="archive-btn"
+                  type="button"
+                  onClick={() => setShowOriginal((current) => !current)}
+                >
+                  {showOriginal ? "Preview" : "Full quality"}
+                </button>
+              ) : null}
             </div>
             <div className="archive-comic-reader-pages">
-              <img
-                className="archive-comic-reader-image"
-                src={
-                  showOriginal
-                    ? pages[currentPage].originalPath
-                    : pages[currentPage].previewPath
-                }
-                alt={`Page ${currentPage + 1}`}
-              />
+              {currentAsset && isArchiveImage(currentAsset) ? (
+                <img
+                  className="archive-comic-reader-image"
+                  src={showOriginal ? currentAsset.originalPath : currentAsset.previewPath}
+                  alt={`Page ${currentPage + 1}`}
+                />
+              ) : currentAsset ? (
+                <a
+                  className="archive-file-download-card"
+                  href={currentAsset.originalPath}
+                  download
+                >
+                  Download {currentAsset.fileName}
+                </a>
+              ) : null}
             </div>
             <div className="archive-comic-reader-nav">
               <button

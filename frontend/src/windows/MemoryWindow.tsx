@@ -27,7 +27,7 @@ export const MemoryWindow = memo(function MemoryWindow({
   const candidates = snapshot?.mind.memoryCandidates.length
     ? snapshot.mind.memoryCandidates
     : snapshot?.mind.latest?.memoryCandidates ?? [];
-  const [candidateFilter, setCandidateFilter] = useState<"pending" | "approved" | "rejected" | "inactive" | "all">("pending");
+  const [candidateFilter, setCandidateFilter] = useState<"pending" | "approved" | "rejected" | "inactive" | "all">("all");
   const filteredCandidates = candidates.filter((candidate) => {
     if (candidateFilter === "pending") return ["candidate", "review_required"].includes(candidate.reviewStatus) && candidate.active;
     if (candidateFilter === "approved") return candidate.reviewStatus === "owner_approved" || candidate.reviewStatus === "auto_promoted";

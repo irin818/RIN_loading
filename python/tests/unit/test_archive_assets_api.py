@@ -150,17 +150,11 @@ def test_archive_upload_uses_detected_image_format_for_storage(
     )
 
 
-def test_archive_rejects_unsupported_and_unreadable_uploads(
+def test_archive_rejects_unreadable_image_uploads(
     archive_client: tuple[TestClient, RinDataLayout],
 ) -> None:
     client, layout = archive_client
 
-    unsupported = _upload_asset(
-        client,
-        b"not an image",
-        file_name="notes.txt",
-        content_type="text/plain",
-    )
     unreadable = _upload_asset(
         client,
         b"not a png",
@@ -168,13 +162,48 @@ def test_archive_rejects_unsupported_and_unreadable_uploads(
         content_type="image/png",
     )
 
-    assert unsupported.status_code == 400
-    assert unsupported.json()["detail"] == (
-        "Only PNG, JPG, WEBP, or GIF images are supported."
-    )
     assert unreadable.status_code == 400
     assert unreadable.json()["detail"] == "Unsupported or unreadable image file."
     assert not _manifest_path(layout).exists()
+
+
+def test_archive_uploads_nonimage_as_safe_downloadable_asset(
+    archive_client: tuple[TestClient, RinDataLayout],
+) -> None:
+    client, layout = archive_client
+    file_content = b"local live2d binary asset"
+
+    response = _upload_asset(
+        client,
+        file_content,
+        file_name="rin-model.moc3",
+        content_type="application/octet-stream",
+        metadata={"type": "live2d-asset", "title": "RIN model"},
+    )
+
+    assert response.status_code == 200
+    asset = response.json()["assets"][0]
+    record = _manifest_record(layout, asset["id"])
+    original = client.get(asset["originalPath"])
+    preview = client.get(asset["previewPath"])
+    thumbnail = client.get(asset["thumbnailPath"])
+
+    assert asset["contentType"] == "application/octet-stream"
+    assert asset["width"] is None
+    assert asset["height"] is None
+    assert asset["fileSize"] == len(file_content)
+    assert record["previewPath"] == ""
+    assert record["thumbnailPath"] == ""
+    assert _archive_file_path(layout, "originals", asset["fileName"]).read_bytes() == (
+        file_content
+    )
+    for file_response in (original, preview, thumbnail):
+        assert file_response.status_code == 200
+        assert file_response.content == file_content
+        assert file_response.headers["content-type"].startswith(
+            "application/octet-stream"
+        )
+        assert file_response.headers["content-disposition"].startswith("attachment;")
 
 
 def test_archive_preview_and_thumbnail_endpoints_fall_back_to_original(

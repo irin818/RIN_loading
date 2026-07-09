@@ -4,6 +4,7 @@ import type { Density, DisplayMode, DisplaySize } from "./visualization";
 export const LAYOUT_KEY = "rin.glitch-core.window-layout.v10";
 export const UI_SETTINGS_KEY = "rin.glitch-core.ui-settings.v2";
 export const CHARACTER_KEY = "rin.glitch-core.character.v1";
+export const CONVERSATION_KEY = "rin.glitch-core.active-conversation.v1";
 
 export const PERSISTENT_TYPES = new Set<WindowType>([
   "purpose", "chat", "memory", "tasks", "body", "settings"

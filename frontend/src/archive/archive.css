@@ -229,6 +229,27 @@
   object-fit: cover;
   transition: transform 0.3s;
 }
+.archive-file-visual {
+  height: 100%;
+  display: grid;
+  place-content: center;
+  gap: 5px;
+  padding: 10px;
+  color: #67e8f9;
+  text-align: center;
+  background: linear-gradient(135deg, rgba(103, 232, 249, 0.12), rgba(0, 255, 100, 0.05));
+}
+.archive-file-visual span {
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  opacity: 0.75;
+}
+.archive-file-visual strong {
+  max-width: 12ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.9rem;
+}
 .archive-asset-card:hover .archive-asset-card-image img {
   transform: scale(1.03);
 }
@@ -268,6 +289,11 @@
 .archive-comic-cover {
   width: 100%;
   height: 160px;
+  overflow: hidden;
+}
+.archive-comic-cover img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   border-radius: 4px;
   margin-bottom: 4px;
@@ -765,6 +791,32 @@
   object-fit: contain;
   border: 1px solid rgba(0, 255, 100, 0.15);
   box-shadow: 0 0 60px rgba(0, 255, 100, 0.06);
+}
+.archive-viewer-file,
+.archive-file-download-card {
+  max-width: min(560px, 90vw);
+  border: 1px solid rgba(103, 232, 249, 0.35);
+  background: rgba(2, 14, 10, 0.94);
+  color: #d8ffe5;
+  padding: 28px;
+  text-align: center;
+}
+.archive-viewer-file {
+  display: grid;
+  gap: 12px;
+}
+.archive-viewer-file span {
+  color: #8ab89a;
+  line-height: 1.5;
+}
+.archive-file-download-card {
+  display: block;
+  margin: 24px auto;
+  text-decoration: none;
+}
+.archive-file-download-card:hover {
+  border-color: #67e8f9;
+  color: #67e8f9;
 }
 
 .archive-viewer-close {

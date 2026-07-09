@@ -1152,6 +1152,28 @@ def test_mind_api_and_snapshot_redact_secret_like_owner_input() -> None:
         shutil.rmtree(layout.rootDir, ignore_errors=True)
 
 
+def test_glitch_snapshot_recovers_from_stale_selection() -> None:
+    client, layout = create_client()
+    try:
+        sent = client.post(
+            "/api/chat-test/send",
+            json={"content": "Keep this local session available after restart."},
+        )
+        conversation_id = sent.json()["conversationId"]
+        snapshot = client.get(
+            "/api/glitch-core/snapshot",
+            params={"conversationId": "stale-local-selection"},
+        )
+
+        assert sent.status_code == 200
+        assert snapshot.status_code == 200
+        payload = snapshot.json()
+        assert payload["selectedConversationId"] == conversation_id
+        assert [message["role"] for message in payload["messages"]] == ["owner", "rin"]
+    finally:
+        shutil.rmtree(layout.rootDir, ignore_errors=True)
+
+
 def test_default_chat_provider_missing_key_fails_safely(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

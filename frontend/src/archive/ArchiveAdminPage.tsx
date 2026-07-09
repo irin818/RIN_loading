@@ -12,6 +12,7 @@ import {
   ARCHIVE_STATUS_LABELS,
 } from "./archiveTypes";
 import type { ArchiveAssetType, ArchiveAssetStatus } from "./archiveTypes";
+import { ArchiveAssetVisual } from "./components/ArchiveAssetVisual";
 
 interface ArchiveAdminPageProps {
   onNavigate: (path: string) => void;
@@ -100,7 +101,11 @@ export function ArchiveAdminPage({ onNavigate }: ArchiveAdminPageProps) {
           .filter(Boolean),
         category: uploadCategory,
       });
-      setStatus("Uploaded.");
+      setStatus(
+        file.type.startsWith("image/")
+          ? "Uploaded. Preview generated."
+          : "Uploaded. This file is available as a safe local download.",
+      );
       setUploadTitle("");
       setUploadDesc("");
       setUploadTags("");
@@ -211,7 +216,6 @@ export function ArchiveAdminPage({ onNavigate }: ArchiveAdminPageProps) {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
             />
           </div>
           <div className="archive-admin-field">
@@ -323,10 +327,7 @@ export function ArchiveAdminPage({ onNavigate }: ArchiveAdminPageProps) {
               {editingId === asset.id ? (
                 <div className="archive-admin-edit-form">
                   <div className="archive-admin-edit-preview">
-                    <img
-                      src={asset.previewPath}
-                      alt={asset.title}
-                    />
+                    <ArchiveAssetVisual asset={asset} />
                   </div>
                   <div className="archive-admin-edit-fields">
                     <label>
@@ -436,10 +437,7 @@ export function ArchiveAdminPage({ onNavigate }: ArchiveAdminPageProps) {
               ) : (
                 <div className="archive-admin-item-row">
                   <div className="archive-admin-item-preview">
-                    <img
-                      src={asset.thumbnailPath}
-                      alt={asset.title}
-                    />
+                    <ArchiveAssetVisual asset={asset} />
                   </div>
                   <div className="archive-admin-item-info">
                     <strong>{asset.title}</strong>
@@ -459,6 +457,13 @@ export function ArchiveAdminPage({ onNavigate }: ArchiveAdminPageProps) {
                     </span>
                   </div>
                   <div className="archive-admin-item-actions">
+                    <a
+                      className="archive-btn"
+                      href={asset.originalPath}
+                      download
+                    >
+                      Download
+                    </a>
                     <button
                       className="archive-btn"
                       type="button"

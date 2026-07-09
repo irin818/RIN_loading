@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArchiveLayout } from "./components/ArchiveLayout";
 import { fetchArchiveAssets } from "./archiveApi";
 import type { ArchiveAsset } from "./archiveTypes";
+import { ArchiveAssetVisual } from "./components/ArchiveAssetVisual";
 
 interface ArchiveComicsPageProps {
   onNavigate: (path: string) => void;
@@ -10,7 +11,7 @@ interface ArchiveComicsPageProps {
 interface ComicGroup {
   seriesId: string;
   title: string;
-  coverUrl: string | null;
+  coverAsset: ArchiveAsset | null;
   pageCount: number;
 }
 
@@ -66,13 +67,10 @@ export function ArchiveComicsPage({ onNavigate }: ArchiveComicsPageProps) {
                 onNavigate(`/archive/comics/${group.seriesId}`)
               }
             >
-              {group.coverUrl && (
-                <img
-                  className="archive-comic-cover"
-                  src={group.coverUrl}
-                  alt={group.title}
-                  loading="lazy"
-                />
+              {group.coverAsset && (
+                <div className="archive-comic-cover">
+                  <ArchiveAssetVisual asset={group.coverAsset} loading="lazy" />
+                </div>
               )}
               <span className="archive-category-card-title">{group.title}</span>
               <span className="archive-category-card-desc">
@@ -104,13 +102,12 @@ function groupComicAssets(assets: ArchiveAsset[]): ComicGroup[] {
       (coverAssetId ? list.find((asset) => asset.id === coverAssetId) : null) ||
       seriesRecord ||
       list[0];
-    const coverUrl = coverAsset ? coverAsset.thumbnailPath : null;
     const pageCount =
       list.filter((asset) => asset.type === "comic-page").length || list.length;
     groups.push({
       seriesId,
       title: seriesRecord?.title || seriesId,
-      coverUrl,
+      coverAsset: coverAsset ?? null,
       pageCount,
     });
   }

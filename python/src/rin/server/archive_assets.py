@@ -244,7 +244,7 @@ async def store_uploaded_archive_asset(
 
     original_name = _uploaded_file_name(request)
     content_type = _safe_content_type(request)
-    _require_supported_image_hint(original_name, content_type)
+    is_image_upload = _is_image_upload(original_name, content_type)
 
     metadata = _parse_upload_metadata(request)
     asset_type = _validate_asset_type(metadata.get("type", "illustration"))
@@ -272,6 +272,7 @@ async def store_uploaded_archive_asset(
     temp_path = _ensure_child(originals_dir / f"{asset_id}.upload.tmp", originals_dir)
     final_path: Path | None = None
     stored_name = ""
+    image_info: ArchiveImageInfo | None = None
 
     byte_count = 0
     try:
@@ -284,8 +285,11 @@ async def store_uploaded_archive_asset(
         if byte_count == 0:
             temp_path.unlink(missing_ok=True)
             raise HTTPException(status_code=400, detail="Upload is empty.")
-        image_info = _inspect_uploaded_image(temp_path)
-        stored_name = f"{asset_id}{image_info.suffix}"
+        if is_image_upload:
+            image_info = _inspect_uploaded_image(temp_path)
+            stored_name = f"{asset_id}{image_info.suffix}"
+        else:
+            stored_name = f"{asset_id}{_safe_generic_suffix(original_name)}"
         final_path = _ensure_child(originals_dir / stored_name, originals_dir)
         temp_path.replace(final_path)
     except HTTPException:
@@ -299,11 +303,15 @@ async def store_uploaded_archive_asset(
         ) from error
 
     assert final_path is not None
-    derivatives = _generate_archive_derivatives(
-        layout,
-        original_path=final_path,
-        stored_name=stored_name,
-        suffix=image_info.suffix,
+    derivatives = (
+        _generate_archive_derivatives(
+            layout,
+            original_path=final_path,
+            stored_name=stored_name,
+            suffix=image_info.suffix,
+        )
+        if image_info is not None
+        else ArchiveDerivativePaths(preview_path="", thumbnail_path="")
     )
     page_number: int | None = None
     if page_number_raw is not None:
@@ -326,12 +334,16 @@ async def store_uploaded_archive_asset(
         category=category,
         status="draft",
         fileName=stored_name,
-        contentType=image_info.content_type,
+        contentType=(
+            image_info.content_type
+            if image_info is not None
+            else "application/octet-stream"
+        ),
         originalPath=str(final_path.relative_to(layout.rootDir)),
         previewPath=derivatives.preview_path,
         thumbnailPath=derivatives.thumbnail_path,
-        width=image_info.width,
-        height=image_info.height,
+        width=image_info.width if image_info is not None else None,
+        height=image_info.height if image_info is not None else None,
         fileSize=final_path.stat().st_size,
         createdAt=now,
         updatedAt=now,
@@ -653,20 +665,14 @@ def _safe_content_type(request: Request) -> str:
     return "application/octet-stream"
 
 
-def _safe_image_suffix(file_name: str, content_type: str) -> str:
+def _is_image_upload(file_name: str, content_type: str) -> bool:
     suffix = Path(file_name).suffix.lower()
-    if suffix in ALLOWED_IMAGE_SUFFIXES:
-        return suffix
-    if content_type in CONTENT_TYPE_SUFFIXES:
-        return CONTENT_TYPE_SUFFIXES[content_type]
-    raise HTTPException(
-        status_code=400,
-        detail="Only PNG, JPG, WEBP, or GIF images are supported.",
-    )
+    return suffix in ALLOWED_IMAGE_SUFFIXES or content_type in CONTENT_TYPE_SUFFIXES
 
 
-def _require_supported_image_hint(file_name: str, content_type: str) -> None:
-    _safe_image_suffix(file_name, content_type)
+def _safe_generic_suffix(file_name: str) -> str:
+    suffix = Path(file_name).suffix.lower()
+    return suffix if re.fullmatch(r"\.[a-z0-9]{1,16}", suffix) else ".bin"
 
 
 def _inspect_uploaded_image(path: Path) -> ArchiveImageInfo:

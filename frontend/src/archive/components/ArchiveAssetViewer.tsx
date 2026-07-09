@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ArchiveAsset } from "../archiveTypes";
+import { isArchiveImage } from "./ArchiveAssetVisual";
 
 interface ArchiveAssetViewerProps {
   asset: ArchiveAsset;
@@ -9,6 +10,7 @@ interface ArchiveAssetViewerProps {
 export function ArchiveAssetViewer({ asset, onClose }: ArchiveAssetViewerProps) {
   const [showOriginal, setShowOriginal] = useState(false);
   const imageSrc = showOriginal ? asset.originalPath : asset.previewPath;
+  const isImage = isArchiveImage(asset);
 
   return (
     <div
@@ -25,29 +27,42 @@ export function ArchiveAssetViewer({ asset, onClose }: ArchiveAssetViewerProps) 
       >
         Close
       </button>
-      <img
-        src={imageSrc}
-        alt={asset.title}
-        onClick={(event) => event.stopPropagation()}
-      />
+      {isImage ? (
+        <img
+          src={imageSrc}
+          alt={asset.title}
+          onClick={(event) => event.stopPropagation()}
+        />
+      ) : (
+        <div
+          className="archive-viewer-file"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <strong>{asset.fileName}</strong>
+          <span>Stored locally as a safe download. Preview is available for images only.</span>
+        </div>
+      )}
       <div
         className="archive-viewer-actions"
         onClick={(event) => event.stopPropagation()}
       >
-        <button
-          className="archive-btn"
-          type="button"
-          onClick={() => setShowOriginal((current) => !current)}
-        >
-          {showOriginal ? "Preview" : "Full quality"}
-        </button>
+        {isImage ? (
+          <button
+            className="archive-btn"
+            type="button"
+            onClick={() => setShowOriginal((current) => !current)}
+          >
+            {showOriginal ? "Preview" : "Full quality"}
+          </button>
+        ) : null}
         <a
           className="archive-btn"
           href={asset.originalPath}
           target="_blank"
           rel="noreferrer"
+          download
         >
-          Original
+          {isImage ? "Original" : "Download"}
         </a>
       </div>
     </div>

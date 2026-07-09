@@ -624,7 +624,7 @@ def create_app(
         current_layout: RinDataLayout = layout_dependency,
     ) -> FileResponse:
         path, media_type = get_archive_asset_file(current_layout, asset_id)
-        return FileResponse(path, media_type=media_type)
+        return archive_asset_file_response(path, media_type)
 
     @app.get("/api/archive/assets/previews/{asset_id}")
     def api_archive_asset_preview(
@@ -632,7 +632,7 @@ def create_app(
         current_layout: RinDataLayout = layout_dependency,
     ) -> FileResponse:
         path, media_type = get_archive_asset_preview_file(current_layout, asset_id)
-        return FileResponse(path, media_type=media_type)
+        return archive_asset_file_response(path, media_type)
 
     @app.get("/api/archive/assets/thumbnails/{asset_id}")
     def api_archive_asset_thumbnail(
@@ -640,7 +640,7 @@ def create_app(
         current_layout: RinDataLayout = layout_dependency,
     ) -> FileResponse:
         path, media_type = get_archive_asset_thumbnail_file(current_layout, asset_id)
-        return FileResponse(path, media_type=media_type)
+        return archive_asset_file_response(path, media_type)
 
     @app.get("/api/archive/stories/{story_id}")
     def api_archive_story_get(
@@ -1460,6 +1460,17 @@ def create_app(
     return app
 
 
+def archive_asset_file_response(path: Path, media_type: str) -> FileResponse:
+    """Serve unknown archive files as safe local downloads, never executable content."""
+    is_generic_download = media_type == "application/octet-stream"
+    return FileResponse(
+        path,
+        media_type=media_type,
+        filename=path.name if is_generic_download else None,
+        headers={"X-Content-Type-Options": "nosniff"},
+    )
+
+
 def safe_chat_message(message: object | None) -> dict[str, object] | None:
     """
     Serialize a message for chat UI while blocking legacy hidden-reasoning leaks.
@@ -1790,8 +1801,11 @@ def build_glitch_core_snapshot(
 ) -> dict[str, object]:
     """Return the read-only JSON model for the React Glitch Core console."""
     conversations = list_conversations(layout, limit=30)
-    selected = selected_conversation_id or (
-        conversations[0].id if conversations else None
+    selected = (
+        selected_conversation_id
+        if selected_conversation_id
+        and get_conversation(layout, selected_conversation_id) is not None
+        else (conversations[0].id if conversations else None)
     )
     messages = list_messages(layout, selected) if selected else []
     dashboard = build_status_dashboard_summary(

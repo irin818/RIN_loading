@@ -4,6 +4,7 @@ import { fetchArchiveAssets } from "./archiveApi";
 import type { ArchiveAsset } from "./archiveTypes";
 import { ARCHIVE_ASSET_TYPE_LABELS } from "./archiveTypes";
 import { ArchiveAssetViewer } from "./components/ArchiveAssetViewer";
+import { ArchiveAssetVisual } from "./components/ArchiveAssetVisual";
 
 interface ArchiveCharacterFilesPageProps {
   onNavigate: (path: string) => void;
@@ -96,11 +97,7 @@ export function ArchiveCharacterFilesPage({
               onClick={() => setSelectedAsset(asset)}
             >
               <div className="archive-asset-card-image">
-                <img
-                  src={asset.thumbnailPath}
-                  alt={asset.title}
-                  loading="lazy"
-                />
+                <ArchiveAssetVisual asset={asset} loading="lazy" />
               </div>
               <div className="archive-asset-card-info">
                 <span className="archive-asset-card-title">{asset.title}</span>

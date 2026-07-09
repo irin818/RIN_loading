@@ -20,11 +20,20 @@ export const ChatWindow = memo(function ChatWindow({
 }) {
   const messages = snapshot?.messages ?? [];
   const provider = snapshot?.provider;
-  const selectedMemoryCount = snapshot?.mind.latest?.memoryRetrieval.selected.length ?? 0;
-  const pendingMemoryCandidates = (snapshot?.mind.memoryCandidates.length
+  const memoryCandidates = snapshot?.mind.memoryCandidates.length
     ? snapshot.mind.memoryCandidates
-    : snapshot?.mind.latest?.memoryCandidates ?? []
-  ).filter((candidate) => ["candidate", "review_required"].includes(candidate.reviewStatus)).length;
+    : snapshot?.mind.latest?.memoryCandidates ?? [];
+  const activeMemoryCount = memoryCandidates.filter(
+    (candidate) => candidate.active
+      && ["owner_approved", "auto_promoted"].includes(candidate.reviewStatus),
+  ).length;
+  const selectedMemoryCount = snapshot?.mind.latest?.memoryRetrieval.selected.length ?? 0;
+  const pendingMemoryCandidates = memoryCandidates.filter(
+    (candidate) => ["candidate", "review_required"].includes(candidate.reviewStatus),
+  ).length;
+  const activeConversation = snapshot?.conversations.find(
+    (conversation) => conversation.id === snapshot.selectedConversationId,
+  );
   const latestError = snapshot?.errors[0];
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -39,12 +48,15 @@ export const ChatWindow = memo(function ChatWindow({
   return (
     <div className="chat-module">
       <div className="module-strip">
-        CHAT LINK · {snapshot?.selectedConversationId ?? "new session"}
+        CHAT LINK · {activeConversation
+          ? `resuming local session ${activeConversation.shortId}`
+          : "ready for a local session"}
       </div>
       <div className="chat-status-row" aria-label="Chat runtime status">
         <span><small>model</small><b>{provider?.activeModel ?? "loading"}</b></span>
         <span><small>state</small><b>{snapshot?.core.status ?? "booting"}</b></span>
-        <span><small>memory used</small><b>{selectedMemoryCount}</b></span>
+        <span><small>local memory</small><b>{activeMemoryCount}</b></span>
+        <span><small>retrieved now</small><b>{selectedMemoryCount}</b></span>
         <span><small>pending memory</small><b>{pendingMemoryCandidates}</b></span>
         {latestError ? (
           <button

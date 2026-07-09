@@ -24,7 +24,7 @@ import type {
 } from "../types";
 import {
   compactError, errorFingerprint, isDisplayMode, isDisplaySize, isDensity,
-  CHARACTER_KEY, LAYOUT_KEY, PERSISTENT_TYPES, REUSABLE_WINDOW_TYPES, UI_SETTINGS_KEY,
+  CHARACTER_KEY, CONVERSATION_KEY, LAYOUT_KEY, PERSISTENT_TYPES, REUSABLE_WINDOW_TYPES, UI_SETTINGS_KEY,
 } from "../utils";
 import type { Density, DisplayMode, DisplaySize } from "../visualization";
 import { WindowContent } from "../windows/WindowContent";
@@ -135,6 +135,7 @@ function loadUiSettings() {
 }
 
 function loadCharacterId() { return localStorage.getItem(CHARACTER_KEY) ?? RIN_CHARACTER_ASSETS[0].id; }
+function loadConversationId() { return localStorage.getItem(CONVERSATION_KEY); }
 
 function deriveCoreVisualState(snapshot: GlitchSnapshot | null, chatBusy: boolean): CoreVisualState {
   if (snapshot?.errors.some((item) => item.severity === "critical")) return "critical";
@@ -181,6 +182,7 @@ export default function GlitchCoreApp() {
   const openedTraceErrorIds = useRef(new Set<string>());
   const snapshotRef = useRef(snapshot);
   snapshotRef.current = snapshot;
+  const persistedConversationIdRef = useRef<string | null>(loadConversationId());
   const memoryQueryRef = useRef(memoryQuery);
   memoryQueryRef.current = memoryQuery;
 
@@ -301,7 +303,16 @@ export default function GlitchCoreApp() {
 
   const refreshSnapshot = useCallback(async (conversationId?: string | null) => {
     try {
-      const payload = await fetchGlitchSnapshot(conversationId ?? snapshotRef.current?.selectedConversationId ?? null, memoryQueryRef.current);
+      const preferredConversationId = conversationId
+        ?? snapshotRef.current?.selectedConversationId
+        ?? persistedConversationIdRef.current;
+      const payload = await fetchGlitchSnapshot(preferredConversationId, memoryQueryRef.current);
+      persistedConversationIdRef.current = payload.selectedConversationId;
+      if (payload.selectedConversationId) {
+        localStorage.setItem(CONVERSATION_KEY, payload.selectedConversationId);
+      } else {
+        localStorage.removeItem(CONVERSATION_KEY);
+      }
       setSnapshot(payload);
     } catch (error) { openErrorWindow(compactError(error)); }
   }, [openErrorWindow]);

@@ -3,6 +3,7 @@ import { ArchiveLayout } from "./components/ArchiveLayout";
 import { fetchArchiveAssets } from "./archiveApi";
 import type { ArchiveAsset } from "./archiveTypes";
 import { ArchiveAssetViewer } from "./components/ArchiveAssetViewer";
+import { ArchiveAssetVisual } from "./components/ArchiveAssetVisual";
 
 interface ArchiveIllustrationsPageProps {
   onNavigate: (path: string) => void;
@@ -62,11 +63,7 @@ export function ArchiveIllustrationsPage({
               onClick={() => setSelectedAsset(asset)}
             >
               <div className="archive-asset-card-image">
-                <img
-                  src={asset.thumbnailPath}
-                  alt={asset.title}
-                  loading="lazy"
-                />
+                <ArchiveAssetVisual asset={asset} loading="lazy" />
               </div>
               <div className="archive-asset-card-info">
                 <span className="archive-asset-card-title">{asset.title}</span>
